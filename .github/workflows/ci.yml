@@ -1,0 +1,235 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  MIX_ENV: test
+  ELIXIR_VERSION: '1.15'
+  OTP_VERSION: '26'
+
+jobs:
+  # ==================================
+  # Job 1: Lint & Compile
+  # ==================================
+  lint:
+    name: Lint & Compile
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: game_hub_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      
+      - name: Install dependencies
+        run: |
+          cd game_hub
+          mix deps.get
+      
+      - name: Compile (warnings as errors)
+        run: |
+          cd game_hub
+          mix compile --warnings-as-errors
+      
+      - name: Check formatting
+        run: |
+          cd game_hub
+          mix format --check-formatted
+  
+  # ==================================
+  # Job 2: Tests
+  # ==================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: game_hub_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      
+      - name: Install dependencies
+        run: |
+          cd game_hub
+          mix deps.get
+      
+      - name: Run database migrations
+        run: |
+          cd game_hub
+          mix ecto.migrate
+      
+      - name: Run tests
+        run: |
+          cd game_hub
+          mix test --trace
+      
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-report
+          path: game_hub/cover/
+  
+  # ==================================
+  # Job 3: Security Check
+  # ==================================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd game_hub
+          mix deps.get
+      
+      - name: Run sobelow security scan
+        run: |
+          cd game_hub
+          mix sobelow --config
+      
+      - name: Check for vulnerable dependencies
+        run: |
+          cd game_hub
+          mix deps.audit
+  
+  # ==================================
+  # Job 4: Build Production Release
+  # ==================================
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+      
+      - name: Install dependencies
+        run: |
+          cd game_hub
+          mix deps.get --only prod
+      
+      - name: Compile
+        run: |
+          cd game_hub
+          MIX_ENV=prod mix compile
+      
+      - name: Create release
+        run: |
+          cd game_hub
+          MIX_ENV=prod mix release
+      
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: game-hub-release
+          path: game_hub/_build/prod/rel/game_hub/

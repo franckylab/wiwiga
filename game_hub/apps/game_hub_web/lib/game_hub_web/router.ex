@@ -46,6 +46,12 @@ defmodule GameHubWeb.Router do
   scope "/api", GameHubWeb do
     pipe_through :api
     
+    # Health Checks (public pour monitoring)
+    get "/health", HealthController, :health
+    get "/health/ready", HealthController, :ready
+    get "/health/db", HealthController, :db_health
+    get "/health/redis", HealthController, :redis_health
+    
     # Authentification
     post "/auth/send-otp", AuthController, :send_otp
     post "/auth/verify-otp", AuthController, :verify_otp
