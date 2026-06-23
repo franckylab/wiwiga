@@ -23,6 +23,9 @@ defmodule GameHub.Application do
         port: 6379
       ]},
       
+      # PubSub pour WebSocket
+      {Phoenix.PubSub, name: GameHub.PubSub, pool_size: 4},
+      
       # Registry plugins jeux
       {Registry, keys: :unique, name: GameHub.GameRegistry},
       

@@ -18,8 +18,7 @@ defmodule GameHubWeb.WalletController do
   
   use GameHubWeb, :controller
   
-  alias GameHub.Wallet
-  alias GameHub.Errors
+  alias GameHub.{Wallet, Errors}
   
   @doc """
   GET /api/wallet/balance
@@ -31,16 +30,21 @@ defmodule GameHubWeb.WalletController do
   def balance(conn, _params) do
     user_id = get_current_user_id(conn)
     
-    # Récupérer balance depuis DB
-    user_balance = 50000 # Placeholder
-    
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: %{balance: user_balance},
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+    case Wallet.get_balance(user_id) do
+      {:error, :user_not_found} ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Utilisateur non trouvé", 404, "USER_NOT_FOUND"))
+      
+      {:ok, balance} ->
+        conn
+        |> put_status(200)
+        |> json(%{
+          success: true,
+          data: %{balance: balance},
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+    end
   end
   
   @doc """
@@ -163,32 +167,30 @@ defmodule GameHubWeb.WalletController do
     page = Map.get(params, "page", "1") |> String.to_integer()
     limit = Map.get(params, "limit", "20") |> String.to_integer()
     
-    # Récupérer transactions paginées
-    transactions = [] # Placeholder
-    total = 0
-    
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: transactions,
-      pagination: %{
-        page: page,
-        limit: limit,
-        total: total,
-        total_pages: ceil(total / limit),
-        has_next: page * limit < total,
-        has_prev: page > 1
-      },
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+    case Wallet.list_transactions(user_id, page, limit) do
+      {:ok, transactions, total} ->
+        conn
+        |> put_status(200)
+        |> json(%{
+          success: true,
+          data: transactions,
+          pagination: %{
+            page: page,
+            limit: limit,
+            total: total,
+            total_pages: ceil(total / limit),
+            has_next: page * limit < total,
+            has_prev: page > 1
+          },
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+    end
   end
   
   # === Fonctions Privées ===
   
   defp get_current_user_id(conn) do
-    # Extraire user_id depuis JWT token
-    # Guardian.Plug.current_resource(conn)
-    "user_id_from_jwt"
+    # Utiliser AuthPlug
+    GameHubWeb.AuthPlug.get_current_user_id(conn)
   end
 end

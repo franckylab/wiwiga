@@ -33,7 +33,8 @@ defmodule GameHub.MixProject do
       {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},
       {:redix, "~> 1.5"},
-      {:guardian, "~> 2.3"}
+      {:guardian, "~> 2.3"},
+      {:phoenix_pubsub, "~> 2.1"}
     ]
   end
 end

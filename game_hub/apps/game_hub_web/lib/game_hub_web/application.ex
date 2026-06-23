@@ -1,12 +1,10 @@
 defmodule GameHubWeb.Application do
   @moduledoc false
-
   use Application
 
   @impl true
   def start(_type, _args) do
     children = [
-      {Phoenix.PubSub, name: GameHub.PubSub},
       GameHubWeb.Endpoint
     ]
 

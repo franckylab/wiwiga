@@ -27,11 +27,12 @@ defmodule GameHubWeb.PaymentWebhookController do
 
   import Ecto.Query
 
-  alias GameHub.Wallet
-  alias GameHub.Repo
-  alias GameHub.Errors
+  alias GameHub.{Wallet, Repo, Errors, EnvConfig}
+  alias GameHub.Users.User
+  alias GameHub.Wallet.WalletTransaction
   
-  @campay_secret "CAMPAY_WEBHOOK_SECRET_KEY"
+  @campay_secret Application.get_env(:game_hub, :campay_webhook_secret_key) ||
+                   EnvConfig.get!("CAMPAY_WEBHOOK_SECRET_KEY")
   
   @doc """
   POST /api/webhooks/campay
@@ -170,11 +171,11 @@ defmodule GameHubWeb.PaymentWebhookController do
   """
   defp check_idempotence(idempotency_key) do
     # Chercher transaction existante
-    query = from t in "wallet_transactions",
+    query = from t in WalletTransaction,
       where: t.idempotency_key == ^idempotency_key,
       select: t.id
     
-    case GameHub.Repo.one(query) do
+    case Repo.one(query) do
       nil -> :new
       _ -> :already_processed
     end
@@ -184,10 +185,10 @@ defmodule GameHubWeb.PaymentWebhookController do
   Trouve utilisateur par téléphone.
   """
   defp get_user_by_phone(phone) do
-    query = from u in "users",
+    query = from u in User,
       where: u.phone == ^phone,
       select: [:id, :phone, :balance]
     
-    GameHub.Repo.one(query)
+    Repo.one(query)
   end
 end

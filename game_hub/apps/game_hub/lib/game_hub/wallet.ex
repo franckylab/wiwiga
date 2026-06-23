@@ -18,6 +18,58 @@ defmodule GameHub.Wallet do
   
   import Ecto.Query
   alias GameHub.Repo
+  alias GameHub.Users.User
+  alias GameHub.Wallet.WalletTransaction
+  
+  @doc """
+  Récupère le solde d'un utilisateur.
+  
+  ## Parameters
+    - `user_id`: ID utilisateur
+  
+  ## Returns
+    - `{:ok, balance}`: Solde actuel
+    - `{:error, :user_not_found}`: Utilisateur inexistant
+  """
+  @spec get_balance(integer()) :: {:ok, integer()} | {:error, atom()}
+  def get_balance(user_id) do
+    case Repo.get(User, user_id) do
+      nil -> {:error, :user_not_found}
+      user -> {:ok, user.balance}
+    end
+  end
+  
+  @doc """
+  Récupère les transactions paginées d'un utilisateur.
+  
+  ## Parameters
+    - `user_id`: ID utilisateur
+    - `page`: Numéro de page (défaut: 1)
+    - `limit`: Limite par page (défaut: 20)
+  
+  ## Returns
+    - `{:ok, transactions, total}`: Liste des transactions et total
+  """
+  @spec list_transactions(integer(), integer(), integer()) :: {:ok, list(), integer()}
+  def list_transactions(user_id, page \\ 1, limit \\ 20) do
+    offset = (page - 1) * limit
+    
+    query = from t in WalletTransaction,
+      where: t.user_id == ^user_id,
+      order_by: [desc: t.inserted_at],
+      limit: ^limit,
+      offset: ^offset
+    
+    transactions = Repo.all(query)
+    
+    total_query = from t in WalletTransaction,
+      where: t.user_id == ^user_id,
+      select: count(t.id)
+    
+    total = Repo.one(total_query)
+    
+    {:ok, transactions, total}
+  end
   
   @doc """
   Dépose fonds dans portefeuille.
@@ -224,7 +276,7 @@ defmodule GameHub.Wallet do
   # === Fonctions Privées ===
   
   defp lock_user_for_update(user_id) do
-    query = from u in "users",
+    query = from u in User,
       where: u.id == ^user_id,
       select: [:id, :balance],
       lock: "FOR UPDATE"
@@ -236,7 +288,7 @@ defmodule GameHub.Wallet do
   end
   
   defp get_transaction_by_key(idempotency_key) do
-    query = from t in "wallet_transactions",
+    query = from t in WalletTransaction,
       where: t.idempotency_key == ^idempotency_key,
       select: t
     
@@ -244,24 +296,37 @@ defmodule GameHub.Wallet do
   end
   
   defp create_transaction(attrs) do
-    # Insérer transaction
-    %{
-      id: System.unique_integer([:positive]),
+    # Insérer transaction dans DB en utilisant le schema
+    %WalletTransaction{}
+    |> WalletTransaction.create_changeset(%{
       user_id: attrs.user_id,
       type: attrs.type,
       amount: attrs.amount,
       balance_before: attrs.balance_before,
       balance_after: attrs.balance_after,
       idempotency_key: attrs.idempotency_key,
-      metadata: attrs[:metadata],
-      inserted_at: DateTime.utc_now()
-    }
+      metadata: attrs[:metadata] || %{},
+      game_id: attrs[:game_id],
+      payment_provider: attrs[:payment_provider],
+      provider_transaction_id: attrs[:provider_transaction_id]
+    })
+    |> Repo.insert!()
   end
   
   defp update_user_balance(user_id, new_balance) do
     # UPDATE users SET balance = new_balance WHERE id = user_id
-    # Implementation réelle avec Ecto
-    new_balance
+    query = from u in GameHub.Users.User,
+      where: u.id == ^user_id,
+      select: u
+    
+    case Repo.one(query) do
+      nil ->
+        Repo.rollback(:user_not_found)
+      user ->
+        user
+        |> Ecto.Changeset.change(balance: new_balance)
+        |> Repo.update!()
+    end
   end
   
   defp log_audit(action, user_id, amount, balance_before, balance_after) do

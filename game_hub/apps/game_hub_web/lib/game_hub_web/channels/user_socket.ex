@@ -10,6 +10,7 @@ defmodule GameHubWeb.UserSocket do
 
   # Channels
   channel "game:*", GameHubWeb.GameChannel
+  channel "matchmaking:*", GameHubWeb.MatchmakingChannel
 
   # Transports
   @transport_options []

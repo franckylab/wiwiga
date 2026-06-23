@@ -18,7 +18,9 @@ defmodule GameHubWeb.GameController do
   
   use GameHubWeb, :controller
   
-  alias GameHub.Errors
+  alias GameHub.{Errors, Repo, Games.GameConfig}
+  alias GameHub.Users.User
+  import Ecto.Query
   
   @doc """
   GET /api/games
@@ -26,18 +28,21 @@ defmodule GameHubWeb.GameController do
   Response: %{success: true, data: [%{id: "dice", name: "Jeu de Dés", ...}]}
   """
   def index(conn, _params) do
-    games = [
+    # Récupérer jeux depuis DB
+    game_configs = Repo.all(from g in GameConfig, where: g.is_active == true)
+    
+    games = Enum.map(game_configs, fn config ->
       %{
-        id: "dice",
-        name: "Jeu de Dés",
-        description: "Pariez sur la somme des dés",
-        min_bet: 100,
-        max_bet: 100000,
-        commission_rate: 0.05,
-        status: "active",
-        players_online: 42
+        id: config.game_type,
+        name: config.name,
+        description: config.description,
+        min_bet: config.min_bet,
+        max_bet: config.max_bet,
+        commission_rate: Decimal.to_float(config.commission_rate),
+        status: if(config.is_active, do: "active", else: "inactive"),
+        players_online: get_players_online(config.game_type)
       }
-    ]
+    end)
     
     conn
     |> put_status(200)
@@ -54,18 +59,30 @@ defmodule GameHubWeb.GameController do
   Response: %{success: true, data: %{id: "dice", name: "...", config: {...}}}
   """
   def show(conn, %{"game_id" => game_id}) do
-    case get_game_config(game_id) do
+    # Récupérer depuis DB
+    game_config = Repo.get_by(GameConfig, game_type: game_id)
+    
+    case game_config do
       nil ->
         conn
         |> put_status(404)
         |> json(Errors.error("Jeu non trouvé", 404, "GAME_NOT_FOUND"))
       
-      game_config ->
+      config ->
         conn
         |> put_status(200)
         |> json(%{
           success: true,
-          data: game_config,
+          data: %{
+            id: config.game_type,
+            name: config.name,
+            description: config.description,
+            min_bet: config.min_bet,
+            max_bet: config.max_bet,
+            commission_rate: Decimal.to_float(config.commission_rate),
+            commission_mode: config.commission_mode,
+            config: config.config || %{}
+          },
           meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
         })
     end
@@ -81,27 +98,67 @@ defmodule GameHubWeb.GameController do
   def join(conn, %{"game_id" => game_id, "bet_amount" => bet_amount}) do
     user_id = get_current_user_id(conn)
     
-    # Validation
-    if bet_amount < 100 do
-      conn
-      |> put_status(400)
-      |> json(Errors.error("Mise minimum: 100 FCFA", 400, "BET_TOO_LOW"))
-    else
-      # Créer ou rejoindre partie
-      game_session = %{
-        game_id: "#{game_id}_#{System.unique_integer([:positive])}",
-        player_id: user_id,
-        status: "waiting_for_players",
-        bet_amount: bet_amount
-      }
+    # Récupérer config jeu depuis DB
+    game_config = Repo.get_by(GameConfig, game_type: game_id)
+    
+    cond do
+      is_nil(game_config) ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Jeu non trouvé", 404, "GAME_NOT_FOUND"))
       
-      conn
-      |> put_status(201)
-      |> json(%{
-        success: true,
-        data: game_session,
-        meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-      })
+      bet_amount < game_config.min_bet ->
+        conn
+        |> put_status(400)
+        |> json(Errors.error("Mise minimum: #{game_config.min_bet} FCFA", 400, "BET_TOO_LOW"))
+      
+      bet_amount > game_config.max_bet ->
+        conn
+        |> put_status(400)
+        |> json(Errors.error("Mise maximum: #{game_config.max_bet} FCFA", 400, "BET_TOO_HIGH"))
+      
+      true ->
+        # Vérifier solde utilisateur
+        user = Repo.get(User, user_id)
+        
+        if is_nil(user) || user.balance < bet_amount do
+          conn
+          |> put_status(400)
+          |> json(Errors.error("Solde insuffisant", 400, "INSUFFICIENT_FUNDS"))
+        else
+          # Rejoindre file d'attente matchmaking
+          case GameHub.Matchmaking.join_queue(user_id, game_id, bet_amount) do
+            {:ok, :waiting} ->
+              conn
+              |> put_status(202)
+              |> json(%{
+                success: true,
+                data: %{
+                  status: "waiting",
+                  message: "En file d'attente..."
+                },
+                meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+              })
+            
+            {:ok, :matched, match_game_id} ->
+              conn
+              |> put_status(200)
+              |> json(%{
+                success: true,
+                data: %{
+                  status: "matched",
+                  game_id: match_game_id,
+                  message: "Partie trouvée !"
+                },
+                meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+              })
+            
+            {:error, reason} ->
+              conn
+              |> put_status(400)
+              |> json(Errors.error("Erreur matchmaking: #{reason}", 400, "MATCHMAKING_ERROR"))
+          end
+        end
     end
   end
   
@@ -117,42 +174,52 @@ defmodule GameHubWeb.GameController do
   Response: %{success: true, data: %{status: "in_progress", players: [...], dice: [...]}}
   """
   def game_state(conn, %{"game_id" => game_id}) do
-    # Récupérer état depuis Registry/Redis
-    state = %{
-      game_id: game_id,
-      status: "waiting_for_bets",
-      players: [%{id: "player1", bet: 500}],
-      time_remaining: 30
-    }
+    # Récupérer état depuis Redis
+    game_key = "game:#{game_id}"
     
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: state,
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+    case Redix.command(GameHub.Redis, ["HGETALL", game_key]) do
+      {:ok, []} ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Partie non trouvée", 404, "GAME_NOT_FOUND"))
+      
+      {:ok, game_data} ->
+        state = %{
+          game_id: game_id,
+          status: List.keyfind(game_data, "status", 0) |> elem(1),
+          players: List.keyfind(game_data, "players", 0) |> elem(1) |> String.split(","),
+          game_type: List.keyfind(game_data, "game_type", 0) |> elem(1)
+        }
+        
+        conn
+        |> put_status(200)
+        |> json(%{
+          success: true,
+          data: state,
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+      
+      {:error, _} ->
+        conn
+        |> put_status(500)
+        |> json(Errors.error("Erreur serveur", 500, "INTERNAL_ERROR"))
+    end
   end
   
   # === Fonctions Privées ===
   
-  defp get_game_config("dice") do
-    %{
-      id: "dice",
-      name: "Jeu de Dés",
-      description: "Pariez sur la somme des dés lancés",
-      min_bet: 100,
-      max_bet: 100_000,
-      commission_rate: 0.05,
-      dice_count: 3,
-      dice_faces: 6,
-      bet_types: ["exact_sum", "over_under", "specific_value"]
-    }
+  defp get_current_user_id(conn) do
+    # Utiliser AuthPlug
+    GameHubWeb.AuthPlug.get_current_user_id(conn)
   end
   
-  defp get_game_config(_), do: nil
-  
-  defp get_current_user_id(conn) do
-    "user_id_from_jwt"
+  defp get_players_online(game_type) do
+    # Compter joueurs dans file d'attente Redis
+    queue_key = "queue:#{game_type}"
+    
+    case Redix.command(GameHub.Redis, ["HLEN", queue_key]) do
+      {:ok, count} -> count
+      _ -> 0
+    end
   end
 end

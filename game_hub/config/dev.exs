@@ -19,6 +19,7 @@ config :game_hub_web, GameHubWeb.Endpoint,
   url: [host: "localhost", port: 8000],
   secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_123456789012345678901234567890",
   server: true,
+  pubsub_server: GameHub.PubSub,
   render_errors: [
     formats: [json: GameHubWeb.ErrorView],
     layout: false

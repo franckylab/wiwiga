@@ -20,6 +20,177 @@ defmodule GameHub.Matchmaking do
   - TTL auto-nettoyage files abandonnées
   """
   
+  @doc """
+  Rejoint file d'attente matchmaking.
+  
+  ## Parameters
+    - `user_id`: ID joueur
+    - `game_type`: Type jeu (:dice, :card, etc.)
+    - `bet_amount`: Mise
+  
+  ## Returns
+    - `{:ok, :waiting}`: En file d'attente
+    - `{:ok, :matched, game_id}`: Partie trouvée
+    - `{:error, :already_queued}`: Déjà en file
+  """
+  @spec join_queue(String.t(), String.t(), integer()) :: {:ok, atom()} | {:ok, atom(), String.t()} | {:error, atom()}
+  def join_queue(user_id, game_type, bet_amount) do
+    queue_key = "queue:#{game_type}"
+    user_key = "queue:#{game_type}:#{user_id}"
+    user_data = Jason.encode!(%{bet_amount: bet_amount, joined_at: DateTime.utc_now() |> DateTime.to_iso8601()})
+    
+    # SETNX atomique - évite double inscription
+    case Redix.command(GameHub.Redis, ["SETNX", user_key, user_data]) do
+      {:ok, 1} ->
+        # Ajouté avec TTL 5 min
+        Redix.command(GameHub.Redis, ["EXPIRE", user_key, 300])
+        
+        # Ajouter à file globale
+        Redix.command(GameHub.Redis, ["HSET", queue_key, user_id, "#{bet_amount}"])
+        
+        # Vérifier si assez de joueurs
+        check_match(queue_key, game_type, user_id, bet_amount)
+      
+      {:ok, 0} ->
+        {:error, :already_queued}
+      
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+  
+  @doc """
+  Quitte file d'attente.
+  """
+  @spec leave_queue(String.t(), String.t()) :: :ok | {:error, atom()}
+  def leave_queue(user_id, game_type) do
+    queue_key = "queue:#{game_type}"
+    user_key = "queue:#{game_type}:#{user_id}"
+    
+    # Supprimer de file
+    Redix.command(GameHub.Redis, ["HDEL", queue_key, user_id])
+    Redix.command(GameHub.Redis, ["DEL", user_key])
+    
+    :ok
+  end
+  
+  @doc """
+  Vérifie si match possible.
+  
+  Si >= 2 joueurs avec mêmes mises -> créer partie.
+  """
+  defp check_match(queue_key, game_type, _user_id, _bet_amount) do
+    # Compter joueurs en file
+    {:ok, player_count} = Redix.command(GameHub.Redis, ["HLEN", queue_key])
+    
+    if player_count >= 2 do
+      # Récupérer tous joueurs
+      {:ok, players} = Redix.command(GameHub.Redis, ["HGETALL", queue_key])
+      
+      # players est une liste [user_id1, bet1, user_id2, bet2, ...]
+      # On prend les 2 premiers
+      matched_players = players |> Enum.take(2) |> Enum.filter(fn x -> rem(Enum.find_index(players, &(&1 == x)), 2) == 0 end)
+      
+      if length(matched_players) >= 2 do
+        # Créer partie
+        game_id = create_game(game_type, matched_players)
+        
+        # Nettoyer files
+        cleanup_queue(queue_key, game_type, matched_players)
+        
+        # Notifier joueurs via WebSocket
+        notify_players_matched(matched_players, game_id)
+        
+        {:ok, :matched, game_id}
+      else
+        {:ok, :waiting}
+      end
+    else
+      {:ok, :waiting}
+    end
+  end
+  
+  @doc """
+  Crée nouvelle partie.
+  """
+  defp create_game(game_type, players) do
+    game_id = "#{game_type}_#{System.unique_integer([:positive])}_#{:os.system_time(:millisecond)}"
+    
+    # Stocker info partie dans Redis
+    game_key = "game:#{game_id}"
+    Redix.command(GameHub.Redis, ["HSET", game_key, "status", "waiting_for_bets"])
+    Redix.command(GameHub.Redis, ["HSET", game_key, "players", players |> Enum.join(",")])
+    Redix.command(GameHub.Redis, ["HSET", game_key, "game_type", game_type])
+    Redix.command(GameHub.Redis, ["EXPIRE", game_key, 3600]) # TTL 1h
+    
+    game_id
+  end
+  
+  @doc """
+  Nettoyer files après match.
+  """
+  defp cleanup_queue(queue_key, game_type, matched_players) do
+    Enum.each(matched_players, fn user_id ->
+      Redix.command(GameHub.Redis, ["HDEL", queue_key, user_id])
+      Redix.command(GameHub.Redis, ["DEL", "queue:#{game_type}:#{user_id}"])
+    end)
+  end
+  
+  @doc """
+  Notifie joueurs matchés via WebSocket.
+  """
+  defp notify_players_matched(players, game_id) do
+    # Broadcast via Phoenix.PubSub
+    Enum.each(players, fn user_id ->
+      Phoenix.PubSub.broadcast(
+        GameHub.PubSub,
+        "user:#{user_id}",
+        %{event: "game_matched", game_id: game_id}
+      )
+    end)
+  end
+  
+  @doc """
+  Get queue status for user.
+  """
+  @spec get_queue_status(String.t(), String.t()) :: %{position: integer(), total_players: integer()}
+  def get_queue_status(user_id, game_type) do
+    queue_key = "queue:#{game_type}"
+    
+    {:ok, total_players} = Redix.command(GameHub.Redis, ["HLEN", queue_key])
+    
+    # Position approximative
+    {:ok, all_players} = Redix.command(GameHub.Redis, ["HKEYS", queue_key])
+    position = Enum.find_index(all_players, fn p -> p == user_id end) + 1
+    
+    %{
+      position: position || 0,
+      total_players: total_players
+    }
+  end
+end
+# ==================================
+# WIWIGA - Module Matchmaking Redis
+# ==================================
+# Auteur: Franck Arlos CHENDJOU
+# Module: GameHub.Matchmaking
+# Description: Matchmaking atomique avec Redis SETNX
+
+defmodule GameHub.Matchmaking do
+  @moduledoc """
+  Matchmaking temps réel avec Redis.
+  
+  ## Flow
+  1. Joueur rejoint file d'attente (SETNX atomique)
+  2. Redis check si assez de joueurs
+  3. Si oui -> créer partie + notifier WebSocket
+  4. Si non -> attendre timeout
+  
+  ## Sécurité
+  - SETNX évite conditions de course
+  - TTL auto-nettoyage files abandonnées
+  """
+  
   alias GameHub.Redis
   
   @doc """

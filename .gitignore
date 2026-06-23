@@ -1,3 +1,50 @@
+# ==================================
+# WIWIGA - .gitignore
+# ==================================
+
+# Environment files
+.env
+.env.*.local
+.env.production
+
+# Compiled code
+_build/
+deps/
+*.beam
+*.ez
+*.o
+*.so
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+cover/
+*.cov
+
+# Temporary files
+tmp/
+*.tmp
+
+# Releases
+*.tar.gz
+*.gz
 # Dépendances
 **/deps/
 **/build/

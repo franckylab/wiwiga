@@ -17,14 +17,15 @@ defmodule GameHubWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
+    plug GameHubWeb.CORSPlug
   end
   
   # Pipeline API avec authentification JWT
   pipeline :api_auth do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
-    # plug Guardian.Plug.Pipeline, module: GameHub.Guardian
-    # plug Guardian.Plug.EnsureAuthenticated
+    plug GameHubWeb.CORSPlug
+    plug GameHubWeb.AuthPlug
   end
   
   # Pipeline WebSocket
