@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wiwiga_user
+      POSTGRES_PASSWORD: wiwiga_password
+      POSTGRES_DB: wiwiga_dev
+    ports:
+      - "8002:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiwiga_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Cache Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "8003:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Application Phoenix
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://wiwiga_user:wiwiga_password@postgres:5432/wiwiga_dev
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY_BASE: $(openssl rand -base64 48)
+    ports:
+      - "8000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        mix ecto.create &&
+        mix ecto.migrate &&
+        mix phx.server
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
+  deps:
+  build:

@@ -1,0 +1,43 @@
+# Dépendances
+**/deps/
+**/build/
+**/.dart_tool/
+**/pubspec.lock
+
+# Fichiers générés
+**/*.beam
+**/*.ez
+**/priv/static/
+**/priv/repo/migrations/*.exs~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environnement
+.env
+*.local
+
+# Logs
+*.log
+log/
+
+# Base de données
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+docker-compose.override.yml
+
+# Build Flutter
+android/app/build/
+ios/build/
+build/
