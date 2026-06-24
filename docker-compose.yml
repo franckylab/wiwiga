@@ -64,8 +64,22 @@ services:
       bash -c "
         mix ecto.create &&
         mix ecto.migrate &&
+        echo 'Starting Phoenix server...' &&
         mix phx.server
       "
+
+  # Flutter Web Frontend
+  frontend:
+    build:
+      context: ./wiwiga_app
+      dockerfile: Dockerfile
+    container_name: wiwiga_frontend
+    ports:
+      - "8003:80"  # Frontend Flutter Web
+    depends_on:
+      - backend
+    environment:
+      - BACKEND_URL=http://backend:4001
 
 volumes:
   postgres_data:

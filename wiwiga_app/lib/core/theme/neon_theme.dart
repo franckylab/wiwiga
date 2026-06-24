@@ -19,10 +19,14 @@ class NeonColors {
   static const Color surface = Color(0xFF0F172A);      // Plus sombre
   static const Color card = Color(0xFF1E293B);         // Cartes
   
+  // Bordures
+  static const Color border = Color(0xFF334155);
+  
   // Couleurs financières
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
+  static const Color danger = Color(0xFFEF4444); // Alias pour error
   static const Color info = Color(0xFF3B82F6);
   
   // Couleurs de texte
@@ -40,7 +44,7 @@ class NeonColors {
   // Couleurs des méthodes de paiement
   static const Color paymentMTN = Color(0xFFFFCC00);
   static const Color paymentOrange = Color(0xFFFF6600);
-  static const Color paymentCampay = Color(0xFF00A650); // À confirmer
+  static const Color paymentCampay = Color(0xFF00A650);
   
   // Couleurs des statuts de jeu
   static const Color gameInProgress = Color(0xFF2DD4BF);
@@ -56,96 +60,71 @@ class NeonGlow {
   static const double opacityMedium = 0.5;
   static const double opacityHigh = 0.7;
   
-  // Blur radius pour les effets de lueur
+  // Blur radius
   static const double blurSmall = 4.0;
   static const double blurMedium = 8.0;
   static const double blurLarge = 16.0;
   static const double blurExtraLarge = 24.0;
   
-  // Épaisseur des bordures lumineuses
-  static const double borderWidthThin = 1.0;
-  static const double borderWidthMedium = 1.5;
+  // Épaisseur des bordures
+  static const double borderWidth = 1.0;
   static const double borderWidthThick = 2.0;
 }
 
 /// Paramètres des ombres
 class NeonShadows {
-  // Opacité maximale des ombres
-  static const double maxOpacity = 0.15;
-  
-  // Ombres prédéfinies
-  static List<BoxShadow> small(Color color) => [
-    BoxShadow(
-      color: color.withOpacity(0.1),
-      blurRadius: 4,
-      offset: const Offset(0, 2),
-    ),
-  ];
-  
-  static List<BoxShadow> medium(Color color) => [
-    BoxShadow(
-      color: color.withOpacity(0.15),
-      blurRadius: 8,
-      offset: const Offset(0, 4),
-    ),
-  ];
-  
-  static List<BoxShadow> large(Color color) => [
-    BoxShadow(
-      color: color.withOpacity(0.15),
-      blurRadius: 16,
-      offset: const Offset(0, 8),
-    ),
-  ];
-  
-  static List<BoxShadow> glow(Color color, {double opacity = 0.5}) => [
-    BoxShadow(
-      color: color.withOpacity(opacity),
-      blurRadius: NeonGlow.blurMedium,
-      spreadRadius: 2,
-    ),
-  ];
+  static const double smallBlur = 4.0;
+  static const double mediumBlur = 8.0;
+  static const double largeBlur = 16.0;
+  static const double offset = 2.0;
 }
 
-/// Paramètres des gradients (uniquement CTA et balance)
+/// Gradients prédéfinis
 class NeonGradients {
-  // Gradient pour boutons primaires
   static const LinearGradient primary = LinearGradient(
     colors: [NeonColors.primary, NeonColors.accent],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  // Gradient pour boutons secondaires
   static const LinearGradient secondary = LinearGradient(
     colors: [NeonColors.secondary, Color(0xFFF97316)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  // Gradient pour carte de solde
-  static const LinearGradient balance = LinearGradient(
-    colors: [NeonColors.primary, NeonColors.secondary],
+  static const LinearGradient cta = LinearGradient(
+    colors: [NeonColors.primary, NeonColors.success],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+  
+  static const LinearGradient card = LinearGradient(
+    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  // Gradient pour cartes de jeu (hover)
-  static const LinearGradient gameCard = LinearGradient(
-    colors: [NeonColors.primary, NeonColors.accent],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+  static const LinearGradient background = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF1E293B),
+      Color(0xFF0F172A),
+    ],
   );
 }
 
-/// Paramètres des animations
+/// Constantes d'animation
 class NeonAnimations {
-  // Durées
   static const Duration micro = Duration(milliseconds: 100);
   static const Duration standard = Duration(milliseconds: 200);
   static const Duration transition = Duration(milliseconds: 300);
+  static const Duration long = Duration(milliseconds: 500);
   
-  // Courbes
+  static const Duration glowPulse = Duration(seconds: 2);
+  static const Duration shimmer = Duration(seconds: 1);
+  
   static const Curve easeInOut = Curves.easeInOut;
   static const Curve easeOut = Curves.easeOut;
   static const Curve bounce = Curves.elasticOut;
@@ -153,8 +132,98 @@ class NeonAnimations {
 
 /// Paramètres des coins arrondis
 class NeonRadius {
-  static const double small = 8.0;   // Boutons, inputs
-  static const double medium = 12.0; // Cartes
-  static const double large = 16.0;  // Modals
-  static const double extraLarge = 24.0; // Éléments spéciaux
+  static const double small = 8.0;
+  static const double medium = 12.0;
+  static const double large = 16.0;
+  static const double extraLarge = 24.0;
+  static const double borderRadius = 12.0;
+}
+
+/// Thèmes Material Design
+class NeonTheme {
+  NeonTheme._();
+  
+  static const double borderRadius = 12.0;
+  
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      primaryColor: NeonColors.primary,
+      scaffoldBackgroundColor: NeonColors.background,
+      colorScheme: const ColorScheme.dark(
+        primary: NeonColors.primary,
+        secondary: NeonColors.secondary,
+        surface: NeonColors.surface,
+        error: NeonColors.error,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: NeonColors.background,
+        foregroundColor: NeonColors.textPrimary,
+        elevation: 0,
+      ),
+      cardTheme: CardTheme(
+        color: NeonColors.card,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(NeonRadius.borderRadius),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: NeonColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(NeonRadius.borderRadius),
+          borderSide: const BorderSide(color: NeonColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(NeonRadius.borderRadius),
+          borderSide: const BorderSide(color: NeonColors.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(NeonRadius.borderRadius),
+          borderSide: const BorderSide(color: NeonColors.error),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: NeonColors.primary,
+          foregroundColor: NeonColors.background,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(NeonRadius.borderRadius),
+          ),
+        ),
+      ),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: NeonColors.textPrimary,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: NeonColors.textPrimary,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: NeonColors.textPrimary,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: NeonColors.textPrimary,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          color: NeonColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
+  static ThemeData get lightTheme {
+    return darkTheme;
+  }
 }

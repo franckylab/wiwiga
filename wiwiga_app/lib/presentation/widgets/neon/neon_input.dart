@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../../core/theme/neon_theme.dart';
 
 /// Champ de saisie néon avec effets de glow au focus
 /// 

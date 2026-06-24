@@ -1,0 +1,42 @@
+# Build artifacts
+build/
+**.symlinks
+**.snapshot
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies (will be installed in container)
+.packages
+package_config.json
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Tests
+test/
+**_test.dart
+
+# Misc
+*.swp
+*.swo
+*~

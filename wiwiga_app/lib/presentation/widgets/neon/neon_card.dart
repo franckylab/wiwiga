@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../../core/theme/neon_theme.dart';
 
 /// Carte néon avec effets de glow au hover et animations
 /// 

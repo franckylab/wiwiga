@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../../core/theme/neon_theme.dart';
 
 /// Badge lumineux avec animation de pulsation
 class GlowBadge extends StatefulWidget {

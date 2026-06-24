@@ -8,8 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
-import 'core/theme/app_theme.dart';
-import 'presentation/screens/auth/auth_screen.dart';
+import 'presentation/screens/main/main_app_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,10 +29,8 @@ class WiwigaApp extends StatelessWidget {
     return MaterialApp(
       title: 'WIWIGA',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      home: const AuthScreen(),
+      theme: ThemeData.dark(),
+      home: const MainAppScreen(),
     );
   }
 }

@@ -1,0 +1,10 @@
+# Logstash Configuration
+pipeline:
+  workers: 2
+  pipeline.workers: 2
+  pipeline.batch.size: 125
+  pipeline.batch.delay: 50
+
+http:
+  host: "0.0.0.0"
+  port: 9600

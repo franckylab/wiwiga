@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/neon_theme.dart';
-import '../../core/theme/typography.dart';
-import '../widgets/neon/neon_widgets.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../../core/theme/typography.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Wallet redesigné avec style néon gaming
 class WalletScreenNeon extends ConsumerStatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/neon_theme.dart';
-import '../../core/theme/typography.dart';
-import '../widgets/neon/neon_widgets.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../../core/theme/typography.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Profile redesigné avec style néon gaming
 class ProfileScreenNeon extends StatelessWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../../core/theme/neon_theme.dart';
 
 /// Bouton néon avec effets de glow et animations
 /// 

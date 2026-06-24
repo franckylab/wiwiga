@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/neon_theme.dart';
-import '../../core/theme/typography.dart';
-import '../widgets/neon/neon_widgets.dart';
-import '../providers/config_provider.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../../core/theme/typography.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../providers/config_provider.dart';
 
 /// Écran Lobby redesigné avec style néon gaming
 class LobbyScreenNeon extends ConsumerWidget {
@@ -169,7 +169,7 @@ class _GameGrid extends StatelessWidget {
       },
       {
         'name': 'Poker',
-        'icon': Icons.play_card,
+        'icon': Icons.games,
         'minBet': '500 FCFA',
         'players': '856',
         'status': GameStatus.waiting,

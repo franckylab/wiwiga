@@ -150,4 +150,20 @@ class AppTypography {
       color: NeonColors.textSecondary,
     );
   }
+  
+  // Aliases pour compatibilité
+  static TextStyle get heading1 => const TextStyle();
+  static TextStyle get heading2 => const TextStyle();
+  static TextStyle get heading3 => const TextStyle();
+  static TextStyle get heading4 => const TextStyle();
+  static TextStyle get heading5 => const TextStyle();
+  static TextStyle get heading6 => const TextStyle();
+  
+  // Ajout des méthodes pour accéder aux styles
+  static TextStyle get displayLarge => darkTheme.displayLarge!;
+  static TextStyle get displayMedium => darkTheme.displayMedium!;
+  static TextStyle get displaySmall => darkTheme.displaySmall!;
+  static TextStyle get headlineLarge => darkTheme.headlineLarge!;
+  static TextStyle get headlineMedium => darkTheme.headlineMedium!;
+  static TextStyle get headlineSmall => darkTheme.headlineSmall!;
 }

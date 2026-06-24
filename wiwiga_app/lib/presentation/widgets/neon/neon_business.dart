@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../../core/theme/neon_theme.dart';
 
 /// Affichage du balance avec animation compteur et formatage FCFA
 class BalanceDisplay extends StatefulWidget {
