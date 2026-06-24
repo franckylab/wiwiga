@@ -1,0 +1,854 @@
+openapi: 3.0.3
+info:
+  title: WIWIGA API
+  description: |
+    API pour la plateforme de jeux WIWIGA avec paiement Mobile Money.
+    
+    ## Authentification
+    La plupart des endpoints nécessitent un token JWT obtenu via OTP.
+    
+    ## Flow d'authentification
+    1. `POST /api/auth/send-otp` - Envoyer code OTP
+    2. `POST /api/auth/verify-otp` - Vérifier OTP et obtenir JWT
+    3. Utiliser JWT dans header `Authorization: Bearer <token>`
+    
+    ## Paiement
+    Intégration avec Campay pour Mobile Money (Afrique).
+    
+  version: 1.0.0
+  contact:
+    name: WIWIGA Team
+    email: contact@wiwiga.com
+
+servers:
+  - url: http://localhost:4000
+    description: Development
+  - url: https://api.wiwiga.com
+    description: Production
+
+tags:
+  - name: Health
+    description: Monitoring et santé du système
+  - name: Authentication
+    description: Authentification OTP et JWT
+  - name: Wallet
+    description: Gestion du portefeuille (dépôt, retrait, historique)
+  - name: Games
+    description: Jeux et matchmaking
+  - name: Webhooks
+    description: Webhooks de paiement
+
+paths:
+  # ==================================
+  # HEALTH CHECKS
+  # ==================================
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Santé globale du système
+      description: Retourne l'état de tous les services (DB, Redis)
+      operationId: getHealth
+      responses:
+        '200':
+          description: Système healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Système dégradé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDegradedResponse'
+
+  /api/health/ready:
+    get:
+      tags:
+        - Health
+      summary: Prêt à recevoir du trafic
+      description: Vérifie si l'application est prête
+      operationId: getHealthReady
+      responses:
+        '200':
+          description: Prêt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: Pas prêt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthNotReadyResponse'
+
+  /api/health/db:
+    get:
+      tags:
+        - Health
+      summary: Santé base de données
+      description: Métriques PostgreSQL détaillées
+      operationId: getHealthDB
+      responses:
+        '200':
+          description: DB healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDBResponse'
+
+  /api/health/redis:
+    get:
+      tags:
+        - Health
+      summary: Santé Redis
+      description: Métriques Redis détaillées
+      operationId: getHealthRedis
+      responses:
+        '200':
+          description: Redis healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthRedisResponse'
+
+  # ==================================
+  # AUTHENTICATION
+  # ==================================
+  /api/auth/send-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Envoyer code OTP
+      description: Génère et envoie un code OTP à 6 chiffres par SMS
+      operationId: sendOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+              properties:
+                phone:
+                  type: string
+                  example: "+237612345678"
+                  description: Numéro de téléphone au format international
+      responses:
+        '200':
+          description: OTP envoyé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Numéro invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/verify-otp:
+    post:
+      tags:
+        - Authentication
+      summary: Vérifier OTP et obtenir JWT
+      description: Vérifie le code OTP et retourne un token JWT
+      operationId: verifyOTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - otp
+              properties:
+                phone:
+                  type: string
+                  example: "+237612345678"
+                otp:
+                  type: string
+                  example: "123456"
+                  description: Code OTP à 6 chiffres
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        description: JWT token
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: OTP invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh JWT token
+      description: Génère un nouveau JWT token
+      operationId: refreshToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Nouveau token généré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+        '401':
+          description: Token invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================================
+  # WALLET
+  # ==================================
+  /api/wallet/balance:
+    get:
+      tags:
+        - Wallet
+      summary: Solde utilisateur
+      description: Retourne le balance actuel du portefeuille
+      operationId: getBalance
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Balance récupéré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      balance:
+                        type: integer
+                        description: Balance en centimes
+                        example: 150000
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wallet/deposit:
+    post:
+      tags:
+        - Wallet
+      summary: Effectuer un dépôt
+      description: Dépose des fonds dans le portefeuille (utilise idempotence)
+      operationId: deposit
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - idempotency_key
+              properties:
+                amount:
+                  type: integer
+                  description: Montant en centimes (minimum 100)
+                  example: 50000
+                idempotency_key:
+                  type: string
+                  description: Clé unique pour éviter les doublons
+                  example: "deposit_123456"
+      responses:
+        '201':
+          description: Dépôt réussi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      new_balance:
+                        type: integer
+                      transaction:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Montant invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Transaction déjà effectuée (idempotence)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wallet/withdraw:
+    post:
+      tags:
+        - Wallet
+      summary: Effectuer un retrait
+      description: Retire des fonds du portefeuille
+      operationId: withdraw
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - idempotency_key
+              properties:
+                amount:
+                  type: integer
+                  description: Montant en centimes (minimum 100)
+                  example: 20000
+                idempotency_key:
+                  type: string
+                  example: "withdraw_789012"
+      responses:
+        '201':
+          description: Retrait réussi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      new_balance:
+                        type: integer
+                      transaction:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Solde insuffisant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/wallet/transactions:
+    get:
+      tags:
+        - Wallet
+      summary: Historique des transactions
+      description: Retourne les transactions paginées
+      operationId: getTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Numéro de page
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Nombre de transactions par page
+      responses:
+        '200':
+          description: Liste des transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  # ==================================
+  # GAMES
+  # ==================================
+  /api/games:
+    get:
+      tags:
+        - Games
+      summary: Liste des jeux disponibles
+      description: Retourne tous les jeux actifs
+      operationId: listGames
+      responses:
+        '200':
+          description: Liste des jeux
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Game'
+
+  /api/games/{game_id}:
+    get:
+      tags:
+        - Games
+      summary: Détails d'un jeu
+      description: Retourne les détails et configuration d'un jeu
+      operationId: getGame
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dice"
+      responses:
+        '200':
+          description: Détails du jeu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/GameDetail'
+        '404':
+          description: Jeu non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/join:
+    post:
+      tags:
+        - Games
+      summary: Rejoindre une partie
+      description: Rejoint la file d'attente de matchmaking
+      operationId: joinGame
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dice"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bet_amount
+              properties:
+                bet_amount:
+                  type: integer
+                  description: Montant de la mise en centimes
+                  example: 5000
+      responses:
+        '200':
+          description: Partie trouvée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [matched]
+                      game_id:
+                        type: string
+        '202':
+          description: En file d'attente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [waiting]
+        '400':
+          description: Mise invalide ou solde insuffisant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/state:
+    get:
+      tags:
+        - Games
+      summary: État d'une partie
+      description: Retourne l'état actuel d'une partie
+      operationId: getGameState
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dice_123456_7890123456"
+      responses:
+        '200':
+          description: État de la partie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/GameState'
+        '404':
+          description: Partie non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================================
+  # WEBHOOKS
+  # ==================================
+  /api/webhooks/campay:
+    post:
+      tags:
+        - Webhooks
+      summary: Webhook Campay
+      description: |
+        Reçoit les notifications de paiement de Campay.
+        
+        **Sécurité**: Vérification signature HMAC SHA256
+      operationId: campayWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transaction_id
+                - amount
+                - phone
+                - status
+                - idempotency_key
+                - signature
+              properties:
+                transaction_id:
+                  type: string
+                  example: "TX123456"
+                amount:
+                  type: integer
+                  example: 50000
+                phone:
+                  type: string
+                  example: "+237612345678"
+                status:
+                  type: string
+                  enum: [SUCCESS, FAILED]
+                idempotency_key:
+                  type: string
+                  example: "unique_key_123"
+                signature:
+                  type: string
+                  description: HMAC SHA256 signature
+      responses:
+        '200':
+          description: Webhook traité
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [success, acknowledged]
+        '400':
+          description: Paramètres invalides
+        '401':
+          description: Signature invalide
+        '404':
+          description: Utilisateur non trouvé
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Token JWT obtenu via /api/auth/verify-otp"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            details:
+              type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        phone:
+          type: string
+        name:
+          type: string
+        balance:
+          type: integer
+        is_active:
+          type: boolean
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        type:
+          type: string
+          enum: [deposit, withdrawal, bet, winnings, commission, refund]
+        amount:
+          type: integer
+          description: Montant en centimes (négatif pour débit)
+        balance_before:
+          type: integer
+        balance_after:
+          type: integer
+        idempotency_key:
+          type: string
+        metadata:
+          type: object
+        inserted_at:
+          type: string
+          format: date-time
+
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        min_bet:
+          type: integer
+        max_bet:
+          type: integer
+        commission_rate:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [active, inactive]
+        players_online:
+          type: integer
+
+    GameDetail:
+      allOf:
+        - $ref: '#/components/schemas/Game'
+        - type: object
+          properties:
+            commission_mode:
+              type: string
+              enum: [percentage, fixed, tiered]
+            config:
+              type: object
+
+    GameState:
+      type: object
+      properties:
+        game_id:
+          type: string
+        status:
+          type: string
+          enum: [waiting_for_bets, betting, in_progress, ended]
+        players:
+          type: array
+          items:
+            type: string
+        game_type:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+        version:
+          type: string
+        environment:
+          type: string
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency_ms:
+                  type: integer
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency_ms:
+                  type: integer
+            timestamp:
+              type: string
+              format: date-time
+
+    HealthDegradedResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthResponse'
+        - type: object
+          properties:
+            status:
+              enum: [degraded]
+
+    HealthReadyResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        database:
+          type: boolean
+        redis:
+          type: boolean
+
+    HealthNotReadyResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [not_ready]
+        database:
+          type: boolean
+        redis:
+          type: boolean
+
+    HealthDBResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        latency_ms:
+          type: integer
+        connections:
+          type: integer
+
+    HealthRedisResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        latency_ms:
+          type: integer
+        memory_used:
+          type: integer
+        connected_clients:
+          type: integer
