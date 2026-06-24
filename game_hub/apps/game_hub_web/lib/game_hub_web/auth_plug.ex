@@ -22,6 +22,7 @@ defmodule GameHubWeb.AuthPlug do
   """
   
   import Plug.Conn
+  import Phoenix.Controller, only: [json: 2]
   alias GameHub.{Auth, EnvConfig}
   
   def init(opts), do: opts

@@ -1,7 +1,21 @@
 # Skill: Implémentation Frontend Flutter
 
 ## Description
-Développer l'application Flutter WIWIGA (web + Android) avec gestion d'état Riverpod, sécurité des données, UX conforme aux standards jeux d'argent, et support multiplateforme.
+Développer l'application Flutter WIWIGA (web + Android) avec gestion d'état Riverpod, sécurité des données, UX conforme aux standards jeux d'argent, support multiplateforme, et design system néon gaming.
+
+## Design System Néon Gaming
+⚠️ **OBLIGATOIRE** : Tous les écrans DOIVENT utiliser le design system néon gaming défini dans :
+- **Règles** : `.qoder/rules/rl_design-system.md`
+- **Composants** : `.qoder/skills/sk_neon-components.md`
+- **Thème** : `lib/core/theme/neon_theme.dart`
+
+### Règles Rapides
+1. **TOUJOURS** utiliser les 10 composants néon (NeonButton, NeonCard, NeonInput, etc.)
+2. **JAMAIS** utiliser les widgets Material natifs directement
+3. Palette : Vert #2DD4BF (primaire), Orange #F59E0B (secondaire), Fond #1E293B
+4. Typographie : Inter (body) + Orbitron (titres/montants)
+5. Animations : 100ms (micro), 200ms (standard), 300ms (transitions)
+6. Configuration dynamique : Tous les paramètres sont configurables via dashboard admin
 
 ## Quand Utiliser
 - Créer un nouvel écran Flutter
@@ -9,6 +23,7 @@ Développer l'application Flutter WIWIGA (web + Android) avec gestion d'état Ri
 - Développer un widget réutilisable
 - Gérer la communication WebSocket
 - Implémenter l'internationalisation (i18n)
+- Appliquer le design system néon
 
 ## Étapes d'Implémentation
 
@@ -716,6 +731,6 @@ void main() {
 
 ## Références
 - `GAME_HUB_PROMPT_FR.md` - Spécifications complètes
-- `.qoder/rules/development-best-practices.md` - Règles de développement
+- `.qoder/rules/rl_development-best-practices.md` - Règles de développement
 - Documentation Flutter: https://docs.flutter.dev
 - Documentation Riverpod: https://riverpod.dev

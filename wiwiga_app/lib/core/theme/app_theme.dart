@@ -6,30 +6,32 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
+import 'neon_theme.dart';
+import 'typography.dart';
 
-/// Thème principal de l'application WIWIGA
+/// Thème principal de l'application WIWIGA - Design Néon Gaming
 class AppTheme {
-  // Couleurs principales
-  static const Color primaryColor = Color(0xFF6C63FF);
-  static const Color secondaryColor = Color(0xFFFF6584);
-  static const Color accentColor = Color(0xFF00D9FF);
+  // Utiliser les couleurs du design system néon
+  static const Color primaryColor = NeonColors.primary;
+  static const Color secondaryColor = NeonColors.secondary;
+  static const Color accentColor = NeonColors.accent;
   
-  // Couleurs financières
-  static const Color successColor = Color(0xFF00C853);
-  static const Color warningColor = Color(0xFFFFB300);
-  static const Color errorColor = Color(0xFFFF1744);
-  static const Color infoColor = Color(0xFF2979FF);
+  // Couleurs financières (alias vers NeonColors)
+  static const Color successColor = NeonColors.success;
+  static const Color warningColor = NeonColors.warning;
+  static const Color errorColor = NeonColors.error;
+  static const Color infoColor = NeonColors.info;
   
   // Couleurs de fond
-  static const Color darkBackground = Color(0xFF1a1a2e);
-  static const Color darkSurface = Color(0xFF16213e);
-  static const Color darkCard = Color(0xFF0f3460);
+  static const Color darkBackground = NeonColors.background;
+  static const Color darkSurface = NeonColors.surface;
+  static const Color darkCard = NeonColors.card;
   
   // Couleurs de texte
-  static const Color textLight = Color(0xFFe94560);
-  static const Color textDark = Color(0xFF1a1a2e);
-  static const Color textLightSecondary = Color(0xFFb8b8d1);
-  static const Color textDarkSecondary = Color(0xFF666666);
+  static const Color textLight = NeonColors.textPrimary;
+  static const Color textDark = NeonColors.background;
+  static const Color textLightSecondary = NeonColors.textSecondary;
+  static const Color textDarkSecondary = NeonColors.textMuted;
   
   // Thème sombre (par défaut)
   static final ThemeData darkTheme = ThemeData(
@@ -68,31 +70,7 @@ class AppTheme {
         ),
       ),
     ),
-    textTheme: const TextTheme(
-      headlineLarge: TextStyle(
-        fontSize: 32,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      headlineMedium: TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-      titleLarge: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
-      ),
-      bodyLarge: TextStyle(
-        fontSize: 16,
-        color: Colors.white70,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: 14,
-        color: Colors.white60,
-      ),
-    ),
+    textTheme: AppTypography.darkTheme,
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: darkCard,

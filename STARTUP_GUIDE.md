@@ -5,22 +5,22 @@
 | Service | Port | URL |
 |---------|------|-----|
 | **Backend API** | 8000 | http://localhost:8000 |
-| **Frontend Flutter** | 8001 | http://localhost:8001 |
-| **PostgreSQL** | 8002 | localhost:8002 |
-| **Redis** | 8003 | localhost:8003 |
+| **Frontend Flutter** | 8004 | http://localhost:8004 |
+| **PostgreSQL** | 8001 | localhost:8001 |
+| **Redis** | 8002 | localhost:8002 |
 
 ---
 
 ## Démarrage Backend (Docker)
 
 ```bash
-cd /mnt/DONNEES/projets/wiwiga/game_hub
+cd /mnt/DONNEES/projets/wiwiga
 
 # Lancer tous les services (PostgreSQL + Redis + Phoenix)
 docker compose up -d
 
 # Voir les logs
-docker compose logs -f web
+docker compose logs -f backend
 
 # Arrêter
 docker compose down
@@ -41,8 +41,8 @@ cd /mnt/DONNEES/projets/wiwiga/wiwiga_app
 # Installer les dépendances
 flutter pub get
 
-# Lancer en mode développement (port 8001)
-flutter run -d chrome --web-port=8001
+# Lancer en mode développement (port 8004)
+flutter run -d chrome --web-port=8004
 ```
 
 **Ou build pour production :**
@@ -57,7 +57,7 @@ flutter build web
 
 ```bash
 # PostgreSQL
-docker compose exec postgres pg_isready -U wiwiga
+docker compose exec postgres pg_isready -U wiwiga_user
 
 # Redis
 docker compose exec redis redis-cli ping
@@ -66,7 +66,7 @@ docker compose exec redis redis-cli ping
 curl http://localhost:8000
 
 # Frontend
-# Ouvrir http://localhost:8001 dans le navigateur
+# Ouvrir http://localhost:8004 dans le navigateur
 ```
 
 ---
@@ -75,16 +75,16 @@ curl http://localhost:8000
 
 ```bash
 # Créer la base (première fois)
-docker compose exec web mix ecto.create
+docker compose exec backend mix ecto.create
 
 # Exécuter les migrations
-docker compose exec web mix ecto.migrate
+docker compose exec backend mix ecto.migrate
 
 # Voir le statut des migrations
-docker compose exec web mix ecto.migrations
+docker compose exec backend mix ecto.migrations
 
 # Rollback dernière migration
-docker compose exec web mix ecto.rollback
+docker compose exec backend mix ecto.rollback
 ```
 
 ---
@@ -93,7 +93,7 @@ docker compose exec web mix ecto.rollback
 
 ```bash
 # Backend
-docker compose logs -f web
+docker compose logs -f backend
 
 # PostgreSQL
 docker compose logs -f postgres
@@ -110,7 +110,7 @@ docker compose logs -f
 ## Redémarrage complet
 
 ```bash
-cd /mnt/DONNEES/projets/wiwiga/game_hub
+cd /mnt/DONNEES/projets/wiwiga
 
 # Arrêter et supprimer tout
 docker compose down -v
@@ -124,9 +124,9 @@ docker compose up --build -d
 ## Accès aux services
 
 - **API Backend:** http://localhost:8000
-- **Frontend Web:** http://localhost:8001
-- **PostgreSQL:** localhost:8002 (user: wiwiga_user, password: wiwiga_password)
-- **Redis:** localhost:8003
+- **Frontend Web:** http://localhost:8004
+- **PostgreSQL:** localhost:8001 (user: wiwiga_user, password: wiwiga_password)
+- **Redis:** localhost:8002
 
 ---
 

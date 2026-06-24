@@ -136,12 +136,13 @@ defmodule GameHubWeb.HealthController do
     
     result =
       try do
-        case Repo.one(from("SELECT 1")) do
-          1 -> :ok
-          _ -> :error
-        end
+        # Test simple de connexion DB
+        %{num_rows: 1} = Repo.query!("SELECT 1")
+        :ok
       rescue
-        _ -> :error
+        error ->
+          IO.puts("DB Health Check Error: #{inspect(error)}")
+          :error
       end
     
     latency = System.monotonic_time(:millisecond) - start_time

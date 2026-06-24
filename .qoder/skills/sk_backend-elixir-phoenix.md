@@ -324,6 +324,6 @@ end
 
 ## Références
 - `GAME_HUB_PROMPT_FR.md` - Spécifications complètes
-- `.qoder/rules/development-best-practices.md` - Règles de développement
+- `.qoder/rules/rl_development-best-practices.md` - Règles de développement
 - Documentation officielle Phoenix: https://hexdocs.pm/phoenix
 - Documentation Elixir: https://hexdocs.pm/elixir

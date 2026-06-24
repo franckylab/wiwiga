@@ -18,7 +18,7 @@ defmodule GameHubWeb.GameController do
   
   use GameHubWeb, :controller
   
-  alias GameHub.{Errors, Repo, Games.GameConfig}
+  alias GameHub.{Errors, Repo, Games.GameConfig, Wallet, Commission, AuditLog}
   alias GameHub.Users.User
   import Ecto.Query
   
@@ -118,46 +118,107 @@ defmodule GameHubWeb.GameController do
         |> json(Errors.error("Mise maximum: #{game_config.max_bet} FCFA", 400, "BET_TOO_HIGH"))
       
       true ->
-        # Vérifier solde utilisateur
-        user = Repo.get(User, user_id)
-        
-        if is_nil(user) || user.balance < bet_amount do
-          conn
-          |> put_status(400)
-          |> json(Errors.error("Solde insuffisant", 400, "INSUFFICIENT_FUNDS"))
-        else
-          # Rejoindre file d'attente matchmaking
-          case GameHub.Matchmaking.join_queue(user_id, game_id, bet_amount) do
-            {:ok, :waiting} ->
-              conn
-              |> put_status(202)
-              |> json(%{
-                success: true,
-                data: %{
-                  status: "waiting",
-                  message: "En file d'attente..."
-                },
-                meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-              })
+        # Vérifier jeu responsable (Règle 19)
+        case GameHub.ResponsibleGaming.check_before_bet(user_id, bet_amount) do
+          {:error, reason} ->
+            conn
+            |> put_status(403)
+            |> json(Errors.error("Jeu responsable: #{reason}", 403, "RESPONSIBLE_GAMING_BLOCK"))
+          
+          :ok ->
+            # Placer pari via Wallet (ACID + idempotence)
+            idempotency_key = "bet_#{user_id}_#{game_id}_#{System.os_time(:millisecond)}"
             
-            {:ok, :matched, match_game_id} ->
-              conn
-              |> put_status(200)
-              |> json(%{
-                success: true,
-                data: %{
-                  status: "matched",
-                  game_id: match_game_id,
-                  message: "Partie trouvée !"
-                },
-                meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-              })
-            
-            {:error, reason} ->
-              conn
-              |> put_status(400)
-              |> json(Errors.error("Erreur matchmaking: #{reason}", 400, "MATCHMAKING_ERROR"))
-          end
+            case Wallet.place_bet(user_id, bet_amount, game_id, idempotency_key) do
+              {:error, :insufficient_funds} ->
+                conn
+                |> put_status(400)
+                |> json(Errors.error("Solde insuffisant", 400, "INSUFFICIENT_FUNDS", %{
+                  required: bet_amount
+                }))
+              
+              {:error, reason} ->
+                conn
+                |> put_status(400)
+                |> json(Errors.error("Erreur pari", 400, "BET_ERROR", %{reason: reason}))
+              
+              {:ok, _transaction} ->
+                # Pari débité avec succès, continuer vers matchmaking
+                # Rejoindre file d'attente matchmaking
+                case GameHub.Matchmaking.join_queue(user_id, game_id, bet_amount) do
+                  {:ok, :waiting} ->
+                    # Log d'audit
+                    AuditLog.log(
+                      "bet_placed",
+                      user_id,
+                      "game",
+                      game_id,
+                      %{bet_amount: bet_amount, status: "waiting"},
+                      %{idempotency_key: idempotency_key}
+                    )
+                    
+                    conn
+                    |> put_status(202)
+                    |> json(%{
+                      success: true,
+                      data: %{
+                        status: "waiting",
+                        message: "En file d'attente...",
+                        bet_amount: bet_amount
+                      },
+                      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+                    })
+                  
+                  {:ok, :matched, match_game_id} ->
+                    # Calculer commission maximale (pour affichage)
+                    case Commission.calculate_commission(game_id, bet_amount) do
+                      {:ok, commission} ->
+                        AuditLog.log(
+                          "bet_matched",
+                          user_id,
+                          "game",
+                          match_game_id,
+                          %{bet_amount: bet_amount, commission: commission, status: "matched"},
+                          %{idempotency_key: idempotency_key}
+                        )
+                        
+                        conn
+                        |> put_status(200)
+                        |> json(%{
+                          success: true,
+                          data: %{
+                            status: "matched",
+                            game_id: match_game_id,
+                            message: "Partie trouvée !",
+                            bet_amount: bet_amount,
+                            max_commission: commission
+                          },
+                          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+                        })
+                      
+                      _ ->
+                        conn
+                        |> put_status(200)
+                        |> json(%{
+                          success: true,
+                          data: %{
+                            status: "matched",
+                            game_id: match_game_id,
+                            message: "Partie trouvée !",
+                            bet_amount: bet_amount
+                          },
+                          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+                        })
+                    end
+                  
+                  {:error, reason} ->
+                    # Rollback pari si matchmaking échoue
+                    # TODO: Implémenter compensation transaction
+                    conn
+                    |> put_status(400)
+                    |> json(Errors.error("Erreur matchmaking: #{reason}", 400, "MATCHMAKING_ERROR"))
+                end
+            end
         end
     end
   end

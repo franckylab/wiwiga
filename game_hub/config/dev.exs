@@ -15,8 +15,8 @@ config :game_hub, GameHub.Redis,
 
 # Configuration du endpoint Phoenix
 config :game_hub_web, GameHubWeb.Endpoint,
-  http: [ip: {0, 0, 0, 0}, port: 4000],
-  url: [host: "localhost", port: 8000],
+  http: [ip: {0, 0, 0, 0}, port: 4001],
+  url: [host: "localhost", port: 4001],
   secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_123456789012345678901234567890",
   server: true,
   pubsub_server: GameHub.PubSub,

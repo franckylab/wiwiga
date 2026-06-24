@@ -1,0 +1,33 @@
+# WIWIGA Backend Dockerfile
+FROM elixir:1.15-slim
+
+# Installer dépendances système
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    git \
+    inotify-tools \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Définir répertoire de travail
+WORKDIR /app
+
+# Installer Hex et Rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Copier code source
+COPY . .
+
+# Installer dépendances (génère mix.lock)
+RUN mix deps.get
+
+# Compiler
+RUN mix compile
+
+# Exposer port
+EXPOSE 4001
+
+# Commande par défaut
+CMD ["mix", "phx.server"]

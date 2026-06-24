@@ -136,19 +136,33 @@ defmodule GameHubWeb.GameChannel do
   
   @doc """
   Handle disconnect.
+  
+  Règle 8: Appliquer politique de déconnexion
   """
   @impl true
   def terminate(_reason, socket) do
     user_id = socket.assigns[:user_id]
     game_id = socket.assigns[:game_id]
     
-    if user_id do
+    if user_id && game_id do
       # Appliquer politique déconnexion (Règle 8)
-      # Pour dice_game: perte automatique si partie en cours
+      game_type = extract_game_type(game_id)
+      GameHub.GameTimeout.handle_disconnect(user_id, game_id, game_type)
+      
       IO.puts("[DISCONNECT] User #{user_id} disconnected from game #{game_id}")
     end
     
     :ok
+  end
+  
+  # === Fonctions Privées ===
+  
+  defp extract_game_type(game_id) do
+    # Extraire type de jeu depuis game_id (ex: "dice_123" -> "dice")
+    game_id
+    |> String.split("_")
+    |> List.first()
+    |> to_string()
   end
   
   # === Fonctions Privées ===

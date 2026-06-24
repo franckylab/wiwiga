@@ -732,5 +732,5 @@ class DiceWidget extends StatelessWidget {
 
 ## Références
 - `GAME_HUB_PROMPT_FR.md` - Section 5: Jeu de Dés
-- `.qoder/rules/development-best-practices.md` - Règle 3: Génération Aléatoire
-- `.qoder/skills/backend-elixir-phoenix.md` - Plugins OTP
+- `.qoder/rules/rl_development-best-practices.md` - Règle 3: Génération Aléatoire
+- `.qoder/skills/sk_backend-elixir-phoenix.md` - Plugins OTP

@@ -18,6 +18,7 @@ defmodule GameHubWeb.Router do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
     plug GameHubWeb.CORSPlug
+    plug GameHubWeb.SecurityHeaders
   end
   
   # Pipeline API avec authentification JWT
@@ -25,12 +26,18 @@ defmodule GameHubWeb.Router do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
     plug GameHubWeb.CORSPlug
+    plug GameHubWeb.SecurityHeaders
     plug GameHubWeb.AuthPlug
   end
   
   # Pipeline WebSocket
   pipeline :socket do
     # plug :socket_auth
+  end
+  
+  # Pipeline Admin
+  pipeline :admin_only do
+    plug GameHubWeb.AdminAuthPlug
   end
   
   ## Route Welcome (racine)
@@ -83,13 +90,47 @@ defmodule GameHubWeb.Router do
   ## Les channels sont défins dans GameHubWeb.UserSocket
   ## Route: /socket → UserSocket → channel "game:*"
   
-  ## Routes Admin (futur)
+  ## Routes Admin
   
-  # scope "/api/admin", GameHubWeb do
-  #   pipe_through [:api_auth, :admin_only]
-  #   
-  #   # Gestion utilisateurs
-  #   # Gestion commissions
-  #   # Statistiques
-  # end
+  scope "/api/admin", GameHubWeb do
+    pipe_through [:api_auth, :admin_only]
+    
+    # Gestion utilisateurs
+    get "/users", AdminController, :list_users
+    
+    # Logs d'audit
+    get "/audit-logs", AdminController, :list_audit_logs
+    
+    # Feature flags
+    post "/feature-flags", AdminController, :create_feature_flag
+    put "/feature-flags/:flag_name", AdminController, :update_feature_flag
+    
+    # Réconciliation
+    post "/reconciliation", AdminController, :trigger_reconciliation
+    
+    # Statistiques
+    get "/stats", AdminController, :stats
+    
+    # ========================================
+    # Configuration Dynamique
+    # ========================================
+    
+    # Thème UI (singleton)
+    get "/config/theme", API.Admin.ConfigController, :get_theme_config
+    put "/config/theme", API.Admin.ConfigController, :update_theme_config
+    
+    # Features (singleton)
+    get "/config/features", API.Admin.ConfigController, :get_feature_config
+    put "/config/features", API.Admin.ConfigController, :update_feature_config
+    
+    # Jeux (par type)
+    get "/config/games", API.Admin.ConfigController, :list_game_configs
+    get "/config/games/:type", API.Admin.ConfigController, :get_game_config
+    put "/config/games/:type", API.Admin.ConfigController, :update_game_config
+    
+    # Paiements (par provider)
+    get "/config/payments", API.Admin.ConfigController, :list_payment_configs
+    get "/config/payments/:provider", API.Admin.ConfigController, :get_payment_config
+    put "/config/payments/:provider", API.Admin.ConfigController, :update_payment_config
+  end
 end

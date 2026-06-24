@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Elixir/Phoenix
+_build
+deps
+*.beam
+*.ez
+elixir_ls
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker/
+
+# Scripts
+*.sh
+
+# Tests coverage
+cover/
+
+# Node (if any frontend)
+node_modules/
+npm-debug.log*
+
+# Temporary
+tmp/
+temp/
+*.tmp

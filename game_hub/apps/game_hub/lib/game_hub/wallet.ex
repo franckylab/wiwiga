@@ -20,6 +20,7 @@ defmodule GameHub.Wallet do
   alias GameHub.Repo
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
+  alias GameHub.AuditLog
   
   @doc """
   Récupère le solde d'un utilisateur.
@@ -111,7 +112,17 @@ defmodule GameHub.Wallet do
           update_user_balance(user_id, balance_after)
           
           # Log audit
-          log_audit(:deposit, user_id, amount, balance_before, balance_after)
+          AuditLog.log(
+            "deposit",
+            user_id,
+            "wallet",
+            "user_#{user_id}",
+            %{
+              amount: amount,
+              balance_before: balance_before,
+              balance_after: balance_after
+            }
+          )
           
           transaction
           
@@ -160,7 +171,18 @@ defmodule GameHub.Wallet do
             })
             
             update_user_balance(user_id, balance_after)
-            log_audit(:withdraw, user_id, amount, balance_before, balance_after)
+            
+            AuditLog.log(
+              "withdraw",
+              user_id,
+              "wallet",
+              "user_#{user_id}",
+              %{
+                amount: amount,
+                balance_before: balance_before,
+                balance_after: balance_after
+              }
+            )
             
             transaction
           else
@@ -212,7 +234,19 @@ defmodule GameHub.Wallet do
             })
             
             update_user_balance(user_id, balance_after)
-            log_audit(:bet, user_id, bet_amount, balance_before, balance_after)
+            
+            AuditLog.log(
+              "bet",
+              user_id,
+              "wallet",
+              "user_#{user_id}",
+              %{
+                amount: bet_amount,
+                game_id: game_id,
+                balance_before: balance_before,
+                balance_after: balance_after
+              }
+            )
             
             transaction
           else
@@ -259,7 +293,19 @@ defmodule GameHub.Wallet do
           })
           
           update_user_balance(user_id, balance_after)
-          log_audit(:winnings, user_id, win_amount, balance_before, balance_after)
+          
+          AuditLog.log(
+            "winnings",
+            user_id,
+            "wallet",
+            "user_#{user_id}",
+            %{
+              amount: win_amount,
+              game_id: game_id,
+              balance_before: balance_before,
+              balance_after: balance_after
+            }
+          )
           
           transaction
           
@@ -329,7 +375,6 @@ defmodule GameHub.Wallet do
     end
   end
   
-  defp log_audit(action, user_id, amount, balance_before, balance_after) do
-    IO.puts("[AUDIT] #{action} | user: #{user_id} | amount: #{amount} | balance: #{balance_before} -> #{balance_after}")
-  end
+  # === Fonctions Privées ===
+  
 end

@@ -1,52 +1,67 @@
-version: '3.8'
+# ==================================
+# WIWIGA - Docker Compose Configuration
+# ==================================
+# Description: Environment complet avec PostgreSQL, Redis et Backend
+# Version: 1.0 - 2026-06-24
 
 services:
-  # Base de données PostgreSQL
+  # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
+    container_name: wiwiga_postgres
     environment:
       POSTGRES_USER: wiwiga_user
       POSTGRES_PASSWORD: wiwiga_password
       POSTGRES_DB: wiwiga_dev
     ports:
-      - "8002:5432"
+      - "8001:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiwiga_user"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  # Cache Redis
+  # Redis Cache
   redis:
     image: redis:7-alpine
+    container_name: wiwiga_redis
     ports:
-      - "8003:6379"
+      - "8002:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  # Application Phoenix
-  web:
-    build: .
+  # Elixir/Phoenix Backend
+  backend:
+    build:
+      context: ./game_hub
+      dockerfile: ../Dockerfile.backend
+    container_name: wiwiga_backend
     environment:
+      MIX_ENV: dev
       DATABASE_URL: postgresql://wiwiga_user:wiwiga_password@postgres:5432/wiwiga_dev
       REDIS_URL: redis://redis:6379
-      SECRET_KEY_BASE: $(openssl rand -base64 48)
+      SECRET_KEY_BASE: dev_secret_key_base_change_in_production
+      PORT: 4001
     ports:
-      - "8000:4000"
+      - "8000:4001"
+    volumes:
+      - ./game_hub:/app
+      - deps_data:/app/deps
+      - build_data:/app/_build
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     command: >
-      sh -c "
+      bash -c "
         mix ecto.create &&
         mix ecto.migrate &&
         mix phx.server
@@ -55,5 +70,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  deps:
-  build:
+  deps_data:
+  build_data:

@@ -26,6 +26,7 @@ defmodule GameHubWeb.RateLimiterPlug do
   """
   
   import Plug.Conn
+  import Phoenix.Controller, only: [json: 2]
   alias GameHub.{EnvConfig, Redis}
   
   def init(opts), do: opts

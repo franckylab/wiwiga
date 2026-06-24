@@ -6,11 +6,14 @@
 .qoder/
 ├── AGENTS.md                              # Configuration principale du projet
 ├── rules/
-│   └── development-best-practices.md     # 20 règles obligatoires de développement
+│   ├── rl_development-best-practices.md     # 20 règles obligatoires de développement
+│   ├── rl_file-structure.md                 # Bannières obligatoires, architecture modulaire, imports
+│   ├── rl_naming-conventions.md             # Conventions de nommage Elixir/Flutter
+│   └── rl_responsive-design.md              # 17 breakpoints, ResponsiveConfig, LayoutBuilder adaptatif
 └── skills/
-    ├── backend-elixir-phoenix.md         # Skill backend Elixir/Phoenix
-    ├── frontend-flutter.md               # Skill frontend Flutter
-    └── dice-game-implementation.md       # Skill jeu de dés (premier jeu)
+    ├── sk_backend-elixir-phoenix.md         # Skill backend Elixir/Phoenix
+    ├── sk_frontend-flutter.md               # Skill frontend Flutter
+    └── sk_dice-game-implementation.md       # Skill jeu de dés (premier jeu)
 ```
 
 ## 🎯 Comment Utiliser
@@ -19,12 +22,12 @@
 
 **Automatiquement chargé à chaque session**:
 - `AGENTS.md` - Contexte projet et contraintes critiques
-- `rules/development-best-practices.md` - 20 règles de développement
+- `rules/rl_development-best-practices.md` - 20 règles de développement
 
 **Skills disponibles sur demande**:
-- Quand vous demandez du backend → `backend-elixir-phoenix.md`
-- Quand vous demandez du frontend → `frontend-flutter.md`
-- Quand vous travaillez sur le jeu de dés → `dice-game-implementation.md`
+- Quand vous demandez du backend → `sk_backend-elixir-phoenix.md`
+- Quand vous demandez du frontend → `sk_frontend-flutter.md`
+- Quand vous travaillez sur le jeu de dés → `sk_dice-game-implementation.md`
 
 ### Pour les Développeurs
 
@@ -35,14 +38,14 @@
 cat .qoder/AGENTS.md
 
 # Vérifier les règles applicables
-cat .qoder/rules/development-best-practices.md
+cat .qoder/rules/rl_development-best-practices.md
 ```
 
 #### 2. Quand Qoder Génère du Code
 
 L'agent va automatiquement:
 1. Consulter `AGENTS.md` pour le contexte
-2. Charger les règles pertinentes depuis `development-best-practices.md`
+2. Charger les règles pertinentes depuis `rl_development-best-practices.md`
 3. Appliquer le skill approprié selon le type de tâche
 4. Suivre les templates et patterns définis
 
@@ -110,8 +113,8 @@ L'agent va automatiquement:
 
 **Ce que Qoder va faire**:
 1. Lire `AGENTS.md` → comprendre stack Elixir/Phoenix
-2. Charger Règle 2 (Transactions ACID) depuis `development-best-practices.md`
-3. Appliquer skill `backend-elixir-phoenix.md` → section 3
+2. Charger Règle 2 (Transactions ACID) depuis `rl_development-best-practices.md`
+3. Appliquer skill `sk_backend-elixir-phoenix.md` → section 3
 4. Générer code avec:
    - Verrouillage pessimiste `FOR UPDATE`
    - Clé d'idempotence pour webhooks
@@ -125,7 +128,7 @@ L'agent va automatiquement:
 **Ce que Qoder va faire**:
 1. Lire `AGENTS.md` → comprendre Flutter + Riverpod
 2. Charger Règle 14 (Riverpod) et Règle 18 (UX erreurs)
-3. Appliquer skill `frontend-flutter.md` → section 2-3
+3. Appliquer skill `sk_frontend-flutter.md` → section 2-3
 4. Générer code avec:
    - Provider Riverpod immutable
    - Validation formulaire inline
@@ -140,7 +143,7 @@ L'agent va automatiquement:
 **Ce que Qoder va faire**:
 1. Lire `AGENTS.md` → comprendre architecture OTP plugins
 2. Charger Règle 1 (OTP Plugins) et Règle 3 (Aléatoire sécurisé)
-3. Appliquer skill `dice-game-implementation.md` complet
+3. Appliquer skill `sk_dice-game-implementation.md` complet
 4. Générer:
    - Module OTP `GameHub.Games.DiceGame`
    - Génération `:crypto.strong_rand_bytes/1`
@@ -232,10 +235,10 @@ git commit -m "feat: add wallet screen with Riverpod state management"
 ## 📚 Documentation de Référence
 
 - **Spécifications complètes**: `GAME_HUB_PROMPT_FR.md` (2082 lignes)
-- **Règles de développement**: `.qoder/rules/development-best-practices.md`
-- **Skill Backend**: `.qoder/skills/backend-elixir-phoenix.md`
-- **Skill Frontend**: `.qoder/skills/frontend-flutter.md`
-- **Skill Jeu de Dés**: `.qoder/skills/dice-game-implementation.md`
+- **Règles de développement**: `.qoder/rules/rl_development-best-practices.md`
+- **Skill Backend**: `.qoder/skills/sk_backend-elixir-phoenix.md`
+- **Skill Frontend**: `.qoder/skills/sk_frontend-flutter.md`
+- **Skill Jeu de Dés**: `.qoder/skills/sk_dice-game-implementation.md`
 
 ## 🎓 Bonnes Pratiques d'Utilisation
 
@@ -256,7 +259,7 @@ git commit -m "feat: add wallet screen with Riverpod state management"
 
 Si Qoder génère du code qui viole les règles:
 
-1. **Identifier la règle violée** - Référence dans `development-best-practices.md`
+1. **Identifier la règle violée** - Référence dans `rl_development-best-practices.md`
 2. **Signaler à l'agent** - "Ce code viole la Règle X"
 3. **Demander correction** - "Refacto selon la Règle X"
 4. **Vérifier avec checklist** - Tous les points sont-ils respectés?
