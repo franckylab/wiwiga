@@ -1,90 +1,125 @@
-# WIWIGA - Agent Configuration
+# WIWIGA — Configuration Agent Qoder
 
-## 🚨 CHARGEMENT AUTOMATIQUE OBLIGATOIRE
+## Projet
 
-**⚠️ AVANT TOUTE RÉPONSE OU GÉNÉRATION DE CODE**, l'agent DOIT :
+- **Application** : WIWIGA — Hub de Jeux Multiplateforme
+- **Auteur** : Franck Arlos CHENDJOU
+- **Stack** : Elixir/Phoenix 1.7 Umbrella (backend) + Flutter 3.44.3 (frontend)
+- **Architecture** : Hub Central + Plugins OTP
+- **Marché** : Cameroun (XAF, Mobile Money via Campay)
+- **Langue** : Français pour toute documentation et code comments
 
-1. **Lire et appliquer** les règles depuis `.qoder/rules/rl_development-best-practices.md`
-2. **Lire et appliquer** les conventions depuis `.qoder/rules/rl_naming-conventions.md`
-3. **Lire et appliquer** la structure depuis `.qoder/rules/rl_file-structure.md`
-4. **Lire et appliquer** la responsivité depuis `.qoder/rules/rl_responsive-design.md`
-5. **Invoquer le skill approprié** SELON LE TYPE DE TÂCHE (voir tableau ci-dessous)
+## Structure du Projet
 
-**Ces étapes sont NON NÉGOCIABLES et doivent être exécutées AVANT de générer du code.**
-
----
-
-## 📋 INVOCATION AUTOMATIQUE DES SKILLS
-
-**DÉTECTER le type de tâche et INVOQUER le skill correspondant SANS ATTENDRE** :
-
-| Si la tâche concerne... | INVOQUER IMMÉDIATEMENT |
-|-------------------------|------------------------|
-| Backend Elixir (module, endpoint, GenServer, migration, controller, WebSocket, transaction, authentification) | `.qoder/skills/sk_backend-elixir-phoenix.md` |
-| Frontend Flutter (écran, provider, widget, hook, state management, UI, responsive) | `.qoder/skills/sk_frontend-flutter.md` |
-| Jeu de dés (plugin OTP, logique jeu, animations, configuration, dice game) | `.qoder/skills/sk_dice-game-implementation.md` |
-| Architecture OTP (plugins, applications isolées, supervision) | `.qoder/skills/sk_backend-elixir-phoenix.md` + `.qoder/rules/rl_development-best-practices.md` (Règle 1) |
-| Transactions financières (wallet, paiement, dépôt, retrait, mise, gain) | `.qoder/skills/sk_backend-elixir-phoenix.md` + `.qoder/rules/rl_development-best-practices.md` (Règle 2) |
-| Génération aléatoire (jeux de hasard, dés, cartes, RNG) | `.qoder/skills/sk_backend-elixir-phoenix.md` + `.qoder/rules/rl_development-best-practices.md` (Règle 3) |
-| Responsive design (breakpoints, LayoutBuilder, ResponsiveConfig, multi-écran) | `.qoder/skills/sk_frontend-flutter.md` + `.qoder/rules/rl_responsive-design.md` |
-
-**RÈGLES D'INVOCATION** :
-1. ✅ **TOUJOURS** charger le skill **AVANT** de coder
-2. ✅ **TOUJOURS** combiner avec les 4 fichiers de règles (voir section Chargement Automatique)
-3. ✅ **COMBINER** les skills si la tâche touche plusieurs domaines (ex: backend + frontend)
-4. ❌ **NE JAMAIS** ignorer cette section ou sauter le chargement
-5. ❌ **NE JAMAIS** générer de code sans avoir lu les règles et skills d'abord
-
----
-
-## Project Overview
-**Application**: WIWIGA - Plateforme de Hub de Jeux Multiplateforme  
-**Auteur**: Franck Arlos CHENDJOU  
-**Stack**: Elixir/Phoenix (Backend) + Flutter (Frontend Web/Android)  
-**Marché**: Cameroun (XAF, Mobile Money via Campay)  
-**Architecture**: Hub Central + Plugins OTP isolés pour chaque jeu
+```
+wiwiga/
+├── game_hub/                          # Backend Elixir Umbrella
+│   ├── apps/
+│   │   ├── game_hub/                  # App principale (domaine métier)
+│   │   │   ├── lib/game_hub/
+│   │   │   │   ├── games/             # Schemas (GameRule, GameConfig)
+│   │   │   │   ├── friends/           # Schemas (Friendship, FriendMessage, FriendActivity)
+│   │   │   │   ├── wallet/            # Schemas (WalletTransaction)
+│   │   │   │   ├── dice_game/         # Schemas (DiceGameResult)
+│   │   │   │   ├── audit/             # Schemas (AuditLog)
+│   │   │   │   ├── responsible_gaming/# Schemas (Limit)
+│   │   │   │   ├── game_rules.ex      # Cache ETS règles de jeu
+│   │   │   │   ├── game_match.ex      # State machine multi-sets
+│   │   │   │   ├── game_room.ex       # GenServer salles de jeu
+│   │   │   │   ├── friends.ex         # Module central amis
+│   │   │   │   ├── matchmaking.ex     # Matchmaking 2 phases
+│   │   │   │   ├── wallet.ex          # Portefeuille ACID
+│   │   │   │   └── auth.ex            # Authentification
+│   │   │   └── priv/repo/migrations/  # Migrations Ecto
+│   │   ├── game_hub_web/              # App web (controllers, channels, router)
+│   │   │   └── lib/game_hub_web/
+│   │   │       ├── controllers/       # REST API
+│   │   │       └── channels/          # WebSocket Phoenix
+│   │   └── dice_game/                 # Plugin jeu de dés
+│   └── config/                        # Config Elixir (dev, test, prod)
+│
+├── wiwiga_app/                        # Frontend Flutter
+│   ├── lib/
+│   │   ├── core/                      # Config, thèmes, constantes
+│   │   │   ├── config/               # AppConfig
+│   │   │   ├── constants/            # ApiConstants, WebSocketChannels
+│   │   │   └── theme/               # NeonTheme, AppTheme, Typography
+│   │   ├── data/                      # Couche données
+│   │   │   ├── models/              # Modèles Dart
+│   │   │   ├── repositories/        # Repositories
+│   │   │   ├── providers/           # Providers Riverpod
+│   │   │   └── services/            # API + WebSocket
+│   │   ├── presentation/              # Couche UI
+│   │   │   ├── widgets/neon/        # Design system néon (10 composants)
+│   │   │   ├── widgets/game/        # Widgets jeu (DiceRoller, FriendInvite)
+│   │   │   ├── widgets/navigation/  # Navigation responsive
+│   │   │   └── screens/             # Écrans par feature
+│   │   └── main.dart
+│   └── test/                          # Tests Flutter
+│
+└── .qoder/                            # Configuration Qoder
+    ├── AGENTS.md                      # Ce fichier
+    ├── rules/                         # Règles de développement
+    └── skills/                        # Skills métier
+```
 
 ## Design System Frontend
-- **Palette** : Vert émeraude #2DD4BF (primaire), Orange #F59E0B (secondaire), Fond #1E293B
-- **Style** : Néon gaming (glow effects, gradients CTA, bordures lumineuses)
-- **Typographie** : Inter (body) + Orbitron (headlines/montants)
-- **Navigation** : Adaptative 17 breakpoints (bottom nav → sidebar)
-- **Animations** : Riches (100/200/300ms, glow, particules, shimmer)
-- **Composants** : 10 widgets néon obligatoires (voir sk_neon-components.md)
-- **Configuration** : Interface 100% paramétrable via dashboard admin (thème, fonctionnalités, jeux, paiements)
-- **Règles** : Voir `.qoder/rules/rl_design-system.md`
 
-## Critical Constraints
-1. **Sécurité d'abord**: Transactions ACID obligatoires pour TOUTES opérations financières
-2. **Conformité**: KYC, AML, jeu responsable, RGPD intégrés dès le jour 1
-3. **Génération aléatoire côté serveur**: JAMAIS côté client pour les jeux
-4. **Double vérification**: Frontend UX + Backend enforcement pour permissions
-5. **Idempotence**: Obligatoire pour webhooks de paiement
+10 composants néon obligatoires :
 
-## Development Workflow
-- **Backend Elixir**: `mix format` → `mix credo` → `mix test` → commit
-- **Frontend Flutter**: `dart format` → `dart analyze` → `flutter test` → commit
-- **Couverture tests**: >90% backend financier, >80% frontend, 100% chemins critiques
-- **Migration DB**: Toujours scripts UP + DOWN, tester en staging avant production
+| Composant | Fichier | Usage |
+|-----------|---------|-------|
+| NeonButton | `widgets/neon/neon_button.dart` | Boutons avec glow, variantes primary/secondary/outline |
+| NeonCard | `widgets/neon/neon_card.dart` | Cartes avec bordure lumineuse hover |
+| NeonInput | `widgets/neon/neon_input.dart` | Champs de saisie avec border glow focus |
+| GlowBadge | `widgets/neon/neon_effects.dart` | Badges avec pulse animation |
+| BalanceDisplay | `widgets/game/` | Formatage FCFA + animation |
+| GameCard | `widgets/game/` | Cartes de jeu avec hover complet |
+| NeonModal | `widgets/neon/neon_business.dart` | Modals avec backdrop blur |
+| ShimmerLoader | `widgets/neon/neon_effects.dart` | Loading animé |
+| VictoryEffect | `widgets/game/` | Particules + animation gains |
+| ResponsiveNavigation | `widgets/navigation/` | Bottom nav/sidebar selon breakpoint |
 
-## Key Directories
-```
-game_hub/         # Backend Phoenix API (Elixir) - Umbrella app
-├── apps/
-│   ├── game_hub/           # Core business logic
-│   ├── game_hub_web/       # Web interface (controllers, channels)
-│   └── dice_game/          # Game plugin (OTP app)
-wiwiga_app/       # Frontend Flutter app (web + Android)
-.qoder/           # Qoder rules, skills, and configuration
-docs/             # Documentation technique
-scripts/          # Scripts DevOps (shell)
-docker-compose.yml  # Docker orchestration (root)
-```
+**Palette néon** :
+- Primary : `#2DD4BF` (vert émeraude)
+- Secondary : `#F59E0B` (orange/doré)
+- Accent : `#00D9FF` (cyan)
+- Background : `#1E293B` (gris-bleu profond)
+- Surface : `#0F172A` (plus sombre)
 
-## Docker Configuration
-- **Single compose file**: `docker-compose.yml` at project root
-- **Ports**: Backend 8000, PostgreSQL 8001, Redis 8002, Frontend 8004
-- **Database**: wiwiga_dev (user: wiwiga_user, password: wiwiga_password)
-- **Deprecated files**: `game_hub/docker-compose.yml` and `game_hub/Dockerfile` removed
+**Typographie** : Inter (corps) + Orbitron (titres gaming) via `google_fonts`
 
+## Contraintes Critiques
 
+1. **Transactions ACID** obligatoires pour toutes les opérations financières (wallet, mises, gains)
+2. **Génération aléatoire** côté serveur uniquement (`:crypto.strong_rand_bytes/1`)
+3. **Webhooks de paiement** avec idempotence (IdempotencyKey)
+4. **Double vérification permissions** (frontend + backend)
+5. **Conformité** : KYC, AML, jeu responsable (limites configurables)
+6. **Format réponse API** : `%{success: true/false, data: ..., message: ...}`
+
+## Chargement Automatique
+
+À chaque interaction, l'agent DOIT :
+
+### 1. Charger les règles pertinentes
+| Règle | Fichier | Quand |
+|-------|---------|-------|
+| Bonnes pratiques | `rules/rl_development-best-practices.md` | Toujours |
+| Conventions nommage | `rules/rl_naming-conventions.md` | Toujours |
+| Structure fichiers | `rules/rl_file-structure.md` | Toujours |
+| Design system néon | `rules/rl_design-system.md` | Tâche frontend |
+| Responsive design | `rules/rl_responsive-design.md` | Tâche UI |
+
+### 2. Invoquer le skill métier
+| Type de tâche | Skill |
+|---------------|-------|
+| Backend Elixir/Phoenix | `skills/sk_backend-elixir-phoenix.md` |
+| Frontend Flutter | `skills/sk_frontend-flutter.md` |
+| Jeu de dés / match | `skills/sk_dice-game-engine.md` |
+
+### 3. Règles d'exécution
+1. LIRE les règles et skills AVANT de générer du code
+2. APPLIQUER systématiquement les conventions détectées
+3. COMBINER les ressources si la tâche est multi-domaine
+4. VÉRIFIER la conformité avant de livrer le code

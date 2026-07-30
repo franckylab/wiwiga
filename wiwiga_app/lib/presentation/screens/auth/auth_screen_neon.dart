@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/theme/neon_theme.dart';
-import '../../core/theme/typography.dart';
-import '../widgets/neon/neon_widgets.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../../core/theme/typography.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran d'authentification redesigné avec style néon gaming
 class AuthScreenNeon extends StatefulWidget {
@@ -296,7 +296,7 @@ class _OtpForm extends StatelessWidget {
         
         if (countdown > 0)
           Text(
-            'Renvoyer le code dans $_countdown s',
+            'Renvoyer le code dans $countdown s',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: NeonColors.textSecondary,

@@ -3,6 +3,9 @@
 // Description: Thèmes Material Design avec style néon
 // ============================================================
 
+import 'package:flutter/material.dart';
+import 'neon_theme.dart';
+
 /// Thèmes Material Design
 class NeonTheme {
   static ThemeData get darkTheme {
@@ -22,7 +25,7 @@ class NeonTheme {
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: NeonColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(

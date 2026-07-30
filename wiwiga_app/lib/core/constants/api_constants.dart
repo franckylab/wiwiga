@@ -8,9 +8,8 @@
 /// Endpoints de l'API REST
 class ApiEndpoints {
   // Authentication
-  static const String login = '/api/auth/login';
-  static const String verifyOtp = '/api/auth/verify';
-  static const String logout = '/api/auth/logout';
+  static const String sendOtp = '/api/auth/send-otp';
+  static const String verifyOtp = '/api/auth/verify-otp';
   static const String refreshToken = '/api/auth/refresh';
   
   // Wallet
@@ -21,29 +20,106 @@ class ApiEndpoints {
   
   // Games
   static const String gamesList = '/api/games';
-  static const String joinGame = '/api/games/join';
-  static const String placeBet = '/api/games/bet';
-  static const String gameHistory = '/api/games/history';
+  static const String gameShow = '/api/games'; // + /:game_id
+  static const String joinGame = '/api/games'; // + /:game_id/join
+  static const String gameState = '/api/games'; // + /:game_id/state
+  
+  // Rooms (Salles de jeu)
+  static const String roomsList = '/api/rooms/waiting';
+  static const String roomsCreate = '/api/rooms';
+  static const String roomsJoinByCode = '/api/rooms/join-by-code';
+  static const String roomsShow = '/api/rooms'; // + /:room_id
+  static const String roomsJoin = '/api/rooms'; // + /:room_id/join
+  static const String roomsLeave = '/api/rooms'; // + /:room_id/leave
+  static const String roomsStart = '/api/rooms'; // + /:room_id/start
+  static const String roomsCancel = '/api/rooms'; // + /:room_id/cancel
+  
+  // Friends (Amis)
+  static const String friendsList = '/api/friends';
+  static const String friendsRequests = '/api/friends/requests';
+  static const String friendsSendRequest = '/api/friends/request';
+  static const String friendsSearch = '/api/friends/search';
+  static const String friendsLeaderboard = '/api/friends/leaderboard';
+  static const String friendsActivity = '/api/friends/activity';
+  
+  // Webhooks
+  static const String campayWebhook = '/api/webhooks/campay';
+  
+  // Health
+  static const String health = '/api/health';
+  static const String healthReady = '/api/health/ready';
   
   // User
   static const String profile = '/api/users/profile';
-  static const String updateProfile = '/api/users/profile';
   
-  // Payments
-  static const String paymentInitiate = '/api/payments/initiate';
-  static const String paymentStatus = '/api/payments/status';
+  // Admin
+  static const String adminUsers = '/api/admin/users';
+  static const String adminStats = '/api/admin/stats';
+  static const String adminConfigTheme = '/api/admin/config/theme';
+  static const String adminConfigFeatures = '/api/admin/config/features';
+  static const String adminConfigGames = '/api/admin/config/games';
+  static const String adminConfigPayments = '/api/admin/config/payments';
 }
 
-/// Canaux WebSocket
+/// Canaux WebSocket Phoenix
 class WebSocketChannels {
-  // Canal principal pour les jeux
-  static const String gameRoom = 'game:room';
+  // Canal matchmaking
+  static const String matchmaking = 'matchmaking:lobby';
+  
+  // Canal jeu (dynamique: game:{game_id})
+  static const String gamePrefix = 'game:';
+  
+  // Canal salle (dynamique: room:{room_id})
+  static const String roomPrefix = 'room:';
+  
+  // Canal amis
+  static const String friendNotif = 'friend:notif';
   
   // Canal pour notifications utilisateur
   static const String userNotifications = 'user:notifications';
+}
+
+/// Événements WebSocket
+class WebSocketEvents {
+  // Matchmaking
+  static const String joinQueue = 'join_queue';
+  static const String leaveQueue = 'leave_queue';
+  static const String queueStatus = 'queue_status';
+  static const String gameMatched = 'game_matched';
   
-  // Canal pour mises à jour wallet
-  static const String walletUpdates = 'wallet:updates';
+  // Game
+  static const String phxJoin = 'phx_join';
+  static const String phxLeave = 'phx_leave';
+  static const String placeBet = 'place_bet';
+  static const String betPlaced = 'bet_placed';
+  static const String executeTurn = 'execute_turn';
+  static const String turnExecuted = 'turn_executed';
+  static const String gameResult = 'game_result';
+  static const String playerJoined = 'player_joined';
+  static const String gameStarted = 'game_started';
+  
+  // Room
+  static const String roomUpdated = 'room_updated';
+  static const String playerLeft = 'player_left';
+  static const String matchStarted = 'match_started';
+  static const String roomCancelled = 'room_cancelled';
+  static const String playerReady = 'player_ready';
+  
+  // Friend
+  static const String friendRequest = 'friend_request';
+  static const String friendAccepted = 'friend_accepted';
+  static const String friendOnline = 'friend_online';
+  static const String gameInvitation = 'game_invitation';
+  static const String activityUpdate = 'activity_update';
+  static const String chatMessage = 'chat_message';
+  
+  // Match (GameMatch)
+  static const String setStarted = 'set_started';
+  static const String diceRolled = 'dice_rolled';
+  static const String setResult = 'set_result';
+  static const String matchResult = 'match_result';
+  static const String voteTarget = 'vote_target';
+  static const String targetCalculated = 'target_calculated';
 }
 
 /// Messages d'erreur standards

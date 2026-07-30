@@ -5,7 +5,7 @@
 // Date: 2026-06-23
 // ============================================================
 
-import '../data/models/user_model.dart';
+import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 
@@ -19,7 +19,7 @@ class AuthRepository {
   /// Envoie un code OTP au numéro de téléphone
   Future<void> sendOtp(String phoneNumber) async {
     await _apiService.post(
-      ApiEndpoints.login,
+      ApiEndpoints.sendOtp,
       body: {'phone': phoneNumber},
     );
   }
@@ -37,24 +37,28 @@ class AuthRepository {
       },
     );
     
+    // Backend retourne {success: true, data: {token: "...", user: {...}}}
+    final data = response['data'] as Map<String, dynamic>;
+    
     // Sauvegarder le token
-    final token = response['token'] as String;
+    final token = data['token'] as String;
     await _apiService.saveToken(token);
     
     // Retourner token + utilisateur
     return {
       'token': token,
-      'user': UserModel.fromJson(response['user']),
+      'user': UserModel.fromJson(data['user']),
     };
   }
   
   /// Déconnecte l'utilisateur
   Future<void> logout() async {
     try {
-      await _apiService.post(
-        ApiEndpoints.logout,
-        requiresAuth: true,
-      );
+      // Logout endpoint doesn't exist, just clear token
+      // await _apiService.post(
+      //   ApiEndpoints.sendOtp,
+      //   requiresAuth: true,
+      // );
     } finally {
       await _apiService.clearToken();
     }
@@ -73,6 +77,7 @@ class AuthRepository {
       requiresAuth: true,
     );
     
-    return UserModel.fromJson(response['user']);
+    final data = response['data'] as Map<String, dynamic>;
+    return UserModel.fromJson(data['user']);
   }
 }

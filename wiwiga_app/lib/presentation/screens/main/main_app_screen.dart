@@ -4,7 +4,12 @@ import '../../../core/theme/neon_theme.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
 import '../lobby/lobby_screen_neon.dart';
 import '../wallet/wallet_screen_neon.dart';
-import '../profile/profile_screen_neon.dart';
+import '../profile/profile_screen_enhanced.dart';
+import '../leaderboard/leaderboard_screen.dart';
+import '../settings/settings_screen.dart';
+import '../transaction_history/transaction_history_screen.dart';
+import '../friends/friends_screen.dart';
+import '../game_lobby/game_lobby_enhanced_screen.dart';
 
 /// Écran principal de l'application avec navigation responsive
 /// 
@@ -31,6 +36,10 @@ class _MainAppScreenState extends ConsumerState<MainAppScreen> {
       label: 'Jeux',
     ),
     NavDestination(
+      icon: Icons.people_outline,
+      label: 'Amis',
+    ),
+    NavDestination(
       icon: Icons.account_balance_wallet_outlined,
       label: 'Portefeuille',
     ),
@@ -47,15 +56,17 @@ class _MainAppScreenState extends ConsumerState<MainAppScreen> {
   Widget get _currentScreen {
     switch (_currentIndex) {
       case 0:
-        return const LobbyScreenNeon();
+        return const GameLobbyEnhancedScreen();
       case 1:
-        return const LobbyScreenNeon(); // TODO: Games screen
+        return const GameLobbyEnhancedScreen();
       case 2:
-        return const WalletScreenNeon();
+        return const FriendsScreen();
       case 3:
-        return const LobbyScreenNeon(); // TODO: Leaderboard screen
+        return const WalletScreenNeon();
       case 4:
-        return const ProfileScreenNeon();
+        return const LeaderboardScreen();
+      case 5:
+        return const ProfileScreenEnhanced();
       default:
         return const LobbyScreenNeon();
     }
@@ -71,15 +82,19 @@ class _MainAppScreenState extends ConsumerState<MainAppScreen> {
       appBarTitle: 'WIWIGA',
       appBarActions: [
         IconButton(
-          icon: Icon(Icons.notifications_outlined, color: NeonColors.primary),
+          icon: Icon(Icons.receipt_long_outlined, color: NeonColors.primary),
           onPressed: () {
-            // TODO: Navigation vers notifications
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const TransactionHistoryScreen(),
+            ));
           },
         ),
         IconButton(
           icon: Icon(Icons.settings_outlined, color: NeonColors.primary),
           onPressed: () {
-            // TODO: Navigation vers paramètres
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const SettingsScreen(),
+            ));
           },
         ),
       ],

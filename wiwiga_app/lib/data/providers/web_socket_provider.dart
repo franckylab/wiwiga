@@ -9,9 +9,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/status.dart' as status;
-import '../config/app_config.dart';
-import '../constants/api_constants.dart';
+import 'package:web_socket_channel/status.dart';
+import '../../core/config/app_config.dart';
+import '../../core/constants/api_constants.dart';
 
 /// États de la connexion WebSocket
 enum WebSocketStatus {
@@ -69,7 +69,7 @@ class WebSocketProvider extends ChangeNotifier {
   /// Déconnecte du serveur
   void disconnect() {
     _reconnectTimer?.cancel();
-    _channel?.sink.close(status.normalClosure);
+    _channel?.sink.close(normalClosure);
     _channel = null;
     _setStatus(WebSocketStatus.disconnected);
     debugPrint('✓ WebSocket déconnecté');

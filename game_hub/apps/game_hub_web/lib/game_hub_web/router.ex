@@ -84,6 +84,29 @@ defmodule GameHubWeb.Router do
     get "/games/:game_id", GameController, :show
     post "/games/:game_id/join", GameController, :join
     get "/games/:game_id/state", GameController, :game_state
+    
+    # Salles de jeu (Rooms)
+    get "/rooms/waiting", RoomController, :waiting
+    post "/rooms", RoomController, :create
+    post "/rooms/join-by-code", RoomController, :join_by_code
+    get "/rooms/:room_id", RoomController, :show
+    post "/rooms/:room_id/join", RoomController, :join
+    post "/rooms/:room_id/leave", RoomController, :leave
+    post "/rooms/:room_id/start", RoomController, :start
+    post "/rooms/:room_id/cancel", RoomController, :cancel
+    
+    # Amis (Friend System)
+    get "/friends", FriendController, :index
+    get "/friends/requests", FriendController, :pending_requests
+    post "/friends/request", FriendController, :send_request
+    post "/friends/request/:id/accept", FriendController, :accept_request
+    post "/friends/request/:id/reject", FriendController, :reject_request
+    delete "/friends/:id", FriendController, :remove_friend
+    post "/friends/:id/block", FriendController, :block_friend
+    get "/friends/search", FriendController, :search
+    get "/friends/leaderboard", FriendController, :leaderboard
+    get "/friends/activity", FriendController, :activity
+    post "/friends/:id/add-from-game", FriendController, :add_from_game
   end
   
   ## WebSocket

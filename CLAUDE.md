@@ -8,7 +8,8 @@
 - ✅ `.qoder/rules/rl_development-best-practices.md` — 25 règles de développement
 - ✅ `.qoder/rules/rl_naming-conventions.md` — Conventions de nommage
 - ✅ `.qoder/rules/rl_file-structure.md` — Structure et architecture
-- ✅ `.qoder/rules/rl_responsive-design.md` — 17 breakpoints responsives
+- ✅ `.qoder/rules/rl_design-system.md` — Design system néon (frontend)
+- ✅ `.qoder/rules/rl_responsive-design.md` — Breakpoints responsive (frontend)
 
 ### 2. Détecter le type de tâche et invoquer le skill approprié
 
@@ -16,10 +17,9 @@
 |---------------|-----------------|
 | **Backend Elixir/Phoenix** (modules, controllers, GenServer, migrations, WebSocket, transactions, auth) | `.qoder/skills/sk_backend-elixir-phoenix.md` |
 | **Frontend Flutter** (écrans, widgets, providers, state management, UI, responsive) | `.qoder/skills/sk_frontend-flutter.md` |
-| **Jeu de dés** (plugin OTP, logique de jeu, configuration, animations) | `.qoder/skills/sk_dice-game-implementation.md` |
-| **Architecture OTP** (plugins, applications, supervision) | `sk_backend-elixir-phoenix.md` + Règle 1 |
-| **Transactions financières** (wallet, paiements, mises, gains) | `sk_backend-elixir-phoenix.md` + Règle 2 |
-| **Génération aléatoire** (RNG, jeux de hasard) | `sk_backend-elixir-phoenix.md` + Règle 3 |
+| **Jeu de dés** (state machine, types Normal/Cible, multi-sets, animations) | `.qoder/skills/sk_dice-game-engine.md` |
+| **Architecture OTP** (plugins, applications, supervision) | `sk_backend-elixir-phoenix.md` |
+| **Transactions financières** (wallet, paiements, mises, gains) | `sk_backend-elixir-phoenix.md` |
 | **Responsive design** (multi-écran, breakpoints) | `sk_frontend-flutter.md` + `rl_responsive-design.md` |
 
 ### 3. Règles d'exécution
@@ -34,7 +34,7 @@
 ## Contexte Projet
 - **Application**: WIWIGA - Hub de Jeux Multiplateforme
 - **Auteur**: Franck Arlos CHENDJOU
-- **Stack**: Elixir/Phoenix + Flutter (Web/Android)
+- **Stack**: Elixir/Phoenix 1.7 Umbrella + Flutter 3.44.3 (Web/Android)
 - **Architecture**: Hub Central + Plugins OTP
 - **Marché**: Cameroun (XAF, Mobile Money via Campay)
 

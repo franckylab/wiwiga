@@ -7,6 +7,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
+import '../services/game_websocket_service.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/wallet_repository.dart';
 import '../repositories/game_repository.dart';
@@ -40,6 +41,12 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
 final gameRepositoryProvider = Provider<GameRepository>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   return GameRepository(apiService: apiService);
+});
+
+/// Provider du service WebSocket jeu (avec fallback REST)
+final gameWebSocketServiceProvider = ChangeNotifierProvider<GameWebSocketService>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return GameWebSocketService(apiService: apiService);
 });
 
 // ============================================================
@@ -185,10 +192,10 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<void> loadBalance() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final user = await _repository.getBalance();
+      final balanceCentimes = await _repository.getBalance();
       state = state.copyWith(
         isLoading: false,
-        balance: user.balance,
+        balance: balanceCentimes / 100.0,
       );
     } catch (e) {
       state = state.copyWith(
@@ -202,10 +209,13 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<void> loadTransactions() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final transactions = await _repository.getTransactions();
+      final result = await _repository.getTransactions();
+      final txList = (result['transactions'] as List)
+          .map((t) => WalletTransactionModel.fromJson(t as Map<String, dynamic>))
+          .toList();
       state = state.copyWith(
         isLoading: false,
-        transactions: transactions,
+        transactions: txList,
       );
     } catch (e) {
       state = state.copyWith(
@@ -219,15 +229,18 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<void> deposit(double amount) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final transaction = await _repository.deposit(
-        amount: amount,
+      final result = await _repository.deposit(
+        amount: (amount * 100).round(),
         idempotencyKey: 'deposit_${DateTime.now().millisecondsSinceEpoch}',
       );
       
+      final newBalance = ((result['new_balance'] as num?) ?? 0) / 100.0;
+      final tx = WalletTransactionModel.fromJson(result['transaction'] as Map<String, dynamic>? ?? {});
+      
       state = state.copyWith(
         isLoading: false,
-        balance: transaction.balanceAfter,
-        transactions: [transaction, ...state.transactions],
+        balance: newBalance,
+        transactions: [tx, ...state.transactions],
       );
     } catch (e) {
       state = state.copyWith(
@@ -241,15 +254,18 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<void> withdraw(double amount) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final transaction = await _repository.withdraw(
-        amount: amount,
+      final result = await _repository.withdraw(
+        amount: (amount * 100).round(),
         idempotencyKey: 'withdraw_${DateTime.now().millisecondsSinceEpoch}',
       );
       
+      final newBalance = ((result['new_balance'] as num?) ?? 0) / 100.0;
+      final tx = WalletTransactionModel.fromJson(result['transaction'] as Map<String, dynamic>? ?? {});
+      
       state = state.copyWith(
         isLoading: false,
-        balance: transaction.balanceAfter,
-        transactions: [transaction, ...state.transactions],
+        balance: newBalance,
+        transactions: [tx, ...state.transactions],
       );
     } catch (e) {
       state = state.copyWith(
@@ -273,7 +289,7 @@ final walletProvider = StateNotifierProvider<WalletNotifier, WalletState>((ref) 
 class GameState {
   final bool isLoading;
   final List<GameModel> games;
-  final GameSessionModel? currentSession;
+  final Map<String, dynamic>? currentSession;
   final Map<String, dynamic>? lastResult;
   final String? error;
   
@@ -288,7 +304,7 @@ class GameState {
   GameState copyWith({
     bool? isLoading,
     List<GameModel>? games,
-    GameSessionModel? currentSession,
+    Map<String, dynamic>? currentSession,
     Map<String, dynamic>? lastResult,
     String? error,
   }) {

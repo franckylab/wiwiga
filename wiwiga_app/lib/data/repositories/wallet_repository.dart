@@ -6,7 +6,6 @@
 // ============================================================
 
 import '../models/wallet_transaction_model.dart';
-import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 
@@ -18,18 +17,21 @@ class WalletRepository {
       : _apiService = apiService;
   
   /// Récupère le solde actuel
-  Future<UserModel> getBalance() async {
+  /// Backend: GET /api/wallet/balance → {success: true, data: {balance: 50000}}
+  Future<int> getBalance() async {
     final response = await _apiService.get(
       ApiEndpoints.walletBalance,
       requiresAuth: true,
     );
     
-    return UserModel.fromJson(response['user']);
+    final data = response['data'] as Map<String, dynamic>;
+    return data['balance'] as int;
   }
   
   /// Effectue un dépôt
-  Future<WalletTransactionModel> deposit({
-    required double amount,
+  /// Backend: POST /api/wallet/deposit → {success: true, data: {new_balance: 55000, transaction: {...}}}
+  Future<Map<String, dynamic>> deposit({
+    required int amount,
     required String idempotencyKey,
   }) async {
     final response = await _apiService.post(
@@ -41,12 +43,13 @@ class WalletRepository {
       requiresAuth: true,
     );
     
-    return WalletTransactionModel.fromJson(response['transaction']);
+    return response['data'] as Map<String, dynamic>;
   }
   
   /// Effectue un retrait
-  Future<WalletTransactionModel> withdraw({
-    required double amount,
+  /// Backend: POST /api/wallet/withdraw → {success: true, data: {new_balance: 48000, transaction: {...}}}
+  Future<Map<String, dynamic>> withdraw({
+    required int amount,
     required String idempotencyKey,
   }) async {
     final response = await _apiService.post(
@@ -58,22 +61,23 @@ class WalletRepository {
       requiresAuth: true,
     );
     
-    return WalletTransactionModel.fromJson(response['transaction']);
+    return response['data'] as Map<String, dynamic>;
   }
   
   /// Récupère l'historique des transactions
-  Future<List<WalletTransactionModel>> getTransactions({
-    int limit = 50,
-    int offset = 0,
+  /// Backend: GET /api/wallet/transactions?page=1&limit=20 → {success: true, data: [...], pagination: {...}}
+  Future<Map<String, dynamic>> getTransactions({
+    int page = 1,
+    int limit = 20,
   }) async {
     final response = await _apiService.get(
-      '${ApiEndpoints.transactions}?limit=$limit&offset=$offset',
+      '${ApiEndpoints.transactions}?page=$page&limit=$limit',
       requiresAuth: true,
     );
     
-    final transactions = response['transactions'] as List;
-    return transactions
-        .map((json) => WalletTransactionModel.fromJson(json))
-        .toList();
+    return {
+      'transactions': response['data'] as List? ?? [],
+      'pagination': response['pagination'] as Map<String, dynamic>? ?? {},
+    };
   }
 }

@@ -4,6 +4,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../providers/config_provider.dart';
+import '../game_lobby/game_lobby_screen.dart';
 
 /// Écran Lobby redesigné avec style néon gaming
 class LobbyScreenNeon extends ConsumerWidget {
@@ -210,7 +211,14 @@ class _GameCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return NeonCard(
       onTap: () {
-        // Naviguer vers le jeu
+        // Naviguer vers le GameLobby pour ce jeu
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ProviderScope(
+              child: GameLobbyScreen(gameType: 'dice'),
+            ),
+          ),
+        );
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

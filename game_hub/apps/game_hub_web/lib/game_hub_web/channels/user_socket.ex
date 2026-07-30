@@ -11,6 +11,8 @@ defmodule GameHubWeb.UserSocket do
   # Channels
   channel "game:*", GameHubWeb.GameChannel
   channel "matchmaking:*", GameHubWeb.MatchmakingChannel
+  channel "room:*", GameHubWeb.RoomChannel
+  channel "friend:*", GameHubWeb.FriendChannel
 
   # Transports
   @transport_options []

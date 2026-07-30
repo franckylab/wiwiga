@@ -8,8 +8,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../config/app_config.dart';
-import '../constants/api_constants.dart';
+import '../../core/config/app_config.dart';
+import '../../core/constants/api_constants.dart';
 
 /// Service centralisé pour les requêtes HTTP
 class ApiService {
@@ -55,14 +55,16 @@ class ApiService {
   /// Requête GET
   Future<Map<String, dynamic>> get(
     String endpoint, {
-    bool requiresAuth = false,
+    Map<String, String>? queryParams,
+    bool requiresAuth = true,
   }) async {
     try {
       final headers = await _getHeaders(requiresAuth: requiresAuth);
-      final response = await _client.get(
-        Uri.parse('${AppConfig.baseUrl}$endpoint'),
-        headers: headers,
-      ).timeout(
+      var uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+      if (queryParams != null && queryParams.isNotEmpty) {
+        uri = uri.replace(queryParameters: queryParams);
+      }
+      final response = await _client.get(uri, headers: headers).timeout(
         const Duration(milliseconds: AppConfig.requestTimeout),
       );
       
@@ -75,15 +77,15 @@ class ApiService {
   /// Requête POST
   Future<Map<String, dynamic>> post(
     String endpoint, {
-    Map<String, dynamic>? body,
-    bool requiresAuth = false,
+    Object? body,
+    bool requiresAuth = true,
   }) async {
     try {
       final headers = await _getHeaders(requiresAuth: requiresAuth);
       final response = await _client.post(
         Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: headers,
-        body: body != null ? jsonEncode(body) : null,
+        body: body,
       ).timeout(
         const Duration(milliseconds: AppConfig.requestTimeout),
       );
@@ -128,6 +130,26 @@ class ApiService {
       throw Exception(data['error'] ?? ApiErrors.invalidResponse);
     } else {
       throw Exception(data['error'] ?? ApiErrors.serverError);
+    }
+  }
+  
+  /// Requête DELETE
+  Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    bool requiresAuth = true,
+  }) async {
+    try {
+      final headers = await _getHeaders(requiresAuth: requiresAuth);
+      final response = await _client.delete(
+        Uri.parse('${AppConfig.baseUrl}$endpoint'),
+        headers: headers,
+      ).timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      );
+      
+      return _handleResponse(response);
+    } catch (e) {
+      throw Exception(ApiErrors.networkError);
     }
   }
   

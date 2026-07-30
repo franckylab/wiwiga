@@ -162,7 +162,7 @@ class NeonTheme {
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: NeonColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(

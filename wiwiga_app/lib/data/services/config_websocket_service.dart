@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../presentation/providers/config_provider.dart';
-import '../config/app_config.dart';
+import '../../core/config/app_config.dart';
 
 /// Service d'écoute WebSocket pour les mises à jour de configuration en temps réel
 class ConfigWebSocketService extends ChangeNotifier {

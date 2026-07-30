@@ -10,21 +10,21 @@ defmodule GameHubWeb.GameChannel do
   Phoenix Channel pour jeux en temps réel.
   
   ## Events Client -> Serveur
-    - "place_bet": Placer un pari
-    - "roll_dice": Lancer les dés
+    - "place_bet": Placer un pari (prédiction somme)
+    - "execute_turn": Lancer les dés (auto quand 2 paris)
     - "leave_game": Quitter partie
   
   ## Events Serveur -> Client
-    - "game_state": État jeu mis à jour
+    - "player_joined": Nouveau joueur
     - "bet_placed": Pari confirmé
-    - "dice_rolled": Résultats dés
-    - "game_ended": Partie terminée
+    - "turn_executed": Dés lancés
+    - "game_result": Résultat final
     - "error": Erreur
   """
   
   use Phoenix.Channel
   
-  alias GameHub.Wallet
+  alias GameHub.GameStateManager
   alias DiceGame.Engine
   
   @doc """
@@ -34,88 +34,120 @@ defmodule GameHubWeb.GameChannel do
   """
   @impl true
   def join("game:" <> game_id, _params, socket) do
-    # Vérifier authentification
     user_id = get_user_id(socket)
     
     if user_id do
-      # Ajouter joueur au socket
       socket = assign(socket, :user_id, user_id)
       socket = assign(socket, :game_id, game_id)
       
-      # Notifier autres joueurs
+      # Notifier les autres joueurs
       broadcast!(socket, "player_joined", %{
         user_id: user_id,
-        message: "Nouveau joueur rejoint"
+        player_name: "Joueur_#{String.slice(to_string(user_id), 0..3)}"
       })
       
       {:ok, socket}
     else
-      {:error, %{reason: "unauthorized"}}
+      # Dev mode: accepter sans auth
+      dev_id = "dev_#{System.unique_integer([:positive])}"
+      socket = assign(socket, :user_id, dev_id)
+      socket = assign(socket, :game_id, game_id)
+      
+      broadcast!(socket, "player_joined", %{
+        user_id: dev_id,
+        player_name: "Joueur_#{String.slice(dev_id, 0..5)}"
+      })
+      
+      {:ok, socket}
     end
   end
   
   @doc """
   Handle place_bet event.
   
-  Payload: %{amount: 500, prediction: %{predicted_sum: 10}}
+  Payload: %{"bet_amount" => 500, "predicted_sum" => 7}
+  
+  Le wallet est débité par DiceGame.Engine.place_bet (pas ici).
   """
   @impl true
-  def handle_in("place_bet", %{"amount" => amount, "prediction" => prediction}, socket) do
+  def handle_in("place_bet", %{"bet_amount" => bet_amount, "predicted_sum" => predicted_sum}, socket) do
     user_id = socket.assigns.user_id
     game_id = socket.assigns.game_id
-    idempotency_key = generate_idempotency_key()
     
-    # Débiter portefeuille (ACID)
-    case Wallet.place_bet(user_id, amount, game_id, idempotency_key) do
-      {:ok, transaction} ->
-        # Envoyer pari au moteur de jeu
-        Engine.place_bet(game_id, user_id, amount, prediction)
-        
-        # Confirmer au client
-        {:reply, {:ok, %{
+    # Delegate to Engine which handles wallet debit + state update
+    case Engine.place_bet(game_id, user_id, bet_amount, %{predicted_sum: predicted_sum}) do
+      {:ok, result} ->
+        # Confirmer au joueur
+        reply = %{
           status: "bet_placed",
-          transaction_id: transaction.id,
-          new_balance: transaction.balance_after
-        }}, socket}
+          player_id: user_id,
+          amount: bet_amount,
+          predicted_sum: predicted_sum,
+          game_status: to_string(result.game_status)
+        }
         
-        #Notifier autres joueurs
-        broadcast!(socket, "bet_placed", %{
-          user_id: user_id,
-          amount: amount,
-          prediction: prediction
-        })
+        # Notifier tous les joueurs du channel
+        broadcast!(socket, "bet_placed", reply)
+        
+        {:reply, {:ok, reply}, socket}
       
       {:error, :insufficient_funds} ->
         {:reply, {:error, %{reason: "insufficient_funds"}}, socket}
       
+      {:error, :invalid_prediction} ->
+        {:reply, {:error, %{reason: "invalid_prediction"}}, socket}
+      
+      {:error, :bet_already_placed} ->
+        {:reply, {:error, %{reason: "bet_already_placed"}}, socket}
+      
       {:error, reason} ->
-        {:reply, {:error, %{reason: reason}}, socket}
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
     end
   end
   
   @doc """
-  Handle roll_dice event.
+  Handle execute_turn event.
   
-  Déclenche lancement des dés côté serveur.
+  Lance les dés quand les 2 paris sont placés.
   """
   @impl true
-  def handle_in("roll_dice", _params, socket) do
+  def handle_in("execute_turn", _params, socket) do
     game_id = socket.assigns.game_id
     
-    # Exécuter tour (génération crypto)
     case Engine.execute_turn(game_id) do
       {:ok, result} ->
-        # Diffuser résultats à TOUS les joueurs
-        broadcast!(socket, "dice_rolled", %{
+        broadcast!(socket, "turn_executed", %{
           dice_results: result.dice_results,
           total_sum: result.total_sum,
-          timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          executed_at: DateTime.to_iso8601(result.executed_at)
         })
+        
+        # Auto end game après le roll
+        case Engine.end_game(game_id) do
+          {:ok, end_result} ->
+            broadcast!(socket, "game_result", %{
+              winner: end_result.winner,
+              loser: end_result.loser,
+              result: to_string(end_result.result),
+              dice_results: end_result.dice_results,
+              total_sum: end_result.total_sum,
+              total_pot: end_result.total_pot,
+              commission: end_result.commission,
+              net_winnings: end_result.net_winnings,
+              payout_status: to_string(end_result.payout_status)
+            })
+          
+          {:error, reason} ->
+            broadcast!(socket, "error", %{reason: to_string(reason)})
+        end
         
         {:noreply, socket}
       
+      {:error, :not_ready_to_roll} ->
+        {:reply, {:error, %{reason: "not_all_bets_placed"}}, socket}
+      
       {:error, reason} ->
-        {:reply, {:error, %{reason: reason}}, socket}
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
     end
   end
   
@@ -136,8 +168,7 @@ defmodule GameHubWeb.GameChannel do
   
   @doc """
   Handle disconnect.
-  
-  Règle 8: Appliquer politique de déconnexion
+  Applique politique de déconnexion (grace period).
   """
   @impl true
   def terminate(_reason, socket) do
@@ -145,11 +176,17 @@ defmodule GameHubWeb.GameChannel do
     game_id = socket.assigns[:game_id]
     
     if user_id && game_id do
-      # Appliquer politique déconnexion (Règle 8)
       game_type = extract_game_type(game_id)
-      GameHub.GameTimeout.handle_disconnect(user_id, game_id, game_type)
       
-      IO.puts("[DISCONNECT] User #{user_id} disconnected from game #{game_id}")
+      # Appliquer politique déconnexion si le jeu existe
+      case GameHub.GameStateManager.get_game_state(game_id) do
+        {:ok, state} when state.status not in [:ended] ->
+          GameHub.GameTimeout.handle_disconnect(user_id, game_id, game_type)
+        _ ->
+          :ok
+      end
+      
+      IO.puts("[DISCONNECT] User #{user_id} left game #{game_id}")
     end
     
     :ok
@@ -158,24 +195,16 @@ defmodule GameHubWeb.GameChannel do
   # === Fonctions Privées ===
   
   defp extract_game_type(game_id) do
-    # Extraire type de jeu depuis game_id (ex: "dice_123" -> "dice")
     game_id
     |> String.split("_")
     |> List.first()
     |> to_string()
   end
   
-  # === Fonctions Privées ===
-  
   defp get_user_id(socket) do
-    # Extraire depuis Guardian token
     case socket.assigns[:current_user] do
       %{id: id} -> id
       _ -> nil
     end
-  end
-  
-  defp generate_idempotency_key do
-    "#{System.unique_integer([:positive])}_#{:os.system_time(:millisecond)}"
   end
 end

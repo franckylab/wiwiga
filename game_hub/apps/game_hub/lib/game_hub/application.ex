@@ -16,11 +16,11 @@ defmodule GameHub.Application do
       # Repo PostgreSQL
       {GameHub.Repo, []},
       
-      # Connection Redis
+      # Connection Redis (config depuis env vars)
       {Redix, [
         name: GameHub.Redis,
-        host: "redis",
-        port: 6379
+        host: GameHub.EnvConfig.get("REDIS_HOST", "localhost"),
+        port: GameHub.EnvConfig.get_integer("REDIS_PORT", 6379)
       ]},
       
       # PubSub pour WebSocket
@@ -29,8 +29,17 @@ defmodule GameHub.Application do
       # Registry plugins jeux
       {Registry, keys: :unique, name: GameHub.GameRegistry},
       
-      # Module Portefeuille (GenServer)
-      # GameHub.WalletSupervisor
+      # Game State Manager (GenServer)
+      GameHub.GameStateManager,
+      
+      # Game Rules Cache (ETS)
+      {GameHub.GameRules, []},
+      
+      # Game Match Manager (GenServer)
+      GameHub.GameMatch,
+      
+      # Game Room Manager (GenServer)
+      GameHub.GameRoom
     ]
     
     opts = [strategy: :one_for_one, name: GameHub.Supervisor]

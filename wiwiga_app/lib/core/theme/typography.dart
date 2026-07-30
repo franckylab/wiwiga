@@ -158,6 +158,7 @@ class AppTypography {
   static TextStyle get heading4 => const TextStyle();
   static TextStyle get heading5 => const TextStyle();
   static TextStyle get heading6 => const TextStyle();
+  static TextStyle get subtitle => headlineSmall;
   
   // Ajout des méthodes pour accéder aux styles
   static TextStyle get displayLarge => darkTheme.displayLarge!;
