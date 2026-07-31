@@ -135,6 +135,9 @@ defmodule DiceGame.Engine do
       # Persister le résultat en DB (traçabilité 10 ans)
       persist_result(game_state, turn_result, result, payout_result)
       
+      # Mettre à jour les agrégats statistiques (leaderboards, flux d'activité)
+      record_game_stats(game_state, result)
+      
       {:ok, %{
         game_id: game_id,
         status: :ended,
@@ -266,6 +269,27 @@ defmodule DiceGame.Engine do
     error ->
       require Logger
       Logger.error("Failed to persist dice result: #{inspect(error)}")
+      :ok
+  end
+  
+  @doc """
+  Enregistre les agrégats statistiques du match (non bloquant).
+  """
+  defp record_game_stats(game_state, end_result) do
+    player_ids = game_state.players
+    |> Enum.map(fn p -> Map.get(p, :id) || Map.get(p, "id") end)
+    
+    GameHub.GameStats.record_match_result(%{
+      game_type: "dice",
+      winner_id: end_result.winner,
+      player_ids: player_ids,
+      bets: game_state.bets,
+      net_winnings: end_result[:net_winnings] || 0
+    })
+  rescue
+    error ->
+      require Logger
+      Logger.error("Failed to record game stats: #{inspect(error)}")
       :ok
   end
   

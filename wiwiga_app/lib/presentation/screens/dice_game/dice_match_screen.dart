@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
@@ -487,8 +488,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           ],
           const SizedBox(height: 32),
           NeonButton(
-            text: 'Retour à la lobby',
-            onPressed: () => Navigator.pop(context),
+            text: 'Retour au jeu',
+            onPressed: () => context.go('/games/dice'),
             variant: NeonButtonVariant.primary,
           ),
           const SizedBox(height: 12),

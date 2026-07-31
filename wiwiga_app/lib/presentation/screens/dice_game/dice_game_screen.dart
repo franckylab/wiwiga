@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
@@ -197,7 +198,8 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/games/dice'),
           ),
           const SizedBox(width: 8),
           Icon(Icons.casino, color: NeonColors.primary, size: 24),
@@ -635,7 +637,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
               Expanded(
                 child: NeonButton(
                   text: 'LOBBY',
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => context.go('/games/dice/lobby'),
                   variant: NeonButtonVariant.outline,
                 ),
               ),

@@ -7,17 +7,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/room_repository.dart';
-import '../../../data/services/api_service.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
-import 'game_room_waiting_screen.dart';
 
 /// Écran de création de partie (Free ou Betting)
 class CreateGameScreen extends ConsumerStatefulWidget {
-  const CreateGameScreen({Key? key}) : super(key: key);
+  final String gameType;
+
+  const CreateGameScreen({Key? key, this.gameType = 'dice'}) : super(key: key);
 
   @override
   ConsumerState<CreateGameScreen> createState() => _CreateGameScreenState();
@@ -388,7 +390,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       final roomRepo = RoomRepository(apiService);
 
       final config = CreateGameConfig(
-        gameType: 'dice',
+        gameType: widget.gameType,
         ruleType: _ruleType,
         mode: _mode,
         setsCount: _setsCount,
@@ -401,17 +403,9 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GameRoomWaitingScreen(room: room),
-        ),
-      );
+      context.pushReplacement('/games/${widget.gameType}/room/${room.roomId}', extra: room);
     } catch (e) {
       setState(() { _isCreating = false; _error = e.toString().replaceFirst('Exception: ', ''); });
     }
   }
 }
-
-/// Provider pour ApiService (à ajouter dans app_providers.dart)
-final apiServiceProvider = Provider<ApiService>((ref) => ApiService());

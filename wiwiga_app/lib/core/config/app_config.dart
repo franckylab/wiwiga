@@ -26,7 +26,17 @@ class AppConfig {
   
   /// Initialise la configuration selon l'environnement
   static void initialize() {
-    if (kDebugMode) {
+    // Surcharge possible via --dart-define=API_BASE_URL=... / WS_BASE_URL=...
+    const overrideApi = String.fromEnvironment('API_BASE_URL');
+    const overrideWs = String.fromEnvironment('WS_BASE_URL');
+
+    if (overrideApi.isNotEmpty) {
+      baseUrl = overrideApi;
+      websocketUrl = overrideWs.isNotEmpty
+          ? overrideWs
+          : overrideApi.replaceFirst('http', 'ws');
+      campayApiKey = null;
+    } else if (kDebugMode) {
       baseUrl = 'http://localhost:8000';
       websocketUrl = 'ws://localhost:8000';
       campayApiKey = null;

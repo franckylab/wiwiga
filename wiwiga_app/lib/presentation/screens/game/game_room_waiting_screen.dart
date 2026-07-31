@@ -9,12 +9,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
-import 'create_game_screen.dart';
 
 /// Écran d'attente dans une salle de jeu
 class GameRoomWaitingScreen extends ConsumerStatefulWidget {
@@ -64,10 +65,32 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       final apiService = ref.read(apiServiceProvider);
       final roomRepo = RoomRepository(apiService);
       final updatedRoom = await roomRepo.getRoom(_room.roomId);
-      if (mounted) setState(() => _room = updatedRoom);
+      if (!mounted) return;
+      setState(() => _room = updatedRoom);
+
+      // Le match a démarré (par le créateur) : rejoindre l'écran de match
+      if (updatedRoom.matchId != null &&
+          (updatedRoom.status == 'starting' || updatedRoom.status == 'in_progress')) {
+        _goToMatch(updatedRoom.matchId!);
+      }
     } catch (_) {
       // Silent refresh failure
     }
+  }
+
+  void _goToMatch(String matchId) {
+    _refreshTimer?.cancel();
+    _countdownTimer?.cancel();
+    context.pushReplacement(
+      '/games/${_room.gameType}/match/$matchId',
+      extra: {
+        'rule_type': _room.ruleType,
+        'sets_count': _room.setsCount,
+        'dice_count': _room.diceCount,
+        'bet_amount': _room.isBetting ? _room.betAmount : 0,
+        'players': _room.players.map((p) => {'id': p.id, 'name': p.name}).toList(),
+      },
+    );
   }
 
   String get _formattedTime {
@@ -323,14 +346,16 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
     try {
       final apiService = ref.read(apiServiceProvider);
       final roomRepo = RoomRepository(apiService);
-      await roomRepo.startMatch(_room.roomId);
+      final result = await roomRepo.startMatch(_room.roomId);
 
       if (!mounted) return;
 
-      // TODO: Naviguer vers DiceMatchScreen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Partie démarrée !', style: TextStyle(color: NeonColors.success))),
-      );
+      final matchId = result['match_id'] as String? ?? _room.matchId;
+      if (matchId != null) {
+        _goToMatch(matchId);
+      } else {
+        setState(() => _isStarting = false);
+      }
     } catch (e) {
       setState(() { _isStarting = false; _error = e.toString().replaceFirst('Exception: ', ''); });
     }
@@ -343,6 +368,11 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       await roomRepo.leaveRoom(_room.roomId);
     } catch (_) {}
 
-    if (mounted) Navigator.pop(context);
+    if (!mounted) return;
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/games/${_room.gameType}');
+    }
   }
 }

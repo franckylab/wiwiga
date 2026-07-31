@@ -8,14 +8,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
-import '../game/create_game_screen.dart';
-import '../game/game_room_waiting_screen.dart';
-import '../dice_game/dice_match_screen.dart';
 
 /// Lobby améliorée avec 4 sections:
 /// 1. Parties en attente (depuis API)
@@ -23,7 +22,9 @@ import '../dice_game/dice_match_screen.dart';
 /// 3. Rejoindre par code
 /// 4. Auto-match (matchmaking avec fallback)
 class GameLobbyEnhancedScreen extends ConsumerStatefulWidget {
-  const GameLobbyEnhancedScreen({Key? key}) : super(key: key);
+  final String gameType;
+
+  const GameLobbyEnhancedScreen({Key? key, this.gameType = 'dice'}) : super(key: key);
 
   @override
   ConsumerState<GameLobbyEnhancedScreen> createState() => _GameLobbyEnhancedScreenState();
@@ -56,7 +57,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       final apiService = ref.read(apiServiceProvider);
       final roomRepo = RoomRepository(apiService);
       final mode = _filterMode == 'all' ? null : _filterMode;
-      final rooms = await roomRepo.listWaitingRooms(gameType: 'dice', mode: mode);
+      final rooms = await roomRepo.listWaitingRooms(gameType: widget.gameType, mode: mode);
       if (mounted) setState(() { _rooms = rooms; _isLoading = false; _error = null; });
     } catch (e) {
       if (mounted) setState(() { _isLoading = false; _error = e.toString(); });
@@ -65,7 +66,20 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return Scaffold(
+      backgroundColor: NeonColors.background,
+      appBar: AppBar(
+        title: const Text('Lobby'),
+        backgroundColor: NeonColors.surface,
+        foregroundColor: NeonColors.primary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour au jeu',
+          onPressed: () => context.go('/games/${widget.gameType}'),
+        ),
+      ),
+      body: RefreshIndicator(
       onRefresh: _loadRooms,
       color: NeonColors.primary,
       backgroundColor: NeonColors.surface,
@@ -86,6 +100,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
             _buildRoomsList(),
           ],
         ),
+      ),
       ),
     );
   }
@@ -127,7 +142,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
           child: NeonButton(
             text: 'Créer',
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGameScreen()));
+              context.push('/games/${widget.gameType}/create');
             },
             icon: Icons.add_circle_outline,
             height: 48,
@@ -354,9 +369,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
 
       if (!mounted) return;
 
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => GameRoomWaitingScreen(room: updatedRoom),
-      ));
+      context.push('/games/${widget.gameType}/room/${updatedRoom.roomId}', extra: updatedRoom);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
@@ -375,9 +388,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
 
       if (!mounted) return;
 
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => GameRoomWaitingScreen(room: room),
-      ));
+      context.push('/games/${widget.gameType}/room/${room.roomId}', extra: room);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Code invalide ou erreur: $e')),
@@ -385,10 +396,26 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
     }
   }
 
-  void _startAutoMatch() {
-    // TODO: Naviguer vers MatchmakingSearchingScreen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Matchmaking en cours de développement', style: TextStyle(color: NeonColors.primary))),
-    );
+  Future<void> _startAutoMatch() async {
+    try {
+      final repo = ref.read(gameRepositoryProvider);
+      final result = await repo.joinGame(gameId: widget.gameType, betAmount: 500);
+
+      if (!mounted) return;
+
+      if (result['status'] == 'matched') {
+        final gameId = result['game_id'] as String? ?? '';
+        context.push('/games/${widget.gameType}/session/$gameId', extra: {'bet_amount': 500});
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('En file d\'attente... un adversaire arrive bientôt !', style: TextStyle(color: NeonColors.primary))),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}', style: TextStyle(color: NeonColors.error))),
+      );
+    }
   }
 }

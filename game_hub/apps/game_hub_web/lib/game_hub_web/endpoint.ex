@@ -47,6 +47,9 @@ defmodule GameHubWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
 
+  # CORS (avant le router pour gérer les preflights OPTIONS sans route)
+  plug GameHubWeb.CORSPlug
+
   # Router
   plug GameHubWeb.Router
 end

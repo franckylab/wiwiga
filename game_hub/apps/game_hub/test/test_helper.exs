@@ -1,7 +1,7 @@
 ExUnit.start()
 
-# Configure Ecto Sandbox pour tests concurrents
-Ecto.Adapters.SQL.Sandbox.mode(GameHub.Repo, :manual)
+# Les tests utilisent la base dédiée wiwiga_test (config/test.exs)
+# avec nettoyage explicite par Repo.delete_all dans les setup.
 
 # Helper functions pour les tests
 defmodule GameHub.TestHelpers do

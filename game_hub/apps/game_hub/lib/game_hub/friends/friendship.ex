@@ -18,7 +18,7 @@ defmodule GameHub.Friends.Friendship do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :bigserial, autogenerate: true}
+  @primary_key {:id, :id, autogenerate: true}
   @derive {Jason.Encoder, only: [:id, :user_id, :friend_id, :status, :inserted_at]}
 
   schema "friendships" do

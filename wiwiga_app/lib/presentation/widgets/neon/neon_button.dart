@@ -186,13 +186,19 @@ class _NeonButtonState extends State<NeonButton>
                         Icon(widget.icon, color: _textColor, size: widget.fontSize + 2),
                         const SizedBox(width: 8),
                       ],
-                      Text(
-                        widget.text,
-                        style: TextStyle(
-                          color: _textColor,
-                          fontSize: widget.fontSize,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Orbitron',
+                      // Réduit le texte si le bouton a une largeur fixe trop étroite
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            widget.text,
+                            style: TextStyle(
+                              color: _textColor,
+                              fontSize: widget.fontSize,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Orbitron',
+                            ),
+                          ),
                         ),
                       ),
                     ],

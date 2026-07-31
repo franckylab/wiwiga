@@ -81,6 +81,15 @@ defmodule GameHubWeb.Router do
     
     # Jeux
     get "/games", GameController, :index
+    
+    # Statistiques & contenus jeux (routes spécifiques avant /games/:game_id)
+    get "/games/:game_type/stats", GameStatsController, :stats
+    get "/games/:game_type/leaderboard", GameStatsController, :leaderboard
+    get "/games/:game_type/my-stats", GameStatsController, :my_stats
+    get "/games/:game_type/activity", GameStatsController, :activity
+    get "/games/:game_type/rules", GameStatsController, :rules
+    get "/games/:game_type/tips", GameStatsController, :tips
+    
     get "/games/:game_id", GameController, :show
     post "/games/:game_id/join", GameController, :join
     get "/games/:game_id/state", GameController, :game_state

@@ -32,7 +32,7 @@ defmodule GameHub.Games.GameRule do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :bigserial, autogenerate: true}
+  @primary_key {:id, :id, autogenerate: true}
   @derive {Jason.Encoder, only: [:id, :game_type, :rule_type, :name, :description, :config, :is_active]}
 
   schema "game_rules" do

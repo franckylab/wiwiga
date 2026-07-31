@@ -8,8 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
+import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'presentation/screens/main/main_app_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,18 +22,19 @@ void main() {
   );
 }
 
-class WiwigaApp extends StatelessWidget {
+class WiwigaApp extends ConsumerWidget {
   const WiwigaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
       title: 'WIWIGA',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: const MainAppScreen(),
+      routerConfig: router,
     );
   }
 }

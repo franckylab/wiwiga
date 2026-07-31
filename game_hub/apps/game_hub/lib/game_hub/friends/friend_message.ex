@@ -14,7 +14,7 @@ defmodule GameHub.Friends.FriendMessage do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :bigserial, autogenerate: true}
+  @primary_key {:id, :id, autogenerate: true}
   @derive {Jason.Encoder, only: [:id, :sender_id, :receiver_id, :content, :emoji_type, :read_at, :inserted_at]}
 
   schema "friend_messages" do

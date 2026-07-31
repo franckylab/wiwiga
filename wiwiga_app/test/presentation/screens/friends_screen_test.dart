@@ -92,7 +92,7 @@ void main() {
 
       test('calcul du win rate', () {
         final entry = {'wins': 15, 'total_games': 20};
-        final winRate = (entry['wins'] as double) / (entry['total_games'] as double);
+        final winRate = (entry['wins'] as num) / (entry['total_games'] as num);
         expect(winRate, equals(0.75));
       });
     });

@@ -5,6 +5,8 @@
 // Date: 2026-06-23
 // ============================================================
 
+import 'game_stats_models.dart';
+
 /// Modèle représentant un jeu disponible
 class GameModel {
   final String id;
@@ -17,6 +19,10 @@ class GameModel {
   final bool isActive;
   final int maxPlayers;
   final String? imageUrl;
+  final bool comingSoon;
+  final int displayOrder;
+  final int playersOnline;
+  final List<GameTip> tips;
   
   const GameModel({
     required this.id,
@@ -29,21 +35,33 @@ class GameModel {
     required this.isActive,
     required this.maxPlayers,
     this.imageUrl,
+    this.comingSoon = false,
+    this.displayOrder = 0,
+    this.playersOnline = 0,
+    this.tips = const [],
   });
   
   /// Crée un modèle depuis JSON
   factory GameModel.fromJson(Map<String, dynamic> json) {
+    final rawTips = json['tips'] as List? ?? [];
     return GameModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
-      type: json['type'] ?? 'dice',
+      // Le backend utilise l'id comme game_type ('dice', 'ludo', ...)
+      type: json['type'] ?? json['id'] ?? 'dice',
       minBet: (json['min_bet'] ?? 0).toDouble(),
       maxBet: (json['max_bet'] ?? 0).toDouble(),
-      houseEdge: (json['house_edge'] ?? 0).toDouble(),
-      isActive: json['is_active'] ?? true,
+      houseEdge: (json['commission_rate'] ?? json['house_edge'] ?? 0).toDouble(),
+      isActive: json['is_active'] ?? (json['status'] == null || json['status'] == 'active'),
       maxPlayers: json['max_players'] ?? 2,
       imageUrl: json['image_url'],
+      comingSoon: json['coming_soon'] ?? false,
+      displayOrder: (json['display_order'] ?? 0) as int,
+      playersOnline: (json['players_online'] ?? 0) as int,
+      tips: rawTips
+          .map((t) => GameTip.fromJson(t as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

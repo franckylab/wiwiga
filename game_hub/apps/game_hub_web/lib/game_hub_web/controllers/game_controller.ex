@@ -28,8 +28,12 @@ defmodule GameHubWeb.GameController do
   Response: %{success: true, data: [%{id: "dice", name: "Jeu de Dés", ...}]}
   """
   def index(conn, _params) do
-    # Récupérer jeux depuis DB
-    game_configs = Repo.all(from g in GameConfig, where: g.is_active == true)
+    # Récupérer jeux depuis DB (triés pour le catalogue)
+    game_configs = Repo.all(
+      from g in GameConfig,
+      where: g.is_active == true,
+      order_by: [asc: g.display_order, asc: g.id]
+    )
     
     games = Enum.map(game_configs, fn config ->
       %{
@@ -40,7 +44,9 @@ defmodule GameHubWeb.GameController do
         max_bet: config.max_bet,
         commission_rate: Decimal.to_float(config.commission_rate),
         status: if(config.is_active, do: "active", else: "inactive"),
-        players_online: get_players_online(config.game_type)
+        coming_soon: config.coming_soon,
+        display_order: config.display_order,
+        players_online: if(config.coming_soon, do: 0, else: get_players_online(config.game_type))
       }
     end)
     
@@ -81,6 +87,10 @@ defmodule GameHubWeb.GameController do
             max_bet: config.max_bet,
             commission_rate: Decimal.to_float(config.commission_rate),
             commission_mode: config.commission_mode,
+            coming_soon: config.coming_soon,
+            display_order: config.display_order,
+            players_online: if(config.coming_soon, do: 0, else: get_players_online(config.game_type)),
+            tips: get_tips_items(config),
             config: config.config || %{}
           },
           meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
@@ -283,4 +293,7 @@ defmodule GameHubWeb.GameController do
       _ -> 0
     end
   end
+  
+  defp get_tips_items(%{tips: %{"items" => items}}) when is_list(items), do: items
+  defp get_tips_items(_config), do: []
 end

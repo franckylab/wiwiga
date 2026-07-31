@@ -24,6 +24,14 @@ class ApiEndpoints {
   static const String joinGame = '/api/games'; // + /:game_id/join
   static const String gameState = '/api/games'; // + /:game_id/state
   
+  // Game stats & contenus (base + /:game_type + suffixe)
+  static const String gameStats = '/stats';
+  static const String gameLeaderboard = '/leaderboard';
+  static const String gameMyStats = '/my-stats';
+  static const String gameActivity = '/activity';
+  static const String gameRules = '/rules';
+  static const String gameTips = '/tips';
+  
   // Rooms (Salles de jeu)
   static const String roomsList = '/api/rooms/waiting';
   static const String roomsCreate = '/api/rooms';

@@ -25,6 +25,8 @@ defmodule GameHub.GameRules do
       {:ok, commission} = GameHub.GameRules.calculate_commission("dice", 10000)
   """
 
+  use GenServer
+
   import Ecto.Query
   alias GameHub.Repo
   alias GameHub.Games.GameRule
@@ -37,12 +39,33 @@ defmodule GameHub.GameRules do
   @doc """
   Démarre le cache ETS. Appelé depuis le supervision tree.
   """
-  def start_link(_opts \\ []) do
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_opts) do
     # Table ETS nommée pour le cache
     table = :ets.new(@cache_table, [:named_table, :set, :public, read_concurrency: true])
     # Planifier le nettoyage périodique
     schedule_cleanup()
     {:ok, table}
+  end
+
+  @impl true
+  def handle_info(:cleanup_cache, table) do
+    # Purger les entrées expirées
+    now = System.system_time(:second)
+
+    :ets.tab2list(@cache_table)
+    |> Enum.each(fn {key, _rule, cached_at} ->
+      if now - cached_at >= @cache_ttl_seconds do
+        :ets.delete(@cache_table, key)
+      end
+    end)
+
+    schedule_cleanup()
+    {:noreply, table}
   end
 
   @doc """
@@ -81,7 +104,7 @@ defmodule GameHub.GameRules do
   def get_rules_or_default(game_type, rule_type) do
     case get_rules(game_type, rule_type) do
       {:ok, rule} -> rule
-      {:error, :rules_not_found} -> build_default_rule(game_type, rule_type)
+      {:error, :rules_not_found} -> default_config_hardcoded(game_type, rule_type)
     end
   end
 

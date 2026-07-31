@@ -7,12 +7,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/friend_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
-import '../game/create_game_screen.dart';
 
 /// Écran principal des amis avec tabs
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -200,7 +201,7 @@ class _FriendCard extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.sports_esports_outlined, color: NeonColors.primary),
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGameScreen()));
+                context.push('/games/dice/create');
               },
               tooltip: 'Inviter à jouer',
             ),

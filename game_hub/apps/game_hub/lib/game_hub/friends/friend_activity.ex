@@ -21,7 +21,7 @@ defmodule GameHub.Friends.FriendActivity do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @primary_key {:id, :bigserial, autogenerate: true}
+  @primary_key {:id, :id, autogenerate: true}
   @derive {Jason.Encoder, only: [:id, :user_id, :action, :metadata, :inserted_at]}
 
   schema "friend_activities" do

@@ -1,4 +1,5 @@
 import '../models/game_model.dart';
+import '../models/game_stats_models.dart';
 import '../services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 
@@ -18,6 +19,82 @@ class GameRepository {
     return games.map((json) => GameModel.fromJson(json)).toList();
   }
   
+  /// Récupère le détail d'un jeu (avec tips, config)
+  Future<GameModel> getGame(String gameType) async {
+    final response = await _apiService.get('${ApiEndpoints.gameShow}/$gameType');
+    return GameModel.fromJson(response['data'] as Map<String, dynamic>? ?? {});
+  }
+
+  /// Stats globales d'un jeu
+  Future<GameGlobalStats> getGameStats(String gameType) async {
+    final response = await _apiService
+        .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameStats}');
+    return GameGlobalStats.fromJson(
+        response['data'] as Map<String, dynamic>? ?? {});
+  }
+
+  /// Classement d'un jeu (metric × period)
+  Future<GameLeaderboard> getLeaderboard(
+    String gameType, {
+    String metric = 'wins',
+    String period = 'all',
+    int limit = 20,
+  }) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameLeaderboard}',
+      queryParams: {
+        'metric': metric,
+        'period': period,
+        'limit': '$limit',
+      },
+    );
+    return GameLeaderboard.fromJson(
+        response['data'] as Map<String, dynamic>? ?? {});
+  }
+
+  /// Mes statistiques personnelles sur un jeu
+  Future<MyGameStats> getMyStats(String gameType) async {
+    final response = await _apiService
+        .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameMyStats}');
+    return MyGameStats.fromJson(
+        response['data'] as Map<String, dynamic>? ?? {});
+  }
+
+  /// Flux d'activité récent (victoires publiques)
+  Future<List<GameActivityEvent>> getActivity(
+    String gameType, {
+    int limit = 20,
+  }) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameActivity}',
+      queryParams: {'limit': '$limit'},
+    );
+    final events = response['data'] as List? ?? [];
+    return events
+        .map((e) => GameActivityEvent.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Règles du jeu (Normal/Cible)
+  Future<List<GameRuleInfo>> getRules(String gameType) async {
+    final response = await _apiService
+        .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameRules}');
+    final rules = response['data'] as List? ?? [];
+    return rules
+        .map((r) => GameRuleInfo.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Astuces du jeu
+  Future<List<GameTip>> getTips(String gameType) async {
+    final response = await _apiService
+        .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameTips}');
+    final tips = response['data'] as List? ?? [];
+    return tips
+        .map((t) => GameTip.fromJson(t as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Rejoint une partie (via REST - fallback)
   Future<Map<String, dynamic>> joinGame({
     required String gameId,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -79,7 +80,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
 
     setState(() => _isLoading = false);
 
-    // Navigation vers lobby
+    // Navigation vers l'accueil
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -87,6 +88,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
           backgroundColor: NeonColors.success,
         ),
       );
+      context.go('/home');
     }
   }
 
