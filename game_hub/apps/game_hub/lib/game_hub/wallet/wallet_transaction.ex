@@ -1,5 +1,5 @@
 # ==================================
-# WIWIGA - Schema Transaction Portefeuille
+# WIWIGA - Schema Transaction Compte
 # ==================================
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHub.Wallet.WalletTransaction
@@ -7,7 +7,7 @@
 
 defmodule GameHub.Wallet.WalletTransaction do
   @moduledoc """
-  Schema transaction portefeuille.
+  Schema transaction compte utilisateur.
   
   ## Types
     - `deposit`: Dépôt

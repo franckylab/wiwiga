@@ -1,5 +1,5 @@
 # ==================================
-# WIWIGA - Module Portefeuille (ACID)
+# WIWIGA - Module Compte Utilisateur (ACID)
 # ==================================
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHub.Wallet
@@ -7,7 +7,7 @@
 
 defmodule GameHub.Wallet do
   @moduledoc """
-  Gestion du portefeuille utilisateur avec transactions ACID.
+  Gestion du compte utilisateur avec transactions ACID.
   
   ## Règles Critiques
   - TOUJOURS transaction ACID pour modifier balance
@@ -21,6 +21,7 @@ defmodule GameHub.Wallet do
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
   alias GameHub.AuditLog
+  alias GameHub.Tokens.TokenConfig
   
   @doc """
   Récupère le solde d'un utilisateur.
@@ -73,7 +74,7 @@ defmodule GameHub.Wallet do
   end
   
   @doc """
-  Dépose fonds dans portefeuille.
+  Dépose fonds dans le compte.
   
   ## Parameters
     - `user_id`: ID utilisateur
@@ -108,8 +109,14 @@ defmodule GameHub.Wallet do
             idempotency_key: idempotency_key
           })
           
-          # Mettre à jour balance
+          # Mettre à jour balance monétaire
           update_user_balance(user_id, balance_after)
+          
+          # Créditer automatiquement les jetons
+          case GameHub.Tokens.purchase_tokens(user_id, amount, "#{idempotency_key}_tokens") do
+            {:ok, _token_tx} -> :ok
+            {:error, _} -> :ok # Non-bloquant si erreur tokens
+          end
           
           # Log audit
           AuditLog.log(
@@ -137,7 +144,7 @@ defmodule GameHub.Wallet do
   end
   
   @doc """
-  Retire fonds du portefeuille.
+  Retire fonds du compte.
   
   ## Parameters
     - `user_id`: ID utilisateur
@@ -200,7 +207,7 @@ defmodule GameHub.Wallet do
   end
   
   @doc """
-  Place un pari (débit portefeuille).
+  Place un pari (débit compte).
   
   ## Parameters
     - `user_id`: ID utilisateur
@@ -234,6 +241,12 @@ defmodule GameHub.Wallet do
             })
             
             update_user_balance(user_id, balance_after)
+            
+            # Débiriter aussi les jetons (mise en jetons)
+            case GameHub.Tokens.deduct_for_bet(user_id, bet_amount, game_id, "#{idempotency_key}_tokens") do
+              {:ok, _token_tx} -> :ok
+              {:error, _} -> :ok # Non-bloquant si erreur tokens (ex: solde jetons insuffisant)
+            end
             
             AuditLog.log(
               "bet",
@@ -294,6 +307,12 @@ defmodule GameHub.Wallet do
           
           update_user_balance(user_id, balance_after)
           
+          # Créditer aussi les jetons (gains en jetons)
+          case GameHub.Tokens.credit_winnings(user_id, win_amount, game_id, "#{idempotency_key}_tokens") do
+            {:ok, _token_tx} -> :ok
+            {:error, _} -> :ok # Non-bloquant si erreur tokens
+          end
+          
           AuditLog.log(
             "winnings",
             user_id,
@@ -324,7 +343,7 @@ defmodule GameHub.Wallet do
   defp lock_user_for_update(user_id) do
     query = from u in User,
       where: u.id == ^user_id,
-      select: [:id, :balance],
+      select: [:id, :balance, :token_balance],
       lock: "FOR UPDATE"
     
     case Repo.one(query) do
@@ -374,7 +393,5 @@ defmodule GameHub.Wallet do
         |> Repo.update!()
     end
   end
-  
-  # === Fonctions Privées ===
   
 end

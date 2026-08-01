@@ -5,13 +5,13 @@ import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Profile redesigné avec style néon gaming
 class ProfileScreenNeon extends StatelessWidget {
-  const ProfileScreenNeon({Key? key}) : super(key: key);
+  const ProfileScreenNeon({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'PROFIL',
           style: TextStyle(
             fontFamily: 'Orbitron',
@@ -23,7 +23,7 @@ class ProfileScreenNeon extends StatelessWidget {
         backgroundColor: NeonColors.background,
         actions: [
           IconButton(
-            icon: Icon(Icons.edit, color: NeonColors.primary),
+            icon: const Icon(Icons.edit, color: NeonColors.primary),
             onPressed: () {},
           ),
         ],
@@ -52,7 +52,7 @@ class _ProfileHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: NeonGradients.card,
       ),
       child: Column(
@@ -72,12 +72,12 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+                      color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
                       blurRadius: NeonGlow.blurMedium,
                     ),
                   ],
                 ),
-                child: CircleAvatar(
+                child: const CircleAvatar(
                   radius: 48,
                   backgroundColor: NeonColors.surface,
                   child: Icon(
@@ -87,7 +87,7 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              RankBadge(
+              const RankBadge(
                 rank: 'Or',
                 size: 36,
               ),
@@ -97,7 +97,7 @@ class _ProfileHeader extends StatelessWidget {
           const SizedBox(height: 16),
           
           // Nom
-          Text(
+          const Text(
             'Franck CHENDJOU',
             style: TextStyle(
               fontSize: 24,
@@ -110,7 +110,7 @@ class _ProfileHeader extends StatelessWidget {
           const SizedBox(height: 4),
           
           // Phone
-          Text(
+          const Text(
             '+237 699 999 999',
             style: TextStyle(
               fontSize: 16,
@@ -122,7 +122,7 @@ class _ProfileHeader extends StatelessWidget {
           const SizedBox(height: 8),
           
           // Badge KYC
-          GlowBadge(
+          const GlowBadge(
             text: 'KYC Vérifié',
             color: NeonColors.success,
           ),
@@ -148,7 +148,7 @@ class _ProfileStats extends StatelessWidget {
                 style: AppTypography.heading3,
               ),
               const SizedBox(height: 16),
-              Row(
+              const Row(
                 children: [
                   Expanded(
                     child: _StatCard(
@@ -158,7 +158,7 @@ class _ProfileStats extends StatelessWidget {
                       color: NeonColors.primary,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
                       icon: Icons.emoji_events,
@@ -167,7 +167,7 @@ class _ProfileStats extends StatelessWidget {
                       color: NeonColors.success,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
                       icon: Icons.trending_up,
@@ -179,7 +179,7 @@ class _ProfileStats extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
+              const Row(
                 children: [
                   Expanded(
                     child: _StatCard(
@@ -189,7 +189,7 @@ class _ProfileStats extends StatelessWidget {
                       color: NeonColors.accent,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
                       icon: Icons.attach_money,
@@ -198,7 +198,7 @@ class _ProfileStats extends StatelessWidget {
                       color: NeonColors.primary,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
                       icon: Icons.star,
@@ -249,7 +249,7 @@ class _StatCard extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 11,
             color: NeonColors.textSecondary,
             fontFamily: 'Inter',
@@ -297,7 +297,7 @@ class _SettingsSections extends StatelessWidget {
               _SettingsTile(
                 icon: Icons.security,
                 title: 'Vérification KYC',
-                trailing: GlowBadge(
+                trailing: const GlowBadge(
                   text: 'Vérifié',
                   color: NeonColors.success,
                   fontSize: 10,
@@ -323,7 +323,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  activeThumbColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -334,7 +334,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  activeThumbColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -345,7 +345,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  activeThumbColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -363,7 +363,7 @@ class _SettingsSections extends StatelessWidget {
           _SettingsCard(
             children: [
               _SettingsTile(
-                icon: Icons.account_balance_wallet_outlined,
+                icon: Icons.monetization_on_outlined,
                 title: 'Limites de dépôt',
                 onTap: () {},
               ),
@@ -436,7 +436,7 @@ class _SettingsSections extends StatelessWidget {
             child: Text(
               'WIWIGA v1.0.0',
               style: TextStyle(
-                color: NeonColors.textSecondary.withOpacity(0.5),
+                color: NeonColors.textSecondary.withValues(alpha: 0.5),
                 fontSize: 12,
                 fontFamily: 'Inter',
               ),
@@ -494,7 +494,7 @@ class _SettingsTile extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   color: NeonColors.textPrimary,
                   fontFamily: 'Inter',
@@ -504,7 +504,7 @@ class _SettingsTile extends StatelessWidget {
             if (trailing != null) ...[
               trailing!,
             ] else ...[
-              Icon(
+              const Icon(
                 Icons.chevron_right,
                 color: NeonColors.textSecondary,
               ),
@@ -519,8 +519,8 @@ class _SettingsTile extends StatelessWidget {
 class _SettingsDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
       child: Divider(color: NeonColors.border, height: 1),
     );
   }

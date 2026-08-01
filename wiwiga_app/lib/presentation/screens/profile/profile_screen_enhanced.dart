@@ -8,7 +8,7 @@ import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Profil amélioré avec données dynamiques, historique, achievements
 class ProfileScreenEnhanced extends ConsumerWidget {
-  const ProfileScreenEnhanced({Key? key}) : super(key: key);
+  const ProfileScreenEnhanced({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,7 +57,7 @@ class _ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            _getRankColor(profile.rankTier).withOpacity(0.3),
+            _getRankColor(profile.rankTier).withValues(alpha: 0.3),
             NeonColors.background,
           ],
           begin: Alignment.topCenter,
@@ -81,7 +81,7 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _getRankColor(profile.rankTier).withOpacity(0.4),
+                      color: _getRankColor(profile.rankTier).withValues(alpha: 0.4),
                       blurRadius: 15,
                       spreadRadius: 2,
                     ),
@@ -99,7 +99,7 @@ class _ProfileHeader extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: NeonColors.background,
                 ),
@@ -117,7 +117,7 @@ class _ProfileHeader extends StatelessWidget {
             children: [
               Text(
                 profile.username ?? 'Joueur',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: NeonColors.textPrimary,
@@ -126,14 +126,14 @@ class _ProfileHeader extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               if (profile.isVerified)
-                Icon(Icons.verified, color: NeonColors.info, size: 20),
+                const Icon(Icons.verified, color: NeonColors.info, size: 20),
             ],
           ),
           const SizedBox(height: 4),
           // Phone
           Text(
             profile.phone,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               color: NeonColors.textSecondary,
               fontFamily: 'Inter',
@@ -144,11 +144,11 @@ class _ProfileHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.account_balance_wallet, color: NeonColors.success, size: 18),
+              const Icon(Icons.monetization_on, color: NeonColors.success, size: 18),
               const SizedBox(width: 6),
               Text(
-                _formatFCFA(profile.balance.toInt()),
-                style: TextStyle(
+                _formatTokens(profile.balance.toInt()),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: NeonColors.success,
@@ -156,8 +156,8 @@ class _ProfileHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Text(
-                'FCFA',
+              const Text(
+                'jetons',
                 style: TextStyle(
                   fontSize: 12,
                   color: NeonColors.textSecondary,
@@ -240,7 +240,7 @@ class _StatMini extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 10,
               color: NeonColors.textSecondary,
               fontFamily: 'Inter',
@@ -282,7 +282,7 @@ class _XpBar extends StatelessWidget {
               children: [
                 Text(
                   'XP: ${profile.xpPoints}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: NeonColors.primary,
                     fontFamily: 'Orbitron',
                     fontSize: 12,
@@ -291,7 +291,7 @@ class _XpBar extends StatelessWidget {
                 ),
                 Text(
                   'Prochain: ${profile.rankTier == 'diamond' ? 'MAX' : _nextRankLabel(profile.rankTier)}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: NeonColors.textSecondary,
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -358,9 +358,9 @@ class _AchievementsSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.emoji_events, color: NeonColors.rankGold, size: 22),
+              const Icon(Icons.emoji_events, color: NeonColors.rankGold, size: 22),
               const SizedBox(width: 8),
-              Text(
+              const Text(
                 'ACHIEVEMENTS',
                 style: TextStyle(
                   color: NeonColors.textPrimary,
@@ -372,7 +372,7 @@ class _AchievementsSection extends StatelessWidget {
               const Spacer(),
               Text(
                 '${unlocked.length}/${achievements.length}',
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.textSecondary,
                   fontFamily: 'Inter',
                   fontSize: 12,
@@ -389,7 +389,7 @@ class _AchievementsSection extends StatelessWidget {
           ),
           if (locked.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'À débloquer',
               style: TextStyle(
                 color: NeonColors.textSecondary,
@@ -426,8 +426,8 @@ class _AchievementBadge extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: achievement.isUnlocked 
-              ? color.withOpacity(0.15) 
-              : NeonColors.border.withOpacity(0.3),
+              ? color.withValues(alpha: 0.15) 
+              : NeonColors.border.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: achievement.isUnlocked ? color : NeonColors.border,
@@ -439,7 +439,7 @@ class _AchievementBadge extends StatelessWidget {
           children: [
             Icon(
               _getAchievementIcon(achievement.icon),
-              color: achievement.isUnlocked ? color : NeonColors.textSecondary.withOpacity(0.5),
+              color: achievement.isUnlocked ? color : NeonColors.textSecondary.withValues(alpha: 0.5),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -476,10 +476,10 @@ class _RecentGamesSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.history, color: NeonColors.info, size: 22),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'PARTIES RÉCENTES',
                 style: TextStyle(
@@ -520,7 +520,7 @@ class _RecentGameTile extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
               ),
               child: Icon(
                 isWin ? Icons.check : Icons.close,
@@ -549,7 +549,7 @@ class _RecentGameTile extends StatelessWidget {
                       if (game.predictedSum != null && game.actualSum != null)
                         Text(
                           'Préd: ${game.predictedSum} → Réel: ${game.actualSum}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: NeonColors.textSecondary,
                             fontSize: 10,
                             fontFamily: 'Inter',
@@ -560,7 +560,7 @@ class _RecentGameTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _formatTimeAgo(game.playedAt),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: NeonColors.textSecondary,
                       fontSize: 10,
                       fontFamily: 'Inter',
@@ -574,7 +574,7 @@ class _RecentGameTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${isWin ? '+' : '-'}${_formatFCFA(game.betAmount.toInt())}',
+                  '${isWin ? '+' : '-'}${_formatTokens(game.betAmount.toInt())}',
                   style: TextStyle(
                     color: color,
                     fontFamily: 'Orbitron',
@@ -584,8 +584,8 @@ class _RecentGameTile extends StatelessWidget {
                 ),
                 if (isWin && game.winnings > 0)
                   Text(
-                    '+${_formatFCFA(game.winnings.toInt())} gagné',
-                    style: TextStyle(
+                    '+${_formatTokens(game.winnings.toInt())} gagné',
+                    style: const TextStyle(
                       color: NeonColors.success,
                       fontSize: 9,
                       fontFamily: 'Inter',
@@ -652,7 +652,7 @@ class _ProfileActions extends StatelessWidget {
             child: Text(
               'WIWIGA v1.0.0',
               style: TextStyle(
-                color: NeonColors.textSecondary.withOpacity(0.5),
+                color: NeonColors.textSecondary.withValues(alpha: 0.5),
                 fontSize: 11,
                 fontFamily: 'Inter',
               ),
@@ -690,14 +690,14 @@ class _ActionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.textPrimary,
                   fontFamily: 'Inter',
                   fontSize: 14,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, color: NeonColors.textSecondary, size: 20),
+            const Icon(Icons.chevron_right, color: NeonColors.textSecondary, size: 20),
           ],
         ),
       ),
@@ -709,7 +709,7 @@ class _ActionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Divider(color: NeonColors.border.withOpacity(0.3), height: 1),
+    child: Divider(color: NeonColors.border.withValues(alpha: 0.3), height: 1),
   );
 }
 
@@ -748,7 +748,7 @@ IconData _getAchievementIcon(String icon) {
   }
 }
 
-String _formatFCFA(int amount) {
+String _formatTokens(int amount) {
   return amount.toString().replaceAllMapped(
     RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
     (Match m) => '${m[1]} ',

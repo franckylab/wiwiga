@@ -1,29 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/neon_theme.dart';
+import 'token_icon.dart';
 
-/// Affichage du balance avec animation compteur et formatage FCFA
-class BalanceDisplay extends StatefulWidget {
-  final int balanceCentimes;
+/// Affichage du solde en jetons avec animation compteur et glow
+/// 
+/// Remplace l'ancien BalanceDisplay (centimes FCFA) par un affichage
+/// base sur les jetons WIWIGA.
+class TokenBalanceDisplay extends StatefulWidget {
+  final int tokenBalance;
   final double fontSize;
   final bool showLabel;
   final VoidCallback? onTap;
   final bool isLoading;
+  final bool animated;
 
-  const BalanceDisplay({
-    Key? key,
-    required this.balanceCentimes,
+  const TokenBalanceDisplay({
+    super.key,
+    required this.tokenBalance,
     this.fontSize = 36,
     this.showLabel = true,
     this.onTap,
     this.isLoading = false,
-  }) : super(key: key);
+    this.animated = true,
+  });
 
   @override
-  State<BalanceDisplay> createState() => _BalanceDisplayState();
+  State<TokenBalanceDisplay> createState() => _TokenBalanceDisplayState();
 }
 
-class _BalanceDisplayState extends State<BalanceDisplay>
+class _TokenBalanceDisplayState extends State<TokenBalanceDisplay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _glowAnimation;
@@ -42,7 +48,7 @@ class _BalanceDisplayState extends State<BalanceDisplay>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -51,10 +57,9 @@ class _BalanceDisplayState extends State<BalanceDisplay>
     super.dispose();
   }
 
-  String _formatFCFA(int centimes) {
-    final francs = centimes / 100;
+  String _formatTokens(int tokens) {
     final formatter = NumberFormat('#,##0', 'fr_FR');
-    return '${formatter.format(francs)} FCFA';
+    return formatter.format(tokens);
   }
 
   @override
@@ -100,8 +105,14 @@ class _BalanceDisplayState extends State<BalanceDisplay>
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
+                  TokenIcon(
+                    size: widget.fontSize * 0.7,
+                    variant: TokenVariant.normal,
+                    animated: widget.animated,
+                  ),
+                  const SizedBox(width: 6),
                   Text(
-                    _formatFCFA(widget.balanceCentimes),
+                    _formatTokens(widget.tokenBalance),
                     style: TextStyle(
                       fontSize: widget.fontSize,
                       fontWeight: FontWeight.bold,
@@ -109,7 +120,7 @@ class _BalanceDisplayState extends State<BalanceDisplay>
                       fontFamily: 'Orbitron',
                       shadows: [
                         Shadow(
-                          color: NeonColors.primary.withOpacity(_glowAnimation.value),
+                          color: NeonColors.primary.withValues(alpha: _glowAnimation.value),
                           blurRadius: 8,
                         ),
                       ],
@@ -119,8 +130,8 @@ class _BalanceDisplayState extends State<BalanceDisplay>
               ),
               if (widget.showLabel) ...[
                 const SizedBox(height: 4),
-                Text(
-                  'Balance disponible',
+                const Text(
+                  'Jetons disponibles',
                   style: TextStyle(
                     fontSize: 14,
                     color: NeonColors.textSecondary,
@@ -136,6 +147,38 @@ class _BalanceDisplayState extends State<BalanceDisplay>
   }
 }
 
+/// Alias pour compatibilite - affiche le solde en jetons
+/// @deprecated Utiliser [TokenBalanceDisplay] a la place
+class BalanceDisplay extends StatelessWidget {
+  final int balanceCentimes;
+  final double fontSize;
+  final bool showLabel;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const BalanceDisplay({
+    super.key,
+    required this.balanceCentimes,
+    this.fontSize = 36,
+    this.showLabel = true,
+    this.onTap,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Convert centimes to approximate tokens (1 FCFA = 10 tokens, 1 FCFA = 100 centimes)
+    final tokens = (balanceCentimes / 100 * 10).round();
+    return TokenBalanceDisplay(
+      tokenBalance: tokens,
+      fontSize: fontSize,
+      showLabel: showLabel,
+      onTap: onTap,
+      isLoading: isLoading,
+    );
+  }
+}
+
 
 /// Badge de rang/niveau avec couleur spécifique
 class RankBadge extends StatelessWidget {
@@ -143,10 +186,10 @@ class RankBadge extends StatelessWidget {
   final double size;
 
   const RankBadge({
-    Key? key,
+    super.key,
     required this.rank,
     this.size = 60,
-  }) : super(key: key);
+  });
 
   Color get _rankColor {
     switch (rank.toLowerCase()) {
@@ -175,12 +218,12 @@ class RankBadge extends StatelessWidget {
         gradient: RadialGradient(
           colors: [
             _rankColor,
-            _rankColor.withOpacity(0.7),
+            _rankColor.withValues(alpha: 0.7),
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: _rankColor.withOpacity(NeonGlow.opacityMedium),
+            color: _rankColor.withValues(alpha: NeonGlow.opacityMedium),
             blurRadius: NeonGlow.blurMedium,
             spreadRadius: 2,
           ),
@@ -208,10 +251,10 @@ class GameStatusIndicator extends StatelessWidget {
   final String? customText;
 
   const GameStatusIndicator({
-    Key? key,
+    super.key,
     required this.status,
     this.customText,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +273,7 @@ class GameStatusIndicator extends StatelessWidget {
             color: color,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(NeonGlow.opacityMedium),
+                color: color.withValues(alpha: NeonGlow.opacityMedium),
                 blurRadius: NeonGlow.blurSmall,
               ),
             ],

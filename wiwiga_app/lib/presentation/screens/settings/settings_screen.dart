@@ -9,12 +9,12 @@ import '../../widgets/neon/neon_widgets.dart';
 final soundEnabledProvider = StateProvider<bool>((ref) => true);
 final vibrationEnabledProvider = StateProvider<bool>((ref) => true);
 final notificationsEnabledProvider = StateProvider<bool>((ref) => true);
-final responsibleGamingLimitProvider = StateProvider<int?>((ref) => 50000);
+final responsibleGamingLimitProvider = StateProvider<int?>((ref) => 5000); // En jetons
 
 // === Écran ===
 
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,7 +48,7 @@ class SettingsScreen extends ConsumerWidget {
                       title: 'Vérification KYC',
                       subtitle: 'Statut: Vérifié',
                       color: NeonColors.info,
-                      trailing: GlowBadge(text: 'OK', color: NeonColors.success),
+                      trailing: const GlowBadge(text: 'OK', color: NeonColors.success),
                       onTap: () => _showSnackbar(context, 'KYC - Bientôt disponible'),
                     ),
                   ]),
@@ -156,14 +156,14 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [NeonColors.info.withOpacity(0.2), NeonColors.background],
+          colors: [NeonColors.info.withValues(alpha: 0.2), NeonColors.background],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
       child: Row(
         children: [
-          Icon(Icons.settings, color: NeonColors.info, size: 28),
+          const Icon(Icons.settings, color: NeonColors.info, size: 28),
           const SizedBox(width: 8),
           Text('PARAMÈTRES', style: AppTypography.heading3),
         ],
@@ -179,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 8, left: 4),
           child: Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.textSecondary,
               fontFamily: 'Orbitron',
               fontSize: 11,
@@ -215,7 +215,7 @@ class SettingsScreen extends ConsumerWidget {
           height: 26,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(13),
-            color: enabled ? color.withOpacity(0.3) : NeonColors.border,
+            color: enabled ? color.withValues(alpha: 0.3) : NeonColors.border,
             border: Border.all(color: enabled ? color : NeonColors.textSecondary),
           ),
           padding: const EdgeInsets.all(2),
@@ -240,9 +240,9 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildResponsibleGamingTile(WidgetRef ref) {
     final limit = ref.watch(responsibleGamingLimitProvider);
     return _SettingsTile(
-      icon: Icons.account_balance_wallet,
+      icon: Icons.monetization_on,
       title: 'Limite de mise / jour',
-      subtitle: limit != null ? '${_formatFCFA(limit)} FCFA' : 'Illimité',
+      subtitle: limit != null ? '$limit jetons' : 'Illimité',
       color: NeonColors.error,
       onTap: () => _showLimitDialog(ref),
     );
@@ -259,7 +259,7 @@ class SettingsScreen extends ConsumerWidget {
   void _showSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: TextStyle(fontFamily: 'Inter')),
+        content: Text(message, style: const TextStyle(fontFamily: 'Inter')),
         backgroundColor: NeonColors.surface,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -267,9 +267,9 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  String _formatFCFA(int amount) {
+  String _formatTokens(int amount) {
     return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
   }
 }
 
@@ -299,7 +299,7 @@ class _SettingsTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: NeonColors.border.withOpacity(0.3))),
+          border: Border(bottom: BorderSide(color: NeonColors.border.withValues(alpha: 0.3))),
         ),
         child: Row(
           children: [
@@ -308,7 +308,7 @@ class _SettingsTile extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
               ),
               child: Icon(icon, color: color, size: 18),
             ),
@@ -319,7 +319,7 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: NeonColors.textPrimary,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w600,
@@ -329,7 +329,7 @@ class _SettingsTile extends StatelessWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: NeonColors.textSecondary,
                         fontFamily: 'Inter',
                         fontSize: 11,
@@ -339,7 +339,7 @@ class _SettingsTile extends StatelessWidget {
               ),
             ),
             if (trailing != null) trailing! else
-              Icon(Icons.chevron_right, color: NeonColors.textSecondary, size: 20),
+              const Icon(Icons.chevron_right, color: NeonColors.textSecondary, size: 20),
           ],
         ),
       ),

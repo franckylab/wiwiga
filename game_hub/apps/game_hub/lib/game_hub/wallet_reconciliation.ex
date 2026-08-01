@@ -3,11 +3,11 @@
 # ==================================
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHub.WalletReconciliation
-# Description: Job cron de réconciliation portefeuille (Règle 11)
+# Description: Job cron de réconciliation compte utilisateur (Règle 11)
 
 defmodule GameHub.WalletReconciliation do
   @moduledoc """
-  Module de réconciliation automatisée du portefeuille.
+  Module de réconciliation automatisée du compte utilisateur.
   
   Règle 11 : Vérifier horairement que :
   balance = SUM(transactions)

@@ -5,7 +5,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
   Tests critiques:
   - Vérification signature HMAC
   - Idempotence webhook
-  - Créditer portefeuille ACID
+  - Créditer compte utilisateur ACID
   - Gestion échecs paiement
   - User not found
   - Transactions dupliquées
@@ -149,7 +149,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
       %{params: params_with_sig, idempotency_key: idempotency_key}
     end
     
-    test "crédite le portefeuille de l'utilisateur", %{user: user, params: params} do
+    test "crédite le compte de l'utilisateur", %{user: user, params: params} do
       initial_balance = user.balance
       
       conn = conn(:post, "/api/webhooks/campay", params)

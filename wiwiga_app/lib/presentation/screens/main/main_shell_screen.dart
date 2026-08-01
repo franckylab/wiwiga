@@ -11,7 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
 
-/// Shell principal : 5 onglets (Accueil, Jeux, Amis, Portefeuille, Classement)
+/// Shell principal : 5 onglets (Accueil, Jeux, Amis, Jetons, Classement)
 ///
 /// Mobile (< 600px) : Bottom Navigation Bar
 /// Tablet (600-1024px) : Navigation Rail
@@ -19,8 +19,7 @@ import '../../widgets/navigation/responsive_navigation.dart';
 class MainShellScreen extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
-  const MainShellScreen({Key? key, required this.navigationShell})
-      : super(key: key);
+  const MainShellScreen({super.key, required this.navigationShell});
 
   static const List<NavDestination> _destinations = [
     NavDestination(
@@ -36,8 +35,8 @@ class MainShellScreen extends ConsumerWidget {
       label: 'Amis',
     ),
     NavDestination(
-      icon: Icons.account_balance_wallet_outlined,
-      label: 'Portefeuille',
+      icon: Icons.monetization_on,
+      label: 'Jetons',
     ),
     NavDestination(
       icon: Icons.emoji_events_outlined,
@@ -58,17 +57,17 @@ class MainShellScreen extends ConsumerWidget {
       appBarTitle: 'WIWIGA',
       appBarActions: [
         IconButton(
-          icon: Icon(Icons.receipt_long_outlined, color: NeonColors.primary),
+          icon: const Icon(Icons.receipt_long_outlined, color: NeonColors.primary),
           tooltip: 'Historique des transactions',
           onPressed: () => context.push('/transactions'),
         ),
         IconButton(
-          icon: Icon(Icons.person_outline, color: NeonColors.primary),
+          icon: const Icon(Icons.person_outline, color: NeonColors.primary),
           tooltip: 'Profil',
           onPressed: () => context.push('/profile'),
         ),
         IconButton(
-          icon: Icon(Icons.settings_outlined, color: NeonColors.primary),
+          icon: const Icon(Icons.settings_outlined, color: NeonColors.primary),
           tooltip: 'Paramètres',
           onPressed: () => context.push('/settings'),
         ),

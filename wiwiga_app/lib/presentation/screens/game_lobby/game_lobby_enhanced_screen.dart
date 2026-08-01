@@ -24,7 +24,7 @@ import '../../widgets/neon/neon_card.dart';
 class GameLobbyEnhancedScreen extends ConsumerStatefulWidget {
   final String gameType;
 
-  const GameLobbyEnhancedScreen({Key? key, this.gameType = 'dice'}) : super(key: key);
+  const GameLobbyEnhancedScreen({super.key, this.gameType = 'dice'});
 
   @override
   ConsumerState<GameLobbyEnhancedScreen> createState() => _GameLobbyEnhancedScreenState();
@@ -112,14 +112,14 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Parties disponibles',
                 style: TextStyle(color: NeonColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
                 '${_rooms.length} salle${_rooms.length > 1 ? 's' : ''} en attente',
-                style: TextStyle(color: NeonColors.textSecondary, fontSize: 14),
+                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14),
               ),
             ],
           ),
@@ -128,7 +128,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
           const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: NeonColors.primary))
         else
           IconButton(
-            icon: Icon(Icons.refresh, color: NeonColors.primary),
+            icon: const Icon(Icons.refresh, color: NeonColors.primary),
             onPressed: _loadRooms,
           ),
       ],
@@ -169,21 +169,21 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Rejoindre par code', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+          const Text('Rejoindre par code', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _codeController,
-                  style: TextStyle(color: NeonColors.textPrimary, letterSpacing: 2, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: NeonColors.textPrimary, letterSpacing: 2, fontWeight: FontWeight.bold),
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
                     hintText: 'WIWIGA-XXXX',
-                    hintStyle: TextStyle(color: NeonColors.textSecondary, letterSpacing: 1),
+                    hintStyle: const TextStyle(color: NeonColors.textSecondary, letterSpacing: 1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: NeonColors.border),
+                      borderSide: const BorderSide(color: NeonColors.border),
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     isDense: true,
@@ -227,7 +227,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withOpacity(0.2) : NeonColors.surface,
+          color: isSelected ? NeonColors.primary.withValues(alpha: 0.2) : NeonColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? NeonColors.primary : NeonColors.border),
         ),
@@ -257,9 +257,9 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       return Center(
         child: Column(
           children: [
-            Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+            const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
             const SizedBox(height: 8),
-            Text('Erreur de chargement', style: TextStyle(color: NeonColors.error)),
+            const Text('Erreur de chargement', style: TextStyle(color: NeonColors.error)),
             const SizedBox(height: 8),
             NeonButton(text: 'Réessayer', onPressed: _loadRooms, height: 40, fontSize: 13),
           ],
@@ -268,13 +268,13 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
     }
 
     if (_rooms.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           children: [
             Icon(Icons.sports_esports_outlined, color: NeonColors.textSecondary, size: 64),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text('Aucune partie en attente', style: TextStyle(color: NeonColors.textSecondary, fontSize: 16)),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('Créez une partie ou lancez un auto-match !', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           ],
         ),
@@ -299,11 +299,11 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: room.isBetting ? NeonColors.success.withOpacity(0.2) : NeonColors.primary.withOpacity(0.2),
+                  color: room.isBetting ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  room.isBetting ? Icons.account_balance_wallet : Icons.people_outline,
+                  room.isBetting ? Icons.monetization_on : Icons.people_outline,
                   color: room.isBetting ? NeonColors.success : NeonColors.primary,
                 ),
               ),
@@ -317,7 +317,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                       children: [
                         Text(
                           room.ruleType == 'normal' ? 'Normal' : 'Cible',
-                          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(width: 8),
                         Container(
@@ -328,7 +328,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                           ),
                           child: Text(
                             '${room.setsCount} sets',
-                            style: TextStyle(color: NeonColors.textSecondary, fontSize: 11),
+                            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11),
                           ),
                         ),
                       ],
@@ -338,13 +338,13 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                       children: [
                         Text(
                           '${room.playersCount}/${room.maxPlayers} joueurs',
-                          style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+                          style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
                         ),
                         if (room.isBetting) ...[
                           const SizedBox(width: 8),
                           Text(
-                            '${room.betAmount} FCFA',
-                            style: TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold),
+                            '${room.betAmount} jetons',
+                            style: const TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ],
@@ -353,7 +353,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                 ),
               ),
               // Join button
-              Icon(Icons.arrow_forward_ios, color: NeonColors.textSecondary, size: 16),
+              const Icon(Icons.arrow_forward_ios, color: NeonColors.textSecondary, size: 16),
             ],
           ),
         ),
@@ -408,13 +408,13 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
         context.push('/games/${widget.gameType}/session/$gameId', extra: {'bet_amount': 500});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('En file d\'attente... un adversaire arrive bientôt !', style: TextStyle(color: NeonColors.primary))),
+          const SnackBar(content: Text('En file d\'attente... un adversaire arrive bientôt !', style: TextStyle(color: NeonColors.primary))),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}', style: TextStyle(color: NeonColors.error))),
+        SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}', style: const TextStyle(color: NeonColors.error))),
       );
     }
   }

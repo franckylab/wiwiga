@@ -1,5 +1,5 @@
 # ==================================
-# WIWIGA - Controller Portefeuille
+# WIWIGA - Controller Compte Utilisateur
 # ==================================
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHubWeb.WalletController
@@ -7,7 +7,7 @@
 
 defmodule GameHubWeb.WalletController do
   @moduledoc """
-  Controller gestion portefeuille.
+  Controller gestion compte utilisateur.
   
   ## Endpoints
     GET    /api/wallet/balance           - Solde utilisateur
@@ -61,7 +61,7 @@ defmodule GameHubWeb.WalletController do
     if amount < 100 do
       conn
       |> put_status(400)
-      |> json(Errors.error("Montant minimum: 100 FCFA", 400, "AMOUNT_TOO_LOW", %{min: 100}))
+      |> json(Errors.error("Montant minimum: 1 FCFA (100 centimes)", 400, "AMOUNT_TOO_LOW", %{min: 100}))
     else
       case Wallet.deposit(user_id, amount, key) do
         {:ok, transaction} ->
@@ -112,7 +112,7 @@ defmodule GameHubWeb.WalletController do
     if amount < 100 do
       conn
       |> put_status(400)
-      |> json(Errors.error("Montant minimum: 100 FCFA", 400, "AMOUNT_TOO_LOW"))
+      |> json(Errors.error("Montant minimum: 1 FCFA (100 centimes)", 400, "AMOUNT_TOO_LOW"))
     else
       case Wallet.withdraw(user_id, amount, key) do
         {:ok, transaction} ->

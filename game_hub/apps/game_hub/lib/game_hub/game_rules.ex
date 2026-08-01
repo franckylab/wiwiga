@@ -165,7 +165,7 @@ defmodule GameHub.GameRules do
       max_bet = rc["max_bet"] || 500_000
 
       if bet_amount < min_bet or bet_amount > max_bet do
-        ["Mise (#{bet_amount}) doit être entre #{min_bet} et #{max_bet} FCFA" | errors]
+        ["Mise (#{bet_amount}) doit être entre #{min_bet} et #{max_bet} jetons" | errors]
       else
         errors
       end

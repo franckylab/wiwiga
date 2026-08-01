@@ -7,7 +7,7 @@ import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran d'authentification redesigné avec style néon gaming
 class AuthScreenNeon extends StatefulWidget {
-  const AuthScreenNeon({Key? key}) : super(key: key);
+  const AuthScreenNeon({super.key});
 
   @override
   State<AuthScreenNeon> createState() => _AuthScreenNeonState();
@@ -40,7 +40,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
-    ));
+    ),);
     
     _animationController.forward();
   }
@@ -83,7 +83,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
     // Navigation vers l'accueil
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Connexion réussie !', style: TextStyle(fontFamily: 'Inter')),
           backgroundColor: NeonColors.success,
         ),
@@ -125,7 +125,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
                   Text(
                     _isOtpSent ? 'VÉRIFICATION' : 'BIENVENUE',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: NeonColors.primary,
@@ -140,7 +140,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
                         ? 'Entrez le code reçu par SMS'
                         : 'Connectez-vous pour commencer à jouer',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       color: NeonColors.textSecondary,
                       fontFamily: 'Inter',
@@ -192,13 +192,13 @@ class _LogoSection extends StatelessWidget {
           gradient: NeonGradients.cta,
           boxShadow: [
             BoxShadow(
-              color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+              color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
               blurRadius: NeonGlow.blurMedium,
               spreadRadius: 4,
             ),
           ],
         ),
-        child: Icon(
+        child: const Icon(
           Icons.gamepad,
           size: 64,
           color: NeonColors.background,
@@ -300,7 +300,7 @@ class _OtpForm extends StatelessWidget {
           Text(
             'Renvoyer le code dans $countdown s',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.textSecondary,
               fontSize: 14,
               fontFamily: 'Inter',
@@ -309,7 +309,7 @@ class _OtpForm extends StatelessWidget {
         else
           TextButton(
             onPressed: onResend,
-            child: Text(
+            child: const Text(
               'Renvoyer le code',
               style: TextStyle(
                 color: NeonColors.primary,
@@ -331,7 +331,7 @@ class _FooterSection extends StatelessWidget {
       children: [
         const Divider(color: NeonColors.border),
         const SizedBox(height: 16),
-        Text(
+        const Text(
           'En continuant, vous acceptez nos',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -346,7 +346,7 @@ class _FooterSection extends StatelessWidget {
           children: [
             TextButton(
               onPressed: () {},
-              child: Text(
+              child: const Text(
                 'Conditions d\'utilisation',
                 style: TextStyle(
                   color: NeonColors.primary,
@@ -355,7 +355,7 @@ class _FooterSection extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
+            const Text(
               'et',
               style: TextStyle(
                 color: NeonColors.textSecondary,
@@ -365,7 +365,7 @@ class _FooterSection extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {},
-              child: Text(
+              child: const Text(
                 'Politique de confidentialité',
                 style: TextStyle(
                   color: NeonColors.primary,

@@ -3,20 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/neon/token_icon.dart';
 
 // === Models ===
 
-enum TransactionType { deposit, withdraw, bet, win, commission, refund }
+enum TransactionType {
+  deposit, withdraw, bet, win, commission, refund,
+  tokenPurchase, tokenExchange, tokenTransfer, tokenGift, promoCredit,
+}
 
 class TransactionItem {
   final String id;
   final TransactionType type;
-  final int amount;
-  final int balanceAfter;
+  final int amount; // En jetons
+  final int balanceAfter; // En jetons
   final DateTime timestamp;
   final String reference;
   final String? gameName;
   final String status;
+  final int? tokenAmount;
 
   TransactionItem({
     required this.id,
@@ -27,29 +32,40 @@ class TransactionItem {
     required this.reference,
     this.gameName,
     this.status = 'completed',
+    this.tokenAmount,
   });
 
-  bool get isCredit => type == TransactionType.deposit || type == TransactionType.win || type == TransactionType.refund;
+  bool get isCredit => type == TransactionType.deposit || type == TransactionType.win || type == TransactionType.refund || type == TransactionType.tokenPurchase || type == TransactionType.tokenGift || type == TransactionType.promoCredit;
   
   String get typeLabel {
     switch (type) {
-      case TransactionType.deposit: return 'Dépôt';
-      case TransactionType.withdraw: return 'Retrait';
+      case TransactionType.deposit: return 'Achat Jetons';
+      case TransactionType.withdraw: return 'Echange';
       case TransactionType.bet: return 'Mise';
       case TransactionType.win: return 'Gain';
       case TransactionType.commission: return 'Commission';
       case TransactionType.refund: return 'Remboursement';
+      case TransactionType.tokenPurchase: return 'Achat';
+      case TransactionType.tokenExchange: return 'Echange';
+      case TransactionType.tokenTransfer: return 'Transfert';
+      case TransactionType.tokenGift: return 'Cadeau';
+      case TransactionType.promoCredit: return 'Promo';
     }
   }
 
   IconData get typeIcon {
     switch (type) {
-      case TransactionType.deposit: return Icons.arrow_downward;
-      case TransactionType.withdraw: return Icons.arrow_upward;
+      case TransactionType.deposit: return Icons.shopping_cart;
+      case TransactionType.withdraw: return Icons.swap_horiz;
       case TransactionType.bet: return Icons.casino;
       case TransactionType.win: return Icons.emoji_events;
       case TransactionType.commission: return Icons.percent;
       case TransactionType.refund: return Icons.replay;
+      case TransactionType.tokenPurchase: return Icons.shopping_cart;
+      case TransactionType.tokenExchange: return Icons.swap_horiz;
+      case TransactionType.tokenTransfer: return Icons.send;
+      case TransactionType.tokenGift: return Icons.card_giftcard;
+      case TransactionType.promoCredit: return Icons.campaign;
     }
   }
 
@@ -61,6 +77,11 @@ class TransactionItem {
       case TransactionType.win: return NeonColors.rankGold;
       case TransactionType.commission: return NeonColors.textSecondary;
       case TransactionType.refund: return NeonColors.info;
+      case TransactionType.tokenPurchase: return NeonColors.success;
+      case TransactionType.tokenExchange: return NeonColors.accent;
+      case TransactionType.tokenTransfer: return NeonColors.info;
+      case TransactionType.tokenGift: return NeonColors.secondary;
+      case TransactionType.promoCredit: return NeonColors.tokenGold;
     }
   }
 }
@@ -72,23 +93,23 @@ final transactionFilterProvider = StateProvider<String>((ref) => 'all');
 final transactionsProvider = Provider<List<TransactionItem>>((ref) {
   final now = DateTime.now();
   return [
-    TransactionItem(id: '1', type: TransactionType.win, amount: 85000, balanceAfter: 450000, timestamp: now.subtract(const Duration(hours: 2)), reference: 'WIN_001', gameName: 'Dice Game'),
-    TransactionItem(id: '2', type: TransactionType.bet, amount: -50000, balanceAfter: 365000, timestamp: now.subtract(const Duration(hours: 2, minutes: 5)), reference: 'BET_042', gameName: 'Dice Game'),
-    TransactionItem(id: '3', type: TransactionType.deposit, amount: 200000, balanceAfter: 415000, timestamp: now.subtract(const Duration(hours: 5)), reference: 'DEP_012', status: 'completed'),
-    TransactionItem(id: '4', type: TransactionType.withdraw, amount: -100000, balanceAfter: 215000, timestamp: now.subtract(const Duration(hours: 24)), reference: 'WDR_008', status: 'pending'),
-    TransactionItem(id: '5', type: TransactionType.win, amount: 120000, balanceAfter: 315000, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'WIN_002', gameName: 'Dice Game'),
-    TransactionItem(id: '6', type: TransactionType.bet, amount: -80000, balanceAfter: 195000, timestamp: now.subtract(const Duration(days: 1, hours: 4)), reference: 'BET_041', gameName: 'Dice Game'),
-    TransactionItem(id: '7', type: TransactionType.commission, amount: -5000, balanceAfter: 275000, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'COM_001', gameName: 'Dice Game'),
-    TransactionItem(id: '8', type: TransactionType.deposit, amount: 150000, balanceAfter: 355000, timestamp: now.subtract(const Duration(days: 2)), reference: 'DEP_011', status: 'completed'),
-    TransactionItem(id: '9', type: TransactionType.refund, amount: 30000, balanceAfter: 205000, timestamp: now.subtract(const Duration(days: 3)), reference: 'REF_001', gameName: 'Dice Game'),
-    TransactionItem(id: '10', type: TransactionType.withdraw, amount: -50000, balanceAfter: 175000, timestamp: now.subtract(const Duration(days: 4)), reference: 'WDR_007', status: 'completed'),
+    TransactionItem(id: '1', type: TransactionType.win, amount: 850, balanceAfter: 4500, timestamp: now.subtract(const Duration(hours: 2)), reference: 'WIN_001', gameName: 'Dice Game'),
+    TransactionItem(id: '2', type: TransactionType.bet, amount: -500, balanceAfter: 3650, timestamp: now.subtract(const Duration(hours: 2, minutes: 5)), reference: 'BET_042', gameName: 'Dice Game'),
+    TransactionItem(id: '3', type: TransactionType.tokenPurchase, amount: 2000, balanceAfter: 4150, timestamp: now.subtract(const Duration(hours: 5)), reference: 'PUR_012', status: 'completed'),
+    TransactionItem(id: '4', type: TransactionType.tokenExchange, amount: -1000, balanceAfter: 2150, timestamp: now.subtract(const Duration(hours: 24)), reference: 'EXC_008', status: 'pending'),
+    TransactionItem(id: '5', type: TransactionType.win, amount: 1200, balanceAfter: 3150, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'WIN_002', gameName: 'Dice Game'),
+    TransactionItem(id: '6', type: TransactionType.bet, amount: -800, balanceAfter: 1950, timestamp: now.subtract(const Duration(days: 1, hours: 4)), reference: 'BET_041', gameName: 'Dice Game'),
+    TransactionItem(id: '7', type: TransactionType.commission, amount: -50, balanceAfter: 2750, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'COM_001', gameName: 'Dice Game'),
+    TransactionItem(id: '8', type: TransactionType.tokenPurchase, amount: 1500, balanceAfter: 3550, timestamp: now.subtract(const Duration(days: 2)), reference: 'PUR_011', status: 'completed'),
+    TransactionItem(id: '9', type: TransactionType.tokenGift, amount: 300, balanceAfter: 2050, timestamp: now.subtract(const Duration(days: 3)), reference: 'GFT_001', gameName: 'Cadeau'),
+    TransactionItem(id: '10', type: TransactionType.tokenExchange, amount: -500, balanceAfter: 1750, timestamp: now.subtract(const Duration(days: 4)), reference: 'EXC_007', status: 'completed'),
   ];
 });
 
 // === Écran ===
 
 class TransactionHistoryScreen extends ConsumerWidget {
-  const TransactionHistoryScreen({Key? key}) : super(key: key);
+  const TransactionHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -118,14 +139,14 @@ class TransactionHistoryScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [NeonColors.info.withOpacity(0.2), NeonColors.background],
+          colors: [NeonColors.info.withValues(alpha: 0.2), NeonColors.background],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
       child: Row(
         children: [
-          Icon(Icons.receipt_long, color: NeonColors.info, size: 28),
+          const Icon(Icons.receipt_long, color: NeonColors.info, size: 28),
           const SizedBox(width: 8),
           Text('HISTORIQUE', style: AppTypography.heading3),
         ],
@@ -136,9 +157,9 @@ class TransactionHistoryScreen extends ConsumerWidget {
   Widget _buildFilterBar(WidgetRef ref, String current) {
     final filters = [
       {'key': 'all', 'label': 'Tout'},
-      {'key': 'deposit', 'label': 'Dépôts'},
-      {'key': 'withdraw', 'label': 'Retraits'},
+      {'key': 'tokens', 'label': 'Jetons'},
       {'key': 'game', 'label': 'Jeu'},
+      {'key': 'promo', 'label': 'Promo'},
     ];
 
     return Container(
@@ -155,7 +176,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? NeonColors.info.withOpacity(0.15) : Colors.transparent,
+                    color: isSelected ? NeonColors.info.withValues(alpha: 0.15) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected ? NeonColors.info : NeonColors.border,
@@ -224,7 +245,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 date,
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.textSecondary,
                   fontFamily: 'Inter',
                   fontSize: 12,
@@ -249,9 +270,9 @@ class TransactionHistoryScreen extends ConsumerWidget {
 
   bool _matchesFilter(TransactionItem t, String filter) {
     switch (filter) {
-      case 'deposit': return t.type == TransactionType.deposit;
-      case 'withdraw': return t.type == TransactionType.withdraw;
+      case 'tokens': return t.type == TransactionType.tokenPurchase || t.type == TransactionType.tokenExchange || t.type == TransactionType.tokenTransfer || t.type == TransactionType.tokenGift;
       case 'game': return t.type == TransactionType.bet || t.type == TransactionType.win || t.type == TransactionType.commission;
+      case 'promo': return t.type == TransactionType.promoCredit;
       default: return true;
     }
   }
@@ -275,7 +296,7 @@ class _TransactionTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: transaction.typeColor.withOpacity(0.15),
+              color: transaction.typeColor.withValues(alpha: 0.15),
             ),
             child: Icon(transaction.typeIcon, color: transaction.typeColor, size: 20),
           ),
@@ -289,7 +310,7 @@ class _TransactionTile extends StatelessWidget {
                   children: [
                     Text(
                       transaction.typeLabel,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: NeonColors.textPrimary,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w600,
@@ -307,16 +328,16 @@ class _TransactionTile extends StatelessWidget {
                   children: [
                     Text(
                       transaction.reference,
-                      style: TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
+                      style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       _formatTime(transaction.timestamp),
-                      style: TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
+                      style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
                     ),
                     if (transaction.status == 'pending') ...[
                       const SizedBox(width: 6),
-                      GlowBadge(text: 'EN ATTENTE', color: NeonColors.warning),
+                      const GlowBadge(text: 'EN ATTENTE', color: NeonColors.warning),
                     ],
                   ],
                 ),
@@ -328,7 +349,7 @@ class _TransactionTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${transaction.isCredit ? '+' : ''}${_formatFCFA(transaction.amount)}',
+                '${transaction.isCredit ? '+' : ''}${_formatTokens(transaction.amount)}',
                 style: TextStyle(
                   color: transaction.isCredit ? NeonColors.success : NeonColors.error,
                   fontFamily: 'Orbitron',
@@ -337,8 +358,8 @@ class _TransactionTile extends StatelessWidget {
                 ),
               ),
               Text(
-                'Solde: ${_formatFCFA(transaction.balanceAfter)}',
-                style: TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
+                'Solde: ${_formatTokens(transaction.balanceAfter)} jetons',
+                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
               ),
             ],
           ),
@@ -351,9 +372,9 @@ class _TransactionTile extends StatelessWidget {
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  String _formatFCFA(int amount) {
+  String _formatTokens(int amount) {
     return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
   }
 }
 
@@ -373,11 +394,11 @@ class _SummaryItem extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
+            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
           ),
           const SizedBox(height: 4),
           Text(
-            _formatFCFA(amount),
+            _formatTokens(amount),
             style: TextStyle(color: color, fontFamily: 'Orbitron', fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ],
@@ -385,8 +406,8 @@ class _SummaryItem extends StatelessWidget {
     );
   }
 
-  String _formatFCFA(int amount) {
+  String _formatTokens(int amount) {
     return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
   }
 }

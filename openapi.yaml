@@ -32,7 +32,9 @@ tags:
   - name: Authentication
     description: Authentification OTP et JWT
   - name: Wallet
-    description: Gestion du portefeuille (dépôt, retrait, historique)
+    description: Gestion du compte utilisateur (dépôt, retrait, historique monétaire)
+  - name: Tokens
+    description: Jetons virtuels (achat, échange, transfert, promos)
   - name: Games
     description: Jeux et matchmaking
   - name: Webhooks
@@ -244,7 +246,7 @@ paths:
       tags:
         - Wallet
       summary: Solde utilisateur
-      description: Retourne le balance actuel du portefeuille
+      description: Retourne le solde monétaire actuel du compte
       operationId: getBalance
       security:
         - BearerAuth: []
@@ -277,7 +279,7 @@ paths:
       tags:
         - Wallet
       summary: Effectuer un dépôt
-      description: Dépose des fonds dans le portefeuille (utilise idempotence)
+      description: Dépose des fonds dans le compte (utilise idempotence)
       operationId: deposit
       security:
         - BearerAuth: []
@@ -334,7 +336,7 @@ paths:
       tags:
         - Wallet
       summary: Effectuer un retrait
-      description: Retire des fonds du portefeuille
+      description: Retire des fonds du compte
       operationId: withdraw
       security:
         - BearerAuth: []
@@ -417,6 +419,267 @@ paths:
                       $ref: '#/components/schemas/Transaction'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+
+  # ==================================
+  # TOKENS (Jetons virtuels)
+  # ==================================
+  /api/tokens/balance:
+    get:
+      tags:
+        - Tokens
+      summary: Solde jetons
+      description: Retourne le solde en jetons et la valeur monétaire equivalente
+      operationId: getTokenBalance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Solde jetons
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      token_balance:
+                        type: integer
+                        example: 5000
+                      monetary_value_centimes:
+                        type: integer
+                        example: 50000
+                      exchange_rate:
+                        type: number
+                        format: float
+                        example: 10.0
+
+  /api/tokens/summary:
+    get:
+      tags:
+        - Tokens
+      summary: Résumé complet jetons
+      description: Retourne solde, valeur monétaire, limites échange, et options
+      operationId: getTokenSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Résumé complet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TokenSummary'
+
+  /api/tokens/purchase:
+    post:
+      tags:
+        - Tokens
+      summary: Achat de jetons
+      description: Convertit un montant monétaire en jetons (après paiement Mobile Money)
+      operationId: purchaseTokens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, idempotency_key]
+              properties:
+                amount:
+                  type: integer
+                  description: Montant en centimes
+                  example: 5000
+                idempotency_key:
+                  type: string
+      responses:
+        '201':
+          description: Achat réussi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      tokens_credited:
+                        type: integer
+                      monetary_value:
+                        type: integer
+                      exchange_rate:
+                        type: number
+
+  /api/tokens/exchange:
+    post:
+      tags:
+        - Tokens
+      summary: Échange jetons contre monnaie
+      description: Convertit des jetons en valeur monétaire (retrait)
+      operationId: exchangeTokens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token_amount, idempotency_key]
+              properties:
+                token_amount:
+                  type: integer
+                  description: Nombre de jetons à échanger
+                  example: 1000
+                idempotency_key:
+                  type: string
+      responses:
+        '201':
+          description: Échange réussi
+        '400':
+          description: Limites non respectées ou solde insuffisant
+
+  /api/tokens/transfer:
+    post:
+      tags:
+        - Tokens
+      summary: Transfert de jetons
+      description: Transfère des jetons vers un autre joueur
+      operationId: transferTokens
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipient_id, token_amount, idempotency_key]
+              properties:
+                recipient_id:
+                  type: integer
+                token_amount:
+                  type: integer
+                idempotency_key:
+                  type: string
+      responses:
+        '200':
+          description: Transfert réussi
+        '400':
+          description: Solde insuffisant ou transfert vers soi-même
+        '404':
+          description: Destinataire non trouvé
+
+  /api/tokens/gift:
+    post:
+      tags:
+        - Tokens
+      summary: Envoi cadeau
+      description: Envoie des jetons en cadeau à un autre joueur
+      operationId: sendGift
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipient_id, token_amount, idempotency_key]
+              properties:
+                recipient_id:
+                  type: integer
+                token_amount:
+                  type: integer
+                message:
+                  type: string
+                  example: Joyeux anniversaire!
+                idempotency_key:
+                  type: string
+      responses:
+        '200':
+          description: Cadeau envoyé
+
+  /api/tokens/transactions:
+    get:
+      tags:
+        - Tokens
+      summary: Historique transactions jetons
+      description: Historique paginé des transactions de jetons
+      operationId: getTokenTransactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Liste des transactions jetons
+
+  /api/tokens/promos:
+    get:
+      tags:
+        - Tokens
+      summary: Promos disponibles
+      description: Liste les promotions de jetons actuellement disponibles
+      operationId: getAvailablePromos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des promos actives
+
+  /api/tokens/promos/{id}/redeem:
+    post:
+      tags:
+        - Tokens
+      summary: Réclamer une promo
+      description: Réclame une promotion de jetons
+      operationId: redeemPromo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idempotency_key]
+              properties:
+                idempotency_key:
+                  type: string
+      responses:
+        '201':
+          description: Promo réclamée
+        '404':
+          description: Promo non trouvée
+        '409':
+          description: Promo déjà réclamée
 
   # ==================================
   # GAMES
@@ -767,6 +1030,68 @@ components:
           type: boolean
         has_prev:
           type: boolean
+
+    TokenSummary:
+      type: object
+      properties:
+        token_balance:
+          type: integer
+          example: 5000
+        monetary_value_centimes:
+          type: integer
+          example: 50000
+        monetary_value_fcfa:
+          type: number
+          format: float
+          example: 500.0
+        exchange_rate:
+          type: number
+          format: float
+          example: 10.0
+        min_exchange:
+          type: integer
+          example: 100
+        max_exchange:
+          type: integer
+          example: 100000
+        transfer_enabled:
+          type: boolean
+          example: true
+        gift_enabled:
+          type: boolean
+          example: true
+
+    TokenTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        type:
+          type: string
+          enum: [purchase, exchange, bet, winnings, transfer_out, transfer_in, gift_received, gift_sent, promo_credit, promo_debit, commission]
+        token_amount:
+          type: integer
+        balance_before:
+          type: integer
+        balance_after:
+          type: integer
+        monetary_value:
+          type: integer
+          nullable: true
+        exchange_rate:
+          type: number
+          nullable: true
+        game_id:
+          type: string
+          nullable: true
+        status:
+          type: string
+          default: completed
+        inserted_at:
+          type: string
+          format: date-time
 
     HealthResponse:
       type: object

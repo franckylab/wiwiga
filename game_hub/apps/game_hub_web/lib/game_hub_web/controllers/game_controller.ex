@@ -120,12 +120,12 @@ defmodule GameHubWeb.GameController do
       bet_amount < game_config.min_bet ->
         conn
         |> put_status(400)
-        |> json(Errors.error("Mise minimum: #{game_config.min_bet} FCFA", 400, "BET_TOO_LOW"))
+        |> json(Errors.error("Mise minimum: #{game_config.min_bet} jetons", 400, "BET_TOO_LOW"))
       
       bet_amount > game_config.max_bet ->
         conn
         |> put_status(400)
-        |> json(Errors.error("Mise maximum: #{game_config.max_bet} FCFA", 400, "BET_TOO_HIGH"))
+        |> json(Errors.error("Mise maximum: #{game_config.max_bet} jetons", 400, "BET_TOO_HIGH"))
       
       true ->
         # Vérifier jeu responsable (Règle 19)

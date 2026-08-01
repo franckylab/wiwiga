@@ -30,7 +30,7 @@ class GameRepository {
     final response = await _apiService
         .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameStats}');
     return GameGlobalStats.fromJson(
-        response['data'] as Map<String, dynamic>? ?? {});
+        response['data'] as Map<String, dynamic>? ?? {},);
   }
 
   /// Classement d'un jeu (metric × period)
@@ -49,7 +49,7 @@ class GameRepository {
       },
     );
     return GameLeaderboard.fromJson(
-        response['data'] as Map<String, dynamic>? ?? {});
+        response['data'] as Map<String, dynamic>? ?? {},);
   }
 
   /// Mes statistiques personnelles sur un jeu
@@ -57,7 +57,7 @@ class GameRepository {
     final response = await _apiService
         .get('${ApiEndpoints.gameShow}/$gameType${ApiEndpoints.gameMyStats}');
     return MyGameStats.fromJson(
-        response['data'] as Map<String, dynamic>? ?? {});
+        response['data'] as Map<String, dynamic>? ?? {},);
   }
 
   /// Flux d'activité récent (victoires publiques)

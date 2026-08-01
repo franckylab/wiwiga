@@ -49,7 +49,7 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
       Achievement(
         id: 'big_winner',
         name: 'Gros Gain',
-        description: 'Gagner plus de 100 000 FCFA en une partie',
+        description: 'Gagner plus de 1 000 000 jetons en une partie',
         icon: 'attach_money',
         isUnlocked: true,
         unlockedAt: DateTime(2025, 9, 5),
@@ -64,7 +64,7 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
         unlockedAt: DateTime(2025, 10, 1),
         tier: 'gold',
       ),
-      Achievement(
+      const Achievement(
         id: 'diamond_roll',
         name: 'Roulage de Diamant',
         description: 'Gagner avec une prédiction exacte de 2 ou 12',
@@ -72,7 +72,7 @@ class UserProfileNotifier extends StateNotifier<UserProfile> {
         isUnlocked: false,
         tier: 'diamond',
       ),
-      Achievement(
+      const Achievement(
         id: 'champion',
         name: 'Champion',
         description: 'Gagner un tournoi',

@@ -15,7 +15,7 @@ class NeonCard extends StatefulWidget {
   final Widget? footer;
 
   const NeonCard({
-    Key? key,
+    super.key,
     required this.child,
     this.width,
     this.padding = const EdgeInsets.all(20),
@@ -24,7 +24,7 @@ class NeonCard extends StatefulWidget {
     this.gradient,
     this.header,
     this.footer,
-  }) : super(key: key);
+  });
 
   @override
   State<NeonCard> createState() => _NeonCardState();
@@ -52,7 +52,7 @@ class _NeonCardState extends State<NeonCard>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
 
     _glowAnimation = Tween<double>(
       begin: NeonGlow.opacityLow,
@@ -60,7 +60,7 @@ class _NeonCardState extends State<NeonCard>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -100,18 +100,18 @@ class _NeonCardState extends State<NeonCard>
                   color: NeonColors.surface,
                   borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
                   border: Border.all(
-                    color: NeonColors.primary.withOpacity(_glowAnimation.value),
+                    color: NeonColors.primary.withValues(alpha: _glowAnimation.value),
                     width: _isHovered ? NeonGlow.borderWidthThick : NeonGlow.borderWidth,
                   ),
                   boxShadow: [
                     if (_isHovered)
                       BoxShadow(
-                        color: NeonColors.primary.withOpacity(_glowAnimation.value),
+                        color: NeonColors.primary.withValues(alpha: _glowAnimation.value),
                         blurRadius: NeonGlow.blurMedium,
                         spreadRadius: 2,
                       ),
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),

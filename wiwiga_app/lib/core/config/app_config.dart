@@ -31,16 +31,24 @@ class AppConfig {
     const overrideWs = String.fromEnvironment('WS_BASE_URL');
 
     if (overrideApi.isNotEmpty) {
+      // URL explicite passée au build (Docker, CI, etc.)
       baseUrl = overrideApi;
       websocketUrl = overrideWs.isNotEmpty
           ? overrideWs
           : overrideApi.replaceFirst('http', 'ws');
       campayApiKey = null;
+    } else if (kIsWeb) {
+      // En mode web, utiliser la même origine (proxy nginx)
+      baseUrl = _buildOrigin();
+      websocketUrl = _buildWebSocketUrl();
+      campayApiKey = null;
     } else if (kDebugMode) {
+      // Debug natif (mobile/desktop en dev)
       baseUrl = 'http://localhost:8000';
       websocketUrl = 'ws://localhost:8000';
       campayApiKey = null;
     } else {
+      // Production native (fallback)
       baseUrl = 'https://api.wiwiga.com';
       websocketUrl = 'wss://api.wiwiga.com';
       campayApiKey = const String.fromEnvironment('CAMPAY_API_KEY');
@@ -49,6 +57,38 @@ class AppConfig {
     debugPrint('✓ WIWIGA App v$version initialisée');
     debugPrint('  API: $baseUrl');
     debugPrint('  WebSocket: $websocketUrl');
+  }
+
+  /// Construit l'URL d'origine depuis le navigateur
+  static String _buildOrigin() {
+    try {
+      final uri = Uri.base;
+      final scheme = uri.scheme;
+      final host = uri.host;
+      final port = uri.port;
+      if (port == 80 || port == 443 || port == 0) {
+        return '$scheme://$host';
+      }
+      return '$scheme://$host:$port';
+    } catch (_) {
+      return 'http://localhost:8003';
+    }
+  }
+
+  /// Construit l'URL WebSocket depuis l'origine courante
+  static String _buildWebSocketUrl() {
+    try {
+      final uri = Uri.base;
+      final scheme = uri.scheme == 'https' ? 'wss' : 'ws';
+      final host = uri.host;
+      final port = uri.port;
+      if (port == 80 || port == 443 || port == 0) {
+        return '$scheme://$host';
+      }
+      return '$scheme://$host:$port';
+    } catch (_) {
+      return 'ws://localhost:8000';
+    }
   }
   
   /// Vérifie si l'app est en mode développement

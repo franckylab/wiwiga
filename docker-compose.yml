@@ -47,6 +47,8 @@ services:
       MIX_ENV: dev
       DATABASE_URL: postgresql://wiwiga_user:wiwiga_password@postgres:5432/wiwiga_dev
       REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SECRET_KEY_BASE: dev_secret_key_base_change_in_production
       PORT: 4001
     ports:

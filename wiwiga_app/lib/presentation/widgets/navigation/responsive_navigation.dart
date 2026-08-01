@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../neon/wiwiga_logo.dart';
 
 /// Navigation responsive qui s'adapte selon la taille de l'écran
 /// 
@@ -19,7 +20,7 @@ class ResponsiveNavigation extends StatefulWidget {
   final List<Widget>? appBarActions;
 
   const ResponsiveNavigation({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onDestinationSelected,
     required this.destinations,
@@ -27,14 +28,14 @@ class ResponsiveNavigation extends StatefulWidget {
     this.floatingActionButton,
     this.appBarTitle,
     this.appBarActions,
-  }) : super(key: key);
+  });
 
   @override
   State<ResponsiveNavigation> createState() => _ResponsiveNavigationState();
 }
 
 class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
-  bool _isDrawerOpen = false;
+  final bool _isDrawerOpen = false;
 
   NavigationLayoutType _getLayoutType(double width) {
     if (width < 600) {
@@ -70,7 +71,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       appBar: AppBar(
         title: Text(
           widget.appBarTitle ?? 'WIWIGA',
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'Orbitron',
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -86,7 +87,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: NeonColors.surface,
-          border: Border(
+          border: const Border(
             top: BorderSide(
               color: NeonColors.primary,
               width: NeonGlow.borderWidth,
@@ -94,14 +95,14 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
           ),
           boxShadow: [
             BoxShadow(
-              color: NeonColors.primary.withOpacity(NeonGlow.opacityLow),
+              color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
               blurRadius: NeonGlow.blurSmall,
             ),
           ],
         ),
         child: NavigationBar(
           backgroundColor: Colors.transparent,
-          indicatorColor: NeonColors.primary.withOpacity(0.2),
+          indicatorColor: NeonColors.primary.withValues(alpha: 0.2),
           selectedIndex: widget.currentIndex,
           onDestinationSelected: widget.onDestinationSelected,
           destinations: widget.destinations.map((dest) {
@@ -122,7 +123,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       body: Row(
         children: [
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: NeonColors.surface,
               border: Border(
                 right: BorderSide(
@@ -142,19 +143,19 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                   selectedIcon: Icon(dest.icon, color: NeonColors.primary),
                   label: Text(
                     dest.label,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12,
                     ),
                   ),
                 );
               }).toList(),
-              selectedLabelTextStyle: TextStyle(
+              selectedLabelTextStyle: const TextStyle(
                 color: NeonColors.primary,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w600,
               ),
-              unselectedLabelTextStyle: TextStyle(
+              unselectedLabelTextStyle: const TextStyle(
                 color: NeonColors.textSecondary,
                 fontFamily: 'Inter',
               ),
@@ -177,7 +178,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildRailAppBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: NeonColors.background,
         border: Border(
           bottom: BorderSide(color: NeonColors.border),
@@ -188,7 +189,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
         children: [
           Text(
             widget.appBarTitle ?? 'WIWIGA',
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'Orbitron',
               fontWeight: FontWeight.bold,
               fontSize: 24,
@@ -227,7 +228,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       width: 260,
       decoration: BoxDecoration(
         color: NeonColors.surface,
-        border: Border(
+        border: const Border(
           right: BorderSide(
             color: NeonColors.primary,
             width: NeonGlow.borderWidth,
@@ -235,7 +236,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
         ),
         boxShadow: [
           BoxShadow(
-            color: NeonColors.primary.withOpacity(NeonGlow.opacityLow),
+            color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
             blurRadius: NeonGlow.blurMedium,
           ),
         ],
@@ -286,19 +287,21 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
               gradient: NeonGradients.cta,
               boxShadow: [
                 BoxShadow(
-                  color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
                   blurRadius: NeonGlow.blurSmall,
                 ),
               ],
             ),
-            child: Icon(
-              Icons.gamepad,
-              color: NeonColors.background,
-              size: 28,
+            child: const Center(
+              child: WiwigaLogo(
+                variant: LogoVariant.icon,
+                size: 32,
+                color: NeonColors.background,
+              ),
             ),
           ),
           const SizedBox(width: 12),
-          Text(
+          const Text(
             'WIWIGA',
             style: TextStyle(
               fontSize: 24,
@@ -315,7 +318,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildSidebarFooter() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         border: Border(
           top: BorderSide(color: NeonColors.border),
         ),
@@ -325,7 +328,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
           Text(
             'v1.0.0',
             style: TextStyle(
-              color: NeonColors.textSecondary.withOpacity(0.5),
+              color: NeonColors.textSecondary.withValues(alpha: 0.5),
               fontSize: 12,
               fontFamily: 'Inter',
             ),
@@ -338,7 +341,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildDesktopAppBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: NeonColors.background,
         border: Border(
           bottom: BorderSide(color: NeonColors.border),
@@ -349,7 +352,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
         children: [
           Text(
             widget.appBarTitle ?? 'WIWIGA',
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'Orbitron',
               fontWeight: FontWeight.bold,
               fontSize: 28,
@@ -410,9 +413,9 @@ class _SidebarItemState extends State<_SidebarItem> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? NeonColors.primary.withOpacity(0.2)
+              ? NeonColors.primary.withValues(alpha: 0.2)
               : _isHovered
-                  ? NeonColors.primary.withOpacity(0.1)
+                  ? NeonColors.primary.withValues(alpha: 0.1)
                   : Colors.transparent,
           borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
           border: widget.isSelected

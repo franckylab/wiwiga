@@ -38,7 +38,7 @@ void main() {
     testWidgets('affiche le header du catalogue', (tester) async {
       await tester.pumpWidget(_wrap([
         gamesCatalogProvider.overrideWith((ref) => Future.value([_game()])),
-      ]));
+      ]),);
       await tester.pump();
 
       expect(find.text('Catalogue des jeux'), findsOneWidget);
@@ -52,7 +52,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_wrap([
         gamesCatalogProvider.overrideWith((ref) => Future.value([_game()])),
-      ]));
+      ]),);
       await tester.pump();
 
       expect(find.text('Jeu de Dés'), findsOneWidget);
@@ -65,8 +65,8 @@ void main() {
       await tester.pumpWidget(_wrap([
         gamesCatalogProvider.overrideWith((ref) => Future.value([
               _game(type: 'ludo', name: 'Ludo', comingSoon: true),
-            ])),
-      ]));
+            ]),),
+      ]),);
       await tester.pump();
 
       expect(find.text('Ludo'), findsOneWidget);
@@ -78,7 +78,7 @@ void main() {
       await tester.pumpWidget(_wrap([
         gamesCatalogProvider
             .overrideWith((ref) => Future.value(<GameModel>[])),
-      ]));
+      ]),);
       await tester.pump();
 
       expect(
@@ -92,7 +92,7 @@ void main() {
       await tester.pumpWidget(_wrap([
         gamesCatalogProvider
             .overrideWith((ref) => Future<List<GameModel>>.error('boom')),
-      ]));
+      ]),);
       await tester.pump();
 
       expect(find.text('Impossible de charger les jeux'), findsOneWidget);

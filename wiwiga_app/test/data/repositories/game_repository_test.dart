@@ -45,7 +45,7 @@ void main() {
               'max_players': 4,
             },
           ],
-        });
+        },);
 
         // Act
         final games = await repository.getGames();
@@ -84,7 +84,7 @@ void main() {
             .thenAnswer((_) async => {
               'success': true,
               'data': {'status': 'joined', 'game_id': '123'},
-            });
+            },);
 
         final result = await repository.joinGame(gameId: '123', betAmount: 500);
 
@@ -94,7 +94,7 @@ void main() {
           '/api/games/123/join',
           body: {'bet_amount': 500},
           requiresAuth: true,
-        )).called(1);
+        ),).called(1);
       });
     });
 
@@ -109,7 +109,7 @@ void main() {
                 'players': 2,
                 'total_pot': 1000,
               },
-            });
+            },);
 
         final state = await repository.getGameState('123');
 
@@ -128,7 +128,7 @@ void main() {
                 {'id': '1', 'status': 'waiting', 'bet_amount': 500},
                 {'id': '2', 'status': 'waiting', 'bet_amount': 1000},
               ],
-            });
+            },);
 
         final games = await repository.getWaitingGames();
 
@@ -145,7 +145,7 @@ void main() {
         verify(() => mockApiService.get(
           '/api/games?type=dice&status=waiting',
           requiresAuth: true,
-        )).called(1);
+        ),).called(1);
       });
     });
   });

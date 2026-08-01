@@ -29,11 +29,11 @@ class FriendInviteSheet extends ConsumerStatefulWidget {
   final List<String>? excludePlayerIds;
 
   const FriendInviteSheet({
-    Key? key,
+    super.key,
     required this.roomCode,
     required this.roomId,
     this.excludePlayerIds,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<FriendInviteSheet> createState() => _FriendInviteSheetState();
@@ -131,7 +131,7 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
     // TODO: Envoyer invitation via WebSocket FriendChannel
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Invitation envoyée à $friendName !', style: TextStyle(color: NeonColors.success)),
+        content: Text('Invitation envoyée à $friendName !', style: const TextStyle(color: NeonColors.success)),
         backgroundColor: NeonColors.surface,
       ),
     );
@@ -152,12 +152,12 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Inviter un ami',
                 style: TextStyle(color: NeonColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: NeonColors.textSecondary),
+                icon: const Icon(Icons.close, color: NeonColors.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -169,7 +169,7 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             Center(
               child: Text(
                 'En attente de réponse... ${_remainingSeconds}s',
-                style: TextStyle(color: NeonColors.warning, fontSize: 14),
+                style: const TextStyle(color: NeonColors.warning, fontSize: 14),
               ),
             ),
 
@@ -178,27 +178,27 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: NeonColors.primary.withOpacity(0.1),
+                color: NeonColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
-                  Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                  const Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
                   const SizedBox(height: 4),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: widget.roomCode));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Code copié !')),
+                        const SnackBar(content: Text('Code copié !')),
                       );
                     },
                     child: Text(
                       widget.roomCode,
-                      style: TextStyle(color: NeonColors.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3),
+                      style: const TextStyle(color: NeonColors.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text('Appuyez pour copier', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                  const Text('Appuyez pour copier', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
                 ],
               ),
             ),
@@ -208,13 +208,13 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
           // Barre de recherche
           TextField(
             controller: _searchController,
-            style: TextStyle(color: NeonColors.textPrimary),
+            style: const TextStyle(color: NeonColors.textPrimary),
             decoration: InputDecoration(
               hintText: 'Rechercher par téléphone ou nom...',
-              hintStyle: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
-              prefixIcon: Icon(Icons.search, color: NeonColors.primary, size: 20),
+              hintStyle: const TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: NeonColors.primary, size: 20),
               suffixIcon: IconButton(
-                icon: Icon(Icons.arrow_forward, color: NeonColors.primary, size: 20),
+                icon: const Icon(Icons.arrow_forward, color: NeonColors.primary, size: 20),
                 onPressed: _search,
               ),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -229,13 +229,13 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
           if (_isSearching)
             const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: NeonColors.primary)))
           else if (_searchResults.isNotEmpty)
-            ..._searchResults.map((r) => _buildSearchResult(r)).toList(),
+            ..._searchResults.map((r) => _buildSearchResult(r)),
 
           // Liste d'amis
           if (_isLoadingFriends)
             const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: NeonColors.primary)))
           else if (_friends.isNotEmpty) ...[
-            Text('Mes amis', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
+            const Text('Mes amis', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
@@ -246,9 +246,9 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
               ),
             ),
           ] else if (!_isSearching)
-            Center(
+            const Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Text('Aucun ami pour le moment', style: TextStyle(color: NeonColors.textSecondary)),
               ),
             ),
@@ -269,16 +269,16 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: friend.isOnline ? NeonColors.success.withOpacity(0.2) : NeonColors.surface,
+                backgroundColor: friend.isOnline ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
                 child: Text(friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
-                    style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),),
               ),
               if (friend.isOnline)
                 Positioned(right: 0, bottom: 0, child: Container(
                   width: 10, height: 10,
                   decoration: BoxDecoration(color: NeonColors.success, shape: BoxShape.circle,
-                      border: Border.all(color: NeonColors.surface, width: 2)),
-                )),
+                      border: Border.all(color: NeonColors.surface, width: 2),),
+                ),),
             ],
           ),
           const SizedBox(width: 10),
@@ -286,19 +286,19 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(friend.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(friend.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
                 Text(friend.isOnline ? 'En ligne' : 'Hors ligne',
-                    style: TextStyle(color: friend.isOnline ? NeonColors.success : NeonColors.textSecondary, fontSize: 11)),
+                    style: TextStyle(color: friend.isOnline ? NeonColors.success : NeonColors.textSecondary, fontSize: 11),),
               ],
             ),
           ),
           if (isExcluded)
-            Text('Déjà dans la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11))
+            const Text('Déjà dans la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11))
           else if (isInvited)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: NeonColors.success.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-              child: Text('Invité ✓', style: TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(color: NeonColors.success.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+              child: const Text('Invité ✓', style: TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold)),
             )
           else
             NeonButton(
@@ -321,17 +321,17 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: NeonColors.secondary.withOpacity(0.2),
+            backgroundColor: NeonColors.secondary.withValues(alpha: 0.2),
             child: Text(result.name.isNotEmpty ? result.name[0].toUpperCase() : '?',
-                style: TextStyle(color: NeonColors.secondary)),
+                style: const TextStyle(color: NeonColors.secondary),),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(result.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-                if (result.phone != null) Text(result.phone!, style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                Text(result.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                if (result.phone != null) Text(result.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
               ],
             ),
           ),

@@ -94,7 +94,7 @@ class AppTheme {
   static final ThemeData lightTheme = darkTheme.copyWith(
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.grey[100],
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: primaryColor,
       secondary: secondaryColor,
       surface: Colors.white,

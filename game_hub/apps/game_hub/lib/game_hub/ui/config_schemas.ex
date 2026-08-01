@@ -24,6 +24,7 @@ defmodule GameHub.UI.GameConfig do
     
     field :min_bet, :integer, default: 100
     field :max_bet, :integer, default: 500_000
+    field :min_bet_tokens, :integer, default: 10
     field :max_players, :integer, default: 2
     field :commission_rate, :float, default: 0.05
     
@@ -73,7 +74,7 @@ defmodule GameHub.UI.GameConfig do
   defp changeset(game_config, attrs) do
     game_config
     |> cast(attrs, [
-      :game_type, :enabled, :min_bet, :max_bet, :max_players,
+      :game_type, :enabled, :min_bet, :max_bet, :min_bet_tokens, :max_players,
       :commission_rate, :game_settings, :matchmaking_timeout_ms,
       :turn_timeout_ms, :updated_by_id
     ])

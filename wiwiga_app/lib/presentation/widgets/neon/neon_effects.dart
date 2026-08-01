@@ -9,12 +9,12 @@ class GlowBadge extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   const GlowBadge({
-    Key? key,
+    super.key,
     required this.text,
     this.color = NeonColors.primary,
     this.fontSize = 12,
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-  }) : super(key: key);
+  });
 
   @override
   State<GlowBadge> createState() => _GlowBadgeState();
@@ -39,7 +39,7 @@ class _GlowBadgeState extends State<GlowBadge>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -56,15 +56,15 @@ class _GlowBadgeState extends State<GlowBadge>
         return Container(
           padding: widget.padding,
           decoration: BoxDecoration(
-            color: widget.color.withOpacity(0.2),
+            color: widget.color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: widget.color.withOpacity(_opacityAnimation.value),
+              color: widget.color.withValues(alpha: _opacityAnimation.value),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(_opacityAnimation.value * 0.5),
+                color: widget.color.withValues(alpha: _opacityAnimation.value * 0.5),
                 blurRadius: NeonGlow.blurSmall,
               ),
             ],
@@ -92,11 +92,11 @@ class ShimmerLoader extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   const ShimmerLoader({
-    Key? key,
+    super.key,
     this.width,
     this.height,
     this.padding = EdgeInsets.zero,
-  }) : super(key: key);
+  });
 
   @override
   State<ShimmerLoader> createState() => _ShimmerLoaderState();
@@ -121,7 +121,7 @@ class _ShimmerLoaderState extends State<ShimmerLoader>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -146,7 +146,7 @@ class _ShimmerLoaderState extends State<ShimmerLoader>
               end: Alignment(_animation.value + 0.5, 0),
               colors: [
                 NeonColors.surface,
-                NeonColors.surface.withOpacity(0.5),
+                NeonColors.surface.withValues(alpha: 0.5),
                 NeonColors.surface,
               ],
             ),
@@ -170,7 +170,7 @@ class NeonModal {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       barrierLabel: barrierLabel,
       isDismissible: barrierDismissible,
       builder: (context) => _NeonModalContent(child: child),
@@ -182,9 +182,9 @@ class _NeonModalContent extends StatelessWidget {
   final Widget child;
 
   const _NeonModalContent({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +194,7 @@ class _NeonModalContent extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(NeonTheme.borderRadius * 2),
         ),
-        border: Border(
+        border: const Border(
           top: BorderSide(
             color: NeonColors.primary,
             width: NeonGlow.borderWidthThick,
@@ -202,7 +202,7 @@ class _NeonModalContent extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+            color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
             blurRadius: NeonGlow.blurMedium,
             spreadRadius: 2,
           ),

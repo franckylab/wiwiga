@@ -16,6 +16,7 @@ defmodule GameHub.Repo.Seeds do
   alias GameHub.Games.GameTimeoutConfig
   alias GameHub.FeatureFlags.FeatureFlag
   alias GameHub.UI.{ThemeConfig, FeatureConfig, PaymentConfig}
+  alias GameHub.Tokens.TokenConfig
 
   def run do
     IO.puts("🌱 Running seeds...")
@@ -40,6 +41,12 @@ defmodule GameHub.Repo.Seeds do
 
     # 7. Configuration Paiements
     seed_payment_configs()
+
+    # 8. Configuration Jetons
+    seed_token_config()
+
+    # 9. Promotions exemples
+    seed_promo_tokens()
 
     print_summary()
     IO.puts("✅ Seeds complétés avec succès!")
@@ -265,6 +272,62 @@ defmodule GameHub.Repo.Seeds do
     end)
   end
 
+  # === Token Config ===
+
+  defp seed_token_config do
+    IO.puts("\n🪙 Seeding token configuration...")
+    config = TokenConfig.get_config()
+    IO.puts("  ✓ Token config initialized (id: #{config.id}, rate: #{config.exchange_rate} tokens/FCFA)")
+  end
+
+  # === Promo Tokens ===
+
+  defp seed_promo_tokens do
+    IO.puts("\n🎁 Seeding promo tokens...")
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    promos = [
+      %{
+        name: "Bonus Bienvenue",
+        description: "500 jetons offerts pour votre inscription!",
+        token_amount: 500,
+        conditions: %{"expiry_days" => 30, "min_games" => 1},
+        is_active: true,
+        max_redemptions: 1000,
+        valid_from: now,
+        valid_until: DateTime.add(now, 365 * 86400, :second)
+      },
+      %{
+        name: "Parrainage",
+        description: "200 jetons pour chaque ami invité!",
+        token_amount: 200,
+        conditions: %{"expiry_days" => 60},
+        is_active: true,
+        valid_from: now
+      },
+      %{
+        name: "Flash Weekend",
+        description: "1000 jetons bonus le weekend!",
+        token_amount: 1000,
+        conditions: %{"expiry_days" => 7, "wagering_multiplier" => 2},
+        is_active: true,
+        max_redemptions: 500,
+        valid_from: now,
+        valid_until: DateTime.add(now, 30 * 86400, :second)
+      }
+    ]
+
+    Enum.each(promos, fn attrs ->
+      case GameHub.Tokens.PromoToken.create_promo(attrs) do
+        {:ok, promo} ->
+          IO.puts("  ✓ Created promo: #{promo.name} (#{promo.token_amount} tokens)")
+        {:error, _} ->
+          IO.puts("  ⊘ Promo already exists or error")
+      end
+    end)
+  end
+
   # === Résumé ===
 
   defp print_summary do
@@ -278,6 +341,8 @@ defmodule GameHub.Repo.Seeds do
     IO.puts("⚙️  Feature config: 1 (singleton)")
     IO.puts("🎲 Game configs: 1 (dice)")
     IO.puts("💳 Payment configs: 3 (campay, mtn_momo, orange_money)")
+    IO.puts("🪙 Token config: 1 (singleton)")
+    IO.puts("🎁 Promo tokens: 3 (bienvenue, parrainage, flash)")
     IO.puts(String.duplicate("=", 60))
   end
 end

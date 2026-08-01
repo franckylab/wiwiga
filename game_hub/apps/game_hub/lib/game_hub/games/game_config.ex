@@ -19,7 +19,7 @@ defmodule GameHub.Games.GameConfig do
   import Ecto.Changeset
   
   @primary_key {:id, :id, autogenerate: true}
-  @derive {Jason.Encoder, only: [:id, :game_type, :name, :description, :min_bet, :max_bet, :commission_rate, :commission_mode, :is_active, :coming_soon, :tips, :display_order]}
+  @derive {Jason.Encoder, only: [:id, :game_type, :name, :description, :min_bet, :max_bet, :min_bet_tokens, :commission_rate, :commission_mode, :is_active, :coming_soon, :tips, :display_order]}
   
   schema "game_configs" do
     field :game_type, :string
@@ -27,6 +27,7 @@ defmodule GameHub.Games.GameConfig do
     field :description, :string
     field :min_bet, :integer
     field :max_bet, :integer
+    field :min_bet_tokens, :integer
     field :commission_rate, :decimal
     field :commission_mode, :string, default: "percentage"
     field :is_active, :boolean, default: true
@@ -43,7 +44,7 @@ defmodule GameHub.Games.GameConfig do
   """
   def create_changeset(config, attrs) do
     config
-    |> cast(attrs, [:game_type, :name, :description, :min_bet, :max_bet, :commission_rate, :commission_mode, :is_active, :config, :coming_soon, :tips, :display_order])
+    |> cast(attrs, [:game_type, :name, :description, :min_bet, :max_bet, :min_bet_tokens, :commission_rate, :commission_mode, :is_active, :config, :coming_soon, :tips, :display_order])
     |> validate_required([:game_type, :name, :min_bet, :max_bet, :commission_rate, :commission_mode])
     |> validate_inclusion(:game_type, ~w(dice ludo card roulette))
     |> validate_inclusion(:commission_mode, ~w(percentage fixed tiered))

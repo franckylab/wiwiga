@@ -51,6 +51,13 @@ class NeonColors {
   static const Color gameCompleted = Color(0xFF10B981);
   static const Color gameCancelled = Color(0xFFEF4444);
   static const Color gamePending = Color(0xFFF59E0B);
+  
+  // Couleurs jetons WIWIGA
+  static const Color tokenPrimary = Color(0xFF2DD4BF);    // Emeraude neon
+  static const Color tokenGold = Color(0xFFFFD700);       // Or premium
+  static const Color tokenSilver = Color(0xFFC0C0C0);     // Argent
+  static const Color tokenBronze = Color(0xFFCD7F32);     // Bronze
+  static const Color tokenGlow = Color(0xFF00FFD4);       // Lueur jeton
 }
 
 /// Paramètres des effets Glow
@@ -109,6 +116,24 @@ class NeonGradients {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
+      Color(0xFF1E293B),
+      Color(0xFF0F172A),
+    ],
+  );
+  
+  /// Gradient principal pour les jetons (emeraude -> dore)
+  static const LinearGradient token = LinearGradient(
+    colors: [NeonColors.tokenPrimary, NeonColors.tokenGold],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Gradient splash screen
+  static const LinearGradient splash = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF0F172A),
       Color(0xFF1E293B),
       Color(0xFF0F172A),
     ],

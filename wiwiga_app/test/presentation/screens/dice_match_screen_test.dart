@@ -21,7 +21,7 @@ void main() {
       });
 
       test('met en surbrillance le joueur actuel', () {
-        final currentTurnIndex = 0;
+        const currentTurnIndex = 0;
         final players = [
           {'id': '1', 'name': 'Alice'},
           {'id': '2', 'name': 'Bob'},
@@ -50,7 +50,7 @@ void main() {
 
       test('ordre tournant par set', () {
         // Set 1: Joueur A commence, Set 2: Joueur B commence
-        final setsCount = 3;
+        const setsCount = 3;
         for (int set = 1; set <= setsCount; set++) {
           final firstPlayerIndex = (set - 1) % 2;
           expect(firstPlayerIndex, lessThan(2));
@@ -68,8 +68,8 @@ void main() {
 
       test('évalue la distance à la cible', () {
         const target = 7;
-        final sumA = 8; // distance = 1
-        final sumB = 5; // distance = 2
+        const sumA = 8; // distance = 1
+        const sumB = 5; // distance = 2
 
         final distA = (sumA - target).abs();
         final distB = (sumB - target).abs();
@@ -80,8 +80,8 @@ void main() {
 
       test('distance égale = set nul', () {
         const target = 7;
-        final sumA = 9; // distance = 2
-        final sumB = 5; // distance = 2
+        const sumA = 9; // distance = 2
+        const sumB = 5; // distance = 2
 
         final distA = (sumA - target).abs();
         final distB = (sumB - target).abs();
@@ -103,7 +103,7 @@ void main() {
       test('calcule les gains en mode betting', () {
         const betAmount = 500;
         const commissionRate = 0.05;
-        final grossWin = betAmount * 2;
+        const grossWin = betAmount * 2;
         final commission = (grossWin * commissionRate).round();
         final netWin = grossWin - commission;
 

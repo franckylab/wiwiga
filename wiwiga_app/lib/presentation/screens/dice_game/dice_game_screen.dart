@@ -80,10 +80,10 @@ class DiceGameScreen extends ConsumerStatefulWidget {
   final int betAmount;
 
   const DiceGameScreen({
-    Key? key,
+    super.key,
     this.gameId,
     this.betAmount = 500,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DiceGameScreen> createState() => _DiceGameScreenState();
@@ -187,7 +187,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            NeonColors.primary.withOpacity(0.3),
+            NeonColors.primary.withValues(alpha: 0.3),
             NeonColors.background,
           ],
           begin: Alignment.topCenter,
@@ -202,7 +202,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                 context.canPop() ? context.pop() : context.go('/games/dice'),
           ),
           const SizedBox(width: 8),
-          Icon(Icons.casino, color: NeonColors.primary, size: 24),
+          const Icon(Icons.casino, color: NeonColors.primary, size: 24),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -210,10 +210,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
               children: [
                 Text('JEU DE DÉS',
                     style: AppTypography.heading4
-                        .copyWith(color: Colors.white)),
+                        .copyWith(color: Colors.white),),
                 Text(
                   _phaseLabel(state.phase),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: NeonColors.textSecondary,
                     fontSize: 12,
                     fontFamily: 'Inter',
@@ -227,19 +227,19 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: NeonColors.primary.withOpacity(0.15),
+              color: NeonColors.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: NeonColors.primary, width: 1),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.monetization_on,
-                    color: NeonColors.primary, size: 16),
+                const Icon(Icons.monetization_on,
+                    color: NeonColors.primary, size: 16,),
                 const SizedBox(width: 4),
                 Text(
-                  '${widget.betAmount} FCFA',
-                  style: TextStyle(
+                  '${widget.betAmount} jetons',
+                  style: const TextStyle(
                     color: NeonColors.primary,
                     fontFamily: 'Orbitron',
                     fontSize: 12,
@@ -284,8 +284,8 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: NeonColors.primary.withOpacity(
-                          NeonGlow.opacityLow + _glowController.value * 0.3),
+                      color: NeonColors.primary.withValues(
+                          alpha: NeonGlow.opacityLow + _glowController.value * 0.3,),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -294,18 +294,18 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                 child: CircleAvatar(
                   radius: 50,
                   backgroundColor:
-                      NeonColors.primary.withOpacity(0.1),
-                  child: Icon(Icons.people,
-                      size: 50, color: NeonColors.primary),
+                      NeonColors.primary.withValues(alpha: 0.1),
+                  child: const Icon(Icons.people,
+                      size: 50, color: NeonColors.primary,),
                 ),
               );
             },
           ),
           const SizedBox(height: 24),
           Text('EN ATTENTE DE JOUEURS...',
-              style: AppTypography.heading3),
+              style: AppTypography.heading3,),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'La partie commence quand au moins 2 joueurs sont prêts',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -348,25 +348,25 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                 children: [
                   CircleAvatar(
                     backgroundColor:
-                        NeonColors.secondary.withOpacity(0.2),
-                    child: Icon(Icons.person,
-                        color: NeonColors.secondary),
+                        NeonColors.secondary.withValues(alpha: 0.2),
+                    child: const Icon(Icons.person,
+                        color: NeonColors.secondary,),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Adversaire',
+                      const Text('Adversaire',
                           style: TextStyle(
                               color: NeonColors.textSecondary,
                               fontSize: 12,
-                              fontFamily: 'Inter')),
+                              fontFamily: 'Inter',),),
                       Text(state.opponentName!,
-                          style: AppTypography.subtitle),
+                          style: AppTypography.subtitle,),
                     ],
                   ),
                   const Spacer(),
-                  GlowBadge(
+                  const GlowBadge(
                     text: 'PRÊT',
                     color: NeonColors.success,
                   ),
@@ -376,9 +376,9 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
 
           const SizedBox(height: 20),
           Text('CHOISIS TA PRÉDICTION',
-              style: AppTypography.heading3),
+              style: AppTypography.heading3,),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Quelle sera la somme des 2 dés ?',
             style: TextStyle(
               color: NeonColors.textSecondary,
@@ -432,7 +432,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('LANCEMENT DES DÉS...',
-              style: AppTypography.heading3),
+              style: AppTypography.heading3,),
           const SizedBox(height: 40),
           // Animated dice
           AnimatedBuilder(
@@ -469,7 +469,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
           if (state.totalSum != null) ...[
             Text(
               'SUM = ${state.totalSum}',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
                 color: NeonColors.primary,
@@ -511,7 +511,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                         color: (isWinner
                                 ? NeonColors.success
                                 : NeonColors.danger)
-                            .withOpacity(0.4),
+                            .withValues(alpha: 0.4),
                         blurRadius: 30,
                         spreadRadius: 10,
                       ),
@@ -522,7 +522,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                     backgroundColor: (isWinner
                             ? NeonColors.success
                             : NeonColors.danger)
-                        .withOpacity(0.2),
+                        .withValues(alpha: 0.2),
                     child: Icon(
                       isWinner ? Icons.emoji_events : Icons.close,
                       size: 60,
@@ -557,7 +557,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
           const SizedBox(height: 12),
           Text(
             'Somme: ${state.totalSum}',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: NeonColors.primary,
@@ -596,12 +596,12 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             NeonCard(
               child: Column(
                 children: [
-                  Icon(Icons.monetization_on,
-                      color: NeonColors.success, size: 32),
+                  const Icon(Icons.monetization_on,
+                      color: NeonColors.success, size: 32,),
                   const SizedBox(height: 8),
                   Text(
-                    '+${state.netWinnings} FCFA',
-                    style: TextStyle(
+                    '+${state.netWinnings} jetons',
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: NeonColors.success,
@@ -609,7 +609,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  const Text(
                     'Gains nets crédités',
                     style: TextStyle(
                       color: NeonColors.textSecondary,
@@ -787,8 +787,8 @@ class _PlayerSlot extends StatelessWidget {
             shape: BoxShape.circle,
             color: filled
                 ? (isYou
-                    ? NeonColors.primary.withOpacity(0.2)
-                    : NeonColors.secondary.withOpacity(0.2))
+                    ? NeonColors.primary.withValues(alpha: 0.2)
+                    : NeonColors.secondary.withValues(alpha: 0.2))
                 : Colors.transparent,
             border: Border.all(
               color: filled
@@ -852,7 +852,7 @@ class _PredictionGrid extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
               color: isSelected
-                  ? NeonColors.primary.withOpacity(0.2)
+                  ? NeonColors.primary.withValues(alpha: 0.2)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
@@ -863,7 +863,7 @@ class _PredictionGrid extends StatelessWidget {
                   ? [
                       BoxShadow(
                         color: NeonColors.primary
-                            .withOpacity(NeonGlow.opacityLow),
+                            .withValues(alpha: NeonGlow.opacityLow),
                         blurRadius: 10,
                       ),
                     ]
@@ -932,7 +932,7 @@ class _DicePreview extends StatelessWidget {
           isGhost: prediction == null,
         ),
         const SizedBox(width: 12),
-        Text(
+        const Text(
           '+',
           style: TextStyle(
             color: NeonColors.textSecondary,
@@ -948,7 +948,7 @@ class _DicePreview extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         if (prediction != null)
-          Text(
+          const Text(
             '?',
             style: TextStyle(
               color: NeonColors.textSecondary,
@@ -983,7 +983,7 @@ class _DiceWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: isGhost
             ? Colors.transparent
-            : NeonColors.primary.withOpacity(0.15),
+            : NeonColors.primary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isGhost ? NeonColors.border : NeonColors.primary,
@@ -993,7 +993,7 @@ class _DiceWidget extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: NeonColors.primary.withOpacity(NeonGlow.opacityLow),
+                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
                   blurRadius: 8,
                 ),
               ],
@@ -1064,7 +1064,7 @@ class _PredictionRow extends StatelessWidget {
           ),
         if (isWinner) ...[
           const SizedBox(width: 8),
-          Icon(Icons.emoji_events, color: NeonColors.success, size: 20),
+          const Icon(Icons.emoji_events, color: NeonColors.success, size: 20),
         ],
       ],
     );

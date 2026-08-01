@@ -18,17 +18,17 @@ class DiceFace extends StatelessWidget {
   final Color? borderColor;
 
   const DiceFace({
-    Key? key,
+    super.key,
     required this.value,
     this.size = 64,
     this.isActive = false,
     this.borderColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final color = borderColor ?? (isActive ? NeonColors.primary : NeonColors.border);
-    final glowColor = isActive ? NeonColors.primary.withOpacity(0.3) : Colors.transparent;
+    final glowColor = isActive ? NeonColors.primary.withValues(alpha: 0.3) : Colors.transparent;
 
     return Container(
       width: size,
@@ -73,12 +73,12 @@ class DiceRoller extends StatefulWidget {
   final Color? activeColor;
 
   const DiceRoller({
-    Key? key,
+    super.key,
     required this.diceCount,
     this.onRollComplete,
     this.diceSize = 64,
     this.activeColor,
-  }) : super(key: key);
+  });
 
   @override
   State<DiceRoller> createState() => _DiceRollerState();
@@ -200,27 +200,27 @@ class DiceSum extends StatelessWidget {
   final String? label;
 
   const DiceSum({
-    Key? key,
+    super.key,
     required this.sum,
     this.label,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
-        color: NeonColors.accent.withOpacity(0.2),
+        color: NeonColors.accent.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (label != null)
-            Text(label!, style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+            Text(label!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
           Text(
             '$sum',
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.accent,
               fontSize: 24,
               fontWeight: FontWeight.bold,

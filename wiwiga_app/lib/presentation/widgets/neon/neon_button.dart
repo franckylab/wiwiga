@@ -17,7 +17,7 @@ class NeonButton extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   const NeonButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPressed,
     this.variant = NeonButtonVariant.primary,
@@ -28,7 +28,7 @@ class NeonButton extends StatefulWidget {
     this.isEnabled = true,
     this.fontSize = 16,
     this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-  }) : super(key: key);
+  });
 
   @override
   State<NeonButton> createState() => _NeonButtonState();
@@ -63,7 +63,7 @@ class _NeonButtonState extends State<NeonButton>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
-    ));
+    ),);
   }
 
   @override
@@ -73,7 +73,7 @@ class _NeonButtonState extends State<NeonButton>
   }
 
   Color get _backgroundColor {
-    if (!widget.isEnabled) return NeonColors.surface.withOpacity(0.3);
+    if (!widget.isEnabled) return NeonColors.surface.withValues(alpha: 0.3);
     
     switch (widget.variant) {
       case NeonButtonVariant.primary:
@@ -161,7 +161,7 @@ class _NeonButtonState extends State<NeonButton>
                   boxShadow: [
                     if (_glowOpacity > 0)
                       BoxShadow(
-                        color: _borderColor.withOpacity(_glowOpacity),
+                        color: _borderColor.withValues(alpha: _glowOpacity),
                         blurRadius: _isHovered ? NeonGlow.blurMedium : NeonGlow.blurSmall,
                         spreadRadius: _isHovered ? 2 : 0,
                       ),

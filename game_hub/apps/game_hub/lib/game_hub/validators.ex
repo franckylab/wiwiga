@@ -46,7 +46,7 @@ defmodule GameHub.Validators do
         {:error, "Montant doit être positif"}
       
       amount > 1_000_000_000 ->
-        {:error, "Excède mise maximale (1 milliard FCFA)"}
+        {:error, "Excède mise maximale (1 milliard de jetons)"}
       
       true ->
         :ok
@@ -176,7 +176,7 @@ defmodule GameHub.Validators do
   def validate_withdrawal_amount(amount, balance) do
     cond do
       amount < 100 ->
-        {:error, "Montant minimum: 100 FCFA"}
+        {:error, "Montant minimum: 100 centimes (1 FCFA)"}
       
       amount > balance ->
         {:error, "Solde insuffisant"}

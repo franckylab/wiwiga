@@ -74,7 +74,7 @@ defmodule DiceGame.Engine do
         {:error, :bet_too_low}
       
       true ->
-        # Débiter le portefeuille du joueur (séquestre)
+        # Débiter le compte du joueur (séquestre)
         idempotency_key = "bet_#{game_id}_#{player_id}"
         
         case Wallet.place_bet(player_id, bet_amount, game_id, idempotency_key) do

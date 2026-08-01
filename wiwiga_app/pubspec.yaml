@@ -55,6 +55,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
+  # Assets graphiques WIWIGA
+  assets:
+    - assets/images/logo/
+    - assets/images/icons/
+    - assets/animations/
+  
   # Fonts: Using google_fonts package instead of custom assets
   # fonts:
   #   - family: Inter

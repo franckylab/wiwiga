@@ -19,7 +19,7 @@ import '../../widgets/neon/neon_card.dart';
 class CreateGameScreen extends ConsumerStatefulWidget {
   final String gameType;
 
-  const CreateGameScreen({Key? key, this.gameType = 'dice'}) : super(key: key);
+  const CreateGameScreen({super.key, this.gameType = 'dice'});
 
   @override
   ConsumerState<CreateGameScreen> createState() => _CreateGameScreenState();
@@ -31,23 +31,23 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   String _ruleType = 'normal'; // 'normal' | 'cible'
   int _setsCount = 3;
   int _diceCount = 2;
-  int _betAmount = 500;
+  int _betAmount = 50;
   int _maxPlayers = 2;
 
   bool _isCreating = false;
   String? _error;
 
-  // Ranges depuis les règles
+  // Ranges depuis les règles (en jetons)
   static const int minSets = 1;
   static const int maxSets = 11;
   static const int minDice = 1;
   static const int maxDice = 5;
-  static const int minBet = 100;
-  static const int maxBet = 500000;
+  static const int minBet = 10;
+  static const int maxBet = 50000;
   static const int minPlayers = 2;
   static const int maxPlayers = 5;
 
-  final List<int> _betPresets = [100, 250, 500, 1000, 2500, 5000, 10000];
+  final List<int> _betPresets = [10, 25, 50, 100, 250, 500, 1000];
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+                child: Text(_error!, style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
               ),
             NeonButton(
               text: 'Créer la partie',
@@ -102,13 +102,13 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Mode de jeu', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Mode de jeu', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(child: _modeButton('free', 'Gratuit', Icons.people_outline, 'Entre amis')),
               const SizedBox(width: 12),
-              Expanded(child: _modeButton('betting', 'Pari', Icons.account_balance_wallet_outlined, 'Mise en ligne')),
+              Expanded(child: _modeButton('betting', 'Pari', Icons.monetization_on_outlined, 'Mise en ligne')),
             ],
           ),
         ],
@@ -123,13 +123,13 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withOpacity(0.15) : NeonColors.surface,
+          color: isSelected ? NeonColors.primary.withValues(alpha: 0.15) : NeonColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? NeonColors.primary : NeonColors.border,
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: isSelected ? [BoxShadow(color: NeonColors.primary.withOpacity(0.3), blurRadius: 8)] : null,
+          boxShadow: isSelected ? [BoxShadow(color: NeonColors.primary.withValues(alpha: 0.3), blurRadius: 8)] : null,
         ),
         child: Column(
           children: [
@@ -137,7 +137,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
             const SizedBox(height: 8),
             Text(title, style: TextStyle(color: isSelected ? NeonColors.primary : NeonColors.textPrimary, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(color: NeonColors.textSecondary, fontSize: 11), textAlign: TextAlign.center),
+            Text(subtitle, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -149,7 +149,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Type de règles', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Type de règles', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -170,7 +170,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.secondary.withOpacity(0.15) : NeonColors.surface,
+          color: isSelected ? NeonColors.secondary.withValues(alpha: 0.15) : NeonColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isSelected ? NeonColors.secondary : NeonColors.border, width: isSelected ? 2 : 1),
         ),
@@ -179,7 +179,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           children: [
             Text(title, style: TextStyle(color: isSelected ? NeonColors.secondary : NeonColors.textPrimary, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(description, style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+            Text(description, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
           ],
         ),
       ),
@@ -194,11 +194,11 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Nombre de sets', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              const Text('Nombre de sets', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: NeonColors.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                child: Text('$_setsCount', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 18)),
+                decoration: BoxDecoration(color: NeonColors.primary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                child: Text('$_setsCount', style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 18)),
               ),
             ],
           ),
@@ -207,7 +207,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
               activeTrackColor: NeonColors.primary,
               inactiveTrackColor: NeonColors.border,
               thumbColor: NeonColors.primary,
-              overlayColor: NeonColors.primary.withOpacity(0.2),
+              overlayColor: NeonColors.primary.withValues(alpha: 0.2),
             ),
             child: Slider(
               value: _setsCount.toDouble(),
@@ -217,7 +217,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
               onChanged: (v) => setState(() => _setsCount = v.round()),
             ),
           ),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('$minSets', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
@@ -237,16 +237,16 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Nombre de dés', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              const Text('Nombre de dés', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: NeonColors.secondary.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                child: Text('🎲 $_diceCount', style: TextStyle(color: NeonColors.secondary, fontWeight: FontWeight.bold, fontSize: 18)),
+                decoration: BoxDecoration(color: NeonColors.secondary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                child: Text('🎲 $_diceCount', style: const TextStyle(color: NeonColors.secondary, fontWeight: FontWeight.bold, fontSize: 18)),
               ),
             ],
           ),
           SliderTheme(
-            data: SliderThemeData(
+            data: const SliderThemeData(
               activeTrackColor: NeonColors.secondary,
               inactiveTrackColor: NeonColors.border,
               thumbColor: NeonColors.secondary,
@@ -272,16 +272,16 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Max joueurs', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              const Text('Max joueurs', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: NeonColors.accent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                child: Text('$_maxPlayers', style: TextStyle(color: NeonColors.accent, fontWeight: FontWeight.bold, fontSize: 18)),
+                decoration: BoxDecoration(color: NeonColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                child: Text('$_maxPlayers', style: const TextStyle(color: NeonColors.accent, fontWeight: FontWeight.bold, fontSize: 18)),
               ),
             ],
           ),
           SliderTheme(
-            data: SliderThemeData(
+            data: const SliderThemeData(
               activeTrackColor: NeonColors.accent,
               inactiveTrackColor: NeonColors.border,
               thumbColor: NeonColors.accent,
@@ -304,7 +304,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Mise (FCFA)', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Mise (jetons)', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           // Presets
           Wrap(
@@ -317,12 +317,12 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? NeonColors.success.withOpacity(0.2) : NeonColors.surface,
+                    color: isSelected ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: isSelected ? NeonColors.success : NeonColors.border),
                   ),
                   child: Text(
-                    '$preset FCFA',
+                    '$preset jetons',
                     style: TextStyle(color: isSelected ? NeonColors.success : NeonColors.textSecondary, fontSize: 13),
                   ),
                 ),
@@ -333,7 +333,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           // Custom
           Row(
             children: [
-              Text('Custom: ', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+              const Text('Custom: ', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               Expanded(
                 child: Slider(
                   value: _betAmount.toDouble().clamp(minBet.toDouble(), maxBet.toDouble()),
@@ -343,7 +343,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
                   onChanged: (v) => setState(() => _betAmount = v.round()),
                 ),
               ),
-              Text('$_betAmount', style: TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold)),
+              Text('$_betAmount', style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold)),
             ],
           ),
         ],
@@ -356,14 +356,14 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Récapitulatif', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Récapitulatif', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _summaryRow('Mode', _mode == 'free' ? 'Gratuit (amis)' : 'Pari en ligne'),
           _summaryRow('Règles', _ruleType == 'normal' ? 'Normal' : 'Cible'),
           _summaryRow('Sets', '$_setsCount (majorité: ${(_setsCount ~/ 2) + 1})'),
           _summaryRow('Dés', '$_diceCount dé${_diceCount > 1 ? 's' : ''}'),
           _summaryRow('Joueurs', '$_maxPlayers max'),
-          if (_mode == 'betting') _summaryRow('Mise', '$_betAmount FCFA'),
+          if (_mode == 'betting') _summaryRow('Mise', '$_betAmount jetons'),
         ],
       ),
     );
@@ -375,8 +375,8 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
-          Text(value, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
+          Text(value, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
         ],
       ),
     );

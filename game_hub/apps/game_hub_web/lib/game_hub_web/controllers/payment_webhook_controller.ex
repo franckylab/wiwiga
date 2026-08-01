@@ -19,7 +19,7 @@ defmodule GameHubWeb.PaymentWebhookController do
   1. Campay envoie notification paiement
   2. Vérifier signature
   3. Vérifier idempotence
-  4. Créditer portefeuille (ACID)
+  4. Créditer compte utilisateur (ACID)
   5. Retourner statut
   """
   
@@ -82,7 +82,7 @@ defmodule GameHubWeb.PaymentWebhookController do
         |> json(%{status: "success", message: "Transaction déjà traitée"})
       
       :new ->
-        # 4. Créditer portefeuille (ACID)
+        # 4. Créditer compte utilisateur (ACID)
         process_new_payment(conn, phone, amount, tx_id, idempotency_key)
     end
   end
@@ -114,11 +114,11 @@ defmodule GameHubWeb.PaymentWebhookController do
         |> json(Errors.error("Utilisateur non trouvé", 404, "USER_NOT_FOUND", %{phone: phone}))
       
       user ->
-        # Créditer portefeuille (ACID transaction)
+        # Créditer compte utilisateur (ACID transaction)
         case Wallet.deposit(user.id, amount, idempotency_key) do
           {:ok, transaction} ->
             # Log succès
-            IO.puts("[PAYMENT] SUCCESS: User #{user.id} credited #{amount} FCFA (TX: #{tx_id})")
+            IO.puts("[PAYMENT] SUCCESS: User #{user.id} credited #{amount} centimes (TX: #{tx_id})")
             
             conn
             |> put_status(200)

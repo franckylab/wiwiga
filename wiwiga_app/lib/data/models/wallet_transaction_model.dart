@@ -36,6 +36,12 @@ class WalletTransactionModel {
   final String? idempotencyKey;
   final DateTime createdAt;
   
+  // Champs jetons (optionnels)
+  final int? tokenAmount;
+  final int? tokenBalanceBefore;
+  final int? tokenBalanceAfter;
+  final String? gameId;
+  
   const WalletTransactionModel({
     required this.id,
     required this.userId,
@@ -47,6 +53,10 @@ class WalletTransactionModel {
     this.description,
     this.idempotencyKey,
     required this.createdAt,
+    this.tokenAmount,
+    this.tokenBalanceBefore,
+    this.tokenBalanceAfter,
+    this.gameId,
   });
   
   /// Crée un modèle depuis JSON
@@ -62,6 +72,10 @@ class WalletTransactionModel {
       description: json['description'],
       idempotencyKey: json['idempotency_key'],
       createdAt: DateTime.parse(json['created_at']),
+      tokenAmount: json['token_amount'] as int?,
+      tokenBalanceBefore: json['token_balance_before'] as int?,
+      tokenBalanceAfter: json['token_balance_after'] as int?,
+      gameId: json['game_id'] as String?,
     );
   }
   

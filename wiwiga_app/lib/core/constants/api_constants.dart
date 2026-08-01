@@ -18,6 +18,16 @@ class ApiEndpoints {
   static const String withdraw = '/api/wallet/withdraw';
   static const String transactions = '/api/wallet/transactions';
   
+  // Jetons virtuels
+  static const String tokenBalance = '/api/tokens/balance';
+  static const String tokenSummary = '/api/tokens/summary';
+  static const String tokenPurchase = '/api/tokens/purchase';
+  static const String tokenExchange = '/api/tokens/exchange';
+  static const String tokenTransfer = '/api/tokens/transfer';
+  static const String tokenGift = '/api/tokens/gift';
+  static const String tokenTransactions = '/api/tokens/transactions';
+  static const String tokenPromos = '/api/tokens/promos';
+  
   // Games
   static const String gamesList = '/api/games';
   static const String gameShow = '/api/games'; // + /:game_id

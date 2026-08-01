@@ -79,7 +79,7 @@ final availableRoomsProvider = StateProvider<List<GameRoom>>((ref) => [
         status: GameRoomStatus.waiting,
         createdAt: DateTime.now().subtract(const Duration(seconds: 30)),
       ),
-    ]);
+    ],);
 
 final isSearchingProvider = StateProvider<bool>((ref) => false);
 
@@ -88,7 +88,7 @@ final isSearchingProvider = StateProvider<bool>((ref) => false);
 class GameLobbyScreen extends ConsumerStatefulWidget {
   final String gameType;
 
-  const GameLobbyScreen({Key? key, this.gameType = 'dice'}) : super(key: key);
+  const GameLobbyScreen({super.key, this.gameType = 'dice'});
 
   @override
   ConsumerState<GameLobbyScreen> createState() => _GameLobbyScreenState();
@@ -149,7 +149,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: NeonGradients.cta,
       ),
       child: Row(
@@ -159,7 +159,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 8),
-          Icon(Icons.casino, color: NeonColors.primary, size: 28),
+          const Icon(Icons.casino, color: NeonColors.primary, size: 28),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -171,7 +171,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                     color: Colors.white,
                   ),
                 ),
-                Text(
+                const Text(
                   'Prédis la somme des 2 dés',
                   style: TextStyle(
                     color: Colors.white70,
@@ -182,7 +182,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
               ],
             ),
           ),
-          GlowBadge(
+          const GlowBadge(
             text: 'EN LIGNE',
             color: NeonColors.success,
           ),
@@ -258,10 +258,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.monetization_on, color: NeonColors.primary),
+                    const Icon(Icons.monetization_on, color: NeonColors.primary),
                     const SizedBox(width: 8),
                     Text('MISE PAR JOUEUR',
-                        style: AppTypography.subtitle),
+                        style: AppTypography.subtitle,),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -277,10 +277,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                            horizontal: 16, vertical: 10,),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? NeonColors.primary.withOpacity(0.2)
+                              ? NeonColors.primary.withValues(alpha: 0.2)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
@@ -293,14 +293,14 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                               ? [
                                   BoxShadow(
                                     color: NeonColors.primary
-                                        .withOpacity(NeonGlow.opacityLow),
+                                        .withValues(alpha: NeonGlow.opacityLow),
                                     blurRadius: 8,
                                   ),
                                 ]
                               : null,
                         ),
                         child: Text(
-                          '${_formatFCFA(amount)} FCFA',
+                          '${_formatTokens(amount)} jetons',
                           style: TextStyle(
                             color: isSelected
                                 ? NeonColors.primary
@@ -341,13 +341,13 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.people, color: NeonColors.secondary),
+                    const Icon(Icons.people, color: NeonColors.secondary),
                     const SizedBox(width: 8),
                     Text('JOUEURS MAX', style: AppTypography.subtitle),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(
+                const Text(
                   'Minimum 2 joueurs pour démarrer',
                   style: TextStyle(
                     color: NeonColors.textSecondary,
@@ -371,7 +371,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isSelected
-                                ? NeonColors.secondary.withOpacity(0.2)
+                                ? NeonColors.secondary.withValues(alpha: 0.2)
                                 : Colors.transparent,
                             border: Border.all(
                               color: isSelected
@@ -383,7 +383,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                                 ? [
                                     BoxShadow(
                                       color: NeonColors.secondary
-                                          .withOpacity(NeonGlow.opacityLow),
+                                          .withValues(alpha: NeonGlow.opacityLow),
                                       blurRadius: 8,
                                     ),
                                   ]
@@ -419,11 +419,11 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
             child: Column(
               children: [
                 _SummaryRow(
-                    label: 'Mise', value: '${_formatFCFA(betAmount)} FCFA'),
+                    label: 'Mise', value: '${_formatTokens(betAmount)} jetons',),
                 _SummaryRow(
-                    label: 'Joueurs max', value: '$maxPlayers'),
-                _SummaryRow(
-                    label: 'Min. pour démarrer', value: '2'),
+                    label: 'Joueurs max', value: '$maxPlayers',),
+                const _SummaryRow(
+                    label: 'Min. pour démarrer', value: '2',),
                 const SizedBox(height: 16),
                 NeonButton(
                   text: 'CRÉER LA PARTIE',
@@ -468,10 +468,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.hourglass_empty,
-                          color: NeonColors.textSecondary, size: 48),
+                      const Icon(Icons.hourglass_empty,
+                          color: NeonColors.textSecondary, size: 48,),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'Aucune partie en attente',
                         style: TextStyle(
                           color: NeonColors.textSecondary,
@@ -525,7 +525,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                   boxShadow: [
                     BoxShadow(
                       color: NeonColors.primary
-                          .withOpacity(_pulseController.value * 0.5),
+                          .withValues(alpha: _pulseController.value * 0.5),
                       blurRadius: 30 + _pulseController.value * 20,
                       spreadRadius: 5 + _pulseController.value * 10,
                     ),
@@ -534,8 +534,8 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor:
-                      NeonColors.primary.withOpacity(0.1 + _pulseController.value * 0.1),
-                  child: Icon(
+                      NeonColors.primary.withValues(alpha: 0.1 + _pulseController.value * 0.1),
+                  child: const Icon(
                     Icons.casino,
                     size: 60,
                     color: NeonColors.primary,
@@ -550,7 +550,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
             style: AppTypography.heading2,
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Trouve automatiquement un adversaire\navec la même mise que vous',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -577,10 +577,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                           ref.read(betAmountProvider.notifier).state = amount,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
+                            horizontal: 20, vertical: 12,),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? NeonColors.primary.withOpacity(0.2)
+                              ? NeonColors.primary.withValues(alpha: 0.2)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
@@ -591,7 +591,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                           ),
                         ),
                         child: Text(
-                          '${_formatFCFA(amount)}',
+                          _formatTokens(amount),
                           style: TextStyle(
                             color: isSelected
                                 ? NeonColors.primary
@@ -644,7 +644,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: NeonColors.primary
-                            .withOpacity(0.3 + _searchController.value * 0.4),
+                            .withValues(alpha: 0.3 + _searchController.value * 0.4),
                         width: 3,
                       ),
                     ),
@@ -657,13 +657,13 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: NeonColors.secondary
-                            .withOpacity(0.3 + (1 - _searchController.value) * 0.4),
+                            .withValues(alpha: 0.3 + (1 - _searchController.value) * 0.4),
                         width: 2,
                       ),
                     ),
                   ),
                   // Center icon
-                  Icon(
+                  const Icon(
                     Icons.search,
                     size: 40,
                     color: NeonColors.primary,
@@ -679,8 +679,8 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Mise: ${_formatFCFA(ref.watch(betAmountProvider))} FCFA',
-            style: TextStyle(
+            'Mise: ${_formatTokens(ref.watch(betAmountProvider))} jetons',
+            style: const TextStyle(
               color: NeonColors.textSecondary,
               fontFamily: 'Orbitron',
             ),
@@ -716,7 +716,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Partie créée ! En attente de joueurs...'),
             backgroundColor: NeonColors.success,
           ),
@@ -764,7 +764,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Partie rejointe ! Mise: ${room.betAmount} FCFA'),
+            content: Text('Partie rejointe ! Mise: ${room.betAmount} jetons'),
             backgroundColor: NeonColors.primary,
           ),
         );
@@ -846,9 +846,9 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
     gameWs.leaveMatchmaking();
   }
 
-  String _formatFCFA(int amount) {
+  String _formatTokens(int amount) {
     return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
   }
 }
 
@@ -877,7 +877,7 @@ class _ModeChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: isSelected
-                ? NeonColors.primary.withOpacity(0.15)
+                ? NeonColors.primary.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -888,7 +888,7 @@ class _ModeChip extends StatelessWidget {
                 ? [
                     BoxShadow(
                       color: NeonColors.primary
-                          .withOpacity(NeonGlow.opacityLow),
+                          .withValues(alpha: NeonGlow.opacityLow),
                       blurRadius: 8,
                     ),
                   ]
@@ -938,10 +938,10 @@ class _RoomCard extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: NeonColors.primary.withOpacity(0.1),
+                color: NeonColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.casino, color: NeonColors.primary),
+              child: const Icon(Icons.casino, color: NeonColors.primary),
             ),
             const SizedBox(width: 12),
             // Info
@@ -956,24 +956,24 @@ class _RoomCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.monetization_on,
-                          color: NeonColors.primary, size: 14),
+                      const Icon(Icons.monetization_on,
+                          color: NeonColors.primary, size: 14,),
                       const SizedBox(width: 4),
                       Text(
-                        '${room.betAmount} FCFA',
-                        style: TextStyle(
+                        '${room.betAmount} jetons',
+                        style: const TextStyle(
                           color: NeonColors.primary,
                           fontFamily: 'Orbitron',
                           fontSize: 12,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Icon(Icons.people,
-                          color: NeonColors.textSecondary, size: 14),
+                      const Icon(Icons.people,
+                          color: NeonColors.textSecondary, size: 14,),
                       const SizedBox(width: 4),
                       Text(
                         '${room.currentPlayers}/${room.maxPlayers}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: NeonColors.textSecondary,
                           fontSize: 12,
                           fontFamily: 'Inter',
@@ -1015,14 +1015,14 @@ class _SummaryRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.textSecondary,
               fontFamily: 'Inter',
             ),
           ),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.primary,
               fontFamily: 'Orbitron',
               fontWeight: FontWeight.bold,

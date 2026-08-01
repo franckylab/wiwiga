@@ -25,6 +25,7 @@ import '../../presentation/screens/leaderboard/leaderboard_screen.dart';
 import '../../presentation/screens/main/main_shell_screen.dart';
 import '../../presentation/screens/profile/profile_screen_enhanced.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
+import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transaction_history/transaction_history_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen_neon.dart';
 import '../theme/neon_theme.dart';
@@ -36,9 +37,14 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/home',
+    initialLocation: '/splash',
     routes: [
       // --- Routes hors shell (plein écran) ---
+      GoRoute(
+        path: '/splash',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/auth',
         parentNavigatorKey: rootNavigatorKey,
@@ -72,7 +78,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               path: '/home',
               builder: (context, state) => const HomeScreen(),
             ),
-          ]),
+          ],),
 
           // Onglet Jeux : catalogue → détail → lobby/salle/match
           StatefulShellBranch(routes: [
@@ -121,7 +127,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           diceCount: extra['dice_count'] ?? 2,
                           betAmount: extra['bet_amount'] ?? 0,
                           players: List<Map<String, dynamic>>.from(
-                              extra['players'] as List? ?? const []),
+                              extra['players'] as List? ?? const [],),
                         );
                       },
                     ),
@@ -141,7 +147,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ),
               ],
             ),
-          ]),
+          ],),
 
           // Onglet Amis
           StatefulShellBranch(routes: [
@@ -149,15 +155,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               path: '/friends',
               builder: (context, state) => const FriendsScreen(),
             ),
-          ]),
+          ],),
 
-          // Onglet Portefeuille
+          // Onglet Jetons
           StatefulShellBranch(routes: [
             GoRoute(
-              path: '/wallet',
+              path: '/tokens',
               builder: (context, state) => const WalletScreenNeon(),
             ),
-          ]),
+          ],),
 
           // Onglet Classement
           StatefulShellBranch(routes: [
@@ -165,7 +171,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               path: '/leaderboard',
               builder: (context, state) => const LeaderboardScreen(),
             ),
-          ]),
+          ],),
         ],
       ),
     ],
@@ -200,9 +206,9 @@ class _RoomRouteLoader extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.error_outline,
-                      color: NeonColors.error, size: 48),
+                      color: NeonColors.error, size: 48,),
                   const SizedBox(height: 12),
-                  Text(
+                  const Text(
                     'Salle introuvable',
                     style: TextStyle(color: NeonColors.textPrimary),
                   ),
@@ -216,7 +222,7 @@ class _RoomRouteLoader extends ConsumerWidget {
             ),
           );
         }
-        return Scaffold(
+        return const Scaffold(
           backgroundColor: NeonColors.surface,
           body: Center(
             child: CircularProgressIndicator(color: NeonColors.primary),

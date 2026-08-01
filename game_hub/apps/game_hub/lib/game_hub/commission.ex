@@ -24,6 +24,8 @@ defmodule GameHub.Commission do
   alias GameHub.Repo
   alias GameHub.Games.GameConfig
   alias GameHub.Wallet.WalletTransaction
+  alias GameHub.Tokens.TokenTransaction
+  alias GameHub.Tokens.TokenConfig
   
   @doc """
   Récupère configuration commission pour un jeu.
@@ -127,23 +129,23 @@ defmodule GameHub.Commission do
   end
   
   @doc """
-  Enregistre transaction commission.
+  Enregistre transaction commission (monétaire + jetons).
   
   ## Parameters
     - `game_id`: ID partie
     - `user_id`: ID joueur
-    - `commission_amount`: Montant commission
+    - `commission_amount`: Montant commission en centimes
     - `idempotency_key`: Clé unique
   """
   @spec record_commission(String.t(), String.t(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
   def record_commission(game_id, user_id, commission_amount, idempotency_key) do
-    # Créer transaction commission (ACID)
+    # Créer transaction commission monétaire
     transaction = %{
       user_id: user_id,
       type: "commission",
-      amount: -commission_amount, # Débit
-      balance_before: 0, # À calculer dans transaction
-      balance_after: 0, # À calculer dans transaction
+      amount: -commission_amount,
+      balance_before: 0,
+      balance_after: 0,
       idempotency_key: idempotency_key,
       game_id: game_id,
       metadata: %{
@@ -152,10 +154,41 @@ defmodule GameHub.Commission do
       }
     }
     
-    # Insérer via Wallet (ACID)
-    # Wallet.create_transaction(transaction)
+    # Enregistrer aussi la commission en jetons
+    record_token_commission(game_id, user_id, commission_amount, "#{idempotency_key}_tokens")
     
     {:ok, transaction}
+  end
+  
+  @doc """
+  Enregistre la commission en jetons (traçabilité).
+  
+  ## Parameters
+    - `game_id`: ID partie
+    - `user_id`: ID joueur
+    - `monetary_amount`: Montant monétaire de la commission (centimes)
+    - `idempotency_key`: Clé unique
+  """
+  @spec record_token_commission(String.t(), String.t(), integer(), String.t()) :: :ok | {:error, atom()}
+  def record_token_commission(game_id, user_id, monetary_amount, idempotency_key) do
+    config = TokenConfig.get_config()
+    commission_tokens = TokenConfig.monetary_to_tokens(monetary_amount, config)
+    
+    if commission_tokens > 0 do
+      case GameHub.Tokens.get_token_balance(user_id) do
+        {:ok, token_balance} when token_balance >= commission_tokens ->
+          # Débit commission en jetons
+          case GameHub.Tokens.deduct_commission_tokens(user_id, commission_tokens, game_id, idempotency_key) do
+            {:ok, _} -> :ok
+            {:error, _} -> :ok # Non-bloquant
+          end
+        
+        _ ->
+          :ok # Solde insuffisant ou user non trouvé, non-bloquant
+      end
+    else
+      :ok
+    end
   end
   
   @doc """
@@ -182,10 +215,11 @@ defmodule GameHub.Commission do
   end
   
   @doc """
-  Stats commissions par période.
+  Stats commissions par période (monétaire + jetons).
   """
-  @spec get_commission_stats(Date.t(), Date.t()) :: %{total: integer(), by_game: map()}
+  @spec get_commission_stats(Date.t(), Date.t()) :: %{total: integer(), by_game: map(), token_total: integer()}
   def get_commission_stats(start_date, end_date) do
+    # Stats monétaires
     query = from t in WalletTransaction,
       where: t.type == "commission" and
              t.inserted_at >= ^start_date and
@@ -201,7 +235,16 @@ defmodule GameHub.Commission do
       |> Enum.map(fn {game, amounts} -> {game, Enum.sum(amounts)} end)
       |> Enum.into(%{})
     
-    %{total: total, by_game: by_game}
+    # Stats jetons
+    token_query = from t in TokenTransaction,
+      where: t.type == "commission" and
+             t.inserted_at >= ^start_date and
+             t.inserted_at <= ^end_date,
+      select: sum(fragment("abs(?)", t.token_amount))
+    
+    token_total = Repo.one(token_query) || 0
+    
+    %{total: total, by_game: by_game, token_total: token_total}
   end
   
   # === Fonctions Privées ===

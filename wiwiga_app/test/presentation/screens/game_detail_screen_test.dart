@@ -33,7 +33,7 @@ List<Override> _overrides() {
         totalDistributedToday: 250000,
         biggestWinToday: 90000,
         totalPlayers: 120,
-      )),
+      ),),
     ),
     myGameStatsProvider.overrideWith(
       (ref, gameType) => Future.value(const MyGameStats(
@@ -46,7 +46,7 @@ List<Override> _overrides() {
         currentStreak: 2,
         bestStreak: 4,
         winRate: 60,
-      )),
+      ),),
     ),
     gameActivityProvider.overrideWith(
       (ref, gameType) => Future.value(<GameActivityEvent>[]),
@@ -59,7 +59,7 @@ List<Override> _overrides() {
         metric: 'wins',
         period: 'all',
         entries: [],
-      )),
+      ),),
     ),
     gameRulesProvider.overrideWith(
       (ref, gameType) => Future.value(const [

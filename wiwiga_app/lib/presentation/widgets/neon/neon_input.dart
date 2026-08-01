@@ -25,7 +25,7 @@ class NeonInput extends StatefulWidget {
   final String? errorText;
 
   const NeonInput({
-    Key? key,
+    super.key,
     required this.label,
     this.hint,
     this.controller,
@@ -43,7 +43,7 @@ class NeonInput extends StatefulWidget {
     this.enabled = true,
     this.focusNode,
     this.errorText,
-  }) : super(key: key);
+  });
 
   @override
   State<NeonInput> createState() => _NeonInputState();
@@ -80,7 +80,7 @@ class _NeonInputState extends State<NeonInput> {
       children: [
         Text(
           widget.label,
-          style: TextStyle(
+          style: const TextStyle(
             color: NeonColors.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -104,7 +104,7 @@ class _NeonInputState extends State<NeonInput> {
             boxShadow: [
               if (_isFocused)
                 BoxShadow(
-                  color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
                   blurRadius: NeonGlow.blurSmall,
                   spreadRadius: 1,
                 ),
@@ -121,7 +121,7 @@ class _NeonInputState extends State<NeonInput> {
             enabled: widget.enabled,
             onChanged: widget.onChanged,
             onSubmitted: widget.onSubmitted,
-            style: TextStyle(
+            style: const TextStyle(
               color: NeonColors.textPrimary,
               fontSize: 16,
               fontFamily: 'Inter',
@@ -129,7 +129,7 @@ class _NeonInputState extends State<NeonInput> {
             decoration: InputDecoration(
               hintText: widget.hint,
               hintStyle: TextStyle(
-                color: NeonColors.textSecondary.withOpacity(0.5),
+                color: NeonColors.textSecondary.withValues(alpha: 0.5),
                 fontFamily: 'Inter',
               ),
               prefixIcon: widget.icon != null

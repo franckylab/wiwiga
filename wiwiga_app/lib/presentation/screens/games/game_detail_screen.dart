@@ -18,16 +18,16 @@ import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
-final _fcfaFormat = NumberFormat('#,##0', 'fr_FR');
+final _tokenFormat = NumberFormat('#,##0', 'fr_FR');
 
-/// Formate un montant en centimes → « 12 500 FCFA »
-String formatFcfa(num centimes) => '${_fcfaFormat.format(centimes / 100)} FCFA';
+/// Formate un montant en jetons
+String formatTokens(int tokens) => _tokenFormat.format(tokens);
 
 /// Écran Détail d'un jeu : héro + 4 onglets + CTA sticky
 class GameDetailScreen extends ConsumerStatefulWidget {
   final String gameType;
 
-  const GameDetailScreen({Key? key, required this.gameType}) : super(key: key);
+  const GameDetailScreen({super.key, required this.gameType});
 
   @override
   ConsumerState<GameDetailScreen> createState() => _GameDetailScreenState();
@@ -79,10 +79,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 56, color: NeonColors.error),
+          const Icon(Icons.error_outline, size: 56, color: NeonColors.error),
           const SizedBox(height: 12),
-          Text('Jeu introuvable',
-              style: TextStyle(color: NeonColors.textSecondary, fontSize: 15)),
+          const Text('Jeu introuvable',
+              style: TextStyle(color: NeonColors.textSecondary, fontSize: 15),),
           const SizedBox(height: 16),
           NeonButton(
             text: 'Retour au catalogue',
@@ -100,7 +100,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       children: [
         _buildHero(game),
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: NeonColors.background,
             border: Border(bottom: BorderSide(color: NeonColors.border)),
           ),
@@ -110,7 +110,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             labelColor: NeonColors.primary,
             unselectedLabelColor: NeonColors.textSecondary,
             labelStyle: const TextStyle(
-                fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13,),
             tabs: const [
               Tab(text: 'Aperçu'),
               Tab(text: 'Classement'),
@@ -137,14 +137,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   Widget _buildHero(GameModel game) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: NeonColors.background,
         border: Border(bottom: BorderSide(color: NeonColors.border)),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.arrow_back, color: NeonColors.primary),
+            icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
             tooltip: 'Retour au catalogue',
             onPressed: () => context.go('/games'),
           ),
@@ -156,13 +156,13 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               gradient: NeonGradients.cta,
               boxShadow: [
                 BoxShadow(
-                  color: NeonColors.primary.withOpacity(NeonGlow.opacityMedium),
+                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
                   blurRadius: NeonGlow.blurSmall,
                 ),
               ],
             ),
-            child: Icon(Icons.casino_outlined,
-                size: 34, color: NeonColors.background),
+            child: const Icon(Icons.casino_outlined,
+                size: 34, color: NeonColors.background,),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -171,7 +171,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               children: [
                 Text(
                   game.name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Orbitron',
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -189,7 +189,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                     ),
                     GlowBadge(
                       text:
-                          'Mise ${_fcfaFormat.format(game.minBet / 100)} - ${_fcfaFormat.format(game.maxBet / 100)} FCFA',
+                          'Mise ${_tokenFormat.format((game.minBet ~/ 100 * 10))} - ${_tokenFormat.format((game.maxBet ~/ 100 * 10))} jetons',
                       color: NeonColors.secondary,
                     ),
                     GlowBadge(
@@ -212,12 +212,12 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
         color: NeonColors.background,
-        border: Border(
+        border: const Border(
           top: BorderSide(color: NeonColors.primary, width: NeonGlow.borderWidth),
         ),
         boxShadow: [
           BoxShadow(
-            color: NeonColors.primary.withOpacity(NeonGlow.opacityLow),
+            color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
             blurRadius: NeonGlow.blurSmall,
           ),
         ],
@@ -278,9 +278,9 @@ class _QuickMatchSheet extends ConsumerStatefulWidget {
 }
 
 class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
-  static const List<int> _betPresets = [100, 250, 500, 1000, 2500, 5000, 10000];
+  static const List<int> _betPresets = [10, 25, 50, 100, 250, 500, 1000];
 
-  int _betAmount = 500;
+  int _betAmount = 50;
   String _ruleType = 'normal';
   bool _isSearching = false;
   String? _error;
@@ -312,7 +312,7 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
         // En file d'attente : rediriger vers le lobby en attendant l'adversaire
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
               'En file d\'attente... un adversaire arrive bientôt !',
               style: TextStyle(color: NeonColors.primary),
@@ -343,10 +343,10 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.bolt, color: NeonColors.secondary),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'Partie rapide',
                 style: TextStyle(
@@ -359,14 +359,14 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
+          const Text(
             'Choisissez votre mise, on vous trouve un adversaire.',
             style: TextStyle(fontSize: 13, color: NeonColors.textSecondary),
           ),
           const SizedBox(height: 20),
-          Text('Mise (FCFA)',
+          const Text('Mise (jetons)',
               style: TextStyle(
-                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold,),),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -380,16 +380,16 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? NeonColors.success.withOpacity(0.2)
+                        ? NeonColors.success.withValues(alpha: 0.2)
                         : NeonColors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                         color: isSelected
                             ? NeonColors.success
-                            : NeonColors.border),
+                            : NeonColors.border,),
                   ),
                   child: Text(
-                    '$preset FCFA',
+                    '$preset jetons',
                     style: TextStyle(
                       color: isSelected
                           ? NeonColors.success
@@ -402,9 +402,9 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
             }).toList(),
           ),
           const SizedBox(height: 20),
-          Text('Règle',
+          const Text('Règle',
               style: TextStyle(
-                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold,),),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -416,7 +416,7 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!,
-                style: TextStyle(color: NeonColors.error, fontSize: 13)),
+                style: const TextStyle(color: NeonColors.error, fontSize: 13),),
           ],
           const SizedBox(height: 24),
           NeonButton(
@@ -439,11 +439,11 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? NeonColors.primary.withOpacity(0.2)
+              ? NeonColors.primary.withValues(alpha: 0.2)
               : NeonColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: isSelected ? NeonColors.primary : NeonColors.border),
+              color: isSelected ? NeonColors.primary : NeonColors.border,),
         ),
         child: Text(
           label,
@@ -522,7 +522,7 @@ class _OverviewTab extends ConsumerWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: NeonColors.textPrimary,
@@ -537,7 +537,7 @@ class _OverviewTab extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(text,
-          style: TextStyle(color: NeonColors.textMuted, fontSize: 13)),
+          style: const TextStyle(color: NeonColors.textMuted, fontSize: 13),),
     );
   }
 
@@ -545,9 +545,9 @@ class _OverviewTab extends ConsumerWidget {
     final items = [
       ('Joueurs en ligne', '${stats.playersOnline}', Icons.wifi_tethering),
       ('Parties du jour', '${stats.matchesToday}', Icons.sports_esports),
-      ('Distribué aujourd\'hui', formatFcfa(stats.totalDistributedToday),
+      ('Distribué aujourd\'hui', formatTokens(stats.totalDistributedToday),
           Icons.payments_outlined),
-      ('Plus gros gain du jour', formatFcfa(stats.biggestWinToday),
+      ('Plus gros gain du jour', formatTokens(stats.biggestWinToday),
           Icons.emoji_events_outlined),
     ];
 
@@ -578,8 +578,8 @@ class _OverviewTab extends ConsumerWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11, color: NeonColors.textSecondary),
+                      style: const TextStyle(
+                          fontSize: 11, color: NeonColors.textSecondary,),
                     ),
                   ),
                 ],
@@ -589,7 +589,7 @@ class _OverviewTab extends ConsumerWidget {
                 fit: BoxFit.scaleDown,
                 child: Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: NeonColors.textPrimary,
@@ -609,10 +609,10 @@ class _OverviewTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.person_outline, size: 18, color: NeonColors.accent),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'Mes statistiques',
                 style: TextStyle(
@@ -634,7 +634,7 @@ class _OverviewTab extends ConsumerWidget {
               ],
             ),
             loading: () => const ShimmerLoader(height: 44),
-            error: (_, __) => Text(
+            error: (_, __) => const Text(
               'Connectez-vous pour voir vos statistiques',
               style: TextStyle(color: NeonColors.textMuted, fontSize: 13),
             ),
@@ -653,7 +653,7 @@ class _OverviewTab extends ConsumerWidget {
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: NeonColors.primary,
@@ -666,7 +666,7 @@ class _OverviewTab extends ConsumerWidget {
             fit: BoxFit.scaleDown,
             child: Text(label,
                 style:
-                    TextStyle(fontSize: 11, color: NeonColors.textSecondary)),
+                    const TextStyle(fontSize: 11, color: NeonColors.textSecondary),),
           ),
         ],
       ),
@@ -674,7 +674,7 @@ class _OverviewTab extends ConsumerWidget {
   }
 
   Widget _buildWaitingRooms(
-      BuildContext context, WidgetRef ref, List<GameRoomModel> rooms) {
+      BuildContext context, WidgetRef ref, List<GameRoomModel> rooms,) {
     if (rooms.isEmpty) {
       return _mutedText('Aucune salle en attente — créez la vôtre !');
     }
@@ -690,7 +690,7 @@ class _OverviewTab extends ConsumerWidget {
               children: [
                 Icon(
                   room.isBetting
-                      ? Icons.account_balance_wallet
+                      ? Icons.monetization_on
                       : Icons.people_outline,
                   color:
                       room.isBetting ? NeonColors.success : NeonColors.primary,
@@ -702,7 +702,7 @@ class _OverviewTab extends ConsumerWidget {
                     children: [
                       Text(
                         room.roomCode,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: NeonColors.textPrimary,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1,
@@ -710,15 +710,15 @@ class _OverviewTab extends ConsumerWidget {
                       ),
                       Text(
                         room.isBetting
-                            ? 'Mise ${room.betAmount} FCFA · ${room.playersCount}/${room.maxPlayers} joueurs'
+                            ? 'Mise ${room.betAmount} jetons · ${room.playersCount}/${room.maxPlayers} joueurs'
                             : 'Gratuit · ${room.playersCount}/${room.maxPlayers} joueurs',
-                        style: TextStyle(
-                            fontSize: 12, color: NeonColors.textSecondary),
+                        style: const TextStyle(
+                            fontSize: 12, color: NeonColors.textSecondary,),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.login, size: 20, color: NeonColors.primary),
+                const Icon(Icons.login, size: 20, color: NeonColors.primary),
               ],
             ),
           ),
@@ -728,7 +728,7 @@ class _OverviewTab extends ConsumerWidget {
   }
 
   Future<void> _joinRoom(
-      BuildContext context, WidgetRef ref, GameRoomModel room) async {
+      BuildContext context, WidgetRef ref, GameRoomModel room,) async {
     try {
       final roomRepo = ref.read(roomRepositoryProvider);
       final joined = await roomRepo.joinRoom(room.roomId);
@@ -737,7 +737,7 @@ class _OverviewTab extends ConsumerWidget {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
             'Impossible de rejoindre la salle',
             style: TextStyle(color: NeonColors.error),
@@ -760,22 +760,22 @@ class _OverviewTab extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                Icon(Icons.emoji_events,
-                    size: 18, color: NeonColors.secondary),
+                const Icon(Icons.emoji_events,
+                    size: 18, color: NeonColors.secondary,),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '${event.name} a gagné ${formatFcfa(event.amount)}',
+                    '${event.name} a gagné ${formatTokens(event.amount)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13, color: NeonColors.textPrimary),
+                    style: const TextStyle(
+                        fontSize: 13, color: NeonColors.textPrimary,),
                   ),
                 ),
                 Text(
                   _relativeTime(event.insertedAt),
                   style:
-                      TextStyle(fontSize: 11, color: NeonColors.textMuted),
+                      const TextStyle(fontSize: 11, color: NeonColors.textMuted),
                 ),
               ],
             ),
@@ -830,7 +830,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
   @override
   Widget build(BuildContext context) {
     final leaderboardAsync = ref.watch(gameLeaderboardProvider(
-        (gameType: widget.gameType, metric: _metric, period: _period)));
+        (gameType: widget.gameType, metric: _metric, period: _period),),);
 
     return Column(
       children: [
@@ -866,9 +866,9 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                 ShimmerLoader(height: 200),
               ],
             ),
-            error: (_, __) => Center(
+            error: (_, __) => const Center(
               child: Text('Classement indisponible',
-                  style: TextStyle(color: NeonColors.textMuted)),
+                  style: TextStyle(color: NeonColors.textMuted),),
             ),
           ),
         ),
@@ -901,11 +901,11 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? color.withOpacity(0.2)
+                      ? color.withValues(alpha: 0.2)
                       : NeonColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: isSelected ? color : NeonColors.border),
+                      color: isSelected ? color : NeonColors.border,),
                 ),
                 child: Text(
                   label,
@@ -925,17 +925,17 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
   }
 
   String _formatValue(int value) =>
-      _isAmountMetric ? formatFcfa(value) : '$value';
+      _isAmountMetric ? formatTokens(value) : '$value';
 
   Widget _buildBoard(GameLeaderboard board) {
     if (board.entries.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.emoji_events_outlined,
-                size: 48, color: NeonColors.textMuted),
-            const SizedBox(height: 12),
+                size: 48, color: NeonColors.textMuted,),
+            SizedBox(height: 12),
             Text(
               'Aucun classement sur cette période',
               style: TextStyle(color: NeonColors.textSecondary, fontSize: 14),
@@ -984,7 +984,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                   entry.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: NeonColors.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -995,10 +995,10 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                   height: heights[index],
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: colors[index].withOpacity(0.18),
+                    color: colors[index].withValues(alpha: 0.18),
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(10)),
-                    border: Border.all(color: colors[index].withOpacity(0.6)),
+                    border: Border.all(color: colors[index].withValues(alpha: 0.6)),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1020,7 +1020,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                               const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             _formatValue(entry.value),
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: NeonColors.textPrimary,
                               fontSize: 12,
                             ),
@@ -1049,7 +1049,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
               width: 40,
               child: Text(
                 '#${entry.rank}',
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.primary,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Orbitron',
@@ -1061,12 +1061,12 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                 entry.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: NeonColors.textPrimary),
+                style: const TextStyle(color: NeonColors.textPrimary),
               ),
             ),
             Text(
               _formatValue(entry.value),
-              style: TextStyle(
+              style: const TextStyle(
                 color: NeonColors.secondary,
                 fontWeight: FontWeight.bold,
               ),
@@ -1082,7 +1082,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: NeonColors.background,
         border: Border(
           top: BorderSide(color: NeonColors.accent, width: 1),
@@ -1092,7 +1092,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
         'Votre rang : #${board.myRank}'
         '${board.myValue != null ? '  ·  ${_formatValue(board.myValue!)}' : ''}',
         textAlign: TextAlign.center,
-        style: TextStyle(
+        style: const TextStyle(
           color: NeonColors.accent,
           fontWeight: FontWeight.bold,
           fontSize: 14,
@@ -1128,9 +1128,9 @@ class _RulesTab extends ConsumerWidget {
     return rulesAsync.when(
       data: (rules) {
         if (rules.isEmpty) {
-          return Center(
+          return const Center(
             child: Text('Règles indisponibles',
-                style: TextStyle(color: NeonColors.textMuted)),
+                style: TextStyle(color: NeonColors.textMuted),),
           );
         }
         return ListView(
@@ -1142,9 +1142,9 @@ class _RulesTab extends ConsumerWidget {
         padding: EdgeInsets.all(20),
         child: ShimmerLoader(height: 200),
       ),
-      error: (_, __) => Center(
+      error: (_, __) => const Center(
         child: Text('Règles indisponibles',
-            style: TextStyle(color: NeonColors.textMuted)),
+            style: TextStyle(color: NeonColors.textMuted),),
       ),
     );
   }
@@ -1172,7 +1172,7 @@ class _RulesTab extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     rule.name,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: NeonColors.textPrimary,
@@ -1184,7 +1184,7 @@ class _RulesTab extends ConsumerWidget {
             const SizedBox(height: 10),
             Text(
               rule.description,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 color: NeonColors.textSecondary,
                 height: 1.5,
@@ -1208,13 +1208,13 @@ class _RulesTab extends ConsumerWidget {
                         children: [
                           Text(
                             _configLabels[entry.key] ?? entry.key,
-                            style: TextStyle(
+                            style: const TextStyle(
                                 fontSize: 12,
-                                color: NeonColors.textSecondary),
+                                color: NeonColors.textSecondary,),
                           ),
                           Text(
                             '${entry.value}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: NeonColors.textPrimary,
@@ -1250,9 +1250,9 @@ class _TipsTab extends ConsumerWidget {
     return tipsAsync.when(
       data: (tips) {
         if (tips.isEmpty) {
-          return Center(
+          return const Center(
             child: Text('Aucune astuce pour le moment',
-                style: TextStyle(color: NeonColors.textMuted)),
+                style: TextStyle(color: NeonColors.textMuted),),
           );
         }
         return ListView.builder(
@@ -1271,10 +1271,10 @@ class _TipsTab extends ConsumerWidget {
                       height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: NeonColors.secondary.withOpacity(0.15),
+                        color: NeonColors.secondary.withValues(alpha: 0.15),
                       ),
-                      child: Icon(Icons.lightbulb_outline,
-                          size: 20, color: NeonColors.secondary),
+                      child: const Icon(Icons.lightbulb_outline,
+                          size: 20, color: NeonColors.secondary,),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1283,7 +1283,7 @@ class _TipsTab extends ConsumerWidget {
                         children: [
                           Text(
                             tip.title,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: NeonColors.textPrimary,
@@ -1292,7 +1292,7 @@ class _TipsTab extends ConsumerWidget {
                           const SizedBox(height: 4),
                           Text(
                             tip.body,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 13,
                               color: NeonColors.textSecondary,
                               height: 1.5,
@@ -1312,9 +1312,9 @@ class _TipsTab extends ConsumerWidget {
         padding: EdgeInsets.all(20),
         child: ShimmerLoader(height: 200),
       ),
-      error: (_, __) => Center(
+      error: (_, __) => const Center(
         child: Text('Astuces indisponibles',
-            style: TextStyle(color: NeonColors.textMuted)),
+            style: TextStyle(color: NeonColors.textMuted),),
       ),
     );
   }

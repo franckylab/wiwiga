@@ -17,7 +17,7 @@ import '../../widgets/neon/neon_card.dart';
 
 /// Écran principal des amis avec tabs
 class FriendsScreen extends ConsumerStatefulWidget {
-  const FriendsScreen({Key? key}) : super(key: key);
+  const FriendsScreen({super.key});
 
   @override
   ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
@@ -104,20 +104,20 @@ class _FriendsListTab extends ConsumerWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}', style: TextStyle(color: NeonColors.error)));
+          return Center(child: Text('Erreur: ${snapshot.error}', style: const TextStyle(color: NeonColors.error)));
         }
 
         final friends = snapshot.data ?? [];
 
         if (friends.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.people_outline, color: NeonColors.textSecondary, size: 64),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text('Aucun ami pour le moment', style: TextStyle(color: NeonColors.textSecondary, fontSize: 16)),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text('Recherchez des joueurs par téléphone ou nom', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               ],
             ),
@@ -158,10 +158,10 @@ class _FriendCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: friend.isOnline ? NeonColors.success.withOpacity(0.2) : NeonColors.surface,
+                  backgroundColor: friend.isOnline ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
                   child: Text(
                     friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
-                    style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                 ),
                 if (friend.isOnline)
@@ -185,7 +185,7 @@ class _FriendCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(friend.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  Text(friend.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 2),
                   Text(
                     friend.isInGame ? 'En partie' : (friend.isOnline ? 'En ligne' : 'Hors ligne'),
@@ -199,7 +199,7 @@ class _FriendCard extends StatelessWidget {
             ),
             // Bouton Jouer
             IconButton(
-              icon: Icon(Icons.sports_esports_outlined, color: NeonColors.primary),
+              icon: const Icon(Icons.sports_esports_outlined, color: NeonColors.primary),
               onPressed: () {
                 context.push('/games/dice/create');
               },
@@ -208,7 +208,7 @@ class _FriendCard extends StatelessWidget {
             // Menu
             PopupMenuButton<String>(
               color: NeonColors.surface,
-              icon: Icon(Icons.more_vert, color: NeonColors.textSecondary),
+              icon: const Icon(Icons.more_vert, color: NeonColors.textSecondary),
               onSelected: (value) {
                 switch (value) {
                   case 'remove':
@@ -220,8 +220,8 @@ class _FriendCard extends StatelessWidget {
                 }
               },
               itemBuilder: (context) => [
-                PopupMenuItem(value: 'remove', child: Text('Supprimer', style: TextStyle(color: NeonColors.error))),
-                PopupMenuItem(value: 'block', child: Text('Bloquer', style: TextStyle(color: NeonColors.error))),
+                const PopupMenuItem(value: 'remove', child: Text('Supprimer', style: TextStyle(color: NeonColors.error))),
+                const PopupMenuItem(value: 'block', child: Text('Bloquer', style: TextStyle(color: NeonColors.error))),
               ],
             ),
           ],
@@ -248,12 +248,12 @@ class _RequestsListTab extends ConsumerWidget {
         final requests = snapshot.data ?? [];
 
         if (requests.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.mail_outline, color: NeonColors.textSecondary, size: 64),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text('Aucune demande en attente', style: TextStyle(color: NeonColors.textSecondary)),
               ],
             ),
@@ -292,10 +292,10 @@ class _RequestCard extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: NeonColors.primary.withOpacity(0.2),
+              backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
               child: Text(
                 request.fromUser.name.isNotEmpty ? request.fromUser.name[0].toUpperCase() : '?',
-                style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 12),
@@ -303,9 +303,9 @@ class _RequestCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(request.fromUser.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  Text(request.fromUser.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
                   if (request.fromUser.phone != null)
-                    Text(request.fromUser.phone!, style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                    Text(request.fromUser.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
@@ -354,12 +354,12 @@ class _ActivityTab extends ConsumerWidget {
         final activities = snapshot.data ?? [];
 
         if (activities.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.dynamic_feed_outlined, color: NeonColors.textSecondary, size: 64),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text('Aucune activité', style: TextStyle(color: NeonColors.textSecondary)),
               ],
             ),
@@ -395,7 +395,7 @@ class _ActivityCard extends StatelessWidget {
       case 'game_lost': return Icons.sentiment_dissatisfied;
       case 'friend_added': return Icons.person_add;
       case 'level_up': return Icons.trending_up;
-      case 'bet_placed': return Icons.account_balance_wallet;
+      case 'bet_placed': return Icons.monetization_on;
       default: return Icons.info_outline;
     }
   }
@@ -425,8 +425,8 @@ class _ActivityCard extends StatelessWidget {
               child: RichText(
                 text: TextSpan(
                   children: [
-                    TextSpan(text: activity.user.name, style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
-                    TextSpan(text: ' ${_getActionText(activity.action)}', style: TextStyle(color: NeonColors.textSecondary)),
+                    TextSpan(text: activity.user.name, style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+                    TextSpan(text: ' ${_getActionText(activity.action)}', style: const TextStyle(color: NeonColors.textSecondary)),
                   ],
                 ),
               ),
@@ -455,12 +455,12 @@ class _LeaderboardTab extends ConsumerWidget {
         final entries = snapshot.data ?? [];
 
         if (entries.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.emoji_events_outlined, color: NeonColors.textSecondary, size: 64),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text('Classement vide', style: TextStyle(color: NeonColors.textSecondary)),
               ],
             ),
@@ -511,7 +511,7 @@ class _LeaderboardRow extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: _getRankColor(rank).withOpacity(0.2),
+                color: _getRankColor(rank).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -523,17 +523,17 @@ class _LeaderboardRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(entry.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              child: Text(entry.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: NeonColors.success.withOpacity(0.2),
+                color: NeonColors.success.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${entry.wins} V',
-                style: TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -574,30 +574,30 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Rechercher un joueur', style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Rechercher un joueur', style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
-            style: TextStyle(color: NeonColors.textPrimary),
+            style: const TextStyle(color: NeonColors.textPrimary),
             decoration: InputDecoration(
               hintText: 'Téléphone ou nom...',
-              hintStyle: TextStyle(color: NeonColors.textSecondary),
-              prefixIcon: Icon(Icons.search, color: NeonColors.primary),
+              hintStyle: const TextStyle(color: NeonColors.textSecondary),
+              prefixIcon: const Icon(Icons.search, color: NeonColors.primary),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.send, color: NeonColors.primary),
                 onPressed: _search,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: NeonColors.border),
+                borderSide: const BorderSide(color: NeonColors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: NeonColors.border),
+                borderSide: const BorderSide(color: NeonColors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: NeonColors.primary, width: 2),
+                borderSide: const BorderSide(color: NeonColors.primary, width: 2),
               ),
             ),
             onSubmitted: (_) => _search(),
@@ -611,16 +611,16 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: NeonColors.primary.withOpacity(0.2),
-                    child: Text(result.name.isNotEmpty ? result.name[0].toUpperCase() : '?', style: TextStyle(color: NeonColors.primary)),
+                    backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
+                    child: Text(result.name.isNotEmpty ? result.name[0].toUpperCase() : '?', style: const TextStyle(color: NeonColors.primary)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(result.name, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
-                        if (result.phone != null) Text(result.phone!, style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                        Text(result.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                        if (result.phone != null) Text(result.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -633,7 +633,7 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
                   ),
                 ],
               ),
-            )),
+            ),),
         ],
       ),
     );

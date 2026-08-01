@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/neon/token_icon.dart';
+import '../../widgets/neon/wiwiga_logo.dart';
 import '../../providers/config_provider.dart';
+import '../../providers/token_provider.dart';
 import '../game_lobby/game_lobby_screen.dart';
 
 /// Écran Lobby redesigné avec style néon gaming
 class LobbyScreenNeon extends ConsumerWidget {
-  const LobbyScreenNeon({Key? key}) : super(key: key);
+  const LobbyScreenNeon({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,7 +72,7 @@ class _HeaderSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: NeonGradients.cta,
       ),
       child: Column(
@@ -79,14 +82,13 @@ class _HeaderSection extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Logo
-              Row(
+              const Row(
                 children: [
-                  Icon(
-                    Icons.gamepad,
-                    color: NeonColors.primary,
+                  WiwigaLogo(
+                    variant: LogoVariant.icon,
                     size: 32,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     'WIWIGA',
                     style: TextStyle(
@@ -103,11 +105,11 @@ class _HeaderSection extends ConsumerWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.notifications_outlined, color: NeonColors.primary),
+                    icon: const Icon(Icons.notifications_outlined, color: NeonColors.primary),
                     onPressed: () {},
                   ),
                   IconButton(
-                    icon: Icon(Icons.account_circle_outlined, color: NeonColors.primary),
+                    icon: const Icon(Icons.account_circle_outlined, color: NeonColors.primary),
                     onPressed: () {},
                   ),
                 ],
@@ -117,15 +119,8 @@ class _HeaderSection extends ConsumerWidget {
           
           const SizedBox(height: 24),
           
-          // Balance
-          BalanceDisplay(
-            balanceCentimes: 250000, // 2,500 FCFA
-            fontSize: 36,
-            showLabel: true,
-            onTap: () {
-              // Naviguer vers wallet
-            },
-          ),
+          // Solde Jetons
+          _TokenBalanceWidget(),
           
           const SizedBox(height: 16),
           
@@ -134,22 +129,69 @@ class _HeaderSection extends ConsumerWidget {
             children: [
               Expanded(
                 child: NeonButton(
-                  text: 'DÉPOSER',
+                  text: 'ACHETER',
                   onPressed: () {},
                   variant: NeonButtonVariant.success,
-                  icon: Icons.add,
+                  icon: Icons.shopping_cart,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: NeonButton(
-                  text: 'RETIRER',
+                  text: 'ÉCHANGER',
                   onPressed: () {},
                   variant: NeonButtonVariant.outline,
-                  icon: Icons.remove,
+                  icon: Icons.swap_horiz,
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TokenBalanceWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokenState = ref.watch(tokenProvider);
+    final tokens = tokenState.tokenBalance;
+    final fcfa = tokenState.monetaryValueFcfa;
+
+    return GestureDetector(
+      onTap: () {
+        // Naviguer vers wallet
+      },
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const TokenIcon(size: 24, variant: TokenVariant.normal, animated: true),
+              const SizedBox(width: 8),
+              Text(
+                tokens.toString().replaceAllMapped(
+                  RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                  (m) => '${m[1]} ',
+                ),
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: NeonColors.textPrimary,
+                  fontFamily: 'Orbitron',
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'JETONS  •  ≈ ${fcfa.toStringAsFixed(0)} FCFA',
+            style: const TextStyle(
+              fontSize: 12,
+              color: NeonColors.textSecondary,
+              fontFamily: 'Inter',
+              letterSpacing: 1,
+            ),
           ),
         ],
       ),
@@ -164,21 +206,21 @@ class _GameGrid extends StatelessWidget {
       {
         'name': 'Jeu de Dés',
         'icon': Icons.casino,
-        'minBet': '100 FCFA',
+        'minBet': '100 jetons',
         'players': '1,234',
         'status': GameStatus.inProgress,
       },
       {
         'name': 'Poker',
         'icon': Icons.games,
-        'minBet': '500 FCFA',
+        'minBet': '500 jetons',
         'players': '856',
         'status': GameStatus.waiting,
       },
       {
         'name': 'Blackjack',
         'icon': Icons.auto_awesome,
-        'minBet': '200 FCFA',
+        'minBet': '200 jetons',
         'players': '642',
         'status': GameStatus.inProgress,
       },
@@ -228,7 +270,7 @@ class _GameCardWidget extends StatelessWidget {
             width: double.infinity,
             height: 80,
             decoration: BoxDecoration(
-              color: NeonColors.primary.withOpacity(0.1),
+              color: NeonColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -263,7 +305,7 @@ class _GameCardWidget extends StatelessWidget {
             children: [
               Text(
                 'Min: ${game['minBet']}',
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.textSecondary,
                   fontSize: 12,
                   fontFamily: 'Inter',
@@ -271,7 +313,7 @@ class _GameCardWidget extends StatelessWidget {
               ),
               Text(
                 '${game['players']} joueurs',
-                style: TextStyle(
+                style: const TextStyle(
                   color: NeonColors.textSecondary,
                   fontSize: 12,
                   fontFamily: 'Inter',
@@ -299,7 +341,7 @@ class _QuickStatsSection extends StatelessWidget {
               style: AppTypography.heading3,
             ),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Expanded(
                   child: _StatItem(
@@ -365,7 +407,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             color: NeonColors.textSecondary,
             fontSize: 12,
             fontFamily: 'Inter',
@@ -385,7 +427,7 @@ class _FooterSection extends StatelessWidget {
         children: [
           const Divider(color: NeonColors.border),
           const SizedBox(height: 16),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _FooterButton(icon: Icons.help_outline, label: 'Aide'),
@@ -398,7 +440,7 @@ class _FooterSection extends StatelessWidget {
           Text(
             '© 2026 WIWIGA - Tous droits réservés',
             style: TextStyle(
-              color: NeonColors.textSecondary.withOpacity(0.5),
+              color: NeonColors.textSecondary.withValues(alpha: 0.5),
               fontSize: 12,
               fontFamily: 'Inter',
             ),
@@ -431,7 +473,7 @@ class _FooterButton extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: NeonColors.primary,
                 fontSize: 12,
                 fontFamily: 'Inter',
@@ -458,13 +500,13 @@ class _MaintenanceScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.construction,
                 size: 80,
                 color: NeonColors.secondary,
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 'MAINTENANCE',
                 style: TextStyle(
                   fontSize: 32,
@@ -474,7 +516,7 @@ class _MaintenanceScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'WIWIGA est actuellement en maintenance.',
                 textAlign: TextAlign.center,
                 style: TextStyle(

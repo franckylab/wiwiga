@@ -48,7 +48,7 @@ final leaderboardEntriesProvider = Provider<List<LeaderboardEntry>>((ref) {
 // === Écran ===
 
 class LeaderboardScreen extends ConsumerWidget {
-  const LeaderboardScreen({Key? key}) : super(key: key);
+  const LeaderboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,7 +81,7 @@ class LeaderboardScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            NeonColors.rankGold.withOpacity(0.3),
+            NeonColors.rankGold.withValues(alpha: 0.3),
             NeonColors.background,
           ],
           begin: Alignment.topCenter,
@@ -90,11 +90,11 @@ class LeaderboardScreen extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.emoji_events, color: NeonColors.rankGold, size: 28),
+          const Icon(Icons.emoji_events, color: NeonColors.rankGold, size: 28),
           const SizedBox(width: 8),
           Text('CLASSEMENT', style: AppTypography.heading3),
           const Spacer(),
-          GlowBadge(
+          const GlowBadge(
             text: 'SAISON 1',
             color: NeonColors.rankGold,
           ),
@@ -125,7 +125,7 @@ class LeaderboardScreen extends ConsumerWidget {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? NeonColors.rankGold.withOpacity(0.15) : Colors.transparent,
+                    color: isSelected ? NeonColors.rankGold.withValues(alpha: 0.15) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected ? NeonColors.rankGold : NeonColors.border,
@@ -181,9 +181,9 @@ class LeaderboardScreen extends ConsumerWidget {
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: isYou ? NeonColors.primary.withOpacity(0.08) : Colors.transparent,
+            color: isYou ? NeonColors.primary.withValues(alpha: 0.08) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            border: isYou ? Border.all(color: NeonColors.primary.withOpacity(0.3)) : null,
+            border: isYou ? Border.all(color: NeonColors.primary.withValues(alpha: 0.3)) : null,
           ),
           child: NeonCard(
             child: Row(
@@ -194,7 +194,7 @@ class LeaderboardScreen extends ConsumerWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _getRankColor(entry.rankTier).withOpacity(0.15),
+                    color: _getRankColor(entry.rankTier).withValues(alpha: 0.15),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -225,7 +225,7 @@ class LeaderboardScreen extends ConsumerWidget {
                           ),
                           if (isYou) ...[
                             const SizedBox(width: 6),
-                            GlowBadge(text: 'VOUS', color: NeonColors.primary),
+                            const GlowBadge(text: 'VOUS', color: NeonColors.primary),
                           ],
                         ],
                       ),
@@ -234,7 +234,7 @@ class LeaderboardScreen extends ConsumerWidget {
                         children: [
                           Text(
                             '${entry.wins}V - ${entry.losses}D',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: NeonColors.textSecondary,
                               fontSize: 11,
                               fontFamily: 'Inter',
@@ -259,16 +259,16 @@ class LeaderboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _formatFCFA(entry.totalEarnings),
-                      style: TextStyle(
+                      _formatTokens(entry.totalEarnings),
+                      style: const TextStyle(
                         color: NeonColors.rankGold,
                         fontFamily: 'Orbitron',
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Text(
-                      'FCFA',
+                    const Text(
+                      'jetons',
                       style: TextStyle(
                         color: NeonColors.textSecondary,
                         fontSize: 10,
@@ -296,9 +296,9 @@ class LeaderboardScreen extends ConsumerWidget {
     }
   }
 
-  String _formatFCFA(int amount) {
+  String _formatTokens(int amount) {
     return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
   }
 }
 
@@ -328,7 +328,7 @@ class _PodiumCard extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 border: Border.all(color: color, width: 2),
               ),
               alignment: Alignment.center,
@@ -345,7 +345,7 @@ class _PodiumCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               entry.name,
-              style: TextStyle(
+              style: const TextStyle(
                 color: NeonColors.textPrimary,
                 fontFamily: 'Inter',
                 fontSize: 11,

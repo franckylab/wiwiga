@@ -77,7 +77,7 @@ void main() {
         assert(0 >= 0);
         // max_players doit être >= 2
         assert(2 >= 2);
-      }, returnsNormally);
+      }, returnsNormally,);
     });
 
     testWidgets('mode Free ne demande pas de mise', (tester) async {

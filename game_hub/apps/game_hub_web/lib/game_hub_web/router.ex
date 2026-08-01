@@ -73,11 +73,22 @@ defmodule GameHubWeb.Router do
   scope "/api", GameHubWeb do
     pipe_through :api_auth
     
-    # Portefeuille
+    # Compte monétaire (legacy - compatibilité)
     get "/wallet/balance", WalletController, :balance
     post "/wallet/deposit", WalletController, :deposit
     post "/wallet/withdraw", WalletController, :withdraw
     get "/wallet/transactions", WalletController, :list_transactions
+    
+    # Jetons virtuels
+    get "/tokens/balance", TokenController, :balance
+    get "/tokens/summary", TokenController, :summary
+    post "/tokens/purchase", TokenController, :purchase
+    post "/tokens/exchange", TokenController, :exchange
+    post "/tokens/transfer", TokenController, :transfer
+    post "/tokens/gift", TokenController, :gift
+    get "/tokens/transactions", TokenController, :transactions
+    get "/tokens/promos", TokenController, :promos
+    post "/tokens/promos/:id/redeem", TokenController, :redeem_promo
     
     # Jeux
     get "/games", GameController, :index
@@ -164,5 +175,14 @@ defmodule GameHubWeb.Router do
     get "/config/payments", API.Admin.ConfigController, :list_payment_configs
     get "/config/payments/:provider", API.Admin.ConfigController, :get_payment_config
     put "/config/payments/:provider", API.Admin.ConfigController, :update_payment_config
+    
+    # Jetons (config)
+    get "/config/tokens", TokenConfigController, :get_config
+    put "/config/tokens", TokenConfigController, :update_config
+    
+    # Promotions
+    get "/promos", TokenConfigController, :list_promos
+    post "/promos", TokenConfigController, :create_promo
+    put "/promos/:id", TokenConfigController, :update_promo
   end
 end

@@ -1,15 +1,14 @@
 // ============================================================
 // Fichier: wallet_repository.dart
-// Description: Repository du portefeuille financier
+// Description: Repository du compte utilisateur
 // Auteur: WIWIGA Team
 // Date: 2026-06-23
 // ============================================================
 
-import '../models/wallet_transaction_model.dart';
 import '../services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 
-/// Repository gérant les opérations de portefeuille
+/// Repository gérant les opérations de compte
 class WalletRepository {
   final ApiService _apiService;
   
@@ -79,5 +78,16 @@ class WalletRepository {
       'transactions': response['data'] as List? ?? [],
       'pagination': response['pagination'] as Map<String, dynamic>? ?? {},
     };
+  }
+  
+  /// Récupère le résumé jetons (solde + valeur monétaire)
+  /// Backend: GET /api/tokens/summary → {success: true, data: {token_balance, monetary_value_centimes, ...}}
+  Future<Map<String, dynamic>> getTokenSummary() async {
+    final response = await _apiService.get(
+      ApiEndpoints.tokenSummary,
+      requiresAuth: true,
+    );
+    
+    return response['data'] as Map<String, dynamic>;
   }
 }

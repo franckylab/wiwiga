@@ -14,7 +14,6 @@ import '../repositories/game_repository.dart';
 import '../models/user_model.dart';
 import '../models/wallet_transaction_model.dart';
 import '../models/game_model.dart';
-import 'web_socket_provider.dart';
 
 // ============================================================
 // PROVIDERS DE SERVICES
@@ -158,12 +157,16 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 class WalletState {
   final bool isLoading;
   final double balance;
+  final int tokenBalance;
+  final double tokenMonetaryValue;
   final List<WalletTransactionModel> transactions;
   final String? error;
   
   const WalletState({
     this.isLoading = false,
     this.balance = 0,
+    this.tokenBalance = 0,
+    this.tokenMonetaryValue = 0,
     this.transactions = const [],
     this.error,
   });
@@ -171,12 +174,16 @@ class WalletState {
   WalletState copyWith({
     bool? isLoading,
     double? balance,
+    int? tokenBalance,
+    double? tokenMonetaryValue,
     List<WalletTransactionModel>? transactions,
     String? error,
   }) {
     return WalletState(
       isLoading: isLoading ?? this.isLoading,
       balance: balance ?? this.balance,
+      tokenBalance: tokenBalance ?? this.tokenBalance,
+      tokenMonetaryValue: tokenMonetaryValue ?? this.tokenMonetaryValue,
       transactions: transactions ?? this.transactions,
       error: error,
     );
@@ -188,14 +195,28 @@ class WalletNotifier extends StateNotifier<WalletState> {
   
   WalletNotifier(this._repository) : super(const WalletState());
   
-  /// Charge le solde
+  /// Charge le solde (monétaire + jetons)
   Future<void> loadBalance() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final balanceCentimes = await _repository.getBalance();
+      
+      // Charger aussi le solde jetons
+      int tokenBalance = 0;
+      double tokenMonetaryValue = 0;
+      try {
+        final tokenSummary = await _repository.getTokenSummary();
+        tokenBalance = tokenSummary['token_balance'] as int? ?? 0;
+        tokenMonetaryValue = ((tokenSummary['monetary_value_centimes'] as num?) ?? 0).toDouble() / 100.0;
+      } catch (_) {
+        // Non-bloquant si endpoint tokens non disponible
+      }
+      
       state = state.copyWith(
         isLoading: false,
         balance: balanceCentimes / 100.0,
+        tokenBalance: tokenBalance,
+        tokenMonetaryValue: tokenMonetaryValue,
       );
     } catch (e) {
       state = state.copyWith(

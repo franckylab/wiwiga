@@ -17,7 +17,7 @@ import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Catalogue : grille responsive des jeux disponibles
 class GamesCatalogScreen extends ConsumerWidget {
-  const GamesCatalogScreen({Key? key}) : super(key: key);
+  const GamesCatalogScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,8 +50,8 @@ class GamesCatalogScreen extends ConsumerWidget {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -64,7 +64,7 @@ class GamesCatalogScreen extends ConsumerWidget {
               color: NeonColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             'Choisissez votre jeu et défiez la communauté',
             style: TextStyle(
@@ -122,13 +122,13 @@ class GamesCatalogScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.videogame_asset_off_outlined,
-              size: 56, color: NeonColors.textMuted),
-          const SizedBox(height: 12),
+              size: 56, color: NeonColors.textMuted,),
+          SizedBox(height: 12),
           Text(
             'Aucun jeu disponible pour le moment',
             style: TextStyle(color: NeonColors.textSecondary, fontSize: 15),
@@ -143,9 +143,9 @@ class GamesCatalogScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_off_outlined, size: 56, color: NeonColors.error),
+          const Icon(Icons.wifi_off_outlined, size: 56, color: NeonColors.error),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'Impossible de charger les jeux',
             style: TextStyle(color: NeonColors.textSecondary, fontSize: 15),
           ),
@@ -166,7 +166,7 @@ class GamesCatalogScreen extends ConsumerWidget {
 class GameCatalogCard extends StatelessWidget {
   final GameModel game;
 
-  const GameCatalogCard({Key? key, required this.game}) : super(key: key);
+  const GameCatalogCard({super.key, required this.game});
 
   static final _amountFormat = NumberFormat('#,##0', 'fr_FR');
 
@@ -225,7 +225,7 @@ class GameCatalogCard extends StatelessWidget {
                         game.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'Orbitron',
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -234,7 +234,7 @@ class GameCatalogCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       comingSoon
-                          ? GlowBadge(
+                          ? const GlowBadge(
                               text: 'Bientôt disponible',
                               color: NeonColors.secondary,
                             )
@@ -258,7 +258,7 @@ class GameCatalogCard extends StatelessWidget {
                     : game.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
                   color: NeonColors.textSecondary,
                   fontFamily: 'Inter',
@@ -274,15 +274,15 @@ class GameCatalogCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!comingSoon) ...[
-                        Icon(Icons.payments_outlined,
-                            size: 16, color: NeonColors.secondary),
+                        const Icon(Icons.payments_outlined,
+                            size: 16, color: NeonColors.secondary,),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            'Mise min. ${_amountFormat.format(game.minBet / 100)} FCFA',
+                            'Mise min. ${_amountFormat.format((game.minBet ~/ 100 * 10))} jetons',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               color: NeonColors.textSecondary,
                               fontFamily: 'Inter',
@@ -300,7 +300,7 @@ class GameCatalogCard extends StatelessWidget {
                     height: 40,
                     fontSize: 13,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                        horizontal: 12, vertical: 8,),
                     onPressed: () => context.go('/games/${game.type}'),
                   )
                 else

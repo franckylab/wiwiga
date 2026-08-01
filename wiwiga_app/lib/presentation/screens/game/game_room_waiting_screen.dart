@@ -21,7 +21,7 @@ import '../../widgets/neon/neon_card.dart';
 class GameRoomWaitingScreen extends ConsumerStatefulWidget {
   final GameRoomModel room;
 
-  const GameRoomWaitingScreen({Key? key, required this.room}) : super(key: key);
+  const GameRoomWaitingScreen({super.key, required this.room});
 
   @override
   ConsumerState<GameRoomWaitingScreen> createState() => _GameRoomWaitingScreenState();
@@ -137,7 +137,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+                child: Text(_error!, style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
               ),
             _buildActionButtons(),
           ],
@@ -150,28 +150,28 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
     return NeonCard(
       child: Column(
         children: [
-          Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
+          const Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
               Clipboard.setData(ClipboardData(text: _room.roomCode));
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Code copié !', style: TextStyle(color: NeonColors.primary))),
+                const SnackBar(content: Text('Code copié !', style: TextStyle(color: NeonColors.primary))),
               );
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                color: NeonColors.primary.withOpacity(0.1),
+                color: NeonColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: NeonColors.primary.withOpacity(0.3)),
+                border: Border.all(color: NeonColors.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     _room.roomCode,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: NeonColors.primary,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -179,13 +179,13 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.copy, color: NeonColors.primary, size: 20),
+                  const Icon(Icons.copy, color: NeonColors.primary, size: 20),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text('Appuyez pour copier', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+          const Text('Appuyez pour copier', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
         ],
       ),
     );
@@ -197,11 +197,11 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.timer_outlined, color: NeonColors.textSecondary, size: 20),
+          const Icon(Icons.timer_outlined, color: NeonColors.textSecondary, size: 20),
           const SizedBox(width: 8),
           Text(
             'Attente: $_formattedTime',
-            style: TextStyle(color: NeonColors.textSecondary, fontSize: 16),
+            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 16),
           ),
         ],
       ),
@@ -216,10 +216,10 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Joueurs', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Joueurs', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
               Text(
                 '${_room.playersCount}/${_room.maxPlayers}',
-                style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -231,10 +231,10 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: player.id == _room.creatorId ? NeonColors.primary.withOpacity(0.3) : NeonColors.surface,
+                  backgroundColor: player.id == _room.creatorId ? NeonColors.primary.withValues(alpha: 0.3) : NeonColors.surface,
                   child: Text(
                     player.name.isNotEmpty ? player.name[0].toUpperCase() : '?',
-                    style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -244,21 +244,21 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
                     children: [
                       Text(
                         player.name,
-                        style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
+                        style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
                       ),
                       if (player.id == _room.creatorId)
-                        Text('Créateur', style: TextStyle(color: NeonColors.primary, fontSize: 11)),
+                        const Text('Créateur', style: TextStyle(color: NeonColors.primary, fontSize: 11)),
                     ],
                   ),
                 ),
-                Icon(Icons.check_circle, color: NeonColors.success, size: 20),
+                const Icon(Icons.check_circle, color: NeonColors.success, size: 20),
               ],
             ),
-          )),
+          ),),
           // Slots vides
           if (_room.playersCount < _room.maxPlayers)
-            ...List.generate(_room.maxPlayers - _room.playersCount, (_) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+            ...List.generate(_room.maxPlayers - _room.playersCount, (_) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
                   CircleAvatar(
@@ -266,11 +266,11 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
                     backgroundColor: NeonColors.surface,
                     child: Icon(Icons.person_add_outlined, color: NeonColors.textSecondary, size: 18),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Text('En attente...', style: TextStyle(color: NeonColors.textSecondary, fontStyle: FontStyle.italic)),
                 ],
               ),
-            )),
+            ),),
         ],
       ),
     );
@@ -281,13 +281,13 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Paramètres', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Paramètres', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           _settingRow('Mode', _room.isFree ? 'Gratuit' : 'Pari'),
           _settingRow('Règles', _room.ruleType == 'normal' ? 'Normal' : 'Cible'),
           _settingRow('Sets', '${_room.setsCount}'),
           _settingRow('Dés', '${_room.diceCount}'),
-          if (_room.isBetting) _settingRow('Mise', '${_room.betAmount} FCFA'),
+          if (_room.isBetting) _settingRow('Mise', '${_room.betAmount} jetons'),
         ],
       ),
     );
@@ -299,8 +299,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
-          Text(value, style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
+          Text(value, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -334,7 +334,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
     // TODO: Ouvrir FriendInviteSheet
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Partagez le code: ${_room.roomCode}', style: TextStyle(color: NeonColors.primary)),
+        content: Text('Partagez le code: ${_room.roomCode}', style: const TextStyle(color: NeonColors.primary)),
         backgroundColor: NeonColors.surface,
       ),
     );

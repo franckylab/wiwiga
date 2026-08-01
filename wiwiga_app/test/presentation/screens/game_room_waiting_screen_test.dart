@@ -43,9 +43,9 @@ void main() {
       // - L'utilisateur est le créateur
       // - Il y a au moins 2 joueurs
       // - Le mode est betting
-      final isCreator = true;
-      final playerCount = 2;
-      final mode = 'betting';
+      const isCreator = true;
+      const playerCount = 2;
+      const mode = 'betting';
 
       final canStart = isCreator && playerCount >= 2 && mode == 'betting';
       expect(canStart, isTrue);
@@ -53,8 +53,8 @@ void main() {
 
     testWidgets('bouton démarrer caché si mode free', (tester) async {
       // En mode free, le démarrage est manuel par les 2 joueurs
-      final mode = 'free';
-      final playerCount = 2;
+      const mode = 'free';
+      const playerCount = 2;
 
       // En mode free, les 2 joueurs doivent confirmer manuellement
       expect(mode, equals('free'));

@@ -79,7 +79,7 @@ void main() {
           '/api/games/dice',
           body: {'bet_amount': 500},
           requiresAuth: true,
-        )).called(1);
+        ),).called(1);
       });
     });
 
@@ -99,7 +99,7 @@ void main() {
           '/api/games/game_123/bet',
           body: {'bet_amount': 500, 'predicted_sum': 7},
           requiresAuth: true,
-        )).called(1);
+        ),).called(1);
       });
     });
 
@@ -110,7 +110,7 @@ void main() {
               'game_id': 'game_123',
               'status': 'playing',
               'total_pot': 1000,
-            });
+            },);
 
         final state = await service.fetchGameState('game_123');
 

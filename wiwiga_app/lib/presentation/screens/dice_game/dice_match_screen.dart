@@ -32,14 +32,14 @@ class DiceMatchScreen extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> players;
 
   const DiceMatchScreen({
-    Key? key,
+    super.key,
     required this.matchId,
     this.ruleType = 'normal',
     this.setsCount = 3,
     this.diceCount = 2,
     this.betAmount = 0,
     required this.players,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DiceMatchScreen> createState() => _DiceMatchScreenState();
@@ -55,12 +55,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
   bool _showMatchResult = false;
 
   // Scores
-  Map<String, int> _setWins = {};
-  Map<String, int> _currentRolls = {};
-  List<Map<String, dynamic>> _setResults = [];
+  final Map<String, int> _setWins = {};
+  final Map<String, int> _currentRolls = {};
+  final List<Map<String, dynamic>> _setResults = [];
 
   // Vote cible (mode cible)
-  Map<String, int> _targetVotes = {};
+  final Map<String, int> _targetVotes = {};
   bool _isVotingPhase = false;
   int? _targetValue;
 
@@ -124,7 +124,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: NeonColors.primary.withOpacity(0.2),
+        color: NeonColors.primary.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -136,13 +136,13 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (idx > 0) Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+              if (idx > 0) const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
                 child: Text('-', style: TextStyle(color: NeonColors.textSecondary)),
               ),
               Text(
                 '${_setWins[pid] ?? 0}',
-                style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           );
@@ -179,20 +179,20 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.sports_esports, color: NeonColors.primary, size: 64),
+          const Icon(Icons.sports_esports, color: NeonColors.primary, size: 64),
           const SizedBox(height: 16),
           Text(
             'Set $_currentSet',
-            style: TextStyle(color: NeonColors.primary, fontSize: 36, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.primary, fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'sur ${widget.setsCount}',
-            style: TextStyle(color: NeonColors.textSecondary, fontSize: 18),
+            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 18),
           ),
           if (_isCibleMode) ...[
             const SizedBox(height: 16),
-            Text('Mode Cible - Votez pour la cible !', style: TextStyle(color: NeonColors.secondary, fontSize: 14)),
+            const Text('Mode Cible - Votez pour la cible !', style: TextStyle(color: NeonColors.secondary, fontSize: 14)),
           ],
         ],
       ),
@@ -214,7 +214,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isCurrentTurn ? NeonColors.primary.withOpacity(0.2) : Colors.transparent,
+                  color: isCurrentTurn ? NeonColors.primary.withValues(alpha: 0.2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: isCurrentTurn ? Border.all(color: NeonColors.primary, width: 2) : null,
                 ),
@@ -222,13 +222,13 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: isCurrentTurn ? NeonColors.primary.withOpacity(0.3) : NeonColors.surface,
-                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: NeonColors.primary)),
+                      backgroundColor: isCurrentTurn ? NeonColors.primary.withValues(alpha: 0.3) : NeonColors.surface,
+                      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: const TextStyle(color: NeonColors.primary)),
                     ),
                     const SizedBox(height: 4),
-                    Text(name, style: TextStyle(color: NeonColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(name, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text('$wins set${wins > 1 ? 's' : ''}', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+                    Text('$wins set${wins > 1 ? 's' : ''}', style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -243,17 +243,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
       decoration: BoxDecoration(
-        color: NeonColors.secondary.withOpacity(0.1),
+        color: NeonColors.secondary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.arrow_forward, color: NeonColors.secondary),
+          const Icon(Icons.arrow_forward, color: NeonColors.secondary),
           const SizedBox(width: 8),
           Text(
             'À $_currentPlayerName de lancer',
-            style: TextStyle(color: NeonColors.secondary, fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.secondary, fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -278,12 +278,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
-                color: NeonColors.accent.withOpacity(0.2),
+                color: NeonColors.accent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 'Somme: ${_playerSums[_currentPlayerId]}',
-                style: TextStyle(color: NeonColors.accent, fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: NeonColors.accent, fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ),
           // Cible (mode cible)
@@ -293,12 +293,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
-                  color: NeonColors.secondary.withOpacity(0.2),
+                  color: NeonColors.secondary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   'Cible: $_targetValue',
-                  style: TextStyle(color: NeonColors.secondary, fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: NeonColors.secondary, fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -317,7 +317,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: NeonColors.border),
       ),
-      child: Icon(Icons.casino, color: NeonColors.textSecondary, size: 32),
+      child: const Icon(Icons.casino, color: NeonColors.textSecondary, size: 32),
     );
   }
 
@@ -330,12 +330,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
         color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: NeonColors.primary, width: 2),
-        boxShadow: [BoxShadow(color: NeonColors.primary.withOpacity(0.3), blurRadius: 8)],
+        boxShadow: [BoxShadow(color: NeonColors.primary.withValues(alpha: 0.3), blurRadius: 8)],
       ),
       child: Center(
         child: Text(
           '$value',
-          style: TextStyle(color: NeonColors.primary, fontSize: 28, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: NeonColors.primary, fontSize: 28, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -358,9 +358,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Votez pour la cible !', style: TextStyle(color: NeonColors.secondary, fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text('Votez pour la cible !', style: TextStyle(color: NeonColors.secondary, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
-          Text('Max: ${widget.diceCount * 6}', style: TextStyle(color: NeonColors.textSecondary)),
+          Text('Max: ${widget.diceCount * 6}', style: const TextStyle(color: NeonColors.textSecondary)),
           const SizedBox(height: 24),
           // Slider de vote
           SizedBox(
@@ -379,7 +379,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           ),
           Text(
             '${_targetVotes[_currentPlayerId] ?? 7}',
-            style: TextStyle(color: NeonColors.secondary, fontSize: 36, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.secondary, fontSize: 36, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           NeonButton(
@@ -424,7 +424,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
                 '${player['name']}: $sum',
-                style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),
+                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
               ),
             );
           }),
@@ -432,7 +432,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           // Score global
           Text(
             'Score: ${widget.players.map((p) => '${p['name']}: ${_setWins[p['id'].toString()]}').join(' - ')}',
-            style: TextStyle(color: NeonColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           NeonButton(
@@ -455,32 +455,32 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.emoji_events, color: Colors.amber, size: 80),
+          const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
           const SizedBox(height: 16),
           Text(
             '${winnerPlayer['name']} gagne !',
-            style: TextStyle(color: NeonColors.success, fontSize: 28, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.success, fontSize: 28, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Score final: ${_setWins[winner.key]} sets',
-            style: TextStyle(color: NeonColors.textPrimary, fontSize: 18),
+            style: const TextStyle(color: NeonColors.textPrimary, fontSize: 18),
           ),
           if (isBetting) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                color: NeonColors.success.withOpacity(0.2),
+                color: NeonColors.success.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
-                  Text('Gains', style: TextStyle(color: NeonColors.textSecondary)),
+                  const Text('Gains', style: TextStyle(color: NeonColors.textSecondary)),
                   const SizedBox(height: 4),
                   Text(
-                    '+${widget.betAmount * 2} FCFA',
-                    style: TextStyle(color: NeonColors.success, fontSize: 28, fontWeight: FontWeight.bold),
+                    '+${widget.betAmount * 2} jetons',
+                    style: const TextStyle(color: NeonColors.success, fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

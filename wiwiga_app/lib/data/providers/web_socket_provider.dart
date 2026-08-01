@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart';
 import '../../core/config/app_config.dart';
-import '../../core/constants/api_constants.dart';
 
 /// États de la connexion WebSocket
 enum WebSocketStatus {

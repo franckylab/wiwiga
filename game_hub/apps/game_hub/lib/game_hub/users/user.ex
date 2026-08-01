@@ -3,7 +3,7 @@
 # ==================================
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHub.Users.User
-# Description: Schema Ecto utilisateur avec portefeuille
+# Description: Schema Ecto utilisateur avec compte
 
 defmodule GameHub.Users.User do
   @moduledoc """
@@ -23,12 +23,13 @@ defmodule GameHub.Users.User do
   alias GameHub.Wallet.WalletTransaction
   
   @primary_key {:id, :id, autogenerate: true}
-  @derive {Jason.Encoder, only: [:id, :phone, :name, :balance, :is_active, :has_verified_kyc, :self_excluded]}
+  @derive {Jason.Encoder, only: [:id, :phone, :name, :balance, :token_balance, :is_active, :has_verified_kyc, :self_excluded]}
   
   schema "users" do
     field :phone, :string
     field :name, :string
     field :balance, :integer, default: 0
+    field :token_balance, :integer, default: 0
     field :is_active, :boolean, default: true
     field :has_verified_kyc, :boolean, default: false
     field :self_excluded, :boolean, default: false
