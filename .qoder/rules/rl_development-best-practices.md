@@ -21,10 +21,10 @@
 14. **Design system** : Utiliser UNIQUEMENT les composants néon (NeonButton, NeonCard, etc.)
 15. **Thème** : `NeonColors.*` pour toute couleur, jamais de `Colors.*` ou hex hardcodé
 16. **Responsive** : `LayoutBuilder` + breakpoints définis dans `rl_responsive-design.md`
-17. **Navigation** : `go_router` pour la navigation déclarative, pas de `Navigator.push` direct
+17. **Navigation** : `go_router` pour la navigation déclarative, jamais de `Navigator.push` direct
 18. **WebSocket** : Toujours un fallback REST si la connexion WebSocket échoue
 19. **Commentaires** : En français, décrivant le POURQUOI (pas le COMMENT)
-20. **Imports** : Relatifs pour les fichiers du même module, absolus pour les cross-modules
+20. **Jetons** : Toujours utiliser `formatTokens()` et le terme "jetons", jamais "FCFA" dans l'UI
 
 ## Général
 

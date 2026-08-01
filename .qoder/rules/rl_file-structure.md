@@ -14,7 +14,7 @@ game_hub/apps/
 │   │   │   ├── friendship.ex
 │   │   │   ├── friend_message.ex
 │   │   │   └── friend_activity.ex
-│   │   ├── wallet/                  # Schemas portefeuille
+│   │   ├── wallet/                  # Schemas compte jetons
 │   │   │   └── wallet_transaction.ex
 │   │   ├── dice_game/               # Schemas résultats
 │   │   │   └── dice_game_result.ex
@@ -27,7 +27,7 @@ game_hub/apps/
 │   │   ├── game_room.ex             # Salles GenServer
 │   │   ├── friends.ex               # Module central amis
 │   │   ├── matchmaking.ex           # Matchmaking 2 phases
-│   │   ├── wallet.ex                # Portefeuille ACID
+│   │   ├── wallet.ex                # Compte jetons ACID
 │   │   ├── auth.ex                  # Authentification
 │   │   ├── commission.ex            # Calcul commissions
 │   │   └── application.ex           # Supervision tree

@@ -142,7 +142,7 @@ NeonCard(
     children: [
       Image.asset('assets/dice-game.png'),
       Text('Jeu de Dés'),
-      Text('Mise: 100 - 50 000 FCFA'),
+      Text('Mise: 100 - 50 000 jetons'),
     ],
   ),
 )
@@ -207,7 +207,7 @@ NeonInput(
   keyboardType: TextInputType.number,
   validator: (value) {
     if (value == null || value.isEmpty) return 'Montant requis';
-    if (int.parse(value) < 500) return 'Minimum 500 FCFA';
+    if (int.parse(value) < 500) return 'Minimum 500 jetons';
     return null;
   },
 )
@@ -259,7 +259,7 @@ GlowBadge(
 ## 5. BalanceDisplay
 
 ### Usage
-Affichage du solde FCFA avec formatage et animation de mise à jour.
+Affichage du solde en jetons avec formatage et animation de mise à jour.
 
 ### Paramètres
 ```dart
@@ -277,7 +277,7 @@ BalanceDisplay(
   balance: 125000.0,
   showLabel: true,
 )
-// Affiche: "Solde: 125 000 FCFA" avec Orbitron et glow
+// Affiche: "Solde: 125 000 jetons" avec Orbitron et glow
 ```
 
 ### Implémentation Clé
@@ -309,7 +309,7 @@ class BalanceDisplay extends StatelessWidget {
             duration: NeonAnimations.transition,
             builder: (context, value, child) {
               return Text(
-                '${_formatFCFA(value)} FCFA',
+                '${_formatTokens(value)} jetons',
                 style: AppTypography.balanceAmount(
                   fontSize: config.isMobile ? 20 : 36,
                 ),
@@ -321,7 +321,7 @@ class BalanceDisplay extends StatelessWidget {
     );
   }
   
-  String _formatFCFA(double amount) {
+  String _formatTokens(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]} ',
@@ -376,7 +376,7 @@ NeonModal.show({
 NeonModal.show(
   context: context,
   title: 'Confirmer le dépôt',
-  content: Text('Voulez-vous déposer 5 000 FCFA ?'),
+  content: Text('Voulez-vous déposer 5 000 jetons ?'),
   actions: [
     NeonButton(
       text: 'Annuler',
@@ -449,7 +449,7 @@ VictoryEffect.show(
   amount: 50000.0,
   duration: Duration(seconds: 3),
 )
-// Affiche particules + "Vous avez gagné 50 000 FCFA !"
+// Affiche particules + "Vous avez gagné 50 000 jetons !"
 ```
 
 ---
@@ -474,7 +474,7 @@ Scaffold(
         onTap: (index) => setState(() => _currentIndex = index),
         items: [
           NavigationDestination(icon: Icon(Icons.casino), label: 'Jeux'),
-          NavigationDestination(icon: Icon(Icons.wallet), label: 'Portefeuille'),
+          NavigationDestination(icon: Icon(Icons.monetization_on), label: 'Jetons'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profil'),
         ],
       )

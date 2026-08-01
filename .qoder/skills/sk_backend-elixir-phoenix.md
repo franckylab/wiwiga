@@ -68,7 +68,7 @@ end
 
 # ❌ INCORRECT — Pas de transaction
 def place_bet(user_id, amount) do
-  wallet = Repo.get(Wallet, user_id)  # Pas de lock !
+  wallet = Repo.get(Wallet, user_id)  # Pas de verrouillage !
   Wallet.update(wallet, %{balance: wallet.balance - amount})  # Race condition !
 end
 ```

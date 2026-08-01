@@ -147,16 +147,18 @@ Future<void> joinRoom(String roomId) async {
 }
 ```
 
-## Formatage FCFA
+## Formatage Jetons
 
 ```dart
 import 'package:intl/intl.dart';
 
-String formatFCFA(int amount) {
-  return NumberFormat.currency(locale: 'fr_FR', symbol: 'FCFA', decimalDigits: 0)
-      .format(amount);
+String formatTokens(int amount) {
+  final formatted = NumberFormat.currency(locale: 'fr_FR', symbol: '', decimalDigits: 0)
+      .format(amount)
+      .trim();
+  return '$formatted jetons';
 }
-// → "500 FCFA" ou "1 000 FCFA"
+// → "500 jetons" ou "1 000 jetons"
 ```
 
 ## Checklist Frontend
@@ -167,4 +169,5 @@ String formatFCFA(int amount) {
 - [ ] Loading states avec ShimmerLoader
 - [ ] Erreurs gérées avec messages en français
 - [ ] State management via Riverpod
-- [ ] Imports relatifs dans le même module
+- [ ] Navigation via GoRouter (context.go, jamais Navigator.push)
+- [ ] Termes "jetons" utilisés (jamais "FCFA" dans l'UI)

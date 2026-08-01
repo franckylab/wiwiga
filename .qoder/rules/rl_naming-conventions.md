@@ -42,6 +42,18 @@
 | Rule | Règle | Configuration de jeu (Normal/Cible) |
 | Bet | Mise | Montant parié au niveau match |
 | Commission | Commission | Prélèvement plateforme |
+| Token | Jeton | Monnaie interne (1 FCFA = 1 jeton) |
+| Account | Compte | Solde en jetons de l'utilisateur |
+
+## Terminologie Interdite
+
+| ❌ Interdit | ✅ Utiliser | Contexte |
+|------------|-----------|----------|
+| FCFA | jetons | Dans toute l'interface (sauf écran d'achat) |
+| Portefeuille | Compte / Jetons | Pour le solde utilisateur |
+| Wallet | Compte | Dans les messages utilisateur |
+| `formatFcfa()` | `formatTokens()` | Fonction de formatage |
+| `account_balance_wallet` | `monetization_on` | Icône Material |
 
 ## Interdit
 
