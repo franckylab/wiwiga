@@ -9,7 +9,7 @@ defmodule GameHub.Repo.Migrations.CreateUsers do
   
   def up do
     create table(:users, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :phone, :string, null: false
       add :name, :string
       add :balance, :bigint, default: 0, null: false

@@ -9,7 +9,7 @@ defmodule GameHub.Repo.Migrations.CreateGameConfigs do
   
   def up do
     create table(:game_configs, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :game_type, :string, null: false
       add :name, :string, null: false
       add :description, :text

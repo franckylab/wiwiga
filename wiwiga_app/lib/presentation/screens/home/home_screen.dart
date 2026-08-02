@@ -15,8 +15,8 @@ import '../../../data/models/game_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/neon/neon_widgets.dart';
-import '../../widgets/neon/token_icon.dart';
 
 final _homeAmountFormat = NumberFormat('#,##0', 'fr_FR');
 
@@ -32,9 +32,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Charger le solde au premier affichage
+    // Charger le solde uniquement si authentifié
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(walletProvider.notifier).loadBalance();
+      final authState = ref.read(authProvider);
+      if (authState.isAuthenticated) {
+        ref.read(walletProvider.notifier).loadBalance();
+      }
     });
   }
 
@@ -48,7 +51,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         (gameType: 'dice', metric: 'wins', period: 'week'),),);
     final myStatsAsync = ref.watch(myGameStatsProvider('dice'));
 
-    final username = authState.user?.username ?? 'Champion';
+    final isGuest = authState.isGuest || authState.isUnknown;
+    final username = authState.user?.username ?? 'Joueur';
 
     return Scaffold(
       backgroundColor: NeonColors.surface,
@@ -58,28 +62,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onRefresh: () async {
           ref.invalidate(gamesCatalogProvider);
           ref.invalidate(gameActivityProvider('dice'));
-          ref.invalidate(myGameStatsProvider('dice'));
           ref.invalidate(gameLeaderboardProvider(
               (gameType: 'dice', metric: 'wins', period: 'week'),),);
-          await ref.read(walletProvider.notifier).loadBalance();
+          if (!isGuest) {
+            ref.invalidate(myGameStatsProvider('dice'));
+            await ref.read(walletProvider.notifier).loadBalance();
+          }
         },
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _buildGreeting(username, walletState.balance),
+            _buildGreeting(username, walletState.balance, isGuest),
             const SizedBox(height: 20),
             _buildAnnouncementBanner(),
             const SizedBox(height: 20),
             catalogAsync.when(
-              data: (games) => _buildFeaturedGame(games),
+              data: (games) => _buildFeaturedGame(games, isGuest),
               loading: () => const ShimmerLoader(height: 150),
               error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: 20),
-            _buildShortcuts(),
+            _buildShortcuts(isGuest),
             const SizedBox(height: 20),
-            _buildMyStats(myStatsAsync),
-            const SizedBox(height: 20),
+            if (!isGuest) ...[  
+              _buildMyStats(myStatsAsync),
+              const SizedBox(height: 20),
+            ],
             _buildSectionTitle('Activité de la communauté',
                 Icons.local_fire_department,),
             const SizedBox(height: 8),
@@ -103,7 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildGreeting(String username, double balanceFrancs) {
+  Widget _buildGreeting(String username, double balanceFrancs, bool isGuest) {
     final walletState = ref.watch(walletProvider);
     return NeonCard(
       child: Row(
@@ -113,7 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bonjour, $username',
+                  isGuest ? 'Bienvenue sur WIWIGA' : 'Bonjour, $username',
                   style: const TextStyle(
                     fontFamily: 'Orbitron',
                     fontSize: 18,
@@ -122,19 +130,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Prêt à défier la communauté ?',
-                  style: TextStyle(
+                Text(
+                  isGuest
+                      ? 'Connectez-vous pour jouer et gagner !'
+                      : 'Prêt à défier la communauté ?',
+                  style: const TextStyle(
                       fontSize: 13, color: NeonColors.textSecondary,),
                 ),
+                if (isGuest) ...[  
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () {
+                      ref.read(authProvider.notifier).setRedirectTo('/home');
+                      context.go('/auth');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: NeonGradients.cta,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'SE CONNECTER',
+                        style: TextStyle(
+                          color: NeonColors.background,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Orbitron',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          TokenBalanceDisplay(
-            tokenBalance: walletState.tokenBalance,
-            fontSize: 22,
-            onTap: () => context.go('/tokens'),
-          ),
+          if (!isGuest)
+            TokenBalanceDisplay(
+              tokenBalance: walletState.tokenBalance,
+              fontSize: 22,
+              onTap: () => context.go('/tokens'),
+            ),
         ],
       ),
     );
@@ -196,7 +232,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedGame(List<GameModel> games) {
+  Widget _buildFeaturedGame(List<GameModel> games, bool isGuest) {
     final featured = games.where((g) => !g.comingSoon).toList();
     if (featured.isEmpty) return const SizedBox.shrink();
     final game = featured.first;
@@ -247,14 +283,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       fontSize: 12, color: NeonColors.textSecondary,),
                 ),
                 const SizedBox(height: 10),
-                NeonButton(
-                  text: 'JOUER',
-                  width: 130,
-                  height: 38,
-                  fontSize: 13,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  onPressed: () => context.go('/games/${game.type}'),
+                AuthGate(
+                  type: AuthGateType.softWall,
+                  action: () => context.go('/games/${game.type}/lobby'),
+                  child: NeonButton(
+                    text: 'JOUER',
+                    width: 130,
+                    height: 38,
+                    fontSize: 13,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    onPressed: () {}, // AuthGate gère le tap
+                  ),
                 ),
               ],
             ),
@@ -264,38 +304,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildShortcuts() {
+  Widget _buildShortcuts(bool isGuest) {
     final shortcuts = [
-      ('Acheter', Icons.shopping_cart_outlined, NeonColors.success, '/tokens'),
-      ('Amis', Icons.people_outline, NeonColors.accent, '/friends'),
+      ('Acheter', Icons.shopping_cart_outlined, NeonColors.success, '/tokens', true),
+      ('Amis', Icons.people_outline, NeonColors.accent, '/friends', true),
       ('Classement', Icons.emoji_events_outlined, NeonColors.secondary,
-          '/leaderboard'),
+          '/leaderboard', false),
     ];
 
     return Row(
       children: shortcuts.map((shortcut) {
-        final (label, icon, color, route) = shortcut;
+        final (label, icon, color, route, needsAuth) = shortcut;
         return Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: NeonCard(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              onTap: () => context.go(route),
-              child: Column(
-                children: [
-                  Icon(icon, color: color, size: 26),
-                  const SizedBox(height: 8),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: NeonColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+            child: needsAuth && isGuest
+                ? NeonCard(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    onTap: () {
+                      ref.read(authProvider.notifier).setRedirectTo(route);
+                      context.go('/auth');
+                    },
+                    child: Column(
+                      children: [
+                        Icon(icon, color: color.withValues(alpha: 0.5), size: 26),
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: NeonColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Connex.',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: NeonColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : NeonCard(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    onTap: () => context.go(route),
+                    child: Column(
+                      children: [
+                        Icon(icon, color: color, size: 26),
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: NeonColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
         );
       }).toList(),

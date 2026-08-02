@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
-import '../../widgets/neon/token_icon.dart';
 import '../../../data/providers/token_provider.dart';
 import '../../../data/models/token_transaction_model.dart';
 
@@ -23,14 +24,26 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(tokenProvider.notifier).loadSummary();
-      ref.read(tokenProvider.notifier).loadTransactions();
+      final authState = ref.read(authProvider);
+      if (authState.isAuthenticated) {
+        ref.read(tokenProvider.notifier).loadSummary();
+        ref.read(tokenProvider.notifier).loadTransactions();
+      }
+      // Promos accessibles à tous
       ref.read(tokenProvider.notifier).loadPromos();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isGuest = authState.isGuest || authState.isUnknown;
+
+    // Mode guest : CTA connexion (sauf pour les promos)
+    if (isGuest) {
+      return _GuestWalletScreen(authState: authState);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -1033,6 +1046,77 @@ class _QuickAmountButton extends StatelessWidget {
             fontFamily: 'Orbitron',
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// MODE GUEST : ÉCRAN CTA CONNEXION
+// ============================================================
+
+class _GuestWalletScreen extends ConsumerWidget {
+  final AuthState authState;
+
+  const _GuestWalletScreen({required this.authState});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: NeonColors.background,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: NeonGradients.cta,
+                ),
+                child: const Icon(
+                  Icons.monetization_on,
+                  size: 40,
+                  color: NeonColors.background,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Connectez-vous pour gérer vos jetons',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: NeonColors.textPrimary,
+                  fontFamily: 'Orbitron',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Achetez des jetons, échangez-les contre des gains\net suivez votre historique de transactions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: NeonColors.textSecondary,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              const SizedBox(height: 32),
+              NeonButton(
+                text: 'SE CONNECTER',
+                icon: Icons.login,
+                onPressed: () {
+                  ref.read(authProvider.notifier).setRedirectTo('/tokens');
+                  context.go('/auth');
+                },
+                width: 220,
+              ),
+            ],
           ),
         ),
       ),

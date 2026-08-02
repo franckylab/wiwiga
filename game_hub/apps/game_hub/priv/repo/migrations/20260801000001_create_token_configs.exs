@@ -33,7 +33,7 @@ defmodule GameHub.Repo.Migrations.CreateTokenConfigs do
       # Paramètres additionnels (JSON flexible)
       add :settings, :map, default: %{}
 
-      add :updated_by, references(:users, on_delete: :nilify_all)
+      add :updated_by_id, references(:users, on_delete: :nilify_all)
 
       timestamps()
     end

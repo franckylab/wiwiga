@@ -443,10 +443,8 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  @doc """
-  Détermine l'ordre de tour pour un set.
-  Tournant : set 1 → [A, B], set 2 → [B, A], set 3 → [A, B], etc.
-  """
+  # Détermine l'ordre de tour pour un set.
+  # Tournant : set 1 → [A, B], set 2 → [B, A], set 3 → [A, B], etc.
   defp determine_turn_order(match, set_number) do
     player_ids = Enum.map(match.players, fn p -> p.id end)
 
@@ -480,9 +478,7 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  @doc """
-  Évalue le résultat d'un set selon le type de règle.
-  """
+  # Évalue le résultat d'un set selon le type de règle.
   defp evaluate_set(match, set) do
     case match.rule_type do
       "normal" -> evaluate_normal_set(match, set)
@@ -491,10 +487,8 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  @doc """
-  Type Normal : la somme la plus élevée gagne.
-  Égalité → set nul (replay selon tie_rule).
-  """
+  # Type Normal : la somme la plus élevée gagne.
+  # Égalité → set nul (replay selon tie_rule).
   defp evaluate_normal_set(_match, set) do
     rolls = set.rolls
     sums = Enum.map(rolls, fn {pid, roll} -> {pid, roll.sum} end)
@@ -519,10 +513,8 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  @doc """
-  Type Cible : la distance la plus courte à la cible gagne.
-  Distances égales → set nul.
-  """
+  # Type Cible : la distance la plus courte à la cible gagne.
+  # Distances égales → set nul.
   defp evaluate_cible_set(_match, set) do
     target = set.target_value
     rolls = set.rolls
@@ -550,9 +542,7 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  @doc """
-  Calcule la valeur cible depuis les votes.
-  """
+  # Calcule la valeur cible depuis les votes.
   defp calculate_target(votes, mode) do
     values = Map.values(votes)
 

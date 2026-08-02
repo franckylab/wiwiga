@@ -4,6 +4,7 @@
 # Auteur: Franck Arlos CHENDJOU
 # Module: GameHubWeb.Router
 # Description: Routes API REST + WebSocket
+# Refactorisé: Routes publiques (guest) vs protégées (auth)
 
 defmodule GameHubWeb.Router do
   use Phoenix.Router
@@ -11,9 +12,7 @@ defmodule GameHubWeb.Router do
   import Plug.Conn
   import Phoenix.Controller
   
-  # Les controllers seront référencés directement dans les routes
-  
-  # Pipeline API avec CORS
+  # Pipeline API (public, sans auth)
   pipeline :api do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
@@ -21,7 +20,16 @@ defmodule GameHubWeb.Router do
     plug GameHubWeb.SecurityHeaders
   end
   
-  # Pipeline API avec authentification JWT
+  # Pipeline API avec authentification optionnelle (public + contexte user)
+  pipeline :api_optional_auth do
+    plug :accepts, ["json"]
+    plug :put_secure_browser_headers
+    plug GameHubWeb.CORSPlug
+    plug GameHubWeb.SecurityHeaders
+    plug GameHubWeb.OptionalAuthPlug
+  end
+  
+  # Pipeline API avec authentification JWT obligatoire
   pipeline :api_auth do
     plug :accepts, ["json"]
     plug :put_secure_browser_headers
@@ -48,7 +56,9 @@ defmodule GameHubWeb.Router do
     get "/", WelcomeController, :index
   end
   
-  ## Routes API Publiques
+  ## ========================================
+  ## Routes API PUBLIQUES (accessibles sans auth)
+  ## ========================================
   
   scope "/api", GameHubWeb do
     pipe_through :api
@@ -62,18 +72,61 @@ defmodule GameHubWeb.Router do
     # Authentification
     post "/auth/send-otp", AuthController, :send_otp
     post "/auth/verify-otp", AuthController, :verify_otp
+    post "/auth/register", AuthController, :register
+    post "/auth/login", AuthController, :login
+    post "/auth/check-availability", AuthController, :check_availability
     post "/auth/refresh", AuthController, :refresh
+    post "/auth/logout", AuthController, :logout
+    get "/auth/avatars", AuthController, :avatars
     
-    # Webhooks paiement (signature verification interne)
+    # Webhooks paiement (signature vérification interne)
     post "/webhooks/campay", PaymentWebhookController, :campay_callback
   end
   
-  ## Routes API Authentifiées
+  ## ========================================
+  ## Routes API PUBLIQUES avec auth optionnelle
+  ## (contenu accessible sans auth, mais enrichi si connecté)
+  ## ========================================
+  
+  scope "/api", GameHubWeb do
+    pipe_through :api_optional_auth
+    
+    # Catalogue de jeux (PUBLIC)
+    get "/games", GameController, :index
+    get "/games/:game_id", GameController, :show
+    
+    # Contenu informatif des jeux (PUBLIC)
+    get "/games/:game_type/rules", GameStatsController, :rules
+    get "/games/:game_type/tips", GameStatsController, :tips
+    
+    # Stats globales et activité communauté (PUBLIC)
+    get "/games/:game_type/stats", GameStatsController, :stats
+    get "/games/:game_type/activity", GameStatsController, :activity
+    
+    # Leaderboard global (PUBLIC, my_rank enrichi si connecté)
+    get "/games/:game_type/leaderboard", GameStatsController, :leaderboard
+    
+    # Promotions (PUBLIC)
+    get "/tokens/promos", TokenController, :promos
+  end
+  
+  ## ========================================
+  ## Routes API AUTHENTIFIÉES (JWT obligatoire)
+  ## ========================================
   
   scope "/api", GameHubWeb do
     pipe_through :api_auth
     
-    # Compte monétaire (legacy - compatibilité)
+    # Vérification de session / Profil
+    get "/auth/me", AuthController, :me
+    post "/auth/complete-registration", AuthController, :complete_registration
+    post "/auth/set-password", AuthController, :set_password
+    
+    # Préférences auth (OTP)
+    get "/auth/settings", AuthController, :get_settings
+    put "/auth/settings", AuthController, :update_settings
+    
+    # Compte monétaire
     get "/wallet/balance", WalletController, :balance
     post "/wallet/deposit", WalletController, :deposit
     post "/wallet/withdraw", WalletController, :withdraw
@@ -87,23 +140,14 @@ defmodule GameHubWeb.Router do
     post "/tokens/transfer", TokenController, :transfer
     post "/tokens/gift", TokenController, :gift
     get "/tokens/transactions", TokenController, :transactions
-    get "/tokens/promos", TokenController, :promos
     post "/tokens/promos/:id/redeem", TokenController, :redeem_promo
     
-    # Jeux
-    get "/games", GameController, :index
-    
-    # Statistiques & contenus jeux (routes spécifiques avant /games/:game_id)
-    get "/games/:game_type/stats", GameStatsController, :stats
-    get "/games/:game_type/leaderboard", GameStatsController, :leaderboard
-    get "/games/:game_type/my-stats", GameStatsController, :my_stats
-    get "/games/:game_type/activity", GameStatsController, :activity
-    get "/games/:game_type/rules", GameStatsController, :rules
-    get "/games/:game_type/tips", GameStatsController, :tips
-    
-    get "/games/:game_id", GameController, :show
+    # Actions de jeu (PROTÉGÉ)
     post "/games/:game_id/join", GameController, :join
     get "/games/:game_id/state", GameController, :game_state
+    
+    # Stats personnelles (PROTÉGÉ)
+    get "/games/:game_type/my-stats", GameStatsController, :my_stats
     
     # Salles de jeu (Rooms)
     get "/rooms/waiting", RoomController, :waiting
@@ -133,13 +177,23 @@ defmodule GameHubWeb.Router do
   ## Les channels sont défins dans GameHubWeb.UserSocket
   ## Route: /socket → UserSocket → channel "game:*"
   
-  ## Routes Admin
+  ## ========================================
+  ## Routes Admin (auth admin obligatoire)
+  ## ========================================
   
   scope "/api/admin", GameHubWeb do
     pipe_through [:api_auth, :admin_only]
     
-    # Gestion utilisateurs
+    # Gestion utilisateurs (RBAC)
     get "/users", AdminController, :list_users
+    get "/users/:id", AdminController, :get_user
+    post "/users", AdminController, :create_user
+    put "/users/:id", AdminController, :get_user  # fallback
+    put "/users/:id/role", AdminController, :update_user_role
+    put "/users/:id/activate", AdminController, :toggle_user_active
+    
+    # Rôles et permissions
+    get "/roles", AdminController, :list_roles
     
     # Logs d'audit
     get "/audit-logs", AdminController, :list_audit_logs
@@ -153,6 +207,9 @@ defmodule GameHubWeb.Router do
     
     # Statistiques
     get "/stats", AdminController, :stats
+    
+    # Supervision / Monitoring
+    get "/system-health", AdminController, :system_health
     
     # ========================================
     # Configuration Dynamique

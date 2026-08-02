@@ -16,8 +16,7 @@ defmodule GameHubWeb.HealthController do
   
   use GameHubWeb, :controller
   
-  alias GameHub.{Repo, Redis, EnvConfig}
-  import Ecto.Query
+  alias GameHub.{Repo, Redis}
   
   @doc """
   GET /api/health

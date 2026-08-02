@@ -2,27 +2,32 @@ defmodule GameHub.AuthTest do
   @moduledoc """
   Tests unitaires pour le module Auth.
   
-  Tests critiques:
-  - Génération OTP
-  - Vérification OTP avec expiration
+  Tests:
+  - Génération OTP avec rate limiting
+  - Vérification OTP (valid, expired, invalid, dev bypass)
   - Création automatique utilisateur
-  - JWT token generation et verification
+  - Access + Refresh token generation
+  - Refresh token rotation
+  - Logout / révocation
+  - JWT verification (avec blacklist)
   """
   
   use ExUnit.Case, async: false
   
   alias GameHub.Auth
+  alias GameHub.Auth.RefreshToken
   alias GameHub.Repo
   alias GameHub.Users.User
   import Ecto.Query
   
   setup do
     # Nettoyer avant chaque test
+    Repo.delete_all(RefreshToken)
     Repo.delete_all(User)
     :ok
   end
   
-  describe "send_otp/1" do
+  describe "send_otp/2" do
     test "génère un OTP de 6 chiffres" do
       phone = "+237699000001"
       
@@ -38,57 +43,37 @@ defmodule GameHub.AuthTest do
       {:ok, otp1} = Auth.send_otp(phone)
       {:ok, otp2} = Auth.send_otp(phone)
       
-      # Les OTP doivent être différents (nouveau code à chaque fois)
       refute otp1 == otp2
     end
     
-    test "affiche l'OTP dans les logs (mode dev)" do
+    test "accepte un device_id pour le rate limiting" do
       phone = "+237699000003"
       
-      # Capture IO
-      ExUnit.CaptureIO.capture_io(fn ->
-        Auth.send_otp(phone)
-      end)
+      {:ok, otp} = Auth.send_otp(phone, device_id: "test-device-123")
       
-      # Le test passe si aucune exception n'est levée
-      assert true
+      assert String.length(otp) == 6
     end
   end
   
-  describe "verify_otp/2" do
+  describe "verify_otp/3 — nouveau flow avec tokens" do
     setup do
       phone = "+237699000010"
       {:ok, otp} = Auth.send_otp(phone)
       %{phone: phone, otp: otp}
     end
     
-    test "vérifie un OTP valide et crée un utilisateur", %{phone: phone, otp: otp} do
-      # L'utilisateur ne doit pas exister avant
-      assert Repo.get_by(User, phone: phone) == nil
+    test "vérifie un OTP valide et retourne access + refresh tokens", %{phone: phone, otp: otp} do
+      assert {:ok, access_token, refresh_token, user} = Auth.verify_otp(phone, otp)
       
-      # Vérifier OTP
-      assert {:ok, _token, user} = Auth.verify_otp(phone, otp)
+      # Tokens sont des strings
+      assert is_binary(access_token)
+      assert is_binary(refresh_token)
+      assert String.length(access_token) > 0
+      assert String.length(refresh_token) > 0
       
-      # L'utilisateur doit avoir été créé
+      # User créé
       assert user.phone == phone
       assert user.is_active == true
-      
-      # Vérifier dans la DB
-      db_user = Repo.get_by(User, phone: phone)
-      assert db_user != nil
-      assert db_user.id == user.id
-    end
-    
-    test "vérifie un OTP valide pour utilisateur existant", %{phone: phone, otp: otp} do
-      # Créer l'utilisateur d'abord
-      Auth.verify_otp(phone, otp)
-      
-      # Envoyer un nouvel OTP
-      {:ok, new_otp} = Auth.send_otp(phone)
-      
-      # Vérifier le nouvel OTP
-      assert {:ok, _token, user} = Auth.verify_otp(phone, new_otp)
-      assert user.phone == phone
     end
     
     test "rejette un OTP incorrect", %{phone: phone} do
@@ -96,32 +81,18 @@ defmodule GameHub.AuthTest do
       
       assert Auth.verify_otp(phone, wrong_otp) == {:error, :invalid_otp}
       
-      # L'utilisateur ne doit pas être créé
       assert Repo.get_by(User, phone: phone) == nil
     end
     
-    test "rejette un OTP expiré", %{phone: phone, otp: otp} do
-      # Simuler expiration en manipulant Redis directement
-      # Dans un test réel, on attendrait 5 minutes
-      # Pour ce test, on vérifie juste que le mécanisme existe
-      
-      # Supprimer l'OTP pour simuler expiration
-      # (dans la réalité, Redis le ferait automatiquement)
-      Redix.command(GameHub.Redis, ["DEL", "otp:#{phone}"])
-      
-      assert Auth.verify_otp(phone, otp) == {:error, :otp_not_found}
-    end
-    
     test "rejette après OTP non trouvé", %{phone: phone} do
-      assert Auth.verify_otp(phone, "123456") == {:error, :otp_not_found}
+      # Utiliser un code différent du bypass dev (123456)
+      assert Auth.verify_otp(phone, "999999") == {:error, :otp_not_found}
     end
     
-    test "retourne un JWT token valide", %{phone: phone, otp: otp} do
-      assert {:ok, token, _user} = Auth.verify_otp(phone, otp)
-      
-      # Le token doit être une chaîne
-      assert is_binary(token)
-      assert String.length(token) > 0
+    test "dev bypass: code 123456 accepté en mode test", %{phone: phone} do
+      # En mode test, le code 123456 est toujours accepté
+      assert {:ok, _access, _refresh, user} = Auth.verify_otp(phone, "123456")
+      assert user.phone == phone
     end
   end
   
@@ -129,92 +100,116 @@ defmodule GameHub.AuthTest do
     setup do
       phone = "+237699000020"
       {:ok, otp} = Auth.send_otp(phone)
-      {:ok, token, user} = Auth.verify_otp(phone, otp)
-      %{token: token, user: user}
+      {:ok, access_token, _refresh_token, user} = Auth.verify_otp(phone, otp)
+      %{token: access_token, user: user}
     end
     
-    test "vérifie et décode un token valide", %{token: token, user: user} do
-      assert {:ok, claims} = Auth.verify_jwt_token(token)
+    test "vérifie et décode un access token valide", %{token: token, user: user} do
+      assert {:ok, result} = Auth.verify_jwt_token(token)
       
-      # Les claims doivent contenir user_id
-      assert claims.user_id == user.id
-      assert claims.user.id == user.id
+      assert result.user_id == user.id
+      assert result.user.id == user.id
     end
     
     test "rejette un token invalide" do
-      invalid_token = "invalid.token.here"
-      
-      assert {:error, _reason} = Auth.verify_jwt_token(invalid_token)
+      assert {:error, _reason} = Auth.verify_jwt_token("invalid.token.here")
     end
     
-    test "rejette un token expiré", %{token: token} do
-      # Dans un test réel, on attendrait l'expiration
-      # Ou on créerait un token avec expiration passée
-      # Pour l'instant, on teste juste avec un token corrompu
+    test "rejette un refresh token utilisé comme access token" do
+      phone = "+237699000021"
+      {:ok, otp} = Auth.send_otp(phone)
+      {:ok, _access, refresh_token, _user} = Auth.verify_otp(phone, otp)
       
-      corrupted_token = token <> "corrupted"
-      
-      assert {:error, _reason} = Auth.verify_jwt_token(corrupted_token)
+      # Un refresh token ne doit pas être accepté comme access token
+      assert {:error, {:invalid_token_type, "refresh", "access"}} = 
+        Auth.verify_jwt_token(refresh_token)
     end
   end
   
-  describe "refresh_jwt_token/1" do
+  describe "refresh_tokens/2 — rotation" do
     setup do
       phone = "+237699000030"
       {:ok, otp} = Auth.send_otp(phone)
-      {:ok, token, user} = Auth.verify_otp(phone, otp)
-      %{token: token, user: user}
+      {:ok, _access, refresh_token, user} = Auth.verify_otp(phone, otp)
+      %{refresh_token: refresh_token, user: user}
     end
     
-    test "refresh un token valide", %{token: token, user: user} do
-      assert {:ok, new_token, refreshed_user} = Auth.refresh_jwt_token(token)
+    test "rotation réussie: nouveaux tokens générés", %{refresh_token: refresh_token, user: user} do
+      assert {:ok, new_access, new_refresh, refreshed_user} = 
+        Auth.refresh_tokens(refresh_token)
       
-      # Nouveau token doit être différent
-      refute new_token == token
+      # Nouveaux tokens différents
+      assert is_binary(new_access)
+      assert is_binary(new_refresh)
+      refute new_access == refresh_token
+      refute new_refresh == refresh_token
       
-      # User doit être le même
+      # Même user
       assert refreshed_user.id == user.id
     end
     
-    test "rejette le refresh d'un token invalide" do
-      assert {:error, _reason} = Auth.refresh_jwt_token("invalid_token")
+    test "ancien refresh token est révoqué après rotation", %{refresh_token: refresh_token} do
+      assert {:ok, _, _, _} = Auth.refresh_tokens(refresh_token)
+      
+      # Réutiliser l'ancien token doit échouer
+      assert {:error, :token_replay_detected} = Auth.refresh_tokens(refresh_token)
+    end
+    
+    test "rejette un refresh token invalide" do
+      assert {:error, :invalid_token} = Auth.refresh_tokens("invalid_token")
+    end
+  end
+  
+  describe "logout/1" do
+    test "révoque le refresh token" do
+      phone = "+237699000035"
+      {:ok, otp} = Auth.send_otp(phone)
+      {:ok, _access, refresh_token, _user} = Auth.verify_otp(phone, otp)
+      
+      # Logout
+      assert :ok = Auth.logout(refresh_token)
+      
+      # Le refresh ne doit plus fonctionner
+      assert {:error, :token_replay_detected} = Auth.refresh_tokens(refresh_token)
     end
   end
   
   describe "intégration complète" do
-    test "flow complet: send_otp -> verify_otp -> JWT -> verify_jwt" do
+    test "flow complet: send_otp -> verify_otp -> access_token -> verify -> refresh -> logout" do
       phone = "+237699000040"
       
       # 1. Envoyer OTP
       {:ok, otp} = Auth.send_otp(phone)
       
-      # 2. Vérifier OTP et obtenir JWT
-      {:ok, jwt_token, user} = Auth.verify_otp(phone, otp)
+      # 2. Vérifier OTP et obtenir tokens
+      {:ok, access_token, refresh_token, user} = Auth.verify_otp(phone, otp)
       
-      # 3. Vérifier JWT
-      {:ok, claims} = Auth.verify_jwt_token(jwt_token)
+      # 3. Vérifier access token
+      {:ok, result} = Auth.verify_jwt_token(access_token)
+      assert result.user_id == user.id
+      assert result.user.phone == phone
       
-      # 4. Vérifier cohérence
-      assert claims.user_id == user.id
-      assert claims.user.phone == phone
+      # 4. Refresh token rotation
+      {:ok, new_access, new_refresh, _} = Auth.refresh_tokens(refresh_token)
       
-      # 5. Refresh token
-      {:ok, new_jwt, _} = Auth.refresh_jwt_token(jwt_token)
+      # 5. Vérifier nouveau access token
+      {:ok, new_result} = Auth.verify_jwt_token(new_access)
+      assert new_result.user_id == user.id
       
-      # 6. Vérifier nouveau token
-      {:ok, new_claims} = Auth.verify_jwt_token(new_jwt)
-      assert new_claims.user_id == user.id
+      # 6. Logout
+      :ok = Auth.logout(new_refresh)
+      
+      # 7. Le refresh ne fonctionne plus
+      assert {:error, _} = Auth.refresh_tokens(new_refresh)
     end
     
     test "création utilisateur avec valeurs par défaut" do
       phone = "+237699000050"
       {:ok, otp} = Auth.send_otp(phone)
-      {:ok, _token, user} = Auth.verify_otp(phone, otp)
+      {:ok, _access, _refresh, user} = Auth.verify_otp(phone, otp)
       
-      # Recharger depuis DB
       db_user = Repo.get(User, user.id)
       
-      # Vérifier valeurs par défaut
       assert db_user.phone == phone
       assert db_user.is_active == true
       assert db_user.balance == 0

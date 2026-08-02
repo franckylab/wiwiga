@@ -17,6 +17,7 @@ defmodule GameHub.Audit.AuditLog do
   use Ecto.Schema
   import Ecto.Changeset
   
+  @derive {Jason.Encoder, only: [:id, :action, :entity_type, :entity_id, :changes, :ip_address, :user_agent, :metadata, :user_id, :inserted_at, :updated_at]}
   @primary_key {:id, :id, autogenerate: true}
   schema "audit_logs" do
     field :action, :string
@@ -47,10 +48,20 @@ defmodule GameHub.Audit.AuditLog do
   
   defp all_actions do
     [
+      # Auth
+      "otp_sent", "otp_email_sent", "otp_verified", "login", "logout", "logout_all",
+      "password_login", "password_login_failed", "password_changed",
+      "token_refresh", "token_replay_detected", "multi_account_detected",
+      "rate_limited", "session_restored", "auth_settings_updated",
+      # Wallet
       "deposit", "withdrawal", "bet", "winnings",
+      # User
       "user_created", "user_updated", "user_deleted",
+      # KYC
       "kyc_verified", "kyc_rejected",
+      # Responsible gaming
       "self_exclusion", "limit_updated",
+      # Admin
       "admin_action", "system_action"
     ]
   end

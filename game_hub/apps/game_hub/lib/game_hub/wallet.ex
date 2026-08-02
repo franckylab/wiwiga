@@ -21,7 +21,6 @@ defmodule GameHub.Wallet do
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
   alias GameHub.AuditLog
-  alias GameHub.Tokens.TokenConfig
   
   @doc """
   Récupère le solde d'un utilisateur.

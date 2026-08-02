@@ -18,6 +18,8 @@ defmodule GameHub.Games.GameConfig do
   use Ecto.Schema
   import Ecto.Changeset
   
+  alias GameHub.Repo
+  
   @primary_key {:id, :id, autogenerate: true}
   @derive {Jason.Encoder, only: [:id, :game_type, :name, :description, :min_bet, :max_bet, :min_bet_tokens, :commission_rate, :commission_mode, :is_active, :coming_soon, :tips, :display_order]}
   
@@ -40,6 +42,32 @@ defmodule GameHub.Games.GameConfig do
   end
   
   @doc """
+  Crée ou met à jour une configuration de jeu par game_type.
+  """
+  def create_or_update(game_type, attrs) do
+    # Ajouter valeurs par défaut pour champs requis
+    attrs = attrs
+    |> Map.put_new("game_type", game_type)
+    |> Map.put_new("name", String.capitalize(game_type))
+    |> Map.put_new("commission_mode", "percentage")
+    |> Map.put_new("min_bet", 100)
+    |> Map.put_new("max_bet", 500_000)
+    |> Map.put_new("commission_rate", 0.05)
+    
+    case Repo.get_by(__MODULE__, game_type: game_type) do
+      nil ->
+        %__MODULE__{}
+        |> create_changeset(attrs)
+        |> Repo.insert()
+      
+      existing ->
+        existing
+        |> create_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+  
+  @doc """
   Changeset pour création config jeu.
   """
   def create_changeset(config, attrs) do
@@ -49,7 +77,7 @@ defmodule GameHub.Games.GameConfig do
     |> validate_inclusion(:game_type, ~w(dice ludo card roulette))
     |> validate_inclusion(:commission_mode, ~w(percentage fixed tiered))
     |> validate_number(:min_bet, greater_than: 0)
-    |> validate_number(:max_bet, greater_than: :min_bet)
+    |> validate_number(:max_bet, greater_than: 0)
     |> validate_number(:commission_rate, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
     |> unique_constraint(:game_type)
   end

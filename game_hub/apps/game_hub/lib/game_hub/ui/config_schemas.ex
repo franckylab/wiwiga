@@ -57,9 +57,13 @@ defmodule GameHub.UI.GameConfig do
     |> Repo.insert_or_update()
     |> case do
       {:ok, updated_config} ->
-        GameHubWeb.Endpoint.broadcast!("game_config:update:#{game_type}", %{
-          config: Map.from_struct(updated_config)
-        })
+        try do
+          GameHubWeb.Endpoint.broadcast!("game_config:update:#{game_type}", %{
+            config: Map.from_struct(updated_config)
+          })
+        rescue
+          _ -> :ok
+        end
         {:ok, updated_config}
       error -> error
     end
@@ -147,9 +151,14 @@ defmodule GameHub.UI.PaymentConfig do
     |> Repo.insert_or_update()
     |> case do
       {:ok, updated_config} ->
-        GameHubWeb.Endpoint.broadcast!("payment_config:update:#{provider}", %{
-          config: Map.drop(Map.from_struct(updated_config), [:api_key, :api_secret])
-        })
+        # Broadcast WebSocket (ignore si Endpoint pas encore chargé)
+        try do
+          GameHubWeb.Endpoint.broadcast!("payment_config:update:#{provider}", %{
+            config: Map.drop(Map.from_struct(updated_config), [:api_key, :api_secret])
+          })
+        rescue
+          _ -> :ok
+        end
         {:ok, updated_config}
       error -> error
     end

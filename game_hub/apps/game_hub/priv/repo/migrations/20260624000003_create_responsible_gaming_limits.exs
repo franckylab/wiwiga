@@ -8,7 +8,7 @@ defmodule GameHub.Repo.Migrations.CreateResponsibleGamingLimits do
 
   def up do
     create table(:responsible_gaming_limits, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :user_id, references(:users, on_delete: :delete_all), null: false
       add :daily_deposit_limit, :bigint
       add :daily_loss_limit, :bigint

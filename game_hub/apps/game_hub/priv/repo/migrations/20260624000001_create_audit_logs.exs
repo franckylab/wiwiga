@@ -8,7 +8,7 @@ defmodule GameHub.Repo.Migrations.CreateAuditLogs do
 
   def up do
     create table(:audit_logs, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :user_id, references(:users, on_delete: :nilify_all)
       add :action, :string, null: false
       add :entity_type, :string, null: false

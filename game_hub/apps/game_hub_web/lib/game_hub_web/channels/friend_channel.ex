@@ -27,6 +27,7 @@ defmodule GameHubWeb.FriendChannel do
   use Phoenix.Channel
   require Logger
 
+  @impl true
   def join("friend:notif", %{"user_id" => user_id}, socket) do
     socket = assign(socket, :user_id, user_id)
 
@@ -38,7 +39,7 @@ defmodule GameHubWeb.FriendChannel do
     {:ok, socket}
   end
 
-  def join("friend:notif", _params, socket) do
+  def join("friend:notif", _params, _socket) do
     {:error, %{reason: "user_id_required"}}
   end
 

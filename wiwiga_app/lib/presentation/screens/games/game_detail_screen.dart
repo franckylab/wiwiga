@@ -16,6 +16,7 @@ import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 final _tokenFormat = NumberFormat('#,##0', 'fr_FR');
@@ -228,20 +229,28 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
           children: [
             Expanded(
               flex: 3,
-              child: NeonButton(
-                text: 'JOUER',
-                icon: Icons.sports_esports,
-                onPressed: () => context.go('/games/${widget.gameType}/lobby'),
+              child: AuthGate(
+                type: AuthGateType.softWall,
+                action: () => context.go('/games/${widget.gameType}/lobby'),
+                child: NeonButton(
+                  text: 'JOUER',
+                  icon: Icons.sports_esports,
+                  onPressed: () {}, // AuthGate gère le tap
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               flex: 2,
-              child: NeonButton(
-                text: 'Partie rapide',
-                icon: Icons.bolt,
-                variant: NeonButtonVariant.secondary,
-                onPressed: () => _showQuickMatchSheet(game),
+              child: AuthGate(
+                type: AuthGateType.softWall,
+                action: () => _showQuickMatchSheet(game),
+                child: NeonButton(
+                  text: 'Partie rapide',
+                  icon: Icons.bolt,
+                  variant: NeonButtonVariant.secondary,
+                  onPressed: () {}, // AuthGate gère le tap
+                ),
               ),
             ),
           ],

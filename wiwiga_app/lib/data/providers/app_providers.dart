@@ -11,6 +11,7 @@ import '../services/game_websocket_service.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/wallet_repository.dart';
 import '../repositories/game_repository.dart';
+import '../repositories/admin_repository.dart';
 import '../models/user_model.dart';
 import '../models/wallet_transaction_model.dart';
 import '../models/game_model.dart';
@@ -42,6 +43,12 @@ final gameRepositoryProvider = Provider<GameRepository>((ref) {
   return GameRepository(apiService: apiService);
 });
 
+/// Provider du repository Admin
+final adminRepositoryProvider = Provider<AdminRepository>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return AdminRepository(apiService: apiService);
+});
+
 /// Provider du service WebSocket jeu (avec fallback REST)
 final gameWebSocketServiceProvider = ChangeNotifierProvider<GameWebSocketService>((ref) {
   final apiService = ref.watch(apiServiceProvider);
@@ -52,26 +59,71 @@ final gameWebSocketServiceProvider = ChangeNotifierProvider<GameWebSocketService
 // AUTH PROVIDER
 // ============================================================
 
+/// États d'authentification de l'utilisateur
+enum AuthStatus {
+  /// App vient de démarrer, vérification de session en cours
+  unknown,
+  
+  /// Pas de token, pas de session active — accès public uniquement
+  guest,
+  
+  /// OTP envoyé ou en cours de vérification
+  authenticating,
+  
+  /// JWT valide, session active — accès complet
+  authenticated,
+}
+
 class AuthState {
+  final AuthStatus status;
   final bool isLoading;
   final UserModel? user;
   final String? error;
+  final String? redirectTo; // Intent original après auth (deep link)
+  final bool needsProfileCompletion; // Si l'utilisateur doit compléter son profil
   
   const AuthState({
+    this.status = AuthStatus.unknown,
     this.isLoading = false,
     this.user,
     this.error,
+    this.redirectTo,
+    this.needsProfileCompletion = false,
   });
   
+  /// Si l'utilisateur est authentifié
+  bool get isAuthenticated => status == AuthStatus.authenticated;
+  
+  /// Si l'utilisateur est en mode guest
+  bool get isGuest => status == AuthStatus.guest;
+  
+  /// Si la session est en cours de vérification
+  bool get isUnknown => status == AuthStatus.unknown;
+  
+  /// Si l'utilisateur est admin
+  bool get isAdmin => user?.isAdmin ?? false;
+  
+  /// Si l'utilisateur est super_admin
+  bool get isSuperAdmin => user?.isSuperAdmin ?? false;
+  
+  /// Si l'utilisateur est modérateur ou supérieur
+  bool get isModerator => user?.isModerator ?? false;
+  
   AuthState copyWith({
+    AuthStatus? status,
     bool? isLoading,
     UserModel? user,
     String? error,
+    String? redirectTo,
+    bool? needsProfileCompletion,
   }) {
     return AuthState(
+      status: status ?? this.status,
       isLoading: isLoading ?? this.isLoading,
       user: user ?? this.user,
-      error: error, // Permet de réinitialiser l'erreur
+      error: error,
+      redirectTo: redirectTo ?? this.redirectTo,
+      needsProfileCompletion: needsProfileCompletion ?? this.needsProfileCompletion,
     );
   }
 }
@@ -81,26 +133,170 @@ class AuthNotifier extends StateNotifier<AuthState> {
   
   AuthNotifier(this._repository) : super(const AuthState());
   
-  /// Envoie OTP
+  /// Restaure la session au démarrage de l'app
+  /// Appelé par le splash screen
+  Future<void> restoreSession() async {
+    state = state.copyWith(status: AuthStatus.unknown, isLoading: true);
+    
+    try {
+      final user = await _repository.restoreSession();
+      
+      if (user != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          isLoading: false,
+          user: user,
+        );
+      } else {
+        state = state.copyWith(
+          status: AuthStatus.guest,
+          isLoading: false,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.guest,
+        isLoading: false,
+      );
+    }
+  }
+  
+  /// Envoie OTP par phone
+  /// 
+  /// Nettoie les anciens tokens avant de commencer le flow d'inscription
+  /// pour éviter qu'une session précédente (ex: admin) ne interfere.
   Future<void> sendOtp(String phoneNumber) async {
-    state = state.copyWith(isLoading: true, error: null);
+    // Nettoyer toute session existante avant inscription
+    await _repository.logout();
+    state = const AuthState(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+    );
     try {
       await _repository.sendOtp(phoneNumber);
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
+        status: AuthStatus.guest,
         isLoading: false,
         error: 'Erreur lors de l\'envoi du code: $e',
       );
     }
   }
   
-  /// Vérifie OTP et connecte
+  /// Envoie OTP par email
+  /// 
+  /// Nettoie les anciens tokens avant de commencer le flow d'inscription.
+  Future<void> sendOtpByEmail(String email) async {
+    // Nettoyer toute session existante avant inscription
+    await _repository.logout();
+    state = const AuthState(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+    );
+    try {
+      await _repository.sendOtpByEmail(email);
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.guest,
+        isLoading: false,
+        error: 'Erreur lors de l\'envoi du code: $e',
+      );
+    }
+  }
+  
+  /// Connexion par mot de passe (phone/email + password)
+  /// 
+  /// Si OTP requis, retourne sans tokens (l'écran gère la vérification OTP).
+  Future<void> loginWithPassword({
+    String? phone,
+    String? email,
+    required String password,
+  }) async {
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+      error: null,
+    );
+    try {
+      final result = await _repository.loginWithPassword(
+        phone: phone,
+        email: email,
+        password: password,
+      );
+      
+      final otpRequired = result['otp_required'] as bool? ?? false;
+      
+      if (otpRequired) {
+        // OTP requis: l'écran gère la transition
+        state = state.copyWith(
+          status: AuthStatus.authenticating,
+          isLoading: false,
+          user: result['user'] as UserModel,
+          error: 'otp_required',
+        );
+      } else {
+        // Connexion directe
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          isLoading: false,
+          user: result['user'] as UserModel,
+          redirectTo: null,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.guest,
+        isLoading: false,
+        error: 'Identifiants incorrects: $e',
+      );
+    }
+  }
+  
+  /// Inscription (création de compte)
+  Future<void> register({
+    String? phone,
+    String? email,
+    required String username,
+    String? avatarType,
+  }) async {
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+      error: null,
+    );
+    try {
+      final result = await _repository.register(
+        phone: phone,
+        email: email,
+        username: username,
+        avatarType: avatarType,
+      );
+      
+      state = state.copyWith(
+        isLoading: false,
+        user: result['user'] as UserModel?,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.guest,
+        isLoading: false,
+        error: 'Erreur lors de l\'inscription: $e',
+      );
+    }
+  }
+  
+  /// Vérifie OTP par phone et connecte
   Future<void> verifyOtp({
     required String phoneNumber,
     required String otpCode,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+      error: null,
+    );
     try {
       final result = await _repository.verifyOtp(
         phoneNumber: phoneNumber,
@@ -108,15 +304,79 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       
       state = state.copyWith(
+        status: AuthStatus.authenticated,
         isLoading: false,
         user: result['user'] as UserModel,
+        redirectTo: null,
       );
     } catch (e) {
       state = state.copyWith(
+        status: AuthStatus.guest,
         isLoading: false,
         error: 'Code OTP invalide: $e',
       );
     }
+  }
+  
+  /// Vérifie OTP par email et connecte
+  Future<void> verifyOtpByEmail({
+    required String email,
+    required String otpCode,
+  }) async {
+    state = state.copyWith(
+      status: AuthStatus.authenticating,
+      isLoading: true,
+      error: null,
+    );
+    try {
+      final result = await _repository.verifyOtpByEmail(
+        email: email,
+        otpCode: otpCode,
+      );
+      
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        isLoading: false,
+        user: result['user'] as UserModel,
+        redirectTo: null,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.guest,
+        isLoading: false,
+        error: 'Code OTP invalide: $e',
+      );
+    }
+  }
+  
+  /// Complète le profil (username + avatar) après inscription
+  Future<void> completeProfile({
+    required String username,
+    String? avatarType,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final user = await _repository.completeRegistration(
+        username: username,
+        avatarType: avatarType,
+      );
+      
+      state = state.copyWith(
+        isLoading: false,
+        user: user,
+        needsProfileCompletion: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Erreur complétion profil: $e',
+      );
+    }
+  }
+  
+  /// Définit l'intent de redirection après auth
+  void setRedirectTo(String route) {
+    state = state.copyWith(redirectTo: route);
   }
   
   /// Déconnecte
@@ -124,10 +384,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repository.logout();
-      state = const AuthState();
+      state = const AuthState(status: AuthStatus.guest);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        status: AuthStatus.guest,
+        user: null,
         error: 'Erreur lors de la déconnexion: $e',
       );
     }
@@ -136,10 +398,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Recharge le profil
   Future<void> refreshProfile() async {
     try {
-      final user = await _repository.getProfile();
+      final user = await _repository.getMe();
       state = state.copyWith(user: user);
     } catch (e) {
       state = state.copyWith(error: 'Erreur chargement profil: $e');
+    }
+  }
+  
+  /// Récupère les préférences auth (OTP)
+  Future<Map<String, dynamic>> getAuthSettings() async {
+    try {
+      return await _repository.getAuthSettings();
+    } catch (e) {
+      return {'otp_required_on_login': false};
+    }
+  }
+  
+  /// Met à jour les préférences OTP
+  Future<bool> updateOtpRequired({required bool enabled}) async {
+    try {
+      await _repository.updateAuthSettings(otpRequiredOnLogin: enabled);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 }

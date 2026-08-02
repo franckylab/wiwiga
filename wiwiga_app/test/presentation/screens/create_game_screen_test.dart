@@ -3,9 +3,7 @@
 // Description: Tests pour l'écran de création de partie
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Les tests vérifient le comportement UI de CreateGameScreen
 // Note: Nécessite un ProviderScope pour les tests Riverpod

@@ -8,7 +8,7 @@ defmodule GameHub.Repo.Migrations.CreateFeatureFlags do
 
   def up do
     create table(:feature_flags, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :flag_name, :string, null: false
       add :description, :text
       add :enabled, :boolean, default: false, null: false

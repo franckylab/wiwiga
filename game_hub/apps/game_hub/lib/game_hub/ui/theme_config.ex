@@ -62,9 +62,13 @@ defmodule GameHub.UI.ThemeConfig do
     |> case do
       {:ok, updated_config} ->
         # Broadcast changement pour WebSocket
-        GameHubWeb.Endpoint.broadcast!("theme:update", %{
-          config: Map.from_struct(updated_config)
-        })
+        try do
+          GameHubWeb.Endpoint.broadcast!("theme:update", %{
+            config: Map.from_struct(updated_config)
+          })
+        rescue
+          _ -> :ok
+        end
         
         {:ok, updated_config}
       

@@ -24,7 +24,6 @@ defmodule GameHubWeb.GameChannel do
   
   use Phoenix.Channel
   
-  alias GameHub.GameStateManager
   alias DiceGame.Engine
   
   @doc """
@@ -105,11 +104,7 @@ defmodule GameHubWeb.GameChannel do
     end
   end
   
-  @doc """
-  Handle execute_turn event.
-  
-  Lance les dés quand les 2 paris sont placés.
-  """
+  # Handle execute_turn event.
   @impl true
   def handle_in("execute_turn", _params, socket) do
     game_id = socket.assigns.game_id
@@ -151,9 +146,7 @@ defmodule GameHubWeb.GameChannel do
     end
   end
   
-  @doc """
-  Handle leave_game event.
-  """
+  # Handle leave_game event.
   @impl true
   def handle_in("leave_game", _params, socket) do
     user_id = socket.assigns.user_id

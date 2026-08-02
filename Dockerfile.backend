@@ -1,5 +1,5 @@
 # WIWIGA Backend Dockerfile
-FROM elixir:1.15-slim
+FROM elixir:1.16.3-slim
 
 # Installer dépendances système
 RUN apt-get update && \

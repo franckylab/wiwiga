@@ -41,7 +41,7 @@ defmodule GameHub.ResponsibleGaming do
       {:error, :daily_limit_reached}
   """
   @spec check_before_bet(integer(), integer()) :: :ok | {:error, atom()}
-  def check_before_bet(user_id, bet_amount) do
+  def check_before_bet(user_id, _bet_amount) do
     limits = get_limits(user_id)
     
     cond do
@@ -161,7 +161,9 @@ defmodule GameHub.ResponsibleGaming do
   end
   
   defp daily_loss_exceeded?(user_id, daily_limit) do
-    today_start = DateTime.utc_now() |> DateTime.beginning_of_day()
+    {:ok, today_start, _} = DateTime.from_iso8601(
+      Date.to_iso8601(Date.utc_today()) <> "T00:00:00Z"
+    )
     
     total_loss = Repo.one(
       from t in GameHub.Wallet.WalletTransaction,
@@ -174,7 +176,7 @@ defmodule GameHub.ResponsibleGaming do
     total_loss >= daily_limit
   end
   
-  defp session_time_exceeded?(user_id, limit_minutes) do
+  defp session_time_exceeded?(_user_id, _limit_minutes) do
     # TODO: Implémenter avec Redis pour tracking session
     # Pour l'instant, retourne toujours false
     false

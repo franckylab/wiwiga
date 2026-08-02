@@ -1,27 +1,44 @@
+// ============================================================
+// Fichier: auth_screen_neon.dart
+// Description: Écran d'authentification connecté à l'API réelle
+//              OTP SMS + gestion état via authProvider
+// Auteur: WIWIGA Team
+// Date: 2026-08-01
+// ============================================================
+
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../../../core/theme/typography.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran d'authentification redesigné avec style néon gaming
-class AuthScreenNeon extends StatefulWidget {
+/// 
+/// Flux :
+/// 1. L'utilisateur entre son numéro de téléphone
+/// 2. Un OTP est envoyé par SMS (POST /api/auth/send-otp)
+/// 3. L'utilisateur entre le code reçu
+/// 4. Vérification (POST /api/auth/verify-otp) → tokens + session
+/// 5. Navigation vers /home (ou redirectTo si intent)
+class AuthScreenNeon extends ConsumerStatefulWidget {
   const AuthScreenNeon({super.key});
 
   @override
-  State<AuthScreenNeon> createState() => _AuthScreenNeonState();
+  ConsumerState<AuthScreenNeon> createState() => _AuthScreenNeonState();
 }
 
-class _AuthScreenNeonState extends State<AuthScreenNeon>
+class _AuthScreenNeonState extends ConsumerState<AuthScreenNeon>
     with SingleTickerProviderStateMixin {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   
   bool _isOtpSent = false;
-  bool _isLoading = false;
   int _countdown = 0;
+  Timer? _countdownTimer;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -50,59 +67,120 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
     _phoneController.dispose();
     _otpController.dispose();
     _animationController.dispose();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
+  /// Envoie l'OTP au numéro fourni
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
-    // TODO: Appeler API POST /api/auth/send-otp
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isLoading = false;
-      _isOtpSent = true;
-      _countdown = 60;
-    });
-
-    _startCountdown();
-  }
-
-  Future<void> _verifyOtp() async {
-    if (_otpController.text.length != 6) return;
-
-    setState(() => _isLoading = true);
-
-    // TODO: Appeler API POST /api/auth/verify-otp
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    // Navigation vers l'accueil
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connexion réussie !', style: TextStyle(fontFamily: 'Inter')),
-          backgroundColor: NeonColors.success,
-        ),
-      );
-      context.go('/home');
+    final phone = _phoneController.text.trim();
+    
+    try {
+      await ref.read(authProvider.notifier).sendOtp(phone);
+      
+      final authState = ref.read(authProvider);
+      if (authState.error != null) {
+        _showError(authState.error!);
+        return;
+      }
+      
+      setState(() {
+        _isOtpSent = true;
+        _countdown = 60;
+      });
+      
+      _startCountdown();
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
+  /// Vérifie l'OTP saisi
+  Future<void> _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.length != 6) {
+      _showError('Le code OTP doit contenir 6 chiffres');
+      return;
+    }
+
+    try {
+      await ref.read(authProvider.notifier).verifyOtp(
+        phoneNumber: _phoneController.text.trim(),
+        otpCode: otp,
+      );
+      
+      final authState = ref.read(authProvider);
+      if (authState.isAuthenticated) {
+        _navigateAfterAuth();
+      } else if (authState.error != null) {
+        _showError(authState.error!);
+      }
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  /// Navigation après auth réussie : redirectTo ou /home
+  void _navigateAfterAuth() {
+    if (!mounted) return;
+    
+    final authState = ref.read(authProvider);
+    final redirectTo = authState.redirectTo;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Connexion réussie !', style: TextStyle(fontFamily: 'Inter')),
+        backgroundColor: NeonColors.success,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    // Naviguer vers l'intent original ou /home
+    Future.microtask(() {
+      if (mounted) {
+        context.go(redirectTo ?? '/home');
+      }
+    });
+  }
+
+  /// Affiche un message d'erreur
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Inter')),
+        backgroundColor: NeonColors.error,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// Démarre le countdown de 60s pour renvoyer l'OTP
   void _startCountdown() {
-    Future.delayed(const Duration(seconds: 1), () {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _countdown > 0) {
         setState(() => _countdown--);
-        _startCountdown();
+      } else {
+        _countdownTimer?.cancel();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState.isLoading;
+
+    // Si déjà authentifié (retour depuis un autre écran), naviguer
+    if (authState.isAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateAfterAuth();
+      });
+    }
+
     return Scaffold(
       body: SafeArea(
         child: FadeTransition(
@@ -117,7 +195,7 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
                   const SizedBox(height: 40),
                   
                   // Logo
-                  _LogoSection(),
+                  const _LogoSection(),
                   
                   const SizedBox(height: 48),
                   
@@ -153,23 +231,24 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
                   if (!_isOtpSent) ...[
                     _PhoneForm(
                       controller: _phoneController,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                       onSubmit: _sendOtp,
                     ),
                   ] else ...[
                     _OtpForm(
                       controller: _otpController,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                       countdown: _countdown,
                       onVerify: _verifyOtp,
                       onResend: _sendOtp,
+                      onBack: () => setState(() => _isOtpSent = false),
                     ),
                   ],
                   
                   const SizedBox(height: 32),
                   
                   // Footer
-                  _FooterSection(),
+                  const _FooterSection(),
                 ],
               ),
             ),
@@ -181,6 +260,8 @@ class _AuthScreenNeonState extends State<AuthScreenNeon>
 }
 
 class _LogoSection extends StatelessWidget {
+  const _LogoSection();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -221,34 +302,38 @@ class _PhoneForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NeonInput(
-      label: 'Numéro de téléphone',
-      hint: '+237 6XX XXX XXX',
-      controller: controller,
-      keyboardType: TextInputType.phone,
-      icon: Icons.phone,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Veuillez entrer votre numéro';
-        }
-        if (value.length < 9) {
-          return 'Numéro invalide';
-        }
-        return null;
-      },
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
+    return Column(
+      children: [
+        NeonInput(
+          label: 'Numéro de téléphone',
+          hint: '+237 6XX XXX XXX',
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          icon: Icons.phone,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Veuillez entrer votre numéro';
+            }
+            if (value.length < 9) {
+              return 'Numéro invalide';
+            }
+            return null;
+          },
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+          ],
+        ),
+        
+        const SizedBox(height: 32),
+        
+        NeonButton(
+          text: 'RECEVOIR LE CODE',
+          onPressed: isLoading ? () {} : onSubmit,
+          isLoading: isLoading,
+          icon: Icons.send,
+          width: double.infinity,
+        ),
       ],
-    );
-    
-    const SizedBox(height: 32);
-    
-    NeonButton(
-      text: 'RECEVOIR LE CODE',
-      onPressed: isLoading ? () {} : onSubmit,
-      isLoading: isLoading,
-      icon: Icons.send,
-      width: double.infinity,
     );
   }
 }
@@ -259,6 +344,7 @@ class _OtpForm extends StatelessWidget {
   final int countdown;
   final VoidCallback onVerify;
   final VoidCallback onResend;
+  final VoidCallback onBack;
 
   const _OtpForm({
     required this.controller,
@@ -266,12 +352,30 @@ class _OtpForm extends StatelessWidget {
     required this.countdown,
     required this.onVerify,
     required this.onResend,
+    required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Bouton retour
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, size: 16, color: NeonColors.textSecondary),
+            label: const Text(
+              'Changer de numéro',
+              style: TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 12,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ),
+        ),
+        
         NeonInput(
           label: 'Code de vérification',
           hint: '000000',
@@ -325,6 +429,8 @@ class _OtpForm extends StatelessWidget {
 }
 
 class _FooterSection extends StatelessWidget {
+  const _FooterSection();
+
   @override
   Widget build(BuildContext context) {
     return Column(

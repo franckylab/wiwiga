@@ -69,14 +69,11 @@ defmodule GameHub.Commission do
     end
   end
   
-  @doc """
-  Applique règles commission selon mode configuré.
-  
-  ## Modes
-    - `percentage`: % des gains
-    - `fixed`: Montant fixe
-    - `tiered`: Barème progressif
-  """
+  # Applique règles commission selon mode configuré.
+  # Modes:
+  #   - percentage: % des gains
+  #   - fixed: Montant fixe
+  #   - tiered: Barème progressif
   defp apply_commission_rules(%{commission_mode: "percentage", commission_rate: rate}, winnings) do
     # Percentage: winnings * rate
     Decimal.mult(winnings, rate)
@@ -97,14 +94,11 @@ defmodule GameHub.Commission do
   
   defp apply_commission_rules(_, _), do: 0
   
-  @doc """
-  Calcule commission barème progressif.
-  
-  Exemple tiers:
-    0-10000: 5%
-    10001-50000: 4%
-    50001+: 3%
-  """
+  # Calcule commission barème progressif.
+  # Exemple tiers:
+  #   0-10000: 5%
+  #   10001-50000: 4%
+  #   50001+: 3%
   defp calculate_tiered_commission(tiers, winnings) do
     tiers
     |> Enum.sort_by(& &1["min"])

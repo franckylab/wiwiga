@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
-import '../../../data/services/game_websocket_service.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../dice_game/dice_game_screen.dart';
 

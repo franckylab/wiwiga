@@ -46,6 +46,7 @@ defmodule GameHubWeb.GameStatsController do
     metric = Map.get(params, "metric", "wins")
     period = Map.get(params, "period", "all")
     limit = params |> Map.get("limit", "20") |> parse_limit()
+    # user_id peut être nil si accès guest (auth optionnelle)
     user_id = get_current_user_id(conn)
 
     with {:ok, _config} <- fetch_game(game_type),
@@ -56,8 +57,8 @@ defmodule GameHubWeb.GameStatsController do
         metric: metric,
         period: period,
         entries: result.entries,
-        my_rank: result.my_rank,
-        my_value: result.my_value
+        my_rank: if(user_id, do: result.my_rank, else: nil),
+        my_value: if(user_id, do: result.my_value, else: nil)
       }))
     else
       {:error, :not_found} ->

@@ -10,7 +10,16 @@ class ApiEndpoints {
   // Authentication
   static const String sendOtp = '/api/auth/send-otp';
   static const String verifyOtp = '/api/auth/verify-otp';
+  static const String register = '/api/auth/register';
+  static const String login = '/api/auth/login';
+  static const String setPassword = '/api/auth/set-password';
+  static const String checkAvailability = '/api/auth/check-availability';
+  static const String completeRegistration = '/api/auth/complete-registration';
+  static const String avatars = '/api/auth/avatars';
   static const String refreshToken = '/api/auth/refresh';
+  static const String logout = '/api/auth/logout';
+  static const String me = '/api/auth/me';
+  static const String authSettings = '/api/auth/settings';
   
   // Wallet
   static const String walletBalance = '/api/wallet/balance';
@@ -72,11 +81,15 @@ class ApiEndpoints {
   
   // Admin
   static const String adminUsers = '/api/admin/users';
+  static const String adminRoles = '/api/admin/roles';
   static const String adminStats = '/api/admin/stats';
+  static const String adminAuditLogs = '/api/admin/audit-logs';
+  static const String adminSystemHealth = '/api/admin/system-health';
   static const String adminConfigTheme = '/api/admin/config/theme';
   static const String adminConfigFeatures = '/api/admin/config/features';
   static const String adminConfigGames = '/api/admin/config/games';
   static const String adminConfigPayments = '/api/admin/config/payments';
+  static const String adminConfigTokens = '/api/admin/config/tokens';
 }
 
 /// Canaux WebSocket Phoenix

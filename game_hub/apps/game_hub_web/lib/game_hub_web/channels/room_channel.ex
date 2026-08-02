@@ -33,8 +33,9 @@ defmodule GameHubWeb.RoomChannel do
   use Phoenix.Channel
   require Logger
 
-  alias GameHub.{GameRoom, GameMatch}
+  alias GameHub.GameRoom
 
+  @impl true
   def join("room:" <> room_id, _params, socket) do
     case GameRoom.get_room(room_id) do
       {:ok, _room} ->
@@ -47,6 +48,7 @@ defmodule GameHubWeb.RoomChannel do
     end
   end
 
+  @impl true
   def handle_info(:after_join, socket) do
     room_id = socket.assigns.room_id
 
@@ -117,7 +119,7 @@ defmodule GameHubWeb.RoomChannel do
   end
 
   def handle_in("player_ready", _params, socket) do
-    room_id = socket.assigns.room_id
+    _room_id = socket.assigns.room_id
     user_id = socket.assigns[:user_id] || generate_temp_id()
     broadcast!(socket, "player_ready", %{player_id: user_id})
     {:noreply, socket}

@@ -292,7 +292,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
     end
   end
   
-  def update_game_config(conn, %{"type" => game_type}) do
+  def update_game_config(conn, %{"type" => _game_type}) do
     conn
     |> put_status(400)
     |> json(%{
@@ -406,7 +406,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
     end
   end
   
-  def update_payment_config(conn, %{"provider" => provider}) do
+  def update_payment_config(conn, %{"provider" => _provider}) do
     conn
     |> put_status(400)
     |> json(%{

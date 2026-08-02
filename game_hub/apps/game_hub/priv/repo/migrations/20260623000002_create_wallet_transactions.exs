@@ -9,7 +9,7 @@ defmodule GameHub.Repo.Migrations.CreateWalletTransactions do
   
   def up do
     create table(:wallet_transactions, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :user_id, references(:users, on_delete: :nothing), null: false
       add :type, :string, null: false
       add :amount, :bigint, null: false

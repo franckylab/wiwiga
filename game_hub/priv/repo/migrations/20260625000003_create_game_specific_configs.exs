@@ -29,13 +29,13 @@ defmodule GameHub.Repo.Migrations.CreateGameSpecificConfigs do
       add :matchmaking_timeout_ms, :integer, default: 30_000
       add :turn_timeout_ms, :integer, default: 15_000
       
-      add :updated_by, references(:users, on_delete: :nilify_all)
+      add :updated_by_id, references(:users, on_delete: :nilify_all)
       
       timestamps()
     end
 
     create index(:game_specific_configs, [:game_type], unique: true)
-    create index(:game_specific_configs, [:updated_by])
+    create index(:game_specific_configs, [:updated_by_id])
     
     # Constraint pour montants positifs
     create constraint(:game_specific_configs, :min_bet_positive, check: "min_bet > 0")

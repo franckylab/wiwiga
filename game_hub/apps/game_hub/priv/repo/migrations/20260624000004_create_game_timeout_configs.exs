@@ -8,7 +8,7 @@ defmodule GameHub.Repo.Migrations.CreateGameTimeoutConfigs do
 
   def up do
     create table(:game_timeout_configs, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :game_type, :string, null: false
       add :grace_period_seconds, :integer, default: 120, null: false
       add :action_on_timeout, :string, default: "forfeit", null: false

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/auth/success_animation.dart';
 
 // === Providers ===
 
@@ -10,14 +13,34 @@ final soundEnabledProvider = StateProvider<bool>((ref) => true);
 final vibrationEnabledProvider = StateProvider<bool>((ref) => true);
 final notificationsEnabledProvider = StateProvider<bool>((ref) => true);
 final responsibleGamingLimitProvider = StateProvider<int?>((ref) => 5000); // En jetons
+final otpRequiredProvider = StateProvider<bool>((ref) => false);
 
 // === Écran ===
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadOtpSetting();
+  }
+
+  void _loadOtpSetting() async {
+    final settings = await ref.read(authProvider.notifier).getAuthSettings();
+    if (mounted) {
+      ref.read(otpRequiredProvider.notifier).state =
+          settings['otp_required_on_login'] as bool? ?? false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -55,21 +78,18 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   _buildSection('JEU', [
                     _buildToggleTile(
-                      ref,
                       icon: Icons.volume_up,
                       title: 'Sons',
                       provider: soundEnabledProvider,
                       color: NeonColors.warning,
                     ),
                     _buildToggleTile(
-                      ref,
                       icon: Icons.vibration,
                       title: 'Vibrations',
                       provider: vibrationEnabledProvider,
                       color: NeonColors.warning,
                     ),
                     _buildToggleTile(
-                      ref,
                       icon: Icons.notifications,
                       title: 'Notifications',
                       provider: notificationsEnabledProvider,
@@ -78,7 +98,7 @@ class SettingsScreen extends ConsumerWidget {
                   ]),
                   const SizedBox(height: 16),
                   _buildSection('JEU RESPONSABLE', [
-                    _buildResponsibleGamingTile(ref),
+                    _buildResponsibleGamingTile(),
                     _SettingsTile(
                       icon: Icons.timer,
                       title: 'Limite de temps',
@@ -96,6 +116,7 @@ class SettingsScreen extends ConsumerWidget {
                   ]),
                   const SizedBox(height: 16),
                   _buildSection('SÉCURITÉ', [
+                    _buildOtpToggle(context),
                     _SettingsTile(
                       icon: Icons.lock,
                       title: 'Changer le code PIN',
@@ -137,7 +158,7 @@ class SettingsScreen extends ConsumerWidget {
                   // Logout
                   NeonButton(
                     text: 'Déconnexion',
-                    onPressed: () => _showSnackbar(context, 'Déconnexion - Bientôt disponible'),
+                    onPressed: () => _performLogout(context),
                     variant: NeonButtonVariant.danger,
                     icon: Icons.logout,
                   ),
@@ -149,6 +170,58 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _performLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text('Déconnexion', style: TextStyle(color: NeonColors.textPrimary)),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?', style: TextStyle(color: NeonColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                _showLogoutAnimation(context);
+              }
+            },
+            child: const Text('Déconnexion', style: TextStyle(color: NeonColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutAnimation(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (ctx, _, __) => const Scaffold(
+        backgroundColor: Color(0xFF0A0A1A),
+        body: Center(
+          child: SuccessAnimation(
+            message: 'Déconnecté',
+            subtitle: 'À bientôt sur WIWIGA !',
+            duration: Duration(milliseconds: 1200),
+          ),
+        ),
+      ),
+      transitionDuration: Duration.zero,
+    );
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        Navigator.of(context).pop();
+        context.go('/auth');
+      }
+    });
   }
 
   Widget _buildHeader() {
@@ -195,8 +268,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildToggleTile(
-    WidgetRef ref, {
+  Widget _buildToggleTile({
     required IconData icon,
     required String title,
     required StateProvider<bool> provider,
@@ -237,18 +309,66 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildResponsibleGamingTile(WidgetRef ref) {
+  Widget _buildResponsibleGamingTile() {
     final limit = ref.watch(responsibleGamingLimitProvider);
     return _SettingsTile(
       icon: Icons.monetization_on,
       title: 'Limite de mise / jour',
       subtitle: limit != null ? '$limit jetons' : 'Illimité',
       color: NeonColors.error,
-      onTap: () => _showLimitDialog(ref),
+      onTap: () => _showLimitDialog(),
     );
   }
 
-  void _showLimitDialog(WidgetRef ref) {
+  Widget _buildOtpToggle(BuildContext context) {
+    final otpEnabled = ref.watch(otpRequiredProvider);
+    return _SettingsTile(
+      icon: Icons.security,
+      title: 'Vérification OTP à la connexion',
+      subtitle: otpEnabled ? 'Activée — Code requis' : 'Désactivée',
+      color: otpEnabled ? NeonColors.success : NeonColors.textSecondary,
+      trailing: GestureDetector(
+        onTap: () => _toggleOtp(context, !otpEnabled),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 48,
+          height: 26,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            color: otpEnabled ? NeonColors.success.withValues(alpha: 0.3) : NeonColors.border,
+            border: Border.all(color: otpEnabled ? NeonColors.success : NeonColors.textSecondary),
+          ),
+          padding: const EdgeInsets.all(2),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 200),
+            alignment: otpEnabled ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: otpEnabled ? NeonColors.success : NeonColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+      onTap: () => _toggleOtp(context, !otpEnabled),
+    );
+  }
+
+  void _toggleOtp(BuildContext context, bool newValue) {
+    ref.read(authProvider.notifier).updateOtpRequired(enabled: newValue).then((success) {
+      if (success) {
+        ref.read(otpRequiredProvider.notifier).state = newValue;
+        _showSnackbar(context, newValue ? 'OTP activé' : 'OTP désactivé');
+      } else {
+        _showSnackbar(context, 'Erreur de mise à jour');
+      }
+    });
+  }
+
+  void _showLimitDialog() {
     final controller = TextEditingController(
       text: ref.read(responsibleGamingLimitProvider)?.toString() ?? '',
     );

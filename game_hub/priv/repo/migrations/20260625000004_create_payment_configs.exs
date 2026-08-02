@@ -29,14 +29,14 @@ defmodule GameHub.Repo.Migrations.CreatePaymentConfigs do
       add :transaction_fee_percentage, :float, default: 0.0
       add :transaction_fee_fixed, :integer, default: 0
       
-      add :updated_by, references(:users, on_delete: :nilify_all)
+      add :updated_by_id, references(:users, on_delete: :nilify_all)
       
       timestamps()
     end
 
     create index(:payment_configs, [:provider], unique: true)
     create index(:payment_configs, [:enabled])
-    create index(:payment_configs, [:updated_by])
+    create index(:payment_configs, [:updated_by_id])
     
     # Constraints
     create constraint(:payment_configs, :min_amount_positive, check: "min_amount > 0")

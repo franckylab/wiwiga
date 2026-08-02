@@ -3,7 +3,7 @@ defmodule GameHub.Repo.Migrations.CreateUIThemeConfigs do
 
   def change do
     create table(:ui_theme_configs, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :primary_color, :string, default: "#2DD4BF"
       add :secondary_color, :string, default: "#F59E0B"
       add :accent_color, :string, default: "#00D9FF"
@@ -16,12 +16,12 @@ defmodule GameHub.Repo.Migrations.CreateUIThemeConfigs do
       add :font_family_display, :string, default: "Orbitron"
       add :logo_url, :string
       add :favicon_url, :string
-      add :updated_by, references(:users, on_delete: :nilify_all)
+      add :updated_by_id, references(:users, on_delete: :nilify_all)
       
       timestamps()
     end
 
-    create index(:ui_theme_configs, [:updated_by])
+    create index(:ui_theme_configs, [:updated_by_id])
     
     # Constraint pour garantir une seule ligne de configuration
     execute """

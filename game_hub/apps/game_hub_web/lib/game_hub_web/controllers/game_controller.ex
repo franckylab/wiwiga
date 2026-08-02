@@ -19,7 +19,6 @@ defmodule GameHubWeb.GameController do
   use GameHubWeb, :controller
   
   alias GameHub.{Errors, Repo, Games.GameConfig, Wallet, Commission, AuditLog}
-  alias GameHub.Users.User
   import Ecto.Query
   
   @doc """

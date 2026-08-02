@@ -73,9 +73,13 @@ defmodule GameHub.UI.FeatureConfig do
     |> Repo.update()
     |> case do
       {:ok, updated_config} ->
-        GameHubWeb.Endpoint.broadcast!("feature:update", %{
-          config: Map.from_struct(updated_config)
-        })
+        try do
+          GameHubWeb.Endpoint.broadcast!("feature:update", %{
+            config: Map.from_struct(updated_config)
+          })
+        rescue
+          _ -> :ok
+        end
         {:ok, updated_config}
       error -> error
     end

@@ -31,7 +31,7 @@ defmodule GameHubWeb.PaymentWebhookController do
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
   
-  @campay_secret Application.get_env(:game_hub, :campay_webhook_secret_key) ||
+  @campay_secret Application.compile_env(:game_hub, :campay_webhook_secret_key, nil) ||
                    EnvConfig.get!("CAMPAY_WEBHOOK_SECRET_KEY")
   
   @doc """
@@ -63,9 +63,7 @@ defmodule GameHubWeb.PaymentWebhookController do
     end
   end
   
-  @doc """
-  Traite notification paiement.
-  """
+  # Traite notification paiement.
   defp process_payment(conn, %{
     "transaction_id" => tx_id,
     "amount" => amount,
@@ -102,9 +100,7 @@ defmodule GameHubWeb.PaymentWebhookController do
     |> json(Errors.error("Paramètres webhook invalides", 400, "INVALID_WEBHOOK", params))
   end
   
-  @doc """
-  Traite nouveau paiement réussi.
-  """
+  # Traite nouveau paiement réussi.
   defp process_new_payment(conn, phone, amount, tx_id, idempotency_key) do
     # Trouver utilisateur par téléphone
     case get_user_by_phone(phone) do
@@ -145,9 +141,7 @@ defmodule GameHubWeb.PaymentWebhookController do
     end
   end
   
-  @doc """
-  Vérifie signature HMAC Campay.
-  """
+  # Vérifie signature HMAC Campay.
   defp valid_signature?(params) do
     signature = params["signature"]
     
@@ -166,9 +160,7 @@ defmodule GameHubWeb.PaymentWebhookController do
     signature == expected_signature
   end
   
-  @doc """
-  Vérifie idempotence transaction.
-  """
+  # Vérifie idempotence transaction.
   defp check_idempotence(idempotency_key) do
     # Chercher transaction existante
     query = from t in WalletTransaction,
@@ -181,9 +173,7 @@ defmodule GameHubWeb.PaymentWebhookController do
     end
   end
   
-  @doc """
-  Trouve utilisateur par téléphone.
-  """
+  # Trouve utilisateur par téléphone.
   defp get_user_by_phone(phone) do
     query = from u in User,
       where: u.phone == ^phone,

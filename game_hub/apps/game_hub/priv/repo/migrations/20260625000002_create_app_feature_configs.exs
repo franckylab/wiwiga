@@ -3,7 +3,7 @@ defmodule GameHub.Repo.Migrations.CreateAppFeatureConfigs do
 
   def change do
     create table(:app_feature_configs, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       
       # Mode maintenance et inscriptions
       add :maintenance_mode, :boolean, default: false
@@ -38,12 +38,12 @@ defmodule GameHub.Repo.Migrations.CreateAppFeatureConfigs do
       add :terms_url, :string, default: "https://wiwiga.cm/terms"
       add :privacy_url, :string, default: "https://wiwiga.cm/privacy"
       
-      add :updated_by, references(:users, on_delete: :nilify_all)
+      add :updated_by_id, references(:users, on_delete: :nilify_all)
       
       timestamps()
     end
 
-    create index(:app_feature_configs, [:updated_by])
+    create index(:app_feature_configs, [:updated_by_id])
     
     # Singleton
     execute """

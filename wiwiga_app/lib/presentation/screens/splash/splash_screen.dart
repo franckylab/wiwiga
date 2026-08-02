@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/wiwiga_logo.dart';
-import '../../widgets/neon/token_icon.dart';
 import '../../widgets/loading/wiwiga_progress.dart';
-import '../../widgets/loading/wiwiga_loading.dart';
 import '../../../data/providers/app_providers.dart';
 
 /// Ecran de demarrage anime WIWIGA
@@ -81,20 +79,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _timer?.cancel();
     setState(() => _progress = 1.0);
 
-    // Navigation au prochain frame (plus fiable que Future.delayed)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Restaurer la session avant de naviguer
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       try {
+        // Lancer la restauration de session
+        await ref.read(authProvider.notifier).restoreSession();
+        
+        if (!mounted) return;
+        
+        // Navigation conditionnelle selon le statut auth
         final authState = ref.read(authProvider);
-        final target = (authState.user != null) ? '/home' : '/auth';
-        context.go(target);
-      } catch (e) {
-        print('[Splash] Navigation error: $e');
-        try {
+        if (authState.isAuthenticated) {
+          context.go('/home');
+        } else {
+          // Guest ou erreur → aller vers l'écran d'auth
           context.go('/auth');
-        } catch (_) {
-          print('[Splash] CRITICAL: Cannot navigate');
         }
+      } catch (e) {
+        if (!mounted) return;
+        // En cas d'erreur, aller vers l'écran d'auth
+        context.go('/auth');
       }
     });
   }

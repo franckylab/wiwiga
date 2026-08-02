@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wiwiga/data/repositories/game_repository.dart';
 import 'package:wiwiga/data/services/api_service.dart';
-import 'package:wiwiga/data/models/game_model.dart';
 
 class MockApiService extends Mock implements ApiService {}
 

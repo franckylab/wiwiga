@@ -9,7 +9,7 @@ defmodule GameHub.Repo.Migrations.CreateDiceGameResults do
 
   def up do
     create table(:dice_game_results, primary_key: false) do
-      add :id, :bigint, primary_key: true
+      add :id, :bigserial, primary_key: true
       add :game_id, :string, null: false
       add :dice_results, {:array, :integer}, null: false
       add :total_sum, :integer, null: false

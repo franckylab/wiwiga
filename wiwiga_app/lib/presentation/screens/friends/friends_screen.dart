@@ -16,6 +16,7 @@ import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
 
 /// Écran principal des amis avec tabs
+/// Si l'utilisateur est guest, affiche un écran de bienvenue avec CTA connexion
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
 
@@ -40,6 +41,14 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isGuest = authState.isGuest || authState.isUnknown;
+
+    // Mode guest : écran CTA
+    if (isGuest) {
+      return _GuestFriendsScreen(authState: authState);
+    }
+
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
@@ -666,5 +675,74 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
         SnackBar(content: Text('Erreur: $e')),
       );
     }
+  }
+}
+
+// === Mode guest : écran CTA connexion ===
+
+class _GuestFriendsScreen extends ConsumerWidget {
+  final AuthState authState;
+
+  const _GuestFriendsScreen({required this.authState});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: NeonColors.background,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: NeonGradients.cta,
+                ),
+                child: const Icon(
+                  Icons.people_outline,
+                  size: 40,
+                  color: NeonColors.background,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Connectez-vous pour voir vos amis',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: NeonColors.textPrimary,
+                  fontFamily: 'Orbitron',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Retrouvez vos amis, invitez-les à jouer\net suivez leurs performances en temps réel.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: NeonColors.textSecondary,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              const SizedBox(height: 32),
+              NeonButton(
+                text: 'SE CONNECTER',
+                icon: Icons.login,
+                onPressed: () {
+                  ref.read(authProvider.notifier).setRedirectTo('/friends');
+                  context.go('/auth');
+                },
+                width: 220,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

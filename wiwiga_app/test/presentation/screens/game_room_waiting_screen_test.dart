@@ -47,7 +47,7 @@ void main() {
       const playerCount = 2;
       const mode = 'betting';
 
-      final canStart = isCreator && playerCount >= 2 && mode == 'betting';
+      const canStart = isCreator && playerCount >= 2 && mode == 'betting';
       expect(canStart, isTrue);
     });
 

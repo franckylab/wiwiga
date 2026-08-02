@@ -85,9 +85,7 @@ defmodule GameHubWeb.MatchmakingChannel do
     end
   end
   
-  @doc """
-  Handle leave_queue event.
-  """
+  # Handle leave_queue event.
   @impl true
   def handle_in("leave_queue", _params, socket) do
     user_id = socket.assigns.user_id
@@ -98,9 +96,7 @@ defmodule GameHubWeb.MatchmakingChannel do
     {:reply, {:ok, %{status: "left_queue"}}, socket}
   end
   
-  @doc """
-  Handle queue_status event.
-  """
+  # Handle queue_status event.
   @impl true
   def handle_in("queue_status", _params, socket) do
     user_id = socket.assigns.user_id

@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
-import '../../widgets/neon/token_icon.dart';
-import '../../widgets/neon/wiwiga_logo.dart';
 import '../../providers/config_provider.dart';
-import '../../providers/token_provider.dart';
+import '../../../data/providers/token_provider.dart';
 import '../game_lobby/game_lobby_screen.dart';
 
 /// Écran Lobby redesigné avec style néon gaming

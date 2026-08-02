@@ -1,8 +1,9 @@
 // ============================================================
 // Fichier: app_router.dart
 // Description: Configuration go_router (shell 5 onglets + routes jeux)
+//              avec gestion du mode guest (pas d'auth au démarrage)
 // Auteur: Franck Arlos CHENDJOU
-// Date: 2026-07-30
+// Date: 2026-08-01
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -10,8 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/models/game_room_model.dart';
+import '../../data/providers/app_providers.dart';
 import '../../data/providers/game_stats_providers.dart';
-import '../../presentation/screens/auth/auth_screen_neon.dart';
+import '../../presentation/screens/auth/auth_screen_v2.dart';
+import '../../presentation/screens/admin/admin_dashboard_screen.dart';
+import '../../presentation/screens/admin/admin_users_screen.dart';
+import '../../presentation/screens/admin/admin_user_detail_screen.dart';
+import '../../presentation/screens/admin/admin_config_screen.dart';
+import '../../presentation/screens/admin/admin_audit_screen.dart';
+import '../../presentation/screens/admin/admin_monitoring_screen.dart';
 import '../../presentation/screens/dice_game/dice_game_screen.dart';
 import '../../presentation/screens/dice_game/dice_match_screen.dart';
 import '../../presentation/screens/friends/friends_screen.dart';
@@ -33,11 +41,46 @@ import '../theme/neon_theme.dart';
 /// Clé du navigateur racine (écrans plein écran hors shell)
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Routes qui nécessitent une authentification
+const _protectedRoutes = {'/profile', '/settings', '/transactions'};
+
+/// Routes qui nécessitent un rôle admin
+const _adminRoutes = {'/admin', '/admin/users', '/admin/config', '/admin/audit', '/admin/monitoring'};
+
 /// Provider du routeur de l'application
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
+    // Redirect guard: protège les routes sensibles si l'utilisateur est guest
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final path = state.uri.path;
+      
+      // Ne pas rediriger pendant l'initialisation (splash)
+      if (authState.isUnknown) return null;
+      
+      // Si l'utilisateur est guest et accède à une route protégée,
+      // on le redirige vers /auth avec l'intent de retour
+      if (authState.isGuest && _protectedRoutes.contains(path)) {
+        ref.read(authProvider.notifier).setRedirectTo(path);
+        return '/auth';
+      }
+      
+      // Si l'utilisateur est authentifié et va sur /auth, rediriger vers /home
+      if (authState.isAuthenticated && path == '/auth') {
+        return '/home';
+      }
+      
+      // Si l'utilisateur n'est pas admin et accède à une route admin
+      if (path.startsWith('/admin') && !authState.isAdmin) {
+        return '/home';
+      }
+      
+      return null; // Pas de redirection
+    },
+    // Rebuild le router quand le statut auth change
+    refreshListenable: _AuthListenable(ref),
     routes: [
       // --- Routes hors shell (plein écran) ---
       GoRoute(
@@ -48,7 +91,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AuthScreenNeon(),
+        builder: (context, state) => const AuthScreenV2(),
+      ),
+      // --- Routes Admin (protégées par rôle) ---
+      GoRoute(
+        path: '/admin',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminUsersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => AdminUserDetailScreen(
+          userId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/admin/config',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminConfigScreen(),
+      ),
+      GoRoute(
+        path: '/admin/audit',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminAuditScreen(),
+      ),
+      GoRoute(
+        path: '/admin/monitoring',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminMonitoringScreen(),
       ),
       GoRoute(
         path: '/profile',
@@ -230,5 +306,25 @@ class _RoomRouteLoader extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+/// Adapte le StateNotifier Riverpod en Listenable pour GoRouter.
+/// Permet au router de se rafraîchir quand le statut auth change
+/// (ex: guest → authenticated après OTP).
+class _AuthListenable extends ChangeNotifier {
+  late final ProviderSubscription _sub;
+
+  _AuthListenable(Ref ref)
+      : super() {
+    _sub = ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub.close();
+    super.dispose();
   }
 }

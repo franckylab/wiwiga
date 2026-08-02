@@ -14,9 +14,6 @@ defmodule GameHubWeb.UserSocket do
   channel "room:*", GameHubWeb.RoomChannel
   channel "friend:*", GameHubWeb.FriendChannel
 
-  # Transports
-  @transport_options []
-
   def connect(_params, socket, _connect_info) do
     # TODO: Extraire et valider le token JWT
     # case Phoenix.Token.verify(socket, "user_socket", token, max_age: 86400) do

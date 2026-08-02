@@ -121,6 +121,22 @@ defmodule GameHub.AuditLog do
     {:ok, logs}
   end
   
+  @doc """
+  Log une action admin.
+  
+  ## Parameters
+    - `user_id`: ID de l'admin
+    - `action`: Type d'action (ex: "update_theme_config")
+    - `changes`: Modifications effectuées (map)
+  
+  ## Returns
+    - `{:ok, audit_log}`: Log créé
+  """
+  @spec log_admin_action(integer() | String.t(), String.t(), map()) :: {:ok, AuditLog.t()} | {:error, Ecto.Changeset.t()}
+  def log_admin_action(user_id, action, changes \\ %{}) do
+    log("admin_action", user_id, "admin", nil, Map.put(changes, :admin_action_type, action))
+  end
+  
   # === Fonctions Privées ===
   
   defp build_query(filters) do

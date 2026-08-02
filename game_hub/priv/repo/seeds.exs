@@ -52,48 +52,128 @@ defmodule GameHub.Repo.Seeds do
     IO.puts("✅ Seeds complétés avec succès!")
   end
 
-  # === Utilisateurs ===
+  # === Utilisateurs avec rôles RBAC ===
 
   defp seed_users do
-    IO.puts("\n👤 Création des utilisateurs par défaut...")
+    IO.puts("\n👤 Création des utilisateurs par défaut (avec rôles RBAC)...")
 
     users = [
+      # Super Administrateur
+      %{
+        phone: "+237600000000",
+        email: "superadmin@wiwiga.com",
+        username: "superadmin",
+        name: "Super Admin WIWIGA",
+        role: "super_admin",
+        avatar_type: "wiwiga_4",
+        balance: 10_000_000,
+        is_active: true,
+        has_verified_kyc: true,
+        self_excluded: false,
+        password: "Wiwiga@Super2026!"
+      },
+      # Administrateur
       %{
         phone: "+237699999999",
+        email: "admin@wiwiga.com",
+        username: "admin_wiwiga",
         name: "Admin WIWIGA",
+        role: "admin",
+        avatar_type: "wiwiga_1",
         balance: 1_000_000,
         is_active: true,
         has_verified_kyc: true,
-        self_excluded: false
+        self_excluded: false,
+        password: "Wiwiga@Admin2026!"
       },
+      # Modérateur
       %{
         phone: "+237688888888",
-        name: "Utilisateur Test",
+        email: "moderator@wiwiga.com",
+        username: "moderator_wiwiga",
+        name: "Modérateur WIWIGA",
+        role: "moderator",
+        avatar_type: "wiwiga_5",
         balance: 500_000,
         is_active: true,
         has_verified_kyc: true,
-        self_excluded: false
+        self_excluded: false,
+        password: "Wiwiga@Modo2026!"
       },
+      # Compte Test
       %{
         phone: "+237677777777",
-        name: "Utilisateur Limité",
+        email: "test@wiwiga.com",
+        username: "test_account",
+        name: "Compte Test",
+        role: "test",
+        avatar_type: "wiwiga_3",
+        balance: 5_000_000,
+        is_active: true,
+        has_verified_kyc: true,
+        self_excluded: false,
+        password: "Wiwiga@Test2026!"
+      },
+      # Utilisateur standard 1
+      %{
+        phone: "+237655555555",
+        email: "joueur1@wiwiga.com",
+        username: "joueur_pro",
+        name: "Joueur Pro",
+        role: "user",
+        avatar_type: "wiwiga_2",
         balance: 200_000,
+        is_active: true,
+        has_verified_kyc: true,
+        self_excluded: false,
+        password: "Wiwiga@Joueur2026!"
+      },
+      # Utilisateur standard 2
+      %{
+        phone: "+237644444444",
+        email: "joueur2@wiwiga.com",
+        username: "gamer_dude",
+        name: "Gamer Dude",
+        role: "user",
+        avatar_type: "wiwiga_6",
+        balance: 150_000,
         is_active: true,
         has_verified_kyc: false,
         self_excluded: false,
         daily_deposit_limit: 500_000,
-        daily_loss_limit: 250_000
+        daily_loss_limit: 250_000,
+        password: "Wiwiga@Joueur2026!"
       }
     ]
 
     Enum.each(users, fn user_data ->
-      case Repo.get_by(User, phone: user_data.phone) do
+      {password, user_attrs} = Map.pop(user_data, :password)
+      
+      case Repo.get_by(User, phone: user_attrs.phone) do
         nil ->
-          user = Repo.insert!(%User{} |> User.changeset(user_data))
-          IO.puts("  ✓ Created user: #{user.name} (#{user.phone})")
+          # Créer avec mot de passe hashé
+          changeset = if password do
+            %User{}
+            |> User.admin_registration_with_password_changeset(Map.put(user_attrs, :password, password))
+          else
+            %User{}
+            |> User.changeset(user_attrs)
+          end
+          
+          user = Repo.insert!(changeset)
+          IO.puts("  ✓ Created #{user.role}: #{user.name} (#{user.username}) — password: #{password || "N/A"}")
 
         existing ->
-          IO.puts("  ⊘ User #{existing.name} (#{existing.phone}) already exists")
+          # Si l'utilisateur existe mais n'a pas de password_hash, le définir
+          if password && (existing.password_hash == nil || existing.password_hash == "") do
+            hashed = GameHub.Users.User.hash_password_raw(password)
+            existing
+            |> Ecto.Changeset.change(%{password_hash: hashed})
+            |> Repo.update!()
+            IO.puts("  ✓ Updated #{existing.name} (#{existing.username}) with password: #{password}")
+          else
+            IO.puts("  ⊘ User #{existing.name} (#{existing.phone}) already exists")
+          end
       end
     end)
   end
@@ -152,6 +232,13 @@ defmodule GameHub.Repo.Seeds do
       %{
         flag_name: "social_chat",
         description: "Chat social entre joueurs",
+        enabled: false,
+        percentage_rollout: 0,
+        environment: "all"
+      },
+      %{
+        flag_name: "otp_registration_required",
+        description: "Vérification OTP requise lors de l'inscription (désactivé par défaut)",
         enabled: false,
         percentage_rollout: 0,
         environment: "all"
@@ -336,7 +423,7 @@ defmodule GameHub.Repo.Seeds do
     IO.puts(String.duplicate("=", 60))
     IO.puts("👥 Utilisateurs: 3 (Admin, Test, Limité)")
     IO.puts("⏱️  Timeout configs: 1 (dice)")
-    IO.puts("🚩 Feature flags: 3 (dice_game_v2, tournament_mode, social_chat)")
+    IO.puts("🚩 Feature flags: 4 (dice_game_v2, tournament_mode, social_chat, otp_registration)")
     IO.puts("🎨 Theme config: 1 (singleton)")
     IO.puts("⚙️  Feature config: 1 (singleton)")
     IO.puts("🎲 Game configs: 1 (dice)")

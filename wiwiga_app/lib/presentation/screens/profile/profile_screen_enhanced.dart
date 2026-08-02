@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../../../core/theme/typography.dart';
 import '../../../data/models/user_profile_model.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/user_profile_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/auth/success_animation.dart';
 
 /// Écran Profil amélioré avec données dynamiques, historique, achievements
 class ProfileScreenEnhanced extends ConsumerWidget {
@@ -602,13 +604,65 @@ class _RecentGameTile extends StatelessWidget {
 
 // === ACTIONS ===
 
-class _ProfileActions extends StatelessWidget {
+class _ProfileActions extends ConsumerWidget {
   final UserProfile profile;
 
   const _ProfileActions({required this.profile});
 
+  void _performLogout(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text('Déconnexion', style: TextStyle(color: NeonColors.textPrimary)),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?', style: TextStyle(color: NeonColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                _showLogoutAnimation(context);
+              }
+            },
+            child: const Text('Déconnexion', style: TextStyle(color: NeonColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutAnimation(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (ctx, _, __) => const Scaffold(
+        backgroundColor: Color(0xFF0A0A1A),
+        body: Center(
+          child: SuccessAnimation(
+            message: 'Déconnecté',
+            subtitle: 'À bientôt sur WIWIGA !',
+            duration: Duration(milliseconds: 1200),
+          ),
+        ),
+      ),
+      transitionDuration: Duration.zero,
+    );
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      context.go('/auth');
+    });
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
@@ -642,7 +696,7 @@ class _ProfileActions extends StatelessWidget {
           const SizedBox(height: 16),
           NeonButton(
             text: 'DÉCONNEXION',
-            onPressed: () {},
+            onPressed: () => _performLogout(context, ref),
             variant: NeonButtonVariant.danger,
             icon: Icons.logout,
             width: double.infinity,

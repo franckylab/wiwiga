@@ -33,7 +33,6 @@ defmodule DiceGame.Engine do
   alias GameHub.Repo
   alias GameHub.DiceGame.DiceGameResult
   
-  @commission_rate 0.05
   @min_bet 100
   @dice_count 2
   @min_sum 2
@@ -176,10 +175,8 @@ defmodule DiceGame.Engine do
   
   # === Fonctions Privées ===
   
-  @doc """
-  Si le tour n'a pas encore été exécuté, l'exécuter.
-  Sinon, retourner les résultats existants.
-  """
+  # Si le tour n'a pas encore été exécuté, l'exécuter.
+  # Sinon, retourner les résultats existants.
   defp maybe_execute_turn(game_id, game_state) do
     case game_state.status do
       :bets_placed ->
@@ -196,9 +193,7 @@ defmodule DiceGame.Engine do
     end
   end
   
-  @doc """
-  Crédite les gains au gagnant via le wallet.
-  """
+  # Crédite les gains au gagnant via le wallet.
   defp credit_winner(result, game_id) do
     case result.winner do
       nil ->
@@ -219,9 +214,7 @@ defmodule DiceGame.Engine do
     end
   end
   
-  @doc """
-  Persiste le résultat complet en DB pour audit (10 ans).
-  """
+  # Persiste le résultat complet en DB pour audit (10 ans).
   defp persist_result(game_state, turn_result, end_result, _payout_status) do
     all_player_ids = game_state.players
     |> Enum.map(fn p -> Map.get(p, :id) || Map.get(p, "id") end)
@@ -272,9 +265,7 @@ defmodule DiceGame.Engine do
       :ok
   end
   
-  @doc """
-  Enregistre les agrégats statistiques du match (non bloquant).
-  """
+  # Enregistre les agrégats statistiques du match (non bloquant).
   defp record_game_stats(game_state, end_result) do
     player_ids = game_state.players
     |> Enum.map(fn p -> Map.get(p, :id) || Map.get(p, "id") end)

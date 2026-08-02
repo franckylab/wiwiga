@@ -80,7 +80,7 @@ defmodule GameHub.Matchmaking do
   @spec confirm_alternative_bet(String.t(), atom() | String.t(), integer()) :: {:ok, :matched, String.t()} | {:error, atom()}
   def confirm_alternative_bet(user_id, game_type, new_bet_amount) do
     queue_key = "queue:#{game_type}"
-    user_key = "queue:#{game_type}:#{user_id}"
+    _user_key = "queue:#{game_type}:#{user_id}"
 
     # Mettre à jour la mise dans la file
     Redix.command(Redis, ["HSET", queue_key, user_id, "#{new_bet_amount}"])

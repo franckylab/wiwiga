@@ -286,16 +286,13 @@ defmodule GameHub.GameStateManager do
   
   # === Fonctions Privées ===
   
-  @doc """
-  Détermine le gagnant d'une partie 1v1 dice.
-  
-  ## Règles
-  - Chaque joueur a prédit une somme (2-12)
-  - Les dés sont lancés (somme réelle)
-  - Joueur avec prédiction exacte → GAGNE
-  - Si les 2 ont prédit juste → celui qui a misé le plus gagne
-  - Si aucun n'a prédit juste → pas de gagnant (mises perdues)
-  """
+  # Détermine le gagnant d'une partie 1v1 dice.
+  # Règles:
+  # - Chaque joueur a prédit une somme (2-12)
+  # - Les dés sont lancés (somme réelle)
+  # - Joueur avec prédiction exacte → GAGNE
+  # - Si les 2 ont prédit juste → celui qui a misé le plus gagne
+  # - Si aucun n'a prédit juste → pas de gagnant (mises perdues)
   defp determine_winner(game) do
     bets = game.bets
     actual_sum = game.total_sum

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
-import '../../../data/services/game_websocket_service.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 // === Game State ===

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../../../core/theme/typography.dart';
 import '../neon/wiwiga_logo.dart';
 
 /// Navigation responsive qui s'adapte selon la taille de l'écran
@@ -35,8 +34,6 @@ class ResponsiveNavigation extends StatefulWidget {
 }
 
 class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
-  final bool _isDrawerOpen = false;
-
   NavigationLayoutType _getLayoutType(double width) {
     if (width < 600) {
       return NavigationLayoutType.bottomNav;

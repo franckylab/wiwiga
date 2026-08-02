@@ -26,6 +26,7 @@ defmodule GameHub.Umbrella.MixProject do
       {:guardian, "~> 2.3"},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
+      {:pbkdf2_elixir, "~> 2.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

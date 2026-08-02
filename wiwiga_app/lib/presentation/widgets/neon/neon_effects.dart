@@ -182,7 +182,6 @@ class _NeonModalContent extends StatelessWidget {
   final Widget child;
 
   const _NeonModalContent({
-    super.key,
     required this.child,
   });
 

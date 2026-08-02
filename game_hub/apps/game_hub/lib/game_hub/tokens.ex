@@ -448,6 +448,8 @@ defmodule GameHub.Tokens do
   """
   @spec send_gift(integer(), integer(), integer(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def send_gift(from_user_id, to_user_id, token_amount, idempotency_key, message \\ "")
+  
+  def send_gift(from_user_id, to_user_id, token_amount, idempotency_key, message)
       when token_amount > 0 and from_user_id != to_user_id do
     config = TokenConfig.get_config()
     
@@ -579,7 +581,7 @@ defmodule GameHub.Tokens do
       update_user_token_balance(user_id, balance_after)
       
       # Enregistrer user_promo_token
-      {:ok, user_promo} = %UserPromoToken{}
+      {:ok, _user_promo} = %UserPromoToken{}
       |> Ecto.Changeset.change(%{
         user_id: user_id,
         promo_token_id: promo_id,
