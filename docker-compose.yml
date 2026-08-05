@@ -37,7 +37,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Elixir/Phoenix Backend
+  # Elixir/Phoenix Backend (avec hot reload)
   backend:
     build:
       context: ./game_hub
@@ -54,7 +54,9 @@ services:
     ports:
       - "8000:4001"
     volumes:
+      # Montage du code source pour détection de changements
       - ./game_hub:/app
+      # Volumes séparés pour préserver deps et _build
       - deps_data:/app/deps
       - build_data:/app/_build
     depends_on:
@@ -64,21 +66,29 @@ services:
         condition: service_healthy
     command: >
       bash -c "
+        mix deps.get &&
         mix ecto.create 2>/dev/null;
         mix ecto.migrate &&
-        mix run priv/repo/seeds.exs &&
-        echo 'Starting Phoenix server...' &&
+        mix run priv/repo/seeds.exs 2>/dev/null;
+        echo '[WIWIGA] Phoenix server avec hot reload activé...' &&
         mix phx.server
       "
 
-  # Flutter Web Frontend
+  # Flutter Web Frontend (avec rebuild automatique)
   frontend:
     build:
       context: ./wiwiga_app
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: wiwiga_frontend
     ports:
-      - "8003:80"  # Frontend Flutter Web
+      - "8003:80"
+    volumes:
+      # Montage du code source pour détection de changements
+      - ./wiwiga_app/lib:/app/lib
+      - ./wiwiga_app/pubspec.yaml:/app/pubspec.yaml
+      - ./wiwiga_app/assets:/app/assets
+      # Préserver .dart_tool (cache Flutter)
+      - flutter_cache:/app/.dart_tool
     depends_on:
       - backend
     environment:
@@ -89,3 +99,4 @@ volumes:
   redis_data:
   deps_data:
   build_data:
+  flutter_cache:

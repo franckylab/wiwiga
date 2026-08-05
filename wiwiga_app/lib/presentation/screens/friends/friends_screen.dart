@@ -15,6 +15,33 @@ import '../../../data/repositories/friend_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
 
+/// Masque partiellement un numéro de téléphone pour la confidentialité.
+/// Ex: "+237691234567" → "+237 6** *** 567"
+/// Garde l'indicatif et les 3 derniers chiffres, masque le reste.
+String _maskPhoneNumber(String phone) {
+  // Nettoyer : garder uniquement les chiffres et le '+' initial
+  final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
+  if (cleaned.length <= 6) return cleaned; // Trop court pour masquer
+
+  // Extraire l'indicatif pays (2-4 chiffres après +) et les derniers chiffres
+  final hasPlus = cleaned.startsWith('+');
+  final digits = hasPlus ? cleaned.substring(1) : cleaned;
+
+  // Indicatif : 3 premiers chiffres, visibles : 3 derniers, reste masqué
+  const prefixLen = 3;
+  const visibleEnd = 3;
+  final middleLen = digits.length - prefixLen - visibleEnd;
+
+  if (middleLen <= 0) return phone; // Numéro trop court
+
+  final prefix = hasPlus ? '+${digits.substring(0, prefixLen)}' : digits.substring(0, prefixLen);
+  final masked = '*' * middleLen;
+  final visible = digits.substring(digits.length - visibleEnd);
+
+  // Formater avec espaces pour lisibilité
+  return '$prefix $masked $visible';
+}
+
 /// Écran principal des amis avec tabs
 /// Si l'utilisateur est guest, affiche un écran de bienvenue avec CTA connexion
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -314,7 +341,7 @@ class _RequestCard extends ConsumerWidget {
                 children: [
                   Text(request.fromUser.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
                   if (request.fromUser.phone != null)
-                    Text(request.fromUser.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                    Text(_maskPhoneNumber(request.fromUser.phone!), style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
@@ -629,7 +656,7 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(result.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
-                        if (result.phone != null) Text(result.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                        if (result.phone != null) Text(_maskPhoneNumber(result.phone!), style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),

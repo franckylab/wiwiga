@@ -308,15 +308,43 @@ defmodule GameHubWeb.TokenController do
   
   @doc """
   GET /api/tokens/promos
+  
+  Liste les promotions actives et valides.
+  Retourne [] si la table n'existe pas ou en cas d'erreur DB.
   """
   def promos(conn, _params) do
-    active_promos = Tokens.list_active_promos()
-    
-    conn |> put_status(200) |> json(%{
-      success: true,
-      data: active_promos,
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+    try do
+      active_promos = Tokens.list_active_promos()
+      
+      conn |> put_status(200) |> json(%{
+        success: true,
+        data: active_promos,
+        meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+      })
+    rescue
+      error in [Ecto.QueryError, Ecto.NoResultsError, DBConnection.ConnectionError] ->
+        # Table inexistante ou erreur DB → retourne une liste vide (non-bloquant)
+        require Logger
+        Logger.warning("Promos endpoint error: #{inspect(error)}")
+        
+        conn |> put_status(200) |> json(%{
+          success: true,
+          data: [],
+          meta: %{
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+            warning: "Promotions temporarily unavailable"
+          }
+        })
+      
+      error ->
+        # Erreur inattendue → 500 avec message
+        require Logger
+        Logger.error("Promos unexpected error: #{inspect(error)}")
+        
+        conn |> put_status(500) |> json(
+          Errors.error("Erreur chargement promotions", 500, "PROMOS_ERROR")
+        )
+    end
   end
   
   @doc """

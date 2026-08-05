@@ -266,6 +266,7 @@ defmodule DiceGame.Engine do
   end
   
   # Enregistre les agrégats statistiques du match (non bloquant).
+  # Après enregistrement, recalcule les stats profil et vérifie les achievements.
   defp record_game_stats(game_state, end_result) do
     player_ids = game_state.players
     |> Enum.map(fn p -> Map.get(p, :id) || Map.get(p, "id") end)
@@ -277,6 +278,19 @@ defmodule DiceGame.Engine do
       bets: game_state.bets,
       net_winnings: end_result[:net_winnings] || 0
     })
+
+    # Recalculer les stats profil et vérifier les achievements pour chaque joueur
+    Enum.each(player_ids, fn player_id ->
+      pid = to_string(player_id)
+      try do
+        GameHub.Users.Stats.recalculate(pid)
+        GameHub.Users.AchievementManager.check_and_unlock(pid)
+      rescue
+        error ->
+          require Logger
+          Logger.warning("Failed to recalculate profile stats for #{pid}: #{inspect(error)}")
+      end
+    end)
   rescue
     error ->
       require Logger

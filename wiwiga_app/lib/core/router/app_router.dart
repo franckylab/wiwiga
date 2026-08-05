@@ -1,6 +1,6 @@
 // ============================================================
 // Fichier: app_router.dart
-// Description: Configuration go_router (shell 5 onglets + routes jeux)
+// Description: Configuration go_router (shell 4 onglets + routes jeux)
 //              avec gestion du mode guest (pas d'auth au démarrage)
 // Auteur: Franck Arlos CHENDJOU
 // Date: 2026-08-01
@@ -141,8 +141,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const TransactionHistoryScreen(),
       ),
+      GoRoute(
+        path: '/tokens',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const WalletScreenNeon(),
+      ),
 
-      // --- Shell à 5 onglets ---
+      // --- Shell à 4 onglets ---
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShellScreen(navigationShell: navigationShell);
@@ -230,14 +235,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: '/friends',
               builder: (context, state) => const FriendsScreen(),
-            ),
-          ],),
-
-          // Onglet Jetons
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/tokens',
-              builder: (context, state) => const WalletScreenNeon(),
             ),
           ],),
 

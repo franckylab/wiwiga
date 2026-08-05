@@ -31,7 +31,7 @@ defmodule GameHub.Users.User do
   alias GameHub.Wallet.WalletTransaction
   
   @primary_key {:id, :id, autogenerate: true}
-  @derive {Jason.Encoder, only: [:id, :phone, :email, :username, :name, :role, :avatar_type, :avatar_url, :balance, :token_balance, :is_active, :has_verified_kyc, :self_excluded, :last_login_at, :login_count, :otp_required_on_login]}
+  @derive {Jason.Encoder, only: [:id, :phone, :email, :username, :name, :role, :avatar_type, :avatar_url, :balance, :token_balance, :is_active, :has_verified_kyc, :self_excluded, :last_login_at, :login_count, :otp_required_on_login, :preferences]}
   
   # Rôles RBAC
   @roles ~w(super_admin admin moderator test user)
@@ -77,6 +77,9 @@ defmodule GameHub.Users.User do
     
     # Préférences OTP
     field :otp_required_on_login, :boolean, default: false
+    
+    # Préférences utilisateur (JSONB: son, vibration, langue, thème, etc.)
+    field :preferences, :map, default: %{}
     
     # Associations
     has_many :transactions, WalletTransaction
@@ -203,6 +206,26 @@ defmodule GameHub.Users.User do
     user
     |> cast(attrs, [:otp_required_on_login])
     |> validate_required([:otp_required_on_login])
+  end
+  
+  @doc """
+  Changeset pour mise à jour du profil utilisateur.
+  Permet: username, name, avatar_type, avatar_url
+  """
+  def profile_update_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:username, :name, :avatar_type, :avatar_url])
+    |> validate_username()
+    |> validate_avatar()
+    |> unique_constraint(:username)
+  end
+  
+  @doc """
+  Changeset pour mise à jour des préférences utilisateur (JSONB).
+  """
+  def preferences_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:preferences])
   end
   
   @doc """

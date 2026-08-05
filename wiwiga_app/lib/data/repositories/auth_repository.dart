@@ -385,4 +385,38 @@ class AuthRepository {
     );
     return response['data'] as Map<String, dynamic>;
   }
+
+  /// Change le mot de passe de l'utilisateur
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await _apiService.post(
+      ApiEndpoints.changePassword,
+      body: {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      },
+      requiresAuth: true,
+    );
+  }
+
+  /// Met à jour le profil (username, name)
+  Future<UserModel> updateProfile({
+    String? username,
+    String? name,
+  }) async {
+    final body = <String, dynamic>{};
+    if (username != null && username.isNotEmpty) body['username'] = username;
+    if (name != null && name.isNotEmpty) body['name'] = name;
+
+    final response = await _apiService.put(
+      ApiEndpoints.profileUpdate,
+      body: body,
+      requiresAuth: true,
+    );
+
+    final data = response['data'] as Map<String, dynamic>;
+    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+  }
 }

@@ -232,10 +232,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               child: AuthGate(
                 type: AuthGateType.softWall,
                 action: () => context.go('/games/${widget.gameType}/lobby'),
-                child: NeonButton(
+                child: const NeonButton(
                   text: 'JOUER',
                   icon: Icons.sports_esports,
-                  onPressed: () {}, // AuthGate gère le tap
                 ),
               ),
             ),
@@ -245,11 +244,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               child: AuthGate(
                 type: AuthGateType.softWall,
                 action: () => _showQuickMatchSheet(game),
-                child: NeonButton(
+                child: const NeonButton(
                   text: 'Partie rapide',
                   icon: Icons.bolt,
                   variant: NeonButtonVariant.secondary,
-                  onPressed: () {}, // AuthGate gère le tap
                 ),
               ),
             ),

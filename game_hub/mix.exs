@@ -27,6 +27,7 @@ defmodule GameHub.Umbrella.MixProject do
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
       {:pbkdf2_elixir, "~> 2.0"},
+      {:phoenix_live_reload, "~> 1.5", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

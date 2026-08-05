@@ -20,19 +20,40 @@ enum AuthGateType {
   hardWall,
 }
 
+/// InheritedWidget qui transmet l'action d'authentification aux enfants.
+/// 
+/// Permet aux widgets enfants (ex: NeonButton) de résoudre les conflits
+/// de gestes en appelant directement l'action auth-protégée depuis leur
+/// propre onTap, au lieu de passer par un GestureDetector parent.
+class AuthGateAction extends InheritedWidget {
+  final VoidCallback action;
+
+  const AuthGateAction({
+    super.key,
+    required this.action,
+    required super.child,
+  });
+
+  /// Retourne l'action auth-protégée du plus proche AuthGate ancestor.
+  /// Retourne null si aucun AuthGate n'est trouvé.
+  static VoidCallback? of(BuildContext context) {
+    final widget = context.dependOnInheritedWidgetOfExactType<AuthGateAction>();
+    return widget?.action;
+  }
+
+  @override
+  bool updateShouldNotify(AuthGateAction oldWidget) =>
+      action != oldWidget.action;
+}
+
 /// Widget qui enveloppe une action protégée par authentification.
 /// 
 /// Si l'utilisateur est authentifié, l'action s'exécute normalement.
 /// Si l'utilisateur est guest, affiche un AuthGate (modal ou redirect).
 /// 
-/// Usage:
-/// ```dart
-/// AuthGate(
-///   type: AuthGateType.softWall,
-///   action: () => context.go('/games/dice/lobby'),
-///   child: NeonButton(text: 'JOUER', onPressed: ...),
-/// )
-/// ```
+/// Utilise un InheritedWidget (AuthGateAction) pour que les enfants
+/// tappable (NeonButton) puissent appeler l'action directement depuis
+/// leur propre onTap, évitant les conflits dans l'arène de gestes.
 class AuthGate extends ConsumerWidget {
   /// Type de mur (soft wall = modal, hard wall = redirect)
   final AuthGateType type;
@@ -61,18 +82,26 @@ class AuthGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    
-    return GestureDetector(
-      onTap: () {
-        if (authState.isAuthenticated) {
-          // Utilisateur authentifié, exécuter l'action
-          action();
-        } else {
-          // Utilisateur guest, montrer le gate
-          _showGate(context, ref);
-        }
-      },
-      child: child,
+
+    void handleTap() {
+      if (authState.isAuthenticated) {
+        action();
+      } else {
+        _showGate(context, ref);
+      }
+    }
+
+    // InheritedWidget : les enfants tappable (NeonButton) récupèrent
+    // l'action via AuthGateAction.of(context) dans leur propre onTap,
+    // évitant le conflit dans l'arène de gestes Flutter.
+    // GestureDetector en fallback pour les enfants non-tappable.
+    return AuthGateAction(
+      action: handleTap,
+      child: GestureDetector(
+        onTap: handleTap,
+        behavior: HitTestBehavior.translucent,
+        child: child,
+      ),
     );
   }
   

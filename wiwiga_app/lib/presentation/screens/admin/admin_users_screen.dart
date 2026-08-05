@@ -138,7 +138,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Rechercher par nom, email, phone...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                       prefixIcon: const Icon(Icons.search, color: Color(0xFF00FF88)),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -150,7 +150,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.05),
+                      fillColor: Colors.white.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -174,8 +174,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _roleFilter != null
-                          ? const Color(0xFF00FF88).withOpacity(0.2)
-                          : Colors.white.withOpacity(0.05),
+                          ? const Color(0xFF00FF88).withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -300,7 +300,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 const SizedBox(height: 16),
                 // Sélection rôle
                 DropdownButtonFormField<String>(
-                  value: selectedRole,
+                  initialValue: selectedRole,
                   dropdownColor: const Color(0xFF1A1A2E),
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
@@ -387,9 +387,9 @@ class _UserTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
+          color: Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Row(
           children: [
@@ -415,7 +415,7 @@ class _UserTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: roleColor.withOpacity(0.15),
+                          color: roleColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -428,7 +428,7 @@ class _UserTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     user.email ?? user.phone ?? 'Pas de contact',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                   ),
                 ],
               ),

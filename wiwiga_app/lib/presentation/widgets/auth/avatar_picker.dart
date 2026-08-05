@@ -6,6 +6,8 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/config/app_config.dart';
 import '../../../data/models/user_model.dart';
 
 /// Widget de sélection d'avatar parmi les avatars prédéfinis WIWIGA
@@ -23,12 +25,12 @@ class AvatarPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatars = AvatarType.values;
+    const avatars = AvatarType.values;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Choisis ton avatar',
           style: TextStyle(
             color: Colors.white,
@@ -86,15 +88,15 @@ class _AvatarItem extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(isSelected ? 0.3 : 0.1),
+            color: color.withValues(alpha: isSelected ? 0.3 : 0.1),
             border: Border.all(
-              color: isSelected ? color : color.withOpacity(0.3),
+              color: isSelected ? color : color.withValues(alpha: 0.3),
               width: isSelected ? 3 : 1.5,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: color.withOpacity(0.4),
+                      color: color.withValues(alpha: 0.4),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
@@ -149,34 +151,107 @@ class _AvatarItem extends StatelessWidget {
 }
 
 /// Avatar display widget (utilisé dans les listes, profils, etc.)
+/// Supporte: avatar prédéfini (emoji), photo uploadée (URL), ou initiales
 class AvatarDisplay extends StatelessWidget {
   final AvatarType avatarType;
+  final String? avatarUrl;
   final String? username;
   final double size;
+  final Color? borderColor;
 
   const AvatarDisplay({
     super.key,
     required this.avatarType,
+    this.avatarUrl,
     this.username,
     this.size = 40,
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = Color(int.parse(avatarType.color.replaceFirst('#', '0xFF')));
+    final border = borderColor ?? color.withValues(alpha: 0.5);
 
+    // Priorité 1: Photo uploadée
+    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      final fullUrl = avatarUrl!.startsWith('http')
+          ? avatarUrl!
+          : '${AppConfig.baseUrl}$avatarUrl';
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: border, width: 1.5),
+        ),
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: fullUrl,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => _buildEmojiFallback(color),
+            errorWidget: (_, __, ___) => _buildInitialsFallback(color),
+          ),
+        ),
+      );
+    }
+
+    // Priorité 2: Avatar prédéfini WIWIGA
+    if (avatarType != AvatarType.defaultAvatar) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.15),
+          border: Border.all(color: border, width: 1.5),
+        ),
+        child: Center(
+          child: Text(
+            _avatarEmoji(avatarType),
+            style: TextStyle(fontSize: size * 0.45),
+          ),
+        ),
+      );
+    }
+
+    // Priorité 3: Initiales
+    return _buildInitialsFallback(color);
+  }
+
+  Widget _buildEmojiFallback(Color color) {
+    return Container(
+      color: color.withValues(alpha: 0.15),
+      child: Center(
+        child: Text(
+          _avatarEmoji(avatarType),
+          style: TextStyle(fontSize: size * 0.45),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInitialsFallback(Color color) {
+    final initials = (username != null && username!.isNotEmpty)
+        ? username!.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase().substring(0, username!.length.clamp(0, 2).clamp(2, 2))
+        : '??';
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.15),
-        border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+        color: color.withValues(alpha: 0.15),
+        border: Border.all(color: borderColor ?? color.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Center(
         child: Text(
-          _avatarEmoji(avatarType),
-          style: TextStyle(fontSize: size * 0.45),
+          initials,
+          style: TextStyle(
+            color: color,
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Orbitron',
+          ),
         ),
       ),
     );

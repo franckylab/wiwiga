@@ -99,7 +99,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _roleColor(user.role).withOpacity(0.2),
+                color: _roleColor(user.role).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: _roleColor(user.role), width: 1),
               ),
@@ -155,12 +155,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            _roleColor(user.role).withOpacity(0.15),
-            const Color(0xFF00FF88).withOpacity(0.05),
+            _roleColor(user.role).withValues(alpha: 0.15),
+            const Color(0xFF00FF88).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _roleColor(user.role).withOpacity(0.3)),
+        border: Border.all(color: _roleColor(user.role).withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -177,7 +177,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? user.phone ?? '',
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
                 ),
               ],
             ),
@@ -241,9 +241,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,9 +268,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF00FF88).withOpacity(0.05),
+        color: const Color(0xFF00FF88).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00FF88).withOpacity(0.15)),
+        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,14 +364,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: ratio,
-                      backgroundColor: color.withOpacity(0.1),
+                      backgroundColor: color.withValues(alpha: 0.1),
                       valueColor: AlwaysStoppedAnimation(color),
                       minHeight: 8,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(count.toString(), style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13)),
+                Text(count.toString(), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
               ],
             ),
           );
@@ -395,7 +395,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               return ListTile(
                 leading: Icon(Icons.shield, color: color),
                 title: Text(role.displayName, style: TextStyle(color: color)),
-                subtitle: Text(_roleDescription(role), style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                subtitle: Text(_roleDescription(role), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
               );
             }).toList(),
           ),
@@ -450,7 +450,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
         ],
       ),
@@ -513,9 +513,9 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -523,7 +523,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10)),
+            Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10)),
           ],
         ),
       ),
@@ -545,16 +545,16 @@ class _QuickActionCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
           ],
         ),
       ),

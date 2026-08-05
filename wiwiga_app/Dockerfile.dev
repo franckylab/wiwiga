@@ -1,0 +1,40 @@
+# ==================================
+# WIWIGA - Dockerfile Développement Frontend (Hot Reload)
+# ==================================
+# Rebuild automatique quand les fichiers Dart/Flutter changent
+# Sert le résultat via Nginx
+
+FROM ghcr.io/cirruslabs/flutter:3.27.0
+
+# Installer inotify-tools pour le file watching + nginx
+RUN apt-get update && \
+    apt-get install -y inotify-tools nginx && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copier le code source
+COPY . .
+
+# Configurer nginx pour le développement
+RUN rm -rf /usr/share/nginx/html/* && \
+    rm -f /etc/nginx/sites-enabled/default
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copier le script de rebuild automatique
+COPY auto-rebuild.sh /auto-rebuild.sh
+RUN chmod +x /auto-rebuild.sh
+
+# Installer les dépendances Flutter
+RUN flutter pub get
+
+# Build initial (mode profile pour dev rapide)
+RUN flutter build web --profile
+
+# Copier le build initial vers nginx
+RUN cp -r /app/build/web/* /usr/share/nginx/html/
+
+# Lancer le watcher en background + nginx au premier plan
+CMD ["/bin/bash", "-c", "/auto-rebuild.sh & nginx -g 'daemon off;'"]
+
+EXPOSE 80

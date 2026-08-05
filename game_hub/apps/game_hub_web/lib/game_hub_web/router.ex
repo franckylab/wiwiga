@@ -121,6 +121,23 @@ defmodule GameHubWeb.Router do
     get "/auth/me", AuthController, :me
     post "/auth/complete-registration", AuthController, :complete_registration
     post "/auth/set-password", AuthController, :set_password
+    put "/auth/profile", AuthController, :update_profile
+    get "/auth/profile/stats", AuthController, :get_profile_stats
+    get "/auth/profile/achievements", AuthController, :get_achievements
+    
+    # Préférences utilisateur
+    get "/auth/preferences", AuthController, :get_preferences
+    put "/auth/preferences", AuthController, :update_preferences
+    
+    # Sessions utilisateur
+    get "/auth/sessions", AuthController, :get_sessions
+    delete "/auth/sessions/:id", AuthController, :revoke_session
+    
+    # Changement de mot de passe
+    post "/auth/change-password", AuthController, :change_password
+    
+    # Upload avatar
+    post "/auth/avatar/upload", AuthController, :upload_avatar
     
     # Préférences auth (OTP)
     get "/auth/settings", AuthController, :get_settings

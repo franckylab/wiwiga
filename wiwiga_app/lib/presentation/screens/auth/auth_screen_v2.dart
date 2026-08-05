@@ -332,7 +332,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF00FF88).withOpacity(0.1),
+            color: const Color(0xFF00FF88).withValues(alpha: 0.1),
           ),
           child: const Icon(Icons.casino, size: 64, color: Color(0xFF00FF88)),
         ),
@@ -344,14 +344,14 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             fontWeight: FontWeight.bold,
             color: const Color(0xFF00FF88),
             shadows: [
-              Shadow(color: const Color(0xFF00FF88).withOpacity(0.4), blurRadius: 24),
+              Shadow(color: const Color(0xFF00FF88).withValues(alpha: 0.4), blurRadius: 24),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Joue. Gagne. Partage.',
-          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
         ),
         const SizedBox(height: 48),
 
@@ -493,7 +493,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Pas de compte ?', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+            Text('Pas de compte ?', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
             TextButton(
               onPressed: () {
                 _resetState();
@@ -534,7 +534,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 8),
         Text(
           'Inscris-toi avec ton téléphone ou email',
-          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
         ),
         const SizedBox(height: 24),
 
@@ -589,7 +589,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Déjà un compte ?', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+            Text('Déjà un compte ?', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
             TextButton(
               onPressed: () {
                 _resetState();
@@ -641,10 +641,10 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             hintText: '------',
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 24, letterSpacing: 8),
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 24, letterSpacing: 8),
             counterText: '',
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
+            fillColor: Colors.white.withValues(alpha: 0.05),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00FF88), width: 2)),
           ),
@@ -652,7 +652,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 16),
 
         if (_countdown > 0)
-          Text('Renvoyer dans ${_countdown}s', style: TextStyle(color: Colors.white.withOpacity(0.4)))
+          Text('Renvoyer dans ${_countdown}s', style: TextStyle(color: Colors.white.withValues(alpha: 0.4)))
         else
           TextButton(onPressed: _sendOtp, child: const Text('Renvoyer le code', style: TextStyle(color: Color(0xFF00FF88)))),
 
@@ -812,7 +812,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   Widget _buildMethodSelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -841,11 +841,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
       prefixIcon: Icon(icon, color: const Color(0xFF00FF88)),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white.withOpacity(0.05),
+      fillColor: Colors.white.withValues(alpha: 0.05),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00FF88), width: 2)),
     );
@@ -873,7 +873,7 @@ class _MethodTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF00FF88).withOpacity(0.15) : Colors.transparent,
+            color: isSelected ? const Color(0xFF00FF88).withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
             border: isSelected ? Border.all(color: const Color(0xFF00FF88), width: 1.5) : null,
           ),

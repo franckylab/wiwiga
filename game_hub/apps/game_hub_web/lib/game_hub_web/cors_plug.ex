@@ -38,33 +38,57 @@ defmodule GameHubWeb.CORSPlug do
   def call(conn, _opts) do
     origin = get_req_header(conn, "origin") |> List.first()
     
-    if allowed_origin?(origin) do
-      conn
-      |> put_resp_header("access-control-allow-origin", origin)
-      |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
-      |> put_resp_header("access-control-allow-headers", "Content-Type, Authorization, X-Requested-With")
-      |> put_resp_header("access-control-allow-credentials", "true")
-      |> put_resp_header("access-control-max-age", "86400")
-      |> handle_preflight()
-    else
-      conn
+    cond do
+      # Pas de header Origin → pas de CORS nécessaire (requête same-origin ou non-browser)
+      origin == nil ->
+        conn
+      
+      # Origine autorisée → ajouter les headers CORS
+      allowed_origin?(origin) ->
+        allow_origin = if Application.get_env(:game_hub_web, :allow_all_origins, false),
+          do: "*", else: origin
+        
+        conn
+        |> put_resp_header("access-control-allow-origin", allow_origin)
+        |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
+        |> put_resp_header("access-control-allow-headers", "Content-Type, Authorization, X-Requested-With")
+        |> put_resp_header("access-control-allow-credentials", "true")
+        |> put_resp_header("access-control-max-age", "86400")
+        |> handle_preflight()
+      
+      # Origine non autorisée → pas de headers CORS
+      true ->
+        conn
     end
   end
   
   # === Fonctions Privées ===
   
-  defp allowed_origin?(nil), do: false
-  
-  defp allowed_origin?(origin) do
-    allowed = get_allowed_origins()
-    origin in allowed
+  defp allowed_origin?(_origin) do
+    # En développement, accepter toutes les origines
+    if Application.get_env(:game_hub_web, :allow_all_origins, false) do
+      true
+    else
+      allowed = get_allowed_origins()
+      _origin in allowed
+    end
   end
   
   defp get_allowed_origins do
-    # Depuis config ou variables d'environnement
+    # Depuis variable d'environnement ALLOWED_ORIGINS (séparée par des virgules)
+    case System.get_env("ALLOWED_ORIGINS") do
+      nil -> default_origins()
+      "" -> default_origins()
+      "*" -> ["*"]
+      origins -> origins |> String.split(",") |> Enum.map(&String.trim/1)
+    end
+  end
+  
+  defp default_origins do
     Application.get_env(:game_hub_web, :cors_origins, [
       "http://localhost:3000", # Flutter dev
       "http://localhost:8080", # Flutter web dev
+      "http://localhost:8003", # Docker frontend
       "https://wiwiga.com", # Production
       "https://app.wiwiga.com" # Production app
     ])

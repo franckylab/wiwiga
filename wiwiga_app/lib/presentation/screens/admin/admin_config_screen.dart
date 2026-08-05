@@ -50,11 +50,11 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
               const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
               const SizedBox(height: 16),
               const Text('Accès non autorisé',
-                  style: TextStyle(color: Colors.white, fontSize: 20)),
+                  style: TextStyle(color: Colors.white, fontSize: 20),),
               const SizedBox(height: 16),
               ElevatedButton(
                   onPressed: () => context.go('/home'),
-                  child: const Text('Retour')),
+                  child: const Text('Retour'),),
             ],
           ),
         ),
@@ -71,7 +71,7 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
           onPressed: () => context.go('/admin'),
         ),
         title: const Text('Configuration',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -109,9 +109,9 @@ class _GamesConfigTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const _SectionHeader(title: 'Paramètres des jeux', icon: Icons.casino),
-        const SizedBox(height: 16),
+      children: const [
+        _SectionHeader(title: 'Paramètres des jeux', icon: Icons.casino),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Jeu de Dés',
           subtitle: 'Configuration principale du jeu de dés',
@@ -124,7 +124,7 @@ class _GamesConfigTab extends StatelessWidget {
             _ConfigField(label: 'Max joueurs', value: '4', icon: Icons.people),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Matchmaking',
           subtitle: 'Paramètres de mise en relation',
@@ -135,7 +135,7 @@ class _GamesConfigTab extends StatelessWidget {
             _ConfigField(label: 'Inactivité jeu', value: '300s', icon: Icons.timer_off),
           ],
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         _InfoBanner(
           message: 'Les modifications prennent effet immédiatement pour les nouvelles parties.',
         ),
@@ -152,9 +152,9 @@ class _PaymentsConfigTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const _SectionHeader(title: 'Providers de paiement', icon: Icons.payment),
-        const SizedBox(height: 16),
+      children: const [
+        _SectionHeader(title: 'Providers de paiement', icon: Icons.payment),
+        SizedBox(height: 16),
         _PaymentProviderCard(
           name: 'Campay',
           isEnabled: true,
@@ -164,7 +164,7 @@ class _PaymentsConfigTab extends StatelessWidget {
             _ConfigField(label: 'Frais retrait', value: '2%', icon: Icons.receipt),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         _PaymentProviderCard(
           name: 'MTN MoMo',
           isEnabled: true,
@@ -174,7 +174,7 @@ class _PaymentsConfigTab extends StatelessWidget {
             _ConfigField(label: 'Frais retrait', value: '1.5%', icon: Icons.receipt),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         _PaymentProviderCard(
           name: 'Orange Money',
           isEnabled: false,
@@ -184,7 +184,7 @@ class _PaymentsConfigTab extends StatelessWidget {
             _ConfigField(label: 'Frais retrait', value: '2%', icon: Icons.receipt),
           ],
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         _InfoBanner(
           message: 'Désactiver un provider empêche les dépôts/retraits via ce moyen.',
         ),
@@ -201,19 +201,19 @@ class _ThemeConfigTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const _SectionHeader(title: 'Apparence', icon: Icons.palette),
-        const SizedBox(height: 16),
+      children: const [
+        _SectionHeader(title: 'Apparence', icon: Icons.palette),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Couleurs',
           subtitle: 'Palette de couleurs de l\'application',
           fields: [
-            _ConfigField(label: 'Couleur principale', value: '#00FF88', icon: Icons.color_lens, color: const Color(0xFF00FF88)),
-            _ConfigField(label: 'Couleur accent', value: '#FF00FF', icon: Icons.color_lens, color: const Color(0xFFFF00FF)),
-            _ConfigField(label: 'Couleur erreur', value: '#FF4444', icon: Icons.color_lens, color: const Color(0xFFFF4444)),
+            _ConfigField(label: 'Couleur principale', value: '#00FF88', icon: Icons.color_lens, color: Color(0xFF00FF88)),
+            _ConfigField(label: 'Couleur accent', value: '#FF00FF', icon: Icons.color_lens, color: Color(0xFFFF00FF)),
+            _ConfigField(label: 'Couleur erreur', value: '#FF4444', icon: Icons.color_lens, color: Color(0xFFFF4444)),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Interface',
           subtitle: 'Paramètres d\'affichage',
@@ -236,9 +236,9 @@ class _FeaturesConfigTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const _SectionHeader(title: 'Fonctionnalités', icon: Icons.toggle_on),
-        const SizedBox(height: 16),
+      children: const [
+        _SectionHeader(title: 'Fonctionnalités', icon: Icons.toggle_on),
+        SizedBox(height: 16),
         _FeatureToggle(
           title: 'Mode maintenance',
           description: 'Active le mode maintenance (app inaccessible aux users)',
@@ -249,31 +249,31 @@ class _FeaturesConfigTab extends StatelessWidget {
           title: 'PvP Enabled',
           description: 'Active les parties entre joueurs',
           isEnabled: true,
-          color: const Color(0xFF00FF88),
+          color: Color(0xFF00FF88),
         ),
         _FeatureToggle(
           title: 'Tournois',
           description: 'Active les tournois et compétitions',
           isEnabled: false,
-          color: const Color(0xFFFF6600),
+          color: Color(0xFFFF6600),
         ),
         _FeatureToggle(
           title: 'Chat en jeu',
           description: 'Active le chat pendant les parties',
           isEnabled: true,
-          color: const Color(0xFF00FFFF),
+          color: Color(0xFF00FFFF),
         ),
         _FeatureToggle(
           title: 'Transferts de jetons',
           description: 'Permet aux joueurs de se transférer des jetons',
           isEnabled: true,
-          color: const Color(0xFFAA00FF),
+          color: Color(0xFFAA00FF),
         ),
         _FeatureToggle(
           title: 'Cadeaux entre amis',
           description: 'Permet d\'envoyer des jetons en cadeau',
           isEnabled: true,
-          color: const Color(0xFFFF00FF),
+          color: Color(0xFFFF00FF),
         ),
       ],
     );
@@ -288,9 +288,9 @@ class _TokensConfigTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const _SectionHeader(title: 'Jetons virtuels', icon: Icons.monetization_on),
-        const SizedBox(height: 16),
+      children: const [
+        _SectionHeader(title: 'Jetons virtuels', icon: Icons.monetization_on),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Taux de change',
           subtitle: 'Conversion FCFA ↔ Jetons',
@@ -300,7 +300,7 @@ class _TokensConfigTab extends StatelessWidget {
             _ConfigField(label: 'Frais fixe', value: '0 FCFA', icon: Icons.money),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Limites',
           subtitle: 'Limites d\'achat et de transfert',
@@ -310,7 +310,7 @@ class _TokensConfigTab extends StatelessWidget {
             _ConfigField(label: 'Frais cadeau', value: '5%', icon: Icons.card_giftcard),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _ConfigCard(
           title: 'Mise minimum jetons',
           subtitle: 'Mises minimum en jetons par type de jeu',
@@ -342,7 +342,7 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(width: 12),
         Text(title,
             style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,),),
       ],
     );
   }
@@ -364,19 +364,19 @@ class _ConfigCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
               style: const TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,),),
           const SizedBox(height: 4),
           Text(subtitle,
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),),
           const SizedBox(height: 16),
           ...fields.map((f) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -385,7 +385,7 @@ class _ConfigCard extends StatelessWidget {
                     Icon(f.icon, color: const Color(0xFF00FF88), size: 16),
                     const SizedBox(width: 12),
                     Text(f.label,
-                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
                     const Spacer(),
                     if (f.color != null) ...[
                       Container(
@@ -401,10 +401,10 @@ class _ConfigCard extends StatelessWidget {
                     ],
                     Text(f.value,
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500,),),
                   ],
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -441,12 +441,12 @@ class _PaymentProviderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isEnabled
-              ? const Color(0xFF00FF88).withOpacity(0.3)
-              : Colors.white.withOpacity(0.08),
+              ? const Color(0xFF00FF88).withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -455,20 +455,20 @@ class _PaymentProviderCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.payment,
-                  color: isEnabled ? const Color(0xFF00FF88) : Colors.white38),
+                  color: isEnabled ? const Color(0xFF00FF88) : Colors.white38,),
               const SizedBox(width: 8),
               Text(name,
                   style: TextStyle(
                       color: isEnabled ? Colors.white : Colors.white38,
                       fontSize: 16,
-                      fontWeight: FontWeight.bold)),
+                      fontWeight: FontWeight.bold,),),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isEnabled
-                      ? const Color(0xFF00FF88).withOpacity(0.2)
-                      : Colors.redAccent.withOpacity(0.2),
+                      ? const Color(0xFF00FF88).withValues(alpha: 0.2)
+                      : Colors.redAccent.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -492,14 +492,14 @@ class _PaymentProviderCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(f.label,
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                              color: Colors.white.withValues(alpha: 0.6), fontSize: 12,),),
                       const Spacer(),
                       Text(f.value,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500,),),
                     ],
                   ),
-                )),
+                ),),
           ],
         ],
       ),
@@ -526,9 +526,9 @@ class _FeatureToggle extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -538,18 +538,18 @@ class _FeatureToggle extends StatelessWidget {
               children: [
                 Text(title,
                     style: TextStyle(
-                        color: color, fontSize: 15, fontWeight: FontWeight.w600)),
+                        color: color, fontSize: 15, fontWeight: FontWeight.w600,),),
                 const SizedBox(height: 4),
                 Text(description,
                     style: TextStyle(
-                        color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                        color: Colors.white.withValues(alpha: 0.5), fontSize: 12,),),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isEnabled ? color.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+              color: isEnabled ? color.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: isEnabled ? color : Colors.white24),
             ),
@@ -578,9 +578,9 @@ class _InfoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF00FF88).withOpacity(0.08),
+        color: const Color(0xFF00FF88).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF00FF88).withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -588,7 +588,7 @@ class _InfoBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(message,
-                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13)),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
           ),
         ],
       ),

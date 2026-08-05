@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -123,7 +124,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             _buildFilterBar(ref, filter),
             _buildSummary(transactions),
             Expanded(child: _buildTransactionList(filtered)),
@@ -133,7 +134,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -145,6 +146,12 @@ class TransactionHistoryScreen extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
+            tooltip: 'Retour',
+            onPressed: () => context.pop(),
+          ),
+          const SizedBox(width: 4),
           const Icon(Icons.receipt_long, color: NeonColors.info, size: 28),
           const SizedBox(width: 8),
           Text('HISTORIQUE', style: AppTypography.heading3),

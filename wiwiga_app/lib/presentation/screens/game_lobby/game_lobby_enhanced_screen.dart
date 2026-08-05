@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../core/errors/api_exception.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/room_repository.dart';
@@ -370,16 +371,21 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       if (!mounted) return;
 
       context.push('/games/${widget.gameType}/room/${updatedRoom.roomId}', extra: updatedRoom);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar(_joinErrorMessage(e));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      if (!mounted) return;
+      _showErrorSnackBar('Erreur inattendue. Réessayez.');
     }
   }
 
   Future<void> _joinByCode() async {
     final code = _codeController.text.trim();
-    if (code.isEmpty) return;
+    if (code.isEmpty) {
+      _showErrorSnackBar('Veuillez saisir un code de partie.');
+      return;
+    }
 
     try {
       final apiService = ref.read(apiServiceProvider);
@@ -389,11 +395,55 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       if (!mounted) return;
 
       context.push('/games/${widget.gameType}/room/${room.roomId}', extra: room);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar(_joinErrorMessage(e));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Code invalide ou erreur: $e')),
-      );
+      if (!mounted) return;
+      _showErrorSnackBar('Erreur inattendue. Réessayez.');
     }
+  }
+
+  /// Message d'erreur utilisateur pour les conflits de salle (409)
+  String _joinErrorMessage(ApiException e) {
+    if (e.isConflict) {
+      switch (e.errorCode) {
+        case 'ROOM_FULL':
+          return 'Cette salle est pleine. Choisissez une autre partie.';
+        case 'ROOM_NOT_WAITING':
+          return 'Cette partie a déjà commencé ou n\'est plus disponible.';
+        case 'ALREADY_IN_ROOM':
+          return 'Vous êtes déjà dans une partie. Quittez-la d\'abord.';
+        default:
+          return e.message;
+      }
+    }
+    if (e.isNetworkError) {
+      return 'Problème de connexion. Vérifiez votre réseau.';
+    }
+    if (e.isNotFound) {
+      return 'Code de partie invalide. Vérifiez et réessayez.';
+    }
+    return e.userMessage;
+  }
+
+  /// Affiche un SnackBar d'erreur stylisé
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+          ],
+        ),
+        backgroundColor: NeonColors.error,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   Future<void> _startAutoMatch() async {
@@ -408,14 +458,19 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
         context.push('/games/${widget.gameType}/session/$gameId', extra: {'bet_amount': 500});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('En file d\'attente... un adversaire arrive bientôt !', style: TextStyle(color: NeonColors.primary))),
+          const SnackBar(
+            content: Text('En file d\'attente... un adversaire arrive bientôt !', style: TextStyle(color: NeonColors.primary)),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
         );
       }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar(e.userMessage);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.toString().replaceFirst('Exception: ', '')}', style: const TextStyle(color: NeonColors.error))),
-      );
+      _showErrorSnackBar('Erreur inattendue. Réessayez.');
     }
   }
 }

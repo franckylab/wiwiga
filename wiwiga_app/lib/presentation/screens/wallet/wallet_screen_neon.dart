@@ -56,6 +56,7 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
         centerTitle: true,
         elevation: 0,
         backgroundColor: NeonColors.background,
+        foregroundColor: NeonColors.primary,
         actions: [
           IconButton(
             icon: const Icon(Icons.campaign_outlined, color: NeonColors.secondary),
@@ -868,6 +869,33 @@ class _PromosTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokenState = ref.watch(tokenProvider);
 
+    // Erreur de chargement des promos
+    if (tokenState.promosError != null && tokenState.availablePromos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_outlined, size: 64, color: NeonColors.error.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            const Text('Promotions indisponibles', style: TextStyle(color: NeonColors.error, fontFamily: 'Inter')),
+            const SizedBox(height: 8),
+            Text(
+              'Impossible de charger les offres. Réessayez plus tard.',
+              style: TextStyle(color: NeonColors.textSecondary.withValues(alpha: 0.6), fontFamily: 'Inter', fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () => ref.read(tokenProvider.notifier).loadPromos(),
+              icon: const Icon(Icons.refresh, color: NeonColors.primary),
+              label: const Text('Réessayer', style: TextStyle(color: NeonColors.primary)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Aucune promo
     if (tokenState.availablePromos.isEmpty) {
       return Center(
         child: Column(
@@ -1066,58 +1094,78 @@ class _GuestWalletScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: NeonColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: NeonGradients.cta,
-                ),
-                child: const Icon(
-                  Icons.monetization_on,
-                  size: 40,
-                  color: NeonColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Bouton retour pour mode guest
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
+                  tooltip: 'Retour',
+                  onPressed: () => context.pop(),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Connectez-vous pour gérer vos jetons',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: NeonColors.textPrimary,
-                  fontFamily: 'Orbitron',
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: NeonGradients.cta,
+                        ),
+                        child: const Icon(
+                          Icons.monetization_on,
+                          size: 40,
+                          color: NeonColors.background,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Connectez-vous pour gérer vos jetons',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: NeonColors.textPrimary,
+                          fontFamily: 'Orbitron',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Achetez des jetons, échangez-les contre des gains\net suivez votre historique de transactions.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: NeonColors.textSecondary,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      NeonButton(
+                        text: 'SE CONNECTER',
+                        icon: Icons.login,
+                        onPressed: () {
+                          ref.read(authProvider.notifier).setRedirectTo('/tokens');
+                          context.go('/auth');
+                        },
+                        width: 220,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Achetez des jetons, échangez-les contre des gains\net suivez votre historique de transactions.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: NeonColors.textSecondary,
-                  fontFamily: 'Inter',
-                ),
-              ),
-              const SizedBox(height: 32),
-              NeonButton(
-                text: 'SE CONNECTER',
-                icon: Icons.login,
-                onPressed: () {
-                  ref.read(authProvider.notifier).setRedirectTo('/tokens');
-                  context.go('/auth');
-                },
-                width: 220,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

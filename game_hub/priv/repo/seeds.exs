@@ -48,6 +48,9 @@ defmodule GameHub.Repo.Seeds do
     # 9. Promotions exemples
     seed_promo_tokens()
 
+    # 10. Achievements par défaut
+    seed_achievements()
+
     print_summary()
     IO.puts("✅ Seeds complétés avec succès!")
   end
@@ -430,7 +433,18 @@ defmodule GameHub.Repo.Seeds do
     IO.puts("💳 Payment configs: 3 (campay, mtn_momo, orange_money)")
     IO.puts("🪙 Token config: 1 (singleton)")
     IO.puts("🎁 Promo tokens: 3 (bienvenue, parrainage, flash)")
+    IO.puts("🏆 Achievements: 14 (badges par défaut)")
     IO.puts(String.duplicate("=", 60))
+  end
+  
+  # === Achievements par défaut ===
+  defp seed_achievements do
+    IO.puts("🏆 Seeding achievements...")
+    
+    case GameHub.Users.AchievementManager.seed_default_achievements() do
+      {:ok, count} -> IO.puts("   ✅ #{count} achievements créés")
+      _ -> IO.puts("   ⚠️  Achievements déjà existants")
+    end
   end
 end
 

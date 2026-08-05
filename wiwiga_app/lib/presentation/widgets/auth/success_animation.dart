@@ -193,7 +193,7 @@ class _CirclePainter extends CustomPainter {
 
     // Cercle de fond (léger)
     final bgPaint = Paint()
-      ..color = color.withOpacity(0.1)
+      ..color = color.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 

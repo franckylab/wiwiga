@@ -165,11 +165,11 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: allHealthy
-              ? [const Color(0xFF00FF88).withOpacity(0.15), const Color(0xFF00FFFF).withOpacity(0.05)]
-              : [Colors.redAccent.withOpacity(0.15), Colors.orange.withOpacity(0.05)],
+              ? [const Color(0xFF00FF88).withValues(alpha: 0.15), const Color(0xFF00FFFF).withValues(alpha: 0.05)]
+              : [Colors.redAccent.withValues(alpha: 0.15), Colors.orange.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: allHealthy ? const Color(0xFF00FF88).withOpacity(0.3) : Colors.redAccent.withOpacity(0.3)),
+        border: Border.all(color: allHealthy ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.redAccent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -194,7 +194,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Dernière vérification: ${_formatTimestamp(_health?['timestamp'])}',
-                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                 ),
               ],
             ),
@@ -309,7 +309,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       ),
@@ -354,10 +354,10 @@ class _HealthCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isHealthy ? const Color(0xFF00FF88).withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
+          color: isHealthy ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -373,7 +373,7 @@ class _HealthCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (isHealthy ? const Color(0xFF00FF88) : Colors.redAccent).withOpacity(0.15),
+                  color: (isHealthy ? const Color(0xFF00FF88) : Colors.redAccent).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

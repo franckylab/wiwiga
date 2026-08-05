@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/errors/api_exception.dart';
 
 /// Service centralisé pour les requêtes HTTP
 /// 
@@ -151,6 +152,20 @@ class ApiService {
   // REQUÊTES HTTP avec refresh automatique
   // ========================================
   
+  /// Wraps a network request to catch transport errors (timeout, socket)
+  /// and convert them to [ApiException.network].
+  Future<T> _wrapNetwork<T>(Future<T> Function() request, {String? url}) async {
+    try {
+      return await request();
+    } on TimeoutException catch (_) {
+      throw ApiException.network('Délai d\'attente dépassé. Vérifiez votre connexion.', url: url);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      // SocketException, HttpException, etc.
+      throw ApiException.network('Erreur de connexion. Vérifiez votre réseau.', url: url);
+    }
+  }
+  
   /// Requête GET
   Future<Map<String, dynamic>> get(
     String endpoint, {
@@ -167,8 +182,11 @@ class ApiService {
       uri = uri.replace(queryParameters: queryParams);
     }
     
-    final response = await _client.get(uri, headers: headers).timeout(
-      const Duration(milliseconds: AppConfig.requestTimeout),
+    final response = await _wrapNetwork(
+      () => _client.get(uri, headers: headers).timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      ),
+      url: uri.toString(),
     );
     
     // Si 401 et auth requise, tenter refresh et retry
@@ -198,21 +216,23 @@ class ApiService {
       includeDeviceId: requiresAuth,
     );
     
-    final response = await _client.post(
-      Uri.parse('${AppConfig.baseUrl}$endpoint'),
-      headers: headers,
-      body: body is String ? body : (body != null ? jsonEncode(body) : null),
-    ).timeout(
-      const Duration(milliseconds: AppConfig.requestTimeout),
+    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    final encodedBody = body is String ? body : (body != null ? jsonEncode(body) : null);
+    
+    final response = await _wrapNetwork(
+      () => _client.post(uri, headers: headers, body: encodedBody).timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      ),
+      url: uri.toString(),
     );
     
     // Si 401 et auth requise, tenter refresh et retry
     if (response.statusCode == 401 && requiresAuth) {
       final retryResponse = await _handle401AndRetry(
         () async => _client.post(
-          Uri.parse('${AppConfig.baseUrl}$endpoint'),
+          uri,
           headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
-          body: body is String ? body : (body != null ? jsonEncode(body) : null),
+          body: encodedBody,
         ).timeout(
           const Duration(milliseconds: AppConfig.requestTimeout),
         ),
@@ -231,12 +251,12 @@ class ApiService {
   }) async {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
     
-    final response = await _client.put(
-      Uri.parse('${AppConfig.baseUrl}$endpoint'),
-      headers: headers,
-      body: body != null ? jsonEncode(body) : null,
-    ).timeout(
-      const Duration(milliseconds: AppConfig.requestTimeout),
+    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    final response = await _wrapNetwork(
+      () => _client.put(uri, headers: headers, body: body != null ? jsonEncode(body) : null).timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      ),
+      url: uri.toString(),
     );
     
     return _handleResponse(response);
@@ -249,13 +269,46 @@ class ApiService {
   }) async {
     final headers = await _getHeaders(requiresAuth: requiresAuth);
     
-    final response = await _client.delete(
-      Uri.parse('${AppConfig.baseUrl}$endpoint'),
-      headers: headers,
-    ).timeout(
-      const Duration(milliseconds: AppConfig.requestTimeout),
+    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    final response = await _wrapNetwork(
+      () => _client.delete(uri, headers: headers).timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      ),
+      url: uri.toString(),
     );
     
+    return _handleResponse(response);
+  }
+  
+  /// Upload multipart (fichier)
+  Future<Map<String, dynamic>> uploadMultipart(
+    String endpoint, {
+    required String fieldName,
+    required String filePath,
+    bool requiresAuth = true,
+  }) async {
+    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    final request = http.MultipartRequest('POST', uri);
+    
+    // Ajouter le token si requis
+    if (requiresAuth) {
+      final token = await getAccessToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    
+    // Ajouter le fichier
+    request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+    
+    final streamedResponse = await _wrapNetwork(
+      () => request.send().timeout(
+        const Duration(milliseconds: AppConfig.requestTimeout),
+      ),
+      url: uri.toString(),
+    );
+    
+    final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
   }
   
@@ -340,24 +393,111 @@ class ApiService {
   // RÉPONSE — Traitement
   // ========================================
   
-  /// Traite la réponse HTTP
+  /// Traite la réponse HTTP et lève une [ApiException] typée en cas d'erreur.
+  ///
+  /// Gestion des codes statut :
+  /// - 2xx : succès → retourne le JSON décodé
+  /// - 400 : bad request (paramètres invalides)
+  /// - 401 : non autorisé → déclenche le refresh token
+  /// - 403 : accès refusé
+  /// - 404 : ressource non trouvée
+  /// - 409 : conflit (ex: déjà dans une partie)
+  /// - 422 : validation échouée
+  /// - 429 : rate limit
+  /// - 500+ : erreur serveur
   Map<String, dynamic> _handleResponse(http.Response response) {
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    
+    // Parser le corps de réponse de manière robuste
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      // Le body n'est pas du JSON valide
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return {'data': response.body};
+      }
+      // Erreur serveur sans body JSON
+      throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+    }
+
+    // Succès
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return data;
-    } else if (response.statusCode == 401) {
-      throw Exception(ApiErrors.unauthorized);
-    } else if (response.statusCode == 429) {
-      throw Exception('Trop de tentatives. Veuillez réessayer plus tard.');
-    } else if (response.statusCode == 422) {
-      throw Exception(data['error'] ?? ApiErrors.invalidResponse);
+    }
+
+    // Erreur : extraire le message et le code depuis la réponse
+    final url = response.request?.url.toString();
+    final error = data['error'];
+    final errorCode = data['error_code'] as String?;
+    final details = data['details'] as Map<String, dynamic>?;
+
+    String message;
+    if (error is Map) {
+      message = (error['message'] as String?) ?? _defaultMessageForStatus(response.statusCode);
+    } else if (error is String) {
+      message = error;
     } else {
-      final error = data['error'];
-      if (error is Map) {
-        throw Exception(error['message'] ?? ApiErrors.serverError);
-      }
-      throw Exception(error is String ? error : ApiErrors.serverError);
+      message = _defaultMessageForStatus(response.statusCode);
+    }
+
+    throw _errorFromStatus(response.statusCode, message, url: url, errorCode: errorCode, details: details);
+  }
+
+  /// Crée une [ApiException] appropriée selon le code statut HTTP.
+  ApiException _errorFromStatus(
+    int statusCode,
+    String? message, {
+    String? url,
+    String? errorCode,
+    Map<String, dynamic>? details,
+  }) {
+    final msg = message ?? _defaultMessageForStatus(statusCode);
+
+    switch (statusCode) {
+      case 400:
+        return ApiException.badRequest(msg, errorCode: errorCode, details: details, url: url);
+      case 401:
+        return ApiException.unauthorized(url: url);
+      case 403:
+        return ApiException.forbidden(msg, url: url);
+      case 404:
+        return ApiException.notFound(msg, url: url);
+      case 409:
+        return ApiException.conflict(msg, errorCode: errorCode, details: details, url: url);
+      case 422:
+        return ApiException.validation(msg, details: details, url: url);
+      case 429:
+        return ApiException.rateLimited(url: url);
+      case >= 500:
+        return ApiException.serverError(url: url);
+      default:
+        return ApiException(statusCode: statusCode, message: msg, errorCode: errorCode, details: details, requestUrl: url);
+    }
+  }
+
+  /// Message d'erreur par défaut pour un code statut.
+  String _defaultMessageForStatus(int status) {
+    switch (status) {
+      case 400:
+        return 'Requête invalide. Vérifiez les informations saisies.';
+      case 401:
+        return 'Session expirée. Veuillez vous reconnecter.';
+      case 403:
+        return 'Accès refusé. Permissions insuffisantes.';
+      case 404:
+        return 'Ressource introuvable.';
+      case 409:
+        return 'Conflit. Cette ressource est déjà utilisée.';
+      case 422:
+        return 'Données invalides. Vérifiez le formulaire.';
+      case 429:
+        return 'Trop de tentatives. Veuillez patienter.';
+      case 500:
+        return 'Erreur serveur. Veuillez réessayer.';
+      case 502:
+      case 503:
+        return 'Service temporairement indisponible.';
+      default:
+        return 'Erreur inattendue (code $status).';
     }
   }
   

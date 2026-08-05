@@ -19,14 +19,34 @@ config :game_hub_web, GameHubWeb.Endpoint,
   url: [host: "localhost", port: 4001],
   secret_key_base: System.get_env("SECRET_KEY_BASE") || "dev_secret_key_base_123456789012345678901234567890",
   server: true,
+  code_reloader: true,
+  check_origin: false,
   pubsub_server: GameHub.PubSub,
   render_errors: [
     formats: [json: GameHubWeb.ErrorView],
     layout: false
+  ],
+  watchers: [
+    # Recharge automatiquement le backend quand les fichiers Elixir changent
+  ]
+
+# Live reload pour le développement Docker
+config :game_hub_web, GameHubWeb.Endpoint,
+  live_reload: [
+    patterns: [
+      ~r"priv/static/.*(js|css|png|jpg|gif|svg)$",
+      ~r"lib/game_hub/.*(ex|exs)$",
+      ~r"lib/game_hub_web/.*(ex|exs|heex)$",
+      ~r"apps/game_hub/.*(ex|exs)$",
+      ~r"apps/game_hub_web/.*(ex|exs|heex)$"
+    ]
   ]
 
 # Logger
 config :logger, :console, format: "[$level] $message\n"
+
+# CORS: accepter toutes les origines en développement
+config :game_hub_web, allow_all_origins: true
 
 # Importer configuration Guardian
 import_config "guardian.ex"

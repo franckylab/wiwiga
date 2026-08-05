@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../auth/auth_gate.dart';
 
 /// Bouton néon avec effets de glow et animations
 /// 
 /// Variantes : primary, secondary, danger, success, outline
 class NeonButton extends StatefulWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final NeonButtonVariant variant;
   final double? width;
   final double height;
@@ -19,7 +20,7 @@ class NeonButton extends StatefulWidget {
   const NeonButton({
     super.key,
     required this.text,
-    required this.onPressed,
+    this.onPressed,
     this.variant = NeonButtonVariant.primary,
     this.width,
     this.height = 52,
@@ -142,7 +143,9 @@ class _NeonButtonState extends State<NeonButton>
           _isPressed = false;
           _controller.reverse();
         }),
-        onTap: widget.isEnabled && !widget.isLoading ? widget.onPressed : null,
+        onTap: widget.isEnabled && !widget.isLoading
+            ? (widget.onPressed ?? AuthGateAction.of(context))
+            : null,
         child: AnimatedBuilder(
           animation: _scaleAnimation,
           builder: (context, child) {

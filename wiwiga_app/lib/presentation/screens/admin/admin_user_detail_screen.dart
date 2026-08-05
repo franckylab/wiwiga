@@ -185,10 +185,10 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [roleColor.withOpacity(0.15), const Color(0xFF00FF88).withOpacity(0.05)],
+          colors: [roleColor.withValues(alpha: 0.15), const Color(0xFF00FF88).withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: roleColor.withOpacity(0.3)),
+        border: Border.all(color: roleColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -202,7 +202,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: roleColor.withOpacity(0.2),
+              color: roleColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: roleColor),
             ),
@@ -216,7 +216,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.2),
+                color: Colors.redAccent.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text('DÉSACTIVÉ', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
@@ -272,7 +272,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: roleColor.withOpacity(0.2),
+                      color: roleColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text('Actuel', style: TextStyle(color: roleColor, fontSize: 11)),
@@ -361,9 +361,9 @@ class _Section extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +392,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, color: const Color(0xFF00FF88), size: 18),
           const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
           const Spacer(),
           Flexible(
             child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),

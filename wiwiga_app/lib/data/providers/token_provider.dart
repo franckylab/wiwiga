@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/token_repository.dart';
 import '../models/token_transaction_model.dart';
 import 'app_providers.dart';
+import '../../core/errors/api_exception.dart';
 
 // ============================================================
 // TOKEN STATE
@@ -26,6 +27,7 @@ class TokenState {
   final List<TokenTransactionModel> transactions;
   final List<PromoTokenModel> availablePromos;
   final String? error;
+  final String? promosError;
 
   const TokenState({
     this.isLoading = false,
@@ -39,6 +41,7 @@ class TokenState {
     this.transactions = const [],
     this.availablePromos = const [],
     this.error,
+    this.promosError,
   });
 
   TokenState copyWith({
@@ -53,6 +56,8 @@ class TokenState {
     List<TokenTransactionModel>? transactions,
     List<PromoTokenModel>? availablePromos,
     String? error,
+    String? promosError,
+    bool clearPromosError = false,
   }) {
     return TokenState(
       isLoading: isLoading ?? this.isLoading,
@@ -66,6 +71,7 @@ class TokenState {
       transactions: transactions ?? this.transactions,
       availablePromos: availablePromos ?? this.availablePromos,
       error: error,
+      promosError: clearPromosError ? null : (promosError ?? this.promosError),
     );
   }
 }
@@ -96,11 +102,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
         transferEnabled: model.transferEnabled,
         giftEnabled: model.giftEnabled,
       );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur chargement jetons: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur chargement jetons');
     }
   }
 
@@ -117,11 +122,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
         isLoading: false,
         transactions: txList,
       );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur chargement transactions: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur chargement transactions');
     }
   }
 
@@ -138,11 +142,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
       await loadTransactions();
 
       state = state.copyWith(isLoading: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur achat jetons: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur achat jetons');
     }
   }
 
@@ -159,11 +162,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
       await loadTransactions();
 
       state = state.copyWith(isLoading: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur échange: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur échange');
     }
   }
 
@@ -181,11 +183,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
       await loadTransactions();
 
       state = state.copyWith(isLoading: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur transfert: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur transfert');
     }
   }
 
@@ -204,11 +205,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
       await loadTransactions();
 
       state = state.copyWith(isLoading: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur cadeau: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur cadeau');
     }
   }
 
@@ -220,9 +220,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
           .map((p) => PromoTokenModel.fromJson(p))
           .toList();
 
-      state = state.copyWith(availablePromos: promos);
+      state = state.copyWith(availablePromos: promos, clearPromosError: true);
     } catch (e) {
-      // Non-bloquant
+      // Non-bloquant : on track l'erreur pour affichage UI
+      state = state.copyWith(promosError: 'Promotions indisponibles');
     }
   }
 
@@ -240,11 +241,10 @@ class TokenNotifier extends StateNotifier<TokenState> {
       await loadPromos();
 
       state = state.copyWith(isLoading: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Erreur réclamation promo: $e',
-      );
+      state = state.copyWith(isLoading: false, error: 'Erreur réclamation promo');
     }
   }
 

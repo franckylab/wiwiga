@@ -1,6 +1,6 @@
 // ============================================================
 // Fichier: main_shell_screen.dart
-// Description: Shell go_router à 5 onglets avec navigation responsive
+// Description: Shell go_router à 4 onglets avec navigation responsive
 //              et gestion du mode guest (actions conditionnelles)
 // Auteur: Franck Arlos CHENDJOU
 // Date: 2026-08-01
@@ -13,7 +13,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
 
-/// Shell principal : 5 onglets (Accueil, Jeux, Amis, Jetons, Classement)
+/// Shell principal : 4 onglets (Accueil, Jeux, Amis, Classement)
 ///
 /// Mobile (< 600px) : Bottom Navigation Bar
 /// Tablet (600-1024px) : Navigation Rail
@@ -35,10 +35,6 @@ class MainShellScreen extends ConsumerWidget {
     NavDestination(
       icon: Icons.people_outline,
       label: 'Amis',
-    ),
-    NavDestination(
-      icon: Icons.monetization_on,
-      label: 'Jetons',
     ),
     NavDestination(
       icon: Icons.emoji_events_outlined,

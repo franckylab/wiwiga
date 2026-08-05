@@ -104,7 +104,7 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Text('$_total événements', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13)),
+              child: Text('$_total événements', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
             ),
           ),
         ],
@@ -154,9 +154,9 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.inbox, color: Colors.white.withOpacity(0.3), size: 64),
+                                Icon(Icons.inbox, color: Colors.white.withValues(alpha: 0.3), size: 64),
                                 const SizedBox(height: 12),
-                                Text('Aucun log d\'audit', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                                Text('Aucun log d\'audit', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
                               ],
                             ),
                           )
@@ -190,7 +190,7 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
                   ),
                   Text(
                     'Page $_page / ${(_total / _pageSize).ceil()}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right, color: Color(0xFF00FF88)),
@@ -230,9 +230,9 @@ class _AuditLogTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +240,7 @@ class _AuditLogTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -261,7 +261,7 @@ class _AuditLogTile extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(entityType, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -272,7 +272,7 @@ class _AuditLogTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     changes.entries.map((e) => '${e.key}: ${e.value}').join(', '),
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -281,20 +281,20 @@ class _AuditLogTile extends StatelessWidget {
                 Row(
                   children: [
                     if (userId != null) ...[
-                      Icon(Icons.person_outline, color: Colors.white.withOpacity(0.4), size: 12),
+                      Icon(Icons.person_outline, color: Colors.white.withValues(alpha: 0.4), size: 12),
                       const SizedBox(width: 4),
-                      Text('User #$userId', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11)),
+                      Text('User #$userId', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
                       const SizedBox(width: 12),
                     ],
                     if (ipAddress != null) ...[
-                      Icon(Icons.language, color: Colors.white.withOpacity(0.4), size: 12),
+                      Icon(Icons.language, color: Colors.white.withValues(alpha: 0.4), size: 12),
                       const SizedBox(width: 4),
-                      Text(ipAddress, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11)),
+                      Text(ipAddress, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
                       const SizedBox(width: 12),
                     ],
-                    Icon(Icons.access_time, color: Colors.white.withOpacity(0.4), size: 12),
+                    Icon(Icons.access_time, color: Colors.white.withValues(alpha: 0.4), size: 12),
                     const SizedBox(width: 4),
-                    Text(timeStr, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11)),
+                    Text(timeStr, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
                   ],
                 ),
               ],
@@ -379,10 +379,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+          color: isSelected ? color.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? color : Colors.white.withOpacity(0.1),
+            color: isSelected ? color : Colors.white.withValues(alpha: 0.1),
             width: isSelected ? 1.5 : 1,
           ),
         ),

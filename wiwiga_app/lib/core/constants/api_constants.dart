@@ -20,6 +20,13 @@ class ApiEndpoints {
   static const String logout = '/api/auth/logout';
   static const String me = '/api/auth/me';
   static const String authSettings = '/api/auth/settings';
+  static const String profileUpdate = '/api/auth/profile';
+  static const String profileStats = '/api/auth/profile/stats';
+  static const String achievements = '/api/auth/profile/achievements';
+  static const String preferences = '/api/auth/preferences';
+  static const String avatarUpload = '/api/auth/avatar/upload';
+  static const String sessions = '/api/auth/sessions';
+  static const String changePassword = '/api/auth/change-password';
   
   // Wallet
   static const String walletBalance = '/api/wallet/balance';

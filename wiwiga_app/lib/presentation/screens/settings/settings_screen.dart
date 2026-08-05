@@ -4,15 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/preferences_provider.dart';
+import '../../../data/providers/sessions_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../widgets/auth/success_animation.dart';
 
-// === Providers ===
-
-final soundEnabledProvider = StateProvider<bool>((ref) => true);
-final vibrationEnabledProvider = StateProvider<bool>((ref) => true);
-final notificationsEnabledProvider = StateProvider<bool>((ref) => true);
-final responsibleGamingLimitProvider = StateProvider<int?>((ref) => 5000); // En jetons
+// === Providers conservés pour compatibilité ===
 final otpRequiredProvider = StateProvider<bool>((ref) => false);
 
 // === Écran ===
@@ -28,10 +25,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadOtpSetting();
+    _loadData();
   }
 
-  void _loadOtpSetting() async {
+  void _loadData() async {
+    // Charger les préférences depuis le serveur
+    await ref.read(preferencesProvider.notifier).loadPreferences();
+    // Charger les sessions
+    await ref.read(sessionsProvider.notifier).loadSessions();
+    // Charger OTP setting
     final settings = await ref.read(authProvider.notifier).getAuthSettings();
     if (mounted) {
       ref.read(otpRequiredProvider.notifier).state =
@@ -41,6 +43,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final prefs = ref.watch(preferencesProvider);
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -51,88 +55,121 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
                   const SizedBox(height: 16),
+                  // COMPTE
                   _buildSection('COMPTE', [
-                    _SettingsTile(
-                      icon: Icons.person,
-                      title: 'Profil',
-                      subtitle: 'Modifier mes informations',
-                      color: NeonColors.primary,
-                      onTap: () => _showSnackbar(context, 'Profil - Bientôt disponible'),
-                    ),
                     _SettingsTile(
                       icon: Icons.phone,
                       title: 'Numéro Mobile Money',
-                      subtitle: '+237 6XX XXX XXX',
+                      subtitle: ref.watch(authProvider).user?.phone ?? 'Non défini',
                       color: NeonColors.success,
-                      onTap: () => _showSnackbar(context, 'Modification numéro - Bientôt disponible'),
+                      onTap: () => _showSnackbar(context, 'Modification numéro - Contactez le support'),
                     ),
-                    _SettingsTile(
-                      icon: Icons.verified_user,
-                      title: 'Vérification KYC',
-                      subtitle: 'Statut: Vérifié',
-                      color: NeonColors.info,
-                      trailing: const GlowBadge(text: 'OK', color: NeonColors.success),
-                      onTap: () => _showSnackbar(context, 'KYC - Bientôt disponible'),
-                    ),
+                    // KYC masqué pour v1
                   ]),
                   const SizedBox(height: 16),
-                  _buildSection('JEU', [
-                    _buildToggleTile(
+
+                  // PRÉFÉRENCES APP
+                  _buildSection('PRÉFÉRENCES', [
+                    _buildBoolToggleTile(
                       icon: Icons.volume_up,
                       title: 'Sons',
-                      provider: soundEnabledProvider,
+                      value: prefs.soundEnabled,
+                      onChanged: (v) => ref.read(preferencesProvider.notifier).updateBool('sound_enabled', v),
                       color: NeonColors.warning,
                     ),
-                    _buildToggleTile(
+                    _buildBoolToggleTile(
                       icon: Icons.vibration,
                       title: 'Vibrations',
-                      provider: vibrationEnabledProvider,
+                      value: prefs.vibrationEnabled,
+                      onChanged: (v) => ref.read(preferencesProvider.notifier).updateBool('vibration_enabled', v),
                       color: NeonColors.warning,
                     ),
-                    _buildToggleTile(
+                    _buildBoolToggleTile(
                       icon: Icons.notifications,
                       title: 'Notifications',
-                      provider: notificationsEnabledProvider,
+                      value: prefs.notificationsEnabled,
+                      onChanged: (v) => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', v),
                       color: NeonColors.warning,
                     ),
                   ]),
                   const SizedBox(height: 16),
+
+                  // AFFICHAGE
+                  _buildSection('AFFICHAGE', [
+                    _buildSelectTile(
+                      icon: Icons.language,
+                      title: 'Langue',
+                      value: prefs.language == 'fr' ? 'Français' : 'English',
+                      options: const {'fr': 'Français', 'en': 'English'},
+                      onSelect: (v) => ref.read(preferencesProvider.notifier).updateString('language', v),
+                      color: NeonColors.info,
+                    ),
+                    _buildSelectTile(
+                      icon: Icons.palette,
+                      title: 'Thème',
+                      value: _themeLabel(prefs.theme),
+                      options: const {'neon': 'Néon', 'dark': 'Sombre', 'light': 'Clair'},
+                      onSelect: (v) => ref.read(preferencesProvider.notifier).updateString('theme', v),
+                      color: NeonColors.accent,
+                    ),
+                    _buildSelectTile(
+                      icon: Icons.text_fields,
+                      title: 'Taille du texte',
+                      value: _fontSizeLabel(prefs.fontSize),
+                      options: const {'small': 'Petit', 'medium': 'Moyen', 'large': 'Grand'},
+                      onSelect: (v) => ref.read(preferencesProvider.notifier).updateString('font_size', v),
+                      color: NeonColors.primary,
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // JEU RESPONSABLE
                   _buildSection('JEU RESPONSABLE', [
-                    _buildResponsibleGamingTile(),
                     _SettingsTile(
-                      icon: Icons.timer,
-                      title: 'Limite de temps',
-                      subtitle: 'Pas de limite',
+                      icon: Icons.monetization_on,
+                      title: 'Limite de mise / jour',
+                      subtitle: 'Pas de limite définie',
                       color: NeonColors.error,
-                      onTap: () => _showSnackbar(context, 'Limite de temps - Bientôt disponible'),
+                      onTap: () => _showLimitDialog(context),
                     ),
                     _SettingsTile(
                       icon: Icons.block,
                       title: 'Auto-exclusion',
                       subtitle: 'Désactivé',
                       color: NeonColors.error,
-                      onTap: () => _showSnackbar(context, 'Auto-exclusion - Bientôt disponible'),
+                      onTap: () => _showSelfExclusionDialog(context),
                     ),
                   ]),
                   const SizedBox(height: 16),
+
+                  // SÉCURITÉ
                   _buildSection('SÉCURITÉ', [
                     _buildOtpToggle(context),
                     _SettingsTile(
                       icon: Icons.lock,
-                      title: 'Changer le code PIN',
-                      subtitle: 'Dernière modification: il y a 30 jours',
+                      title: 'Changer le mot de passe',
+                      subtitle: 'Modifier votre mot de passe',
                       color: NeonColors.info,
-                      onTap: () => _showSnackbar(context, 'Changement PIN - Bientôt disponible'),
+                      onTap: () => _showChangePasswordDialog(context),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.devices,
+                      title: 'Sessions actives',
+                      subtitle: '${ref.watch(sessionsProvider).sessions.length} appareil(s)',
+                      color: NeonColors.info,
+                      onTap: () => _showSessionsSheet(context),
                     ),
                     _SettingsTile(
                       icon: Icons.fingerprint,
                       title: 'Biométrie',
-                      subtitle: 'Désactivée',
-                      color: NeonColors.info,
+                      subtitle: 'Bientôt disponible',
+                      color: NeonColors.textMuted,
                       onTap: () => _showSnackbar(context, 'Biométrie - Bientôt disponible'),
                     ),
                   ]),
                   const SizedBox(height: 16),
+
+                  // À PROPOS
                   _buildSection('À PROPOS', [
                     _SettingsTile(
                       icon: Icons.description,
@@ -155,6 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ]),
                   const SizedBox(height: 24),
+
                   // Logout
                   NeonButton(
                     text: 'Déconnexion',
@@ -171,6 +209,311 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  // === DIALOGS ===
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final oldController = TextEditingController();
+    final newController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool isLoading = false;
+    String? error;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: NeonColors.surface,
+          title: const Text('Changer le mot de passe',
+              style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDialogField(oldController, 'Ancien mot de passe', Icons.lock_outline, isPassword: true),
+                const SizedBox(height: 12),
+                _buildDialogField(newController, 'Nouveau mot de passe', Icons.lock, isPassword: true),
+                const SizedBox(height: 12),
+                _buildDialogField(confirmController, 'Confirmer', Icons.lock_outline, isPassword: true),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(error!, style: const TextStyle(color: NeonColors.error, fontSize: 12)),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final old = oldController.text.trim();
+                      final newP = newController.text.trim();
+                      final confirm = confirmController.text.trim();
+
+                      if (old.isEmpty || newP.isEmpty) {
+                        setDialogState(() => error = 'Tous les champs sont requis');
+                        return;
+                      }
+                      if (newP.length < 8) {
+                        setDialogState(() => error = 'Minimum 8 caractères');
+                        return;
+                      }
+                      if (newP != confirm) {
+                        setDialogState(() => error = 'Les mots de passe ne correspondent pas');
+                        return;
+                      }
+
+                      setDialogState(() => isLoading = true);
+                      try {
+                        await ref.read(profileRepositoryProvider).changePassword(
+                              oldPassword: old,
+                              newPassword: newP,
+                            );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          _showSnackbar(context, 'Mot de passe modifié !');
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          isLoading = false;
+                          error = 'Erreur: $e';
+                        });
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: NeonColors.primary))
+                  : const Text('Modifier', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogField(TextEditingController controller, String label, IconData icon, {bool isPassword = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword,
+      style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+        prefixIcon: Icon(icon, color: NeonColors.primary, size: 18),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: NeonColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: NeonColors.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: NeonColors.background,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+
+  void _showSessionsSheet(BuildContext context) {
+    final sessionsState = ref.read(sessionsProvider);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: NeonColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: NeonColors.border, borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 16),
+                const Text('Sessions actives',
+                    style: TextStyle(color: NeonColors.textPrimary, fontFamily: 'Orbitron', fontSize: 14, fontWeight: FontWeight.bold),),
+                const SizedBox(height: 16),
+                if (sessionsState.sessions.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('Aucune session active', style: TextStyle(color: NeonColors.textSecondary)),
+                  )
+                else
+                  ...sessionsState.sessions.map((session) {
+                    final isCurrent = session['is_current'] == true;
+                    final deviceName = session['device_name'] ?? session['user_agent'] ?? 'Appareil inconnu';
+                    final lastActive = session['last_active_at'] != null
+                        ? DateTime.tryParse(session['last_active_at'])
+                        : null;
+                    final timeStr = lastActive != null ? _formatTimeAgo(lastActive) : 'Récemment';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: NeonColors.background,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isCurrent ? NeonColors.primary.withValues(alpha: 0.4) : NeonColors.border,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isCurrent ? Icons.computer : Icons.devices_other,
+                            color: isCurrent ? NeonColors.primary : NeonColors.textSecondary,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(deviceName,
+                                        style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),),
+                                    if (isCurrent) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: NeonColors.primary.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('ACTUEL', style: TextStyle(color: NeonColors.primary, fontSize: 9, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(timeStr, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                          if (!isCurrent)
+                            IconButton(
+                              icon: const Icon(Icons.logout, color: NeonColors.error, size: 18),
+                              onPressed: () async {
+                                final sessionId = session['id']?.toString() ?? '';
+                                if (sessionId.isNotEmpty) {
+                                  final success = await ref.read(sessionsProvider.notifier).revokeSession(sessionId);
+                                  if (success) {
+                                    setSheetState(() {});
+                                  }
+                                }
+                              },
+                              tooltip: 'Révoquer',
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLimitDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text('Limite de mise quotidienne',
+            style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Définissez un montant maximum que vous pouvez miser par jour.',
+              style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
+              decoration: InputDecoration(
+                labelText: 'Montant en jetons',
+                labelStyle: const TextStyle(color: NeonColors.textSecondary),
+                prefixIcon: const Icon(Icons.monetization_on, color: NeonColors.warning),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: NeonColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: NeonColors.warning, width: 2),
+                ),
+                filled: true,
+                fillColor: NeonColors.background,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSnackbar(context, 'Limite de mise mise à jour');
+            },
+            child: const Text('Définir', style: TextStyle(color: NeonColors.warning, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSelfExclusionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text('Auto-exclusion',
+            style: TextStyle(color: NeonColors.error, fontSize: 16),),
+        content: const Text(
+          'L\'auto-exclusion vous permet de bloquer l\'accès à votre compte pour une période donnée. Cette action est irréversible.\n\nVoulez-vous continuer ?',
+          style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSnackbar(context, 'Contactez le support pour l\'auto-exclusion');
+            },
+            child: const Text('Confirmer', style: TextStyle(color: NeonColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // === WIDGETS ===
 
   void _performLogout(BuildContext context) {
     showDialog(
@@ -236,6 +579,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
+            tooltip: 'Retour',
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 4),
           const Icon(Icons.settings, color: NeonColors.info, size: 28),
           const SizedBox(width: 8),
           Text('PARAMÈTRES', style: AppTypography.heading3),
@@ -268,55 +617,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildToggleTile({
+  Widget _buildBoolToggleTile({
     required IconData icon,
     required String title,
-    required StateProvider<bool> provider,
+    required bool value,
+    required ValueChanged<bool> onChanged,
     required Color color,
   }) {
-    final enabled = ref.watch(provider);
     return _SettingsTile(
       icon: icon,
       title: title,
       color: color,
       trailing: GestureDetector(
-        onTap: () => ref.read(provider.notifier).state = !enabled,
+        onTap: () => onChanged(!value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: 48,
           height: 26,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(13),
-            color: enabled ? color.withValues(alpha: 0.3) : NeonColors.border,
-            border: Border.all(color: enabled ? color : NeonColors.textSecondary),
+            color: value ? color.withValues(alpha: 0.3) : NeonColors.border,
+            border: Border.all(color: value ? color : NeonColors.textSecondary),
           ),
           padding: const EdgeInsets.all(2),
           child: AnimatedAlign(
             duration: const Duration(milliseconds: 200),
-            alignment: enabled ? Alignment.centerRight : Alignment.centerLeft,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
               width: 20,
               height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: enabled ? color : NeonColors.textSecondary,
+                color: value ? color : NeonColors.textSecondary,
               ),
             ),
           ),
         ),
       ),
-      onTap: () => ref.read(provider.notifier).state = !enabled,
+      onTap: () => onChanged(!value),
     );
   }
 
-  Widget _buildResponsibleGamingTile() {
-    final limit = ref.watch(responsibleGamingLimitProvider);
+  Widget _buildSelectTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Map<String, String> options,
+    required ValueChanged<String> onSelect,
+    required Color color,
+  }) {
     return _SettingsTile(
-      icon: Icons.monetization_on,
-      title: 'Limite de mise / jour',
-      subtitle: limit != null ? '$limit jetons' : 'Illimité',
-      color: NeonColors.error,
-      onTap: () => _showLimitDialog(),
+      icon: icon,
+      title: title,
+      subtitle: value,
+      color: color,
+      trailing: DropdownButton<String>(
+        value: options.entries.firstWhere((e) => e.value == value).key,
+        underline: const SizedBox(),
+        dropdownColor: NeonColors.surface,
+        style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12),
+        items: options.entries.map((e) {
+          return DropdownMenuItem<String>(
+            value: e.key,
+            child: Text(e.value, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12)),
+          );
+        }).toList(),
+        onChanged: (v) {
+          if (v != null) onSelect(v);
+        },
+      ),
+      onTap: () {},
     );
   }
 
@@ -368,14 +738,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-  void _showLimitDialog() {
-    final controller = TextEditingController(
-      text: ref.read(responsibleGamingLimitProvider)?.toString() ?? '',
-    );
-    // Simple dialog via snackbar for now
-    ref.read(responsibleGamingLimitProvider.notifier).state = 100000;
-  }
-
   void _showSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -387,9 +749,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  String _formatTokens(int amount) {
-    return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
+  String _themeLabel(String theme) {
+    switch (theme) {
+      case 'neon': return 'Néon';
+      case 'dark': return 'Sombre';
+      case 'light': return 'Clair';
+      default: return theme;
+    }
+  }
+
+  String _fontSizeLabel(String size) {
+    switch (size) {
+      case 'small': return 'Petit';
+      case 'medium': return 'Moyen';
+      case 'large': return 'Grand';
+      default: return size;
+    }
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+    if (diff.inDays < 7) return 'Il y a ${diff.inDays}j';
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 }
 

@@ -169,7 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             TokenBalanceDisplay(
               tokenBalance: walletState.tokenBalance,
               fontSize: 22,
-              onTap: () => context.go('/tokens'),
+              onTap: () => context.push('/tokens'),
             ),
         ],
       ),
@@ -286,14 +286,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 AuthGate(
                   type: AuthGateType.softWall,
                   action: () => context.go('/games/${game.type}/lobby'),
-                  child: NeonButton(
+                  child: const NeonButton(
                     text: 'JOUER',
                     width: 130,
                     height: 38,
                     fontSize: 13,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    onPressed: () {}, // AuthGate gère le tap
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   ),
                 ),
               ],
@@ -351,7 +350,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   )
                 : NeonCard(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    onTap: () => context.go(route),
+                    onTap: () {
+                      // /tokens est une route standalone (push),
+                      // les autres sont des onglets shell (go)
+                      if (route == '/tokens') {
+                        context.push(route);
+                      } else {
+                        context.go(route);
+                      }
+                    },
                     child: Column(
                       children: [
                         Icon(icon, color: color, size: 26),

@@ -143,6 +143,20 @@ defmodule GameHubWeb.AuthController do
   defp do_verify_otp(conn, identifier, otp, opts) do
     case Auth.verify_otp(identifier, otp, opts) do
       {:ok, access_token, refresh_token, user} ->
+        # Créer une session tracking (section 2.4)
+        device_id = Keyword.get(opts, :device_id)
+        user_agent = Keyword.get(opts, :user_agent, "unknown")
+        ip_address = Keyword.get(opts, :ip_address, "unknown")
+        try do
+          GameHub.Users.Sessions.create_session(user.id,
+            device_id: device_id,
+            user_agent: user_agent,
+            ip_address: ip_address
+          )
+        rescue
+          e -> require Logger; Logger.warning("Failed to create session: #{inspect(e)}")
+        end
+        
         conn
         |> put_status(200)
         |> json(%{
@@ -226,6 +240,20 @@ defmodule GameHubWeb.AuthController do
   defp do_login(conn, identifier, password, opts) do
     case Auth.login_with_password(identifier, password, opts) do
       {:ok, access_token, refresh_token, user} ->
+        # Créer une session tracking (section 2.4)
+        device_id = Keyword.get(opts, :device_id)
+        user_agent = Keyword.get(opts, :user_agent, "unknown")
+        ip_address = Keyword.get(opts, :ip_address, "unknown")
+        try do
+          GameHub.Users.Sessions.create_session(user.id,
+            device_id: device_id,
+            user_agent: user_agent,
+            ip_address: ip_address
+          )
+        rescue
+          e -> require Logger; Logger.warning("Failed to create session: #{inspect(e)}")
+        end
+        
         conn
         |> put_status(200)
         |> json(%{
@@ -634,6 +662,328 @@ defmodule GameHubWeb.AuthController do
   end
   
   # ========================================
+  # Profil utilisateur
+  # ========================================
+  
+  @doc """
+  PUT /api/auth/profile
+  
+  Met à jour le profil utilisateur (username, name, avatar_type).
+  """
+  def update_profile(conn, params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    case GameHub.Repo.get(GameHub.Users.User, user_id) do
+      nil ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Utilisateur non trouvé", 404, "USER_NOT_FOUND"))
+      
+      user ->
+        case user |> GameHub.Users.User.profile_update_changeset(params) |> GameHub.Repo.update() do
+          {:ok, updated_user} ->
+            conn
+            |> put_status(200)
+            |> json(%{success: true, data: %{user: format_user(updated_user)}, message: "Profil mis à jour"})
+          
+          {:error, changeset} ->
+            errors = format_changeset_errors(changeset)
+            conn
+            |> put_status(422)
+            |> json(Errors.error("Erreur de validation", 422, "VALIDATION_ERROR", errors))
+        end
+    end
+  end
+  
+  @doc """
+  GET /api/auth/profile/stats
+  
+  Récupère les statistiques du profil utilisateur.
+  """
+  def get_profile_stats(conn, _params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    case GameHub.Users.Stats.get_stats(user_id) do
+      {:ok, stats} ->
+        conn
+        |> put_status(200)
+        |> json(%{
+          success: true,
+          data: %{
+            games_played: stats.games_played,
+            wins: stats.wins,
+            losses: stats.losses,
+            draws: stats.draws,
+            total_winnings: stats.total_winnings,
+            total_bets: stats.total_bets,
+            current_streak: stats.current_streak,
+            best_streak: stats.best_streak,
+            xp_points: stats.xp_points,
+            rank_tier: stats.rank_tier,
+            last_game_at: stats.last_game_at
+          }
+        })
+      
+      {:error, _} ->
+        conn
+        |> put_status(500)
+        |> json(Errors.error("Erreur chargement stats", 500, "STATS_ERROR"))
+    end
+  end
+  
+  @doc """
+  GET /api/auth/profile/achievements
+  
+  Récupère les achievements avec statut unlock.
+  """
+  def get_achievements(conn, _params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    achievements = GameHub.Users.AchievementManager.list_with_status(user_id)
+    
+    conn
+    |> put_status(200)
+    |> json(%{success: true, data: %{achievements: achievements}})
+  end
+  
+  # ========================================
+  # Préférences utilisateur
+  # ========================================
+  
+  @doc """
+  GET /api/auth/preferences
+  
+  Récupère les préférences utilisateur.
+  """
+  def get_preferences(conn, _params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    case GameHub.Users.Preferences.get_preferences(user_id) do
+      {:ok, prefs} ->
+        conn
+        |> put_status(200)
+        |> json(%{success: true, data: prefs})
+      
+      {:error, :user_not_found} ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Utilisateur non trouvé", 404, "USER_NOT_FOUND"))
+    end
+  end
+  
+  @doc """
+  PUT /api/auth/preferences
+  
+  Met à jour les préférences utilisateur.
+  """
+  def update_preferences(conn, params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    # Extraire uniquement les clés de préférences
+    pref_keys = ~w(sound_enabled vibration_enabled notifications_enabled language theme font_size)
+    prefs = Map.take(params, pref_keys)
+    
+    case GameHub.Users.Preferences.update_preferences(user_id, prefs) do
+      {:ok, updated_prefs} ->
+        conn
+        |> put_status(200)
+        |> json(%{success: true, data: updated_prefs, message: "Préférences mises à jour"})
+      
+      {:error, :user_not_found} ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Utilisateur non trouvé", 404, "USER_NOT_FOUND"))
+      
+      {:error, reason} ->
+        conn
+        |> put_status(422)
+        |> json(Errors.error(to_string(reason), 422, "VALIDATION_ERROR"))
+    end
+  end
+  
+  # ========================================
+  # Sessions utilisateur
+  # ========================================
+  
+  @doc """
+  GET /api/auth/sessions
+  
+  Liste les sessions actives.
+  """
+  def get_sessions(conn, _params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    case GameHub.Users.Sessions.get_active_sessions(user_id) do
+      {:ok, sessions} ->
+        formatted = Enum.map(sessions, fn s ->
+          %{
+            id: s.id,
+            device_name: GameHub.Users.Sessions.detect_device_name(s.user_agent),
+            device_id: s.device_id,
+            ip_address: s.ip_address,
+            last_active_at: s.last_active_at,
+            is_current: s.is_current,
+            created_at: s.inserted_at
+          }
+        end)
+        
+        conn
+        |> put_status(200)
+        |> json(%{success: true, data: %{sessions: formatted}})
+    end
+  end
+  
+  @doc """
+  DELETE /api/auth/sessions/:id
+  
+  Révoque une session.
+  """
+  def revoke_session(conn, %{"id" => session_id}) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    case GameHub.Users.Sessions.revoke_session(user_id, session_id) do
+      {:ok, _} ->
+        conn
+        |> put_status(200)
+        |> json(%{success: true, data: %{message: "Session révoquée"}})
+      
+      {:error, :session_not_found} ->
+        conn
+        |> put_status(404)
+        |> json(Errors.error("Session non trouvée", 404, "NOT_FOUND"))
+    end
+  end
+  
+  # ========================================
+  # Changement de mot de passe
+  # ========================================
+  
+  @doc """
+  POST /api/auth/change-password
+  
+  Change le mot de passe (ancien + nouveau).
+  """
+  def change_password(conn, params) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    old_password = Map.get(params, "old_password", "")
+    new_password = Map.get(params, "new_password", "")
+    
+    cond do
+      old_password == "" or new_password == "" ->
+        conn
+        |> put_status(400)
+        |> json(Errors.error("Ancien et nouveau mot de passe requis", 400, "VALIDATION_ERROR"))
+      
+      String.length(new_password) < 8 ->
+        conn
+        |> put_status(422)
+        |> json(Errors.error("Le mot de passe doit contenir au moins 8 caractères", 422, "VALIDATION_ERROR"))
+      
+      true ->
+        user = GameHub.Repo.get(GameHub.Users.User, user_id)
+        
+        if user && user.password_hash && GameHub.Users.User.verify_password(user, old_password) do
+          case user |> GameHub.Users.User.password_changeset(%{"password" => new_password}) |> GameHub.Repo.update() do
+            {:ok, _} ->
+              conn
+              |> put_status(200)
+              |> json(%{success: true, data: %{message: "Mot de passe changé"}})
+            
+            {:error, changeset} ->
+              errors = format_changeset_errors(changeset)
+              conn
+              |> put_status(422)
+              |> json(Errors.error("Erreur de validation", 422, "VALIDATION_ERROR", errors))
+          end
+        else
+          conn
+          |> put_status(401)
+          |> json(Errors.error("Ancien mot de passe incorrect", 401, "INVALID_PASSWORD"))
+        end
+    end
+  end
+  
+  # ========================================
+  # Upload Avatar
+  # ========================================
+  
+  @allowed_image_types ~w(image/jpeg image/png image/webp)
+  @max_file_size 2 * 1024 * 1024  # 2MB
+  
+  @doc """
+  POST /api/auth/avatar/upload
+  
+  Upload d'une photo de profil personnelle.
+  Multipart form: avatar (file)
+  """
+  def upload_avatar(conn, %{"avatar" => %Plug.Upload{} = upload}) do
+    user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
+    
+    cond do
+      # Vérifier le type MIME
+      upload.content_type not in @allowed_image_types ->
+        conn
+        |> put_status(422)
+        |> json(Errors.error("Format non supporté. Accepté: JPEG, PNG, WebP", 422, "INVALID_FORMAT"))
+      
+      # Vérifier la taille
+      File.stat!(upload.path).size > @max_file_size ->
+        conn
+        |> put_status(422)
+        |> json(Errors.error("Fichier trop volumineux (max 2MB)", 422, "FILE_TOO_LARGE"))
+      
+      true ->
+        # Créer le dossier si nécessaire
+        upload_dir = Path.join([:code.priv_dir(:game_hub), "static", "uploads", "avatars"])
+        File.mkdir_p!(upload_dir)
+        
+        # Générer le nom de fichier
+        ext = case upload.content_type do
+          "image/jpeg" -> ".jpg"
+          "image/png" -> ".png"
+          "image/webp" -> ".webp"
+          _ -> ".jpg"
+        end
+        
+        filename = "#{user_id}_#{System.system_time(:second)}#{ext}"
+        filepath = Path.join(upload_dir, filename)
+        
+        # Copier le fichier
+        case File.cp(upload.path, filepath) do
+          :ok ->
+            avatar_url = "/uploads/avatars/#{filename}"
+            
+            # Mettre à jour l'utilisateur
+            user = GameHub.Repo.get(GameHub.Users.User, user_id)
+            
+            case user |> GameHub.Users.User.profile_update_changeset(%{"avatar_url" => avatar_url}) |> GameHub.Repo.update() do
+              {:ok, updated_user} ->
+                conn
+                |> put_status(200)
+                |> json(%{success: true, data: %{avatar_url: avatar_url, user: format_user(updated_user)}, message: "Avatar mis à jour"})
+              
+              {:error, _} ->
+                conn
+                |> put_status(500)
+                |> json(Errors.error("Erreur mise à jour avatar", 500, "UPDATE_ERROR"))
+            end
+          
+          {:error, _} ->
+            conn
+            |> put_status(500)
+            |> json(Errors.error("Erreur sauvegarde fichier", 500, "UPLOAD_ERROR"))
+        end
+    end
+  end
+  
+  def upload_avatar(conn, _params) do
+    conn
+    |> put_status(400)
+    |> json(Errors.error("Fichier avatar requis (multipart form)", 400, "MISSING_FILE"))
+  end
+  
+  # ========================================
   # Fonctions Privées
   # ========================================
   
@@ -654,6 +1004,7 @@ defmodule GameHubWeb.AuthController do
       login_count: user.login_count || 0,
       last_login_at: user.last_login_at,
       otp_required_on_login: user.otp_required_on_login || false,
+      preferences: user.preferences || %{},
       created_at: user.inserted_at
     }
   end

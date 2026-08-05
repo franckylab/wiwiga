@@ -29,5 +29,6 @@ RUN mix compile
 # Exposer port
 EXPOSE 4001
 
-# Commande par défaut
-CMD ["mix", "phx.server"]
+# Commande par défaut : installer les deps puis lancer le serveur
+# mix deps.get est nécessaire car les volumes Docker masquent deps/_build
+CMD ["sh", "-c", "mix deps.get && mix phx.server"]

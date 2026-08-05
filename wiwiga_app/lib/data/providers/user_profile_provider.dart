@@ -1,146 +1,147 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/user_profile_model.dart';
+// ============================================================
+// Fichier: user_profile_provider.dart
+// Description: Provider profil utilisateur connecté au backend
+// ============================================================
 
-/// Provider du profil utilisateur avec données mockées (à connecter au backend)
-final userProfileProvider = StateNotifierProvider<UserProfileNotifier, UserProfile>(
-  (ref) => UserProfileNotifier(),
+import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
+import '../models/user_profile_model.dart';
+import '../repositories/profile_repository.dart';
+import 'app_providers.dart';
+
+/// État du profil utilisateur
+class UserProfileState {
+  final bool isLoading;
+  final UserProfile? profile;
+  final List<Achievement> achievements;
+  final String? error;
+
+  const UserProfileState({
+    this.isLoading = false,
+    this.profile,
+    this.achievements = const [],
+    this.error,
+  });
+
+  UserProfileState copyWith({
+    bool? isLoading,
+    UserProfile? profile,
+    List<Achievement>? achievements,
+    String? error,
+  }) {
+    return UserProfileState(
+      isLoading: isLoading ?? this.isLoading,
+      profile: profile ?? this.profile,
+      achievements: achievements ?? this.achievements,
+      error: error,
+    );
+  }
+}
+
+/// Provider du profil utilisateur avec données réelles
+final userProfileProvider =
+    StateNotifierProvider<UserProfileNotifier, UserProfileState>(
+  (ref) => UserProfileNotifier(ref),
 );
 
-class UserProfileNotifier extends StateNotifier<UserProfile> {
-  UserProfileNotifier() : super(_mockProfile);
+class UserProfileNotifier extends StateNotifier<UserProfileState> {
+  final Ref _ref;
 
-  static final _mockProfile = UserProfile(
-    id: 'user_001',
-    phone: '+237 699 999 999',
-    email: 'franck@wiwiga.com',
-    username: 'Franck_CH',
-    balance: 350000,
-    isActive: true,
-    isVerified: true,
-    createdAt: DateTime(2025, 6, 15),
-    gamesPlayed: 156,
-    wins: 97,
-    losses: 59,
-    totalWinnings: 2450000,
-    totalBets: 1200000,
-    currentStreak: 5,
-    bestStreak: 12,
-    xpPoints: 8450,
-    rankTier: 'gold',
-    achievements: [
-      Achievement(
-        id: 'first_win',
-        name: 'Première Victoire',
-        description: 'Gagner sa première partie',
-        icon: 'emoji_events',
-        isUnlocked: true,
-        unlockedAt: DateTime(2025, 6, 20),
-        tier: 'bronze',
-      ),
-      Achievement(
-        id: 'streak_5',
-        name: 'En Feu',
-        description: '5 victoires consécutives',
-        icon: 'local_fire_department',
-        isUnlocked: true,
-        unlockedAt: DateTime(2025, 8, 10),
-        tier: 'silver',
-      ),
-      Achievement(
-        id: 'big_winner',
-        name: 'Gros Gain',
-        description: 'Gagner plus de 1 000 000 jetons en une partie',
-        icon: 'attach_money',
-        isUnlocked: true,
-        unlockedAt: DateTime(2025, 9, 5),
-        tier: 'gold',
-      ),
-      Achievement(
-        id: 'veteran',
-        name: 'Vétéran',
-        description: 'Jouer 100 parties',
-        icon: 'military_tech',
-        isUnlocked: true,
-        unlockedAt: DateTime(2025, 10, 1),
-        tier: 'gold',
-      ),
-      const Achievement(
-        id: 'diamond_roll',
-        name: 'Roulage de Diamant',
-        description: 'Gagner avec une prédiction exacte de 2 ou 12',
-        icon: 'diamond',
-        isUnlocked: false,
-        tier: 'diamond',
-      ),
-      const Achievement(
-        id: 'champion',
-        name: 'Champion',
-        description: 'Gagner un tournoi',
-        icon: 'workspace_premium',
-        isUnlocked: false,
-        tier: 'diamond',
-      ),
-    ],
-    recentGames: [
-      RecentGame(
-        id: 'g1',
-        gameType: 'dice',
-        result: 'win',
-        betAmount: 50000,
-        winnings: 95000,
-        playedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        predictedSum: 7,
-        actualSum: 7,
-      ),
-      RecentGame(
-        id: 'g2',
-        gameType: 'dice',
-        result: 'win',
-        betAmount: 30000,
-        winnings: 57000,
-        playedAt: DateTime.now().subtract(const Duration(hours: 5)),
-        predictedSum: 8,
-        actualSum: 8,
-      ),
-      RecentGame(
-        id: 'g3',
-        gameType: 'dice',
-        result: 'loss',
-        betAmount: 25000,
-        winnings: 0,
-        playedAt: DateTime.now().subtract(const Duration(hours: 8)),
-        predictedSum: 6,
-        actualSum: 9,
-      ),
-      RecentGame(
-        id: 'g4',
-        gameType: 'dice',
-        result: 'win',
-        betAmount: 40000,
-        winnings: 76000,
-        playedAt: DateTime.now().subtract(const Duration(days: 1)),
-        predictedSum: 10,
-        actualSum: 10,
-      ),
-      RecentGame(
-        id: 'g5',
-        gameType: 'dice',
-        result: 'loss',
-        betAmount: 20000,
-        winnings: 0,
-        playedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-        predictedSum: 5,
-        actualSum: 8,
-      ),
-    ],
-  );
+  UserProfileNotifier(this._ref) : super(const UserProfileState());
 
-  void updateUsername(String newUsername) {
-    state = state.copyWith(username: newUsername);
+  ProfileRepository get _repository => _ref.read(profileRepositoryProvider);
+
+  /// Charge le profil complet (stats + achievements) depuis l'API
+  Future<void> loadProfile() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Charger stats et achievements en parallèle
+      final results = await Future.wait([
+        _repository.getStats(),
+        _repository.getAchievements(),
+      ]);
+
+      final profile = results[0] as UserProfile;
+      final achievements = results[1] as List<Achievement>;
+
+      state = state.copyWith(
+        isLoading: false,
+        profile: profile,
+        achievements: achievements,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Erreur chargement profil: $e',
+      );
+    }
   }
 
-  void refreshProfile() {
-    // Simule un refresh depuis le backend
-    state = state;
+  /// Met à jour le username via l'API
+  Future<bool> updateUsername(String newUsername) async {
+    try {
+      final user = await _repository.updateProfile(username: newUsername);
+      // Mettre à jour le user dans authProvider
+      _ref.read(authProvider.notifier).refreshProfile();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: 'Erreur update username: $e');
+      return false;
+    }
+  }
+
+  /// Change l'avatar pour un avatar prédéfini WIWIGA
+  Future<bool> selectAvatar(AvatarType avatarType) async {
+    try {
+      await _repository.updateProfile(
+        username: null, // Pas de changement username
+      );
+      // Mettre à jour l'avatar_type via updateProfile
+      // Le backend gère avatar_type dans le changeset
+      await _ref.read(authProvider.notifier).refreshProfile();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: 'Erreur changement avatar: $e');
+      return false;
+    }
+  }
+
+  /// Upload une photo personnelle comme avatar
+  Future<String?> uploadAvatar(File imageFile) async {
+    try {
+      final avatarUrl = await _repository.uploadAvatar(imageFile);
+      // Refresh le profil pour obtenir le nouvel avatar_url
+      await _ref.read(authProvider.notifier).refreshProfile();
+      return avatarUrl;
+    } catch (e) {
+      state = state.copyWith(error: 'Erreur upload avatar: $e');
+      return null;
+    }
+  }
+
+  /// Rafraîchit les stats uniquement
+  Future<void> refreshStats() async {
+    try {
+      final profile = await _repository.getStats();
+      state = state.copyWith(profile: profile);
+    } catch (e) {
+      // Silencieux pour le refresh
+    }
+  }
+
+  /// Rafraîchit les achievements
+  Future<void> refreshAchievements() async {
+    try {
+      final achievements = await _repository.getAchievements();
+      state = state.copyWith(achievements: achievements);
+    } catch (e) {
+      // Silencieux pour le refresh
+    }
+  }
+
+  /// Efface l'erreur
+  void clearError() {
+    state = state.copyWith(error: null);
   }
 }

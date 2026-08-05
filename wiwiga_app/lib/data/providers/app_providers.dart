@@ -12,6 +12,8 @@ import '../repositories/auth_repository.dart';
 import '../repositories/wallet_repository.dart';
 import '../repositories/game_repository.dart';
 import '../repositories/admin_repository.dart';
+import '../repositories/profile_repository.dart';
+import '../repositories/preferences_repository.dart';
 import '../models/user_model.dart';
 import '../models/wallet_transaction_model.dart';
 import '../models/game_model.dart';
@@ -47,6 +49,18 @@ final gameRepositoryProvider = Provider<GameRepository>((ref) {
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   return AdminRepository(apiService: apiService);
+});
+
+/// Provider du repository Profil
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return ProfileRepository(apiService: apiService);
+});
+
+/// Provider du repository Préférences
+final preferencesRepositoryProvider = Provider<PreferencesRepository>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return PreferencesRepository(apiService: apiService);
 });
 
 /// Provider du service WebSocket jeu (avec fallback REST)
