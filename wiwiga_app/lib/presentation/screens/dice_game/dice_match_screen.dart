@@ -13,6 +13,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
+import '../../widgets/game/reality_check_overlay.dart';
+import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/friend_provider.dart';
 
 /// Écran de match de dés avec support multi-sets
 ///
@@ -56,7 +59,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
 
   // Scores
   final Map<String, int> _setWins = {};
-  final Map<String, int> _currentRolls = {};
   final List<Map<String, dynamic>> _setResults = [];
 
   // Vote cible (mode cible)
@@ -104,7 +106,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return RealityCheckOverlay(
+      child: Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
         title: Text('Set $_currentSet/${widget.setsCount}'),
@@ -116,6 +119,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
         ],
       ),
       body: _buildBody(),
+    ),
     );
   }
 
@@ -495,8 +499,37 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           const SizedBox(height: 12),
           NeonButton(
             text: 'Ajouter comme ami',
-            onPressed: () {
-              // TODO: Ajouter ami
+            onPressed: () async {
+              // Trouver l'adversaire (pas le joueur actuel)
+              final currentUserId = ref.read(authProvider).user?.id ?? '';
+              final opponent = widget.players.firstWhere(
+                (p) => p['id'].toString() != currentUserId,
+                orElse: () => {},
+              );
+              if (opponent.isEmpty) return;
+              final opponentId = int.tryParse(opponent['id'].toString());
+              if (opponentId == null) return;
+              final repo = ref.read(friendRepositoryProvider);
+              try {
+                await repo.sendRequest(userId: opponentId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Demande d\'ami envoyée !'),
+                      backgroundColor: NeonColors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Erreur lors de l\'envoi'),
+                      backgroundColor: NeonColors.error,
+                    ),
+                  );
+                }
+              }
             },
             variant: NeonButtonVariant.outline,
             icon: Icons.person_add_outlined,

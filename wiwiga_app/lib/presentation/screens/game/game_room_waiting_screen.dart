@@ -16,6 +16,7 @@ import '../../../data/providers/app_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
+import '../../widgets/game/friend_invite_sheet.dart';
 
 /// Écran d'attente dans une salle de jeu
 class GameRoomWaitingScreen extends ConsumerStatefulWidget {
@@ -100,8 +101,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
   }
 
   bool get _isCreator {
-    // TODO: Comparer avec l'ID utilisateur connecté
-    return true;
+    final userId = ref.read(authProvider).user?.id ?? '';
+    return _room.creatorId == userId;
   }
 
   @override
@@ -331,12 +332,11 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
   }
 
   Future<void> _inviteFriend() async {
-    // TODO: Ouvrir FriendInviteSheet
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Partagez le code: ${_room.roomCode}', style: const TextStyle(color: NeonColors.primary)),
-        backgroundColor: NeonColors.surface,
-      ),
+    FriendInviteSheet.show(
+      context,
+      roomCode: _room.roomCode,
+      roomId: _room.roomId,
+      excludePlayerIds: _room.players.map((p) => p.id).toList(),
     );
   }
 

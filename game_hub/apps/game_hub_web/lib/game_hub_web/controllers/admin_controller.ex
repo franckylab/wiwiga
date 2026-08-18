@@ -29,7 +29,7 @@ defmodule GameHubWeb.AdminController do
   
   use GameHubWeb, :controller
   
-  alias GameHub.{Repo, AuditLog, FeatureFlags, WalletReconciliation, Errors, Auth}
+  alias GameHub.{Repo, AuditLog, FeatureFlags, WalletReconciliation, Errors}
   alias GameHub.Users.User
   alias GameHub.RBAC.{Role, Permissions}
   import Ecto.Query

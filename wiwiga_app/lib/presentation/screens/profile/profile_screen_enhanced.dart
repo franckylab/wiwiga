@@ -376,7 +376,7 @@ class _XpBar extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Prochain: ${rankTier == 'diamond' ? 'MAX' : _nextRankLabel(rankTier)}',
+                  'Prochain: ${rankTier == 'legend' ? 'MAX' : _nextRankLabel(rankTier)}',
                   style: const TextStyle(
                     color: NeonColors.textSecondary,
                     fontFamily: 'Inter',
@@ -404,13 +404,14 @@ class _XpBar extends StatelessWidget {
   }
 
   int _xpForNextRank(String tier) {
+    // Seuil XP du tier suivant (config admin PlayerProgression)
     switch (tier) {
-      case 'bronze': return 2000;
-      case 'silver': return 5000;
-      case 'gold': return 10000;
-      case 'platinum': return 20000;
-      case 'diamond': return 99999;
-      default: return 2000;
+      case 'bronze': return 500;    // Silver à 500
+      case 'silver': return 2000;   // Gold à 2000
+      case 'gold': return 5000;     // Platinum à 5000
+      case 'platinum': return 10000; // Diamond à 10000
+      case 'diamond': return 25000;  // Legend à 25000
+      default: return 99999;         // Legend = MAX
     }
   }
 
@@ -420,6 +421,7 @@ class _XpBar extends StatelessWidget {
       case 'silver': return 'Or';
       case 'gold': return 'Platine';
       case 'platinum': return 'Diamant';
+      case 'diamond': return 'Légende';
       default: return 'MAX';
     }
   }
@@ -715,6 +717,7 @@ class _ActionDivider extends StatelessWidget {
 
 Color _getRankColor(String tier) {
   switch (tier) {
+    case 'legend': return const Color(0xFFFF00FF); // Magenta légende
     case 'diamond': return NeonColors.rankDiamond;
     case 'platinum': return NeonColors.rankPlatinum;
     case 'gold': return NeonColors.rankGold;
@@ -726,7 +729,9 @@ Color _getRankColor(String tier) {
 
 Color _getTierColor(String tier) {
   switch (tier) {
+    case 'legend': return const Color(0xFFFF00FF);
     case 'diamond': return NeonColors.rankDiamond;
+    case 'platinum': return NeonColors.rankPlatinum;
     case 'gold': return NeonColors.rankGold;
     case 'silver': return NeonColors.rankSilver;
     case 'bronze': return NeonColors.rankBronze;

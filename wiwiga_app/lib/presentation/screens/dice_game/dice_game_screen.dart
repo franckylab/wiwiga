@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 // === Game State ===
@@ -696,19 +697,44 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       final sum = dice1 + dice2;
       final isWin = prediction == sum;
       
+      // Get dynamic commission rate from admin config (fallback 5%)
+      final commissionRate = _getCommissionRate();
+      final netWin = isWin ? widget.betAmount * 2 - (widget.betAmount * commissionRate).toInt() : 0;
+      
       ref.read(diceGameStateProvider.notifier).state =
           state.copyWith(
         phase: DiceGamePhase.showingResult,
         diceResults: [dice1, dice2],
         totalSum: sum,
         winnerId: isWin ? 'me' : 'opponent',
-        netWinnings: isWin ? widget.betAmount * 2 - (widget.betAmount * 0.05).toInt() : 0,
+        netWinnings: netWin,
         opponentPrediction: random.nextInt(11) + 2,
         opponentName: 'Adversaire',
       );
       
       _resultController.forward(from: 0);
     });
+  }
+  
+  /// Fetch commission rate from game rules (admin-configurable)
+  double _getCommissionRate() {
+    try {
+      final rulesAsync = ref.read(gameRulesProvider('dice'));
+      return rulesAsync.when(
+        data: (rules) {
+          if (rules.isEmpty) return 0.05;
+          final rule = rules.firstWhere(
+            (r) => r.ruleType == 'normal',
+            orElse: () => rules.first,
+          );
+          return (rule.config['commission_rate'] as num?)?.toDouble() ?? 0.05;
+        },
+        loading: () => 0.05,
+        error: (_, __) => 0.05,
+      );
+    } catch (_) {
+      return 0.05;
+    }
   }
   
   void _showRollResult(Map<String, dynamic> payload) {

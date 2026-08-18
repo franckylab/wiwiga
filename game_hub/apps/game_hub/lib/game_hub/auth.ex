@@ -28,6 +28,7 @@ defmodule GameHub.Auth do
   alias GameHub.Users.User
   alias GameHub.Auth.RefreshToken
   alias GameHub.AuditLog
+  alias GameHub.Admin.PlatformConfig
   import Ecto.Query
   
   @otp_validity_seconds 300  # 5 minutes
@@ -146,25 +147,56 @@ defmodule GameHub.Auth do
   - `{:error, :phone_or_email_required}` — Ni phone ni email fourni
   """
   def register(attrs) do
-    phone = Map.get(attrs, "phone") || Map.get(attrs, :phone)
-    email = Map.get(attrs, "email") || Map.get(attrs, :email)
-    
-    # Vérifier qu'au moins phone ou email est fourni
-    if (is_nil(phone) or phone == "") and (is_nil(email) or email == "") do
-      {:error, :phone_or_email_required}
+    # Vérifier si l'inscription est activée via PlatformConfig
+    unless PlatformConfig.get_bool("registration", "registration_enabled", true) do
+      {:error, :registration_disabled}
     else
-      # Normaliser les attributs
-      normalized_attrs = %{
-        "phone" => if(phone && phone != "", do: String.trim(phone)),
-        "email" => if(email && email != "", do: String.downcase(String.trim(email))),
-        "username" => Map.get(attrs, "username") || Map.get(attrs, :username),
-        "name" => Map.get(attrs, "name") || Map.get(attrs, :name),
-        "avatar_type" => Map.get(attrs, "avatar_type") || Map.get(attrs, :avatar_type, "default")
-      }
-      
-      %User{}
-      |> User.registration_changeset(normalized_attrs)
-      |> Repo.insert()
+      phone = Map.get(attrs, "phone") || Map.get(attrs, :phone)
+      email = Map.get(attrs, "email") || Map.get(attrs, :email)
+
+      # Vérifier qu'au moins phone ou email est fourni
+      if (is_nil(phone) or phone == "") and (is_nil(email) or email == "") do
+        {:error, :phone_or_email_required}
+      else
+        # Vérifier si la vérification phone est requise
+        require_phone = PlatformConfig.get_bool("registration", "require_phone_verification", true)
+        if require_phone and (is_nil(phone) or phone == "") do
+          {:error, :phone_required}
+        else
+          # Normaliser les attributs
+          normalized_attrs = %{
+            "phone" => if(phone && phone != "", do: String.trim(phone)),
+            "email" => if(email && email != "", do: String.downcase(String.trim(email))),
+            "username" => Map.get(attrs, "username") || Map.get(attrs, :username),
+            "name" => Map.get(attrs, "name") || Map.get(attrs, :name),
+            "avatar_type" => Map.get(attrs, "avatar_type") || Map.get(attrs, :avatar_type, "default")
+          }
+
+          case %User{}
+               |> User.registration_changeset(normalized_attrs)
+               |> Repo.insert() do
+            {:ok, user} ->
+              # Appliquer le bonus de bienvenue si configuré
+              maybe_apply_welcome_bonus(user)
+              {:ok, user}
+
+            error ->
+              error
+          end
+        end
+      end
+    end
+  end
+
+  # Applique le bonus de bienvenue PlatformConfig au nouvel utilisateur
+  defp maybe_apply_welcome_bonus(user) do
+    bonus = PlatformConfig.get_welcome_bonus()
+    if bonus.amount > 0 do
+      try do
+        GameHub.Wallet.deposit(user.id, bonus.amount, "welcome_bonus_#{user.id}_#{System.system_time(:second)}")
+      rescue
+        _ -> :ok
+      end
     end
   end
   
@@ -887,9 +919,7 @@ defmodule GameHub.Auth do
     end
   end
   
-  @doc """
-  Met à jour le tracking de connexion de l'utilisateur.
-  """
+  # Met à jour le tracking de connexion de l'utilisateur.
   defp update_login_tracking(user) do
     user
     |> User.login_tracking_changeset()
@@ -899,12 +929,7 @@ defmodule GameHub.Auth do
   defp generate_temp_username do
     "player_" <> (:erlang.unique_integer([:positive]) |> Integer.to_string(36) |> String.downcase())
   end
-  
-  # Backward compatibility
-  defp get_or_create_user(phone) do
-    get_or_create_user_by_identifier(phone, :phone)
-  end
-  
+
   # ========================================
   # Fonctions Privées — Détection Comptes Multiples
   # ========================================

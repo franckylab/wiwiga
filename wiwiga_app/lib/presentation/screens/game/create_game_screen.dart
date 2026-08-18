@@ -10,7 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
+import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/game_stats_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
@@ -37,20 +39,69 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   bool _isCreating = false;
   String? _error;
 
-  // Ranges depuis les règles (en jetons)
-  static const int minSets = 1;
-  static const int maxSets = 11;
-  static const int minDice = 1;
-  static const int maxDice = 5;
-  static const int minBet = 10;
-  static const int maxBet = 50000;
-  static const int minPlayers = 2;
-  static const int maxPlayers = 5;
+  // Default fallback ranges (overridden by dynamic rules from provider)
+  int minSets = 1;
+  int maxSets = 11;
+  int minDice = 1;
+  int maxDice = 5;
+  int minBet = 10;
+  int maxBet = 50000;
+  int minPlayers = 2;
+  int maxPlayers = 5;
 
-  final List<int> _betPresets = [10, 25, 50, 100, 250, 500, 1000];
+  List<int> get _betPresets {
+    final presets = <int>[];
+    final steps = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+    for (final s in steps) {
+      final val = s * (minBet > 0 ? (minBet / 10).ceil() : 1);
+      if (val >= minBet && val <= maxBet) presets.add(val);
+    }
+    if (presets.isEmpty && minBet <= maxBet) presets.addAll([minBet, maxBet]);
+    return presets.take(6).toList();
+  }
+
+  /// Extract rule config bounds from the loaded GameRuleInfo
+  void _applyRulesConfig(List<GameRuleInfo> rules) {
+    if (rules.isEmpty) return;
+    // Find the rule matching current _ruleType, fallback to first
+    final rule = rules.firstWhere(
+      (r) => r.ruleType == _ruleType,
+      orElse: () => rules.first,
+    );
+    final c = rule.config;
+    minSets = (c['min_sets'] as num?)?.toInt() ?? minSets;
+    maxSets = (c['max_sets'] as num?)?.toInt() ?? maxSets;
+    minDice = (c['min_dice'] as num?)?.toInt() ?? minDice;
+    maxDice = (c['max_dice'] as num?)?.toInt() ?? maxDice;
+    minBet = (c['min_bet'] as num?)?.toInt() ?? minBet;
+    maxBet = (c['max_bet'] as num?)?.toInt() ?? maxBet;
+    minPlayers = (c['min_players'] as num?)?.toInt() ?? minPlayers;
+    maxPlayers = (c['max_players'] as num?)?.toInt() ?? maxPlayers;
+
+    // Clamp current values to new bounds
+    _setsCount = _setsCount.clamp(minSets, maxSets);
+    _diceCount = _diceCount.clamp(minDice, maxDice);
+    _maxPlayers = _maxPlayers.clamp(minPlayers, maxPlayers);
+    if (_betAmount < minBet) _betAmount = minBet;
+    if (_betAmount > maxBet) _betAmount = maxBet;
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Watch game rules from admin config (dynamic per game type)
+    final rulesAsync = ref.watch(gameRulesProvider(widget.gameType));
+
+    return rulesAsync.when(
+      data: (rules) {
+        _applyRulesConfig(rules);
+        return _buildBody();
+      },
+      loading: () => _buildBody(),
+      error: (_, __) => _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
@@ -217,11 +268,11 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
               onChanged: (v) => setState(() => _setsCount = v.round()),
             ),
           ),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('$minSets', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
-              Text('$maxSets', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+              Text('$minSets', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+              Text('$maxSets', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
             ],
           ),
         ],

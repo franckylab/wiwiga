@@ -238,6 +238,12 @@ defmodule GameHubWeb.AuthController do
   end
   
   defp do_login(conn, identifier, password, opts) do
+    # Debug logging pour diagnostiquer les échecs de connexion
+    if Mix.env() == :dev do
+      pw_bytes = :erlang.binary_to_list(password)
+      IO.puts("[LOGIN DEBUG] identifier=#{identifier}, password_length=#{String.length(password)}, bytes=#{inspect(pw_bytes)}")
+    end
+    
     case Auth.login_with_password(identifier, password, opts) do
       {:ok, access_token, refresh_token, user} ->
         # Créer une session tracking (section 2.4)
@@ -1054,6 +1060,88 @@ defmodule GameHubWeb.AuthController do
     case get_req_header(conn, "x-device-id") do
       [device_id | _] when device_id != "" -> device_id
       _ -> nil
+    end
+  end
+
+  # ========================================
+  # DEBUG — Reset passwords (DEV ONLY)
+  # ========================================
+  
+  @doc """
+  POST /api/auth/debug-reset-passwords
+  
+  Réinitialise les mots de passe des utilisateurs seed.
+  DEV ONLY — à supprimer en production.
+  """
+  def debug_reset_passwords(conn, _params) do
+    unless Mix.env() == :dev do
+      conn |> put_status(404) |> json(%{error: "Not found"})
+    else
+      passwords = [
+        {"+237600000000", "Wiwiga@Super2026!", "super_admin"},
+        {"+237699999999", "Wiwiga@Admin2026!", "admin"},
+        {"+237688888888", "Wiwiga@Modo2026!", "moderator"},
+        {"+237677777777", "Wiwiga@Test2026!", "test"},
+        {"+237666666666", "Wiwiga@Joueur2026!", "user"}
+      ]
+      
+      results = Enum.map(passwords, fn {phone, pw, _role} ->
+        case GameHub.Repo.get_by(User, phone: phone) do
+          nil -> %{phone: phone, status: "not_found"}
+          user ->
+            new_hash = Pbkdf2.hash_pwd_salt(pw)
+            user |> Ecto.Changeset.change(%{password_hash: new_hash}) |> GameHub.Repo.update!()
+            verify = Pbkdf2.verify_pass(pw, new_hash)
+            %{phone: phone, username: user.username, status: "reset", verify: verify}
+        end
+      end)
+      
+      conn |> put_status(200) |> json(%{success: true, data: %{results: results}})
+    end
+  end
+  
+  @doc """
+  POST /api/auth/debug-inspect-login
+  
+  Inspecte une tentative de login sans la traiter.
+  Affiche le mot de passe reçu, le hash stocké, et le résultat de la vérification.
+  """
+  def debug_inspect_login(conn, params) do
+    unless Mix.env() == :dev do
+      conn |> put_status(404) |> json(%{error: "Not found"})
+    else
+      identifier = Map.get(params, "phone") || Map.get(params, "email")
+      password = Map.get(params, "password", "")
+      type = if Map.has_key?(params, "email"), do: :email, else: :phone
+      
+      user = case type do
+        :email -> GameHub.Repo.get_by(User, email: String.downcase(String.trim(identifier)))
+        _ -> GameHub.Repo.get_by(User, phone: String.trim(identifier))
+      end
+      
+      result = case user do
+        nil -> %{found: false, identifier: identifier}
+        u ->
+          verify = if u.password_hash do
+            Pbkdf2.verify_pass(password, u.password_hash)
+          else
+            :no_hash
+          end
+          %{
+            found: true,
+            identifier: identifier,
+            user_id: u.id,
+            username: u.username,
+            password_received: password,
+            password_length: String.length(password),
+            password_bytes: :erlang.binary_to_list(password),
+            hash_prefix: if(u.password_hash, do: String.slice(u.password_hash, 0, 40)),
+            hash_length: if(u.password_hash, do: String.length(u.password_hash)),
+            verify_result: verify
+          }
+      end
+      
+      conn |> put_status(200) |> json(%{success: true, data: result})
     end
   end
 end

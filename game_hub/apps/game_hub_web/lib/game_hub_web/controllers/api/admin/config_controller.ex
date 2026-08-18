@@ -40,6 +40,8 @@ defmodule GameHubWeb.API.Admin.ConfigController do
   alias GameHub.{UI, Repo, AuditLog}
   alias GameHubWeb.AuthPlug
   alias UI.{ThemeConfig, FeatureConfig, GameConfig, PaymentConfig}
+  alias GameHub.Admin.ConfigChangeLog
+  import Ecto.Query
   
   # ========================================
   # THÈME UI
@@ -85,6 +87,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
     case ThemeConfig.update_config(Map.put(attrs, "updated_by_id", user.id)) do
       {:ok, config} ->
         AuditLog.log_admin_action(user.id, "update_theme_config", attrs)
+        log_config_change(user.id, "theme", config.id, nil, attrs, "Updated theme configuration")
         
         conn
         |> put_status(200)
@@ -161,6 +164,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
     case FeatureConfig.update_config(Map.put(attrs, "updated_by_id", user.id)) do
       {:ok, config} ->
         AuditLog.log_admin_action(user.id, "update_feature_config", attrs)
+        log_config_change(user.id, "features", config.id, nil, attrs, "Updated feature configuration")
         
         conn
         |> put_status(200)
@@ -269,6 +273,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
     case GameConfig.create_or_update(game_type, Map.put(attrs, "updated_by_id", user.id)) do
       {:ok, config} ->
         AuditLog.log_admin_action(user.id, "update_game_config", %{game_type: game_type} |> Map.merge(attrs))
+        log_config_change(user.id, "games", config.id, nil, Map.put(attrs, "type", game_type), "Updated game config: #{game_type}")
         
         conn
         |> put_status(200)
@@ -383,6 +388,7 @@ defmodule GameHubWeb.API.Admin.ConfigController do
           provider: provider,
           action: "configuration_updated"
         })
+        log_config_change(user.id, "payments", config.id, nil, Map.put(attrs, "provider", provider), "Updated payment config: #{provider}")
         
         conn
         |> put_status(200)
@@ -416,6 +422,137 @@ defmodule GameHubWeb.API.Admin.ConfigController do
   end
   
   # ========================================
+  # HISTORIQUE & ROLLBACK
+  # ========================================
+
+  @doc """
+  GET /api/admin/config/history
+  Retourne l'historique des changements de configuration.
+  
+  Params:
+    - type: type de config (theme, features, games, payments)
+    - limit: nombre max d'entrées (défaut 50)
+  """
+  def config_history(conn, params) do
+    limit = min(Map.get(params, "limit", "50") |> String.to_integer(), 200)
+    
+    query = from cl in ConfigChangeLog,
+      order_by: [desc: cl.inserted_at],
+      limit: ^limit,
+      select: %{
+        id: cl.id,
+        config_type: cl.config_type,
+        config_id: cl.config_id,
+        changed_by: cl.changed_by,
+        old_values: cl.old_values,
+        new_values: cl.new_values,
+        change_summary: cl.change_summary,
+        inserted_at: cl.inserted_at
+      }
+    
+    query = case params["type"] do
+      nil -> query
+      type -> from cl in query, where: cl.config_type == ^type
+    end
+    
+    logs = Repo.all(query)
+    
+    # Enrichir avec le nom de l'auteur
+    enriched_logs = Enum.map(logs, fn log ->
+      Map.put(log, :changed_by_name, load_updated_by_name(log.changed_by))
+    end)
+    
+    conn
+    |> put_status(200)
+    |> json(%{
+      success: true,
+      data: %{
+        history: enriched_logs,
+        total: length(enriched_logs)
+      }
+    })
+  end
+
+  @doc """
+  POST /api/admin/config/rollback/:log_id
+  Restaurer une configuration précédente.
+  
+  Restaure les old_values du log sélectionné dans la config correspondante.
+  """
+  def rollback_config(conn, %{"log_id" => log_id_str}) do
+    user = AuthPlug.get_current_user(conn)
+    
+    case Integer.parse(log_id_str) do
+      :error ->
+        conn |> put_status(400) |> json(%{success: false, message: "ID invalide"})
+      
+      {log_id, _} ->
+        case Repo.get(ConfigChangeLog, log_id) do
+          nil ->
+            conn |> put_status(404) |> json(%{success: false, message: "Historique non trouvé"})
+          
+          log ->
+            result = perform_rollback(log, user)
+            
+            case result do
+              {:ok, _config} ->
+                AuditLog.log_admin_action(user.id, "rollback_config", %{
+                  log_id: log_id,
+                  config_type: log.config_type,
+                  summary: log.change_summary
+                })
+                
+                conn
+                |> put_status(200)
+                |> json(%{
+                  success: true,
+                  message: "Configuration restaurée avec succès (type: #{log.config_type})",
+                  data: %{
+                    config_type: log.config_type,
+                    restored_from_log: log_id,
+                    rolled_back_by: user.id
+                  }
+                })
+              
+              {:error, reason} ->
+                conn
+                |> put_status(422)
+                |> json(%{success: false, message: "Erreur lors du rollback: #{inspect(reason)}"})
+            end
+        end
+    end
+  end
+
+  defp perform_rollback(log, user) do
+    case log.config_type do
+      "theme" ->
+        ThemeConfig.update_config(Map.put(log.old_values, "updated_by_id", user.id))
+      
+      "features" ->
+        FeatureConfig.update_config(Map.put(log.old_values, "updated_by_id", user.id))
+      
+      "games" ->
+        if log.config_id do
+          game_type = Map.get(log.old_values, "type", "dice")
+          GameConfig.create_or_update(game_type, Map.put(log.old_values, "updated_by_id", user.id))
+        else
+          {:error, :missing_config_id}
+        end
+      
+      "payments" ->
+        if log.config_id do
+          provider = Map.get(log.old_values, "provider", "campay")
+          PaymentConfig.create_or_update(provider, Map.put(log.old_values, "updated_by_id", user.id))
+        else
+          {:error, :missing_config_id}
+        end
+      
+      _ ->
+        {:error, :unknown_config_type}
+    end
+  end
+
+  # ========================================
   # HELPERS PRIVÉS
   # ========================================
   
@@ -426,6 +563,23 @@ defmodule GameHubWeb.API.Admin.ConfigController do
       nil -> nil
       user -> user.name || user.email
     end
+  end
+  
+  @doc """
+  Log un changement de configuration dans l'historique.
+  Appelé par les fonctions update après chaque modification réussie.
+  """
+  def log_config_change(user_id, config_type, config_id, old_values, new_values, summary \\ nil) do
+    %ConfigChangeLog{}
+    |> ConfigChangeLog.changeset(%{
+      config_type: config_type,
+      config_id: config_id,
+      changed_by: user_id,
+      old_values: old_values || %{},
+      new_values: new_values,
+      change_summary: summary || "Updated #{config_type} configuration"
+    })
+    |> Repo.insert()
   end
   
   defp translate_errors(changeset) do

@@ -128,7 +128,9 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
 
   void _inviteFriend(String friendId, String friendName) {
     setState(() => _invitedFriendId = friendId);
-    // TODO: Envoyer invitation via WebSocket FriendChannel
+    // Envoyer invitation via WebSocket
+    final gameWs = ref.read(gameWebSocketServiceProvider);
+    gameWs.sendGameInvite(friendId: friendId, roomCode: widget.roomCode);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Invitation envoyée à $friendName !', style: const TextStyle(color: NeonColors.success)),
@@ -341,10 +343,12 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
               try {
                 final apiService = ref.read(apiServiceProvider);
                 await FriendRepository(apiService).sendRequest(userId: result.id);
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Demande envoyée à ${result.name}')),
                 );
               } catch (e) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
               }
             },

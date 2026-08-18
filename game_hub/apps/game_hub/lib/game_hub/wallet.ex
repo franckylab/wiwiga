@@ -21,6 +21,7 @@ defmodule GameHub.Wallet do
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
   alias GameHub.AuditLog
+  alias GameHub.Admin.PlatformConfig
   
   @doc """
   Récupère le solde d'un utilisateur.
@@ -87,6 +88,19 @@ defmodule GameHub.Wallet do
   """
   @spec deposit(integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
   def deposit(user_id, amount, idempotency_key) when amount > 0 do
+    # Validation via PlatformConfig (limites admin)
+    unless PlatformConfig.valid_deposit?(amount) do
+      {:error, :deposit_limit_violation}
+    else
+      do_deposit(user_id, amount, idempotency_key)
+    end
+  end
+
+  def deposit(_, amount, _) when amount <= 0 do
+    {:error, :invalid_amount}
+  end
+
+  defp do_deposit(user_id, amount, idempotency_key) do
     Repo.transaction(fn ->
       # Vérifier idempotence
       case get_transaction_by_key(idempotency_key) do
@@ -138,10 +152,6 @@ defmodule GameHub.Wallet do
     end)
   end
   
-  def deposit(_, amount, _) when amount <= 0 do
-    {:error, :invalid_amount}
-  end
-  
   @doc """
   Retire fonds du compte.
   
@@ -156,6 +166,19 @@ defmodule GameHub.Wallet do
   """
   @spec withdraw(integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
   def withdraw(user_id, amount, idempotency_key) when amount > 0 do
+    # Validation via PlatformConfig (limites admin)
+    unless PlatformConfig.valid_withdrawal?(amount) do
+      {:error, :withdrawal_limit_violation}
+    else
+      do_withdraw(user_id, amount, idempotency_key)
+    end
+  end
+
+  def withdraw(_, amount, _) when amount <= 0 do
+    {:error, :invalid_amount}
+  end
+
+  defp do_withdraw(user_id, amount, idempotency_key) do
     Repo.transaction(fn ->
       case get_transaction_by_key(idempotency_key) do
         nil ->
@@ -199,10 +222,6 @@ defmodule GameHub.Wallet do
           Repo.rollback(:idempotency_key_used)
       end
     end)
-  end
-  
-  def withdraw(_, amount, _) when amount <= 0 do
-    {:error, :invalid_amount}
   end
   
   @doc """

@@ -97,6 +97,98 @@ class ApiEndpoints {
   static const String adminConfigGames = '/api/admin/config/games';
   static const String adminConfigPayments = '/api/admin/config/payments';
   static const String adminConfigTokens = '/api/admin/config/tokens';
+  
+  // Admin - Métriques
+  static const String adminMetricsDashboard = '/api/admin/metrics/dashboard';
+  static const String adminMetricsFinancial = '/api/admin/metrics/financial';
+  static const String adminMetricsGames = '/api/admin/metrics/games';
+  static const String adminMetricsUsers = '/api/admin/metrics/users';
+  static const String adminMetricsPayments = '/api/admin/metrics/payments';
+  static const String adminMetricsSecurity = '/api/admin/metrics/security';
+  static const String adminMetricsTimeseries = '/api/admin/metrics/timeseries';
+  
+  // Admin - Gestion des parties
+  static const String adminGamesActive = '/api/admin/games/active';
+  static const String adminGamesStatsSummary = '/api/admin/games/stats/summary';
+  
+  // Admin - Sécurité
+  static const String adminSecurityOverview = '/api/admin/security/overview';
+  static const String adminSecurityFailedAuths = '/api/admin/security/failed-auths';
+  static const String adminSecurityRateLimits = '/api/admin/security/rate-limits';
+  static const String adminSecurityIpWhitelist = '/api/admin/security/ip-whitelist';
+  
+  // Admin - Jeu responsable
+  static const String adminResponsibleGamingOverview = '/api/admin/responsible-gaming/overview';
+  static const String adminResponsibleGamingSelfExclusions = '/api/admin/responsible-gaming/self-exclusions';
+  static const String adminResponsibleGamingRiskIndicators = '/api/admin/responsible-gaming/risk-indicators';
+  
+  // Admin - Notifications
+  static const String adminNotifications = '/api/admin/notifications';
+  static const String adminNotificationsBroadcast = '/api/admin/notifications/broadcast';
+  static const String adminNotificationsUnreadCount = '/api/admin/notifications/unread-count';
+  
+  // Admin - Config historique & rollback
+  static const String adminConfigHistory = '/api/admin/config/history';
+  
+  // Admin - Export
+  static const String adminExportUsers = '/api/admin/export/users';
+  static const String adminExportTransactions = '/api/admin/export/transactions';
+  static const String adminExportGames = '/api/admin/export/games';
+  
+  // Admin - CRM
+  static const String adminCrmSegments = '/api/admin/crm/segments';
+  static const String adminCrmVip = '/api/admin/crm/vip';
+  static const String adminCrmAtRisk = '/api/admin/crm/at-risk';
+  static const String adminCrmPlayerSummary = '/api/admin/crm/players'; // + /:id/summary
+  static const String adminCrmPlayerNotes = '/api/admin/crm/players'; // + /:id/notes
+  static const String adminCrmVipTier = '/api/admin/crm/players'; // + /:id/vip-tier
+  
+  // Admin - Réconciliation
+  static const String adminReconciliationDaily = '/api/admin/reconciliation/daily';
+  static const String adminReconciliationDiscrepancies = '/api/admin/reconciliation/discrepancies';
+  static const String adminReconciliationCommissions = '/api/admin/reconciliation/commissions';
+  static const String adminReconciliationBalance = '/api/admin/reconciliation/balance';
+  
+  // Admin - Settings
+  static const String adminSettings = '/api/admin/settings';
+  static const String adminSettingsCategory = '/api/admin/settings/category'; // + /:category
+  
+  // Admin - Impersonation
+  static const String adminImpersonateStart = '/api/admin/impersonate'; // + /:user_id/start
+  static const String adminImpersonateStop = '/api/admin/impersonate/stop';
+  static const String adminImpersonateStatus = '/api/admin/impersonate/status';
+  
+  // Admin - Alert Thresholds
+  static const String adminAlertThresholds = '/api/admin/alert-thresholds';
+  static String adminAlertResolve(String alertId) => '/api/admin/alerts/$alertId/resolve';
+  
+  // Admin - Analytics KPI Gaming (V3)
+  static const String adminAnalyticsRevenue = '/api/admin/analytics/revenue';
+  static const String adminAnalyticsPlayers = '/api/admin/analytics/players';
+  static const String adminAnalyticsCohorts = '/api/admin/analytics/cohorts';
+  static const String adminAnalyticsLtv = '/api/admin/analytics/ltv';
+  static const String adminAnalyticsGames = '/api/admin/analytics/games';
+  static const String adminAnalyticsMonetaryFlow = '/api/admin/analytics/monetary-flow';
+  static const String adminAnalyticsWealthDistribution = '/api/admin/analytics/wealth-distribution';
+  static const String adminAnalyticsConversionFunnel = '/api/admin/analytics/conversion-funnel';
+  
+  // Admin - Game Config (V3)
+  static const String adminGameConfigs = '/api/admin/game-configs';
+  
+  // Admin - Bonuses & Promotions (V3)
+  static const String adminBonuses = '/api/admin/bonuses';
+  
+  // Admin - Reports (V3)
+  static const String adminReports = '/api/admin/reports';
+  static const String adminReportsGenerate = '/api/admin/reports/generate';
+
+  // Admin - Player Progression (V3)
+  static const String adminPlayerProgressionLevels = '/api/admin/player-progression/levels';
+  static const String adminPlayerProgressionCalculate = '/api/admin/player-progression/calculate';
+
+  // Admin - Platform Config (V3)
+  static const String adminPlatformConfig = '/api/admin/platform-config';
+  static const String adminPlatformConfigHealth = '/api/admin/platform-config/health';
 }
 
 /// Canaux WebSocket Phoenix
@@ -115,6 +207,10 @@ class WebSocketChannels {
   
   // Canal pour notifications utilisateur
   static const String userNotifications = 'user:notifications';
+  
+  // Canal admin (métriques en temps réel)
+  static const String adminMetrics = 'admin:metrics';
+  static const String adminAlerts = 'admin:alerts';
 }
 
 /// Événements WebSocket

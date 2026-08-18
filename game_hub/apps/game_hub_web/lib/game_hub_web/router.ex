@@ -79,6 +79,10 @@ defmodule GameHubWeb.Router do
     post "/auth/logout", AuthController, :logout
     get "/auth/avatars", AuthController, :avatars
     
+    # Debug endpoints (DEV ONLY)
+    post "/auth/debug-reset-passwords", AuthController, :debug_reset_passwords
+    post "/auth/debug-inspect-login", AuthController, :debug_inspect_login
+    
     # Webhooks paiement (signature vérification interne)
     post "/webhooks/campay", PaymentWebhookController, :campay_callback
   end
@@ -258,5 +262,163 @@ defmodule GameHubWeb.Router do
     get "/promos", TokenConfigController, :list_promos
     post "/promos", TokenConfigController, :create_promo
     put "/promos/:id", TokenConfigController, :update_promo
+    
+    # ========================================
+    # Métriques Admin
+    # ========================================
+    get "/metrics/dashboard", AdminMetricsController, :dashboard
+    get "/metrics/financial", AdminMetricsController, :financial
+    get "/metrics/games", AdminMetricsController, :games
+    get "/metrics/users", AdminMetricsController, :users
+    get "/metrics/payments", AdminMetricsController, :payments
+    get "/metrics/security", AdminMetricsController, :security
+    get "/metrics/timeseries", AdminMetricsController, :timeseries
+    
+    # ========================================
+    # Gestion des Parties (Supervision)
+    # ========================================
+    get "/games/active", AdminGameManagerController, :active_games
+    get "/games/active/:id", AdminGameManagerController, :active_game_detail
+    post "/games/:id/force-close", AdminGameManagerController, :force_close
+    get "/games/stats/summary", AdminGameManagerController, :stats_summary
+    
+    # ========================================
+    # Sécurité Admin
+    # ========================================
+    get "/security/overview", AdminSecurityController, :overview
+    get "/security/failed-auths", AdminSecurityController, :failed_auths
+    get "/security/rate-limits", AdminSecurityController, :rate_limits
+    get "/security/ip-whitelist", AdminSecurityController, :list_whitelist
+    post "/security/ip-whitelist", AdminSecurityController, :add_to_whitelist
+    delete "/security/ip-whitelist/:ip", AdminSecurityController, :remove_from_whitelist
+    post "/security/ban-user/:id", AdminSecurityController, :ban_user
+    delete "/security/ban-user/:id", AdminSecurityController, :unban_user
+    
+    # ========================================
+    # Jeu Responsable
+    # ========================================
+    get "/responsible-gaming/overview", AdminResponsibleGamingController, :overview
+    put "/responsible-gaming/users/:id/limits", AdminResponsibleGamingController, :set_limits
+    get "/responsible-gaming/self-exclusions", AdminResponsibleGamingController, :self_exclusions
+    post "/responsible-gaming/self-exclusions/:id/override", AdminResponsibleGamingController, :override_self_exclusion
+    get "/responsible-gaming/risk-indicators", AdminResponsibleGamingController, :risk_indicators
+    
+    # ========================================
+    # Notifications Admin
+    # ========================================
+    get "/notifications", AdminNotificationsController, :list
+    put "/notifications/:id/read", AdminNotificationsController, :mark_read
+    post "/notifications/broadcast", AdminNotificationsController, :broadcast
+    get "/notifications/unread-count", AdminNotificationsController, :unread_count
+    
+    # ========================================
+    # Alertes Admin
+    # ========================================
+    get "/alerts", AdminSecurityController, :overview
+    
+    # ========================================
+    # Export de données (CSV)
+    # ========================================
+    get "/export/users", AdminExportController, :export_users
+    get "/export/transactions", AdminExportController, :export_transactions
+    get "/export/games", AdminExportController, :export_games
+    
+    # ========================================
+    # Historique et Rollback Configuration
+    # ========================================
+    get "/config/history", API.Admin.ConfigController, :config_history
+    post "/config/rollback/:log_id", API.Admin.ConfigController, :rollback_config
+    
+    # ========================================
+    # CRM Joueurs + Segmentation
+    # ========================================
+    get "/crm/segments", AdminCRMController, :segments
+    get "/crm/players/:id/summary", AdminCRMController, :player_summary
+    post "/crm/players/:id/notes", AdminCRMController, :add_note
+    get "/crm/players/:id/notes", AdminCRMController, :list_notes
+    get "/crm/vip", AdminCRMController, :vip_players
+    put "/crm/players/:id/vip-tier", AdminCRMController, :set_vip_tier
+    get "/crm/at-risk", AdminCRMController, :at_risk_players
+    
+    # ========================================
+    # Réconciliation Financière
+    # ========================================
+    get "/reconciliation/daily", AdminReconciliationController, :daily
+    get "/reconciliation/discrepancies", AdminReconciliationController, :discrepancies
+    get "/reconciliation/commissions", AdminReconciliationController, :commissions
+    get "/reconciliation/balance", AdminReconciliationController, :balance
+    
+    # ========================================
+    # Settings Système
+    # ========================================
+    get "/settings", AdminSettingsController, :index
+    get "/settings/category/:category", AdminSettingsController, :by_category
+    put "/settings/:key", AdminSettingsController, :update
+    
+    # ========================================
+    # Impersonation
+    # ========================================
+    post "/impersonate/:user_id/start", AdminImpersonationController, :start
+    post "/impersonate/stop", AdminImpersonationController, :stop
+    get "/impersonate/status", AdminImpersonationController, :status
+    
+    # ========================================
+    # Alert Thresholds (monitoring auto)
+    # ========================================
+    get "/alert-thresholds", AdminMetricsController, :list_thresholds
+    put "/alert-thresholds/:id", AdminMetricsController, :update_threshold
+    post "/alert-thresholds/check", AdminMetricsController, :trigger_check
+    post "/alerts/:id/resolve", AdminMetricsController, :resolve_alert
+    
+    # ========================================
+    # Analytics KPI Gaming (V3)
+    # ========================================
+    get "/analytics/revenue", AdminAnalyticsController, :revenue
+    get "/analytics/players", AdminAnalyticsController, :players
+    get "/analytics/cohorts", AdminAnalyticsController, :cohorts
+    get "/analytics/ltv", AdminAnalyticsController, :ltv
+    get "/analytics/games", AdminAnalyticsController, :games
+    get "/analytics/monetary-flow", AdminAnalyticsController, :monetary_flow
+    get "/analytics/wealth-distribution", AdminAnalyticsController, :wealth_distribution
+    get "/analytics/conversion-funnel", AdminAnalyticsController, :conversion_funnel
+    
+    # ========================================
+    # Game Config (V3)
+    # ========================================
+    get "/game-configs", AdminGameConfigController, :index
+    put "/game-configs/:game_type", AdminGameConfigController, :update
+    post "/game-configs", AdminGameConfigController, :create
+    
+    # ========================================
+    # Bonuses & Promotions (V3)
+    # ========================================
+    get "/bonuses", AdminBonusesController, :index
+    post "/bonuses", AdminBonusesController, :create
+    put "/bonuses/:id", AdminBonusesController, :update
+    post "/bonuses/:id/toggle", AdminBonusesController, :toggle
+    get "/bonuses/:id/stats", AdminBonusesController, :stats
+    
+    # ========================================
+    # Reports (V3)
+    # ========================================
+    get "/reports", AdminReportsController, :index
+    post "/reports/generate", AdminReportsController, :generate
+    get "/reports/:id/download", AdminReportsController, :download
+
+    # ========================================
+    # Player Progression (V3)
+    # ========================================
+    get "/player-progression/levels", AdminPlayerProgressionController, :levels
+    put "/player-progression/levels/:tier", AdminPlayerProgressionController, :update_level
+    get "/player-progression/calculate/:xp", AdminPlayerProgressionController, :calculate_tier
+
+    # ========================================
+    # Platform Config (V3)
+    # ========================================
+    get "/platform-config", AdminPlatformConfigController, :index
+    get "/platform-config/health", AdminPlatformConfigController, :health
+    get "/platform-config/:category", AdminPlatformConfigController, :show
+    put "/platform-config/:category/:key", AdminPlatformConfigController, :update
+    put "/platform-config/:category/batch", AdminPlatformConfigController, :batch_update
   end
 end

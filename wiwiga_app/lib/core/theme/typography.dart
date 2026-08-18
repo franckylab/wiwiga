@@ -16,11 +16,17 @@ class AppTypography {
   // Police pour les titres et montants (gaming)
   static const String fontFamilyDisplay = 'Orbitron';
   
+  // Polices de secours pour caractères non couverts (emoji, CJK, etc.)
+  // On ne liste pas Noto Sans explicitement — Flutter utilise automatiquement
+  // les polices système disponibles pour les caractères manquants.
+  static const List<String> fontFamilyFallback = ['Arial'];
+  
   /// TextTheme sombre par défaut
   static const TextTheme darkTheme = TextTheme(
     // Headlines - Orbitron pour effet gaming
     displayLarge: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 48,
       fontWeight: FontWeight.bold,
       color: NeonColors.textPrimary,
@@ -28,6 +34,7 @@ class AppTypography {
     ),
     displayMedium: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 36,
       fontWeight: FontWeight.bold,
       color: NeonColors.textPrimary,
@@ -35,24 +42,28 @@ class AppTypography {
     ),
     displaySmall: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 28,
       fontWeight: FontWeight.bold,
       color: NeonColors.textPrimary,
     ),
     headlineLarge: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 32,
       fontWeight: FontWeight.bold,
       color: NeonColors.textPrimary,
     ),
     headlineMedium: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 24,
       fontWeight: FontWeight.bold,
       color: NeonColors.textPrimary,
     ),
     headlineSmall: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: NeonColors.textPrimary,
@@ -61,18 +72,21 @@ class AppTypography {
     // Titres - Orbitron
     titleLarge: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 22,
       fontWeight: FontWeight.w600,
       color: NeonColors.textPrimary,
     ),
     titleMedium: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 18,
       fontWeight: FontWeight.w600,
       color: NeonColors.textPrimary,
     ),
     titleSmall: TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 16,
       fontWeight: FontWeight.w600,
       color: NeonColors.textSecondary,
@@ -81,6 +95,7 @@ class AppTypography {
     // Body - Inter pour lisibilité
     bodyLarge: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 16,
       fontWeight: FontWeight.normal,
       color: NeonColors.textPrimary,
@@ -88,6 +103,7 @@ class AppTypography {
     ),
     bodyMedium: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 14,
       fontWeight: FontWeight.normal,
       color: NeonColors.textSecondary,
@@ -95,6 +111,7 @@ class AppTypography {
     ),
     bodySmall: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 12,
       fontWeight: FontWeight.normal,
       color: NeonColors.textMuted,
@@ -104,6 +121,7 @@ class AppTypography {
     // Labels
     labelLarge: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 14,
       fontWeight: FontWeight.w600,
       color: NeonColors.textPrimary,
@@ -111,6 +129,7 @@ class AppTypography {
     ),
     labelMedium: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 12,
       fontWeight: FontWeight.w600,
       color: NeonColors.textSecondary,
@@ -118,6 +137,7 @@ class AppTypography {
     ),
     labelSmall: TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: 11,
       fontWeight: FontWeight.w500,
       color: NeonColors.textMuted,
@@ -129,6 +149,7 @@ class AppTypography {
   static TextStyle balanceAmount({double fontSize = 36}) {
     return TextStyle(
       fontFamily: fontFamilyDisplay,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
       fontWeight: FontWeight.bold,
       color: NeonColors.primary,
@@ -145,6 +166,7 @@ class AppTypography {
   static TextStyle gameLabel({double fontSize = 14}) {
     return TextStyle(
       fontFamily: fontFamilyBody,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
       fontWeight: FontWeight.w600,
       color: NeonColors.textSecondary,

@@ -16,6 +16,8 @@ defmodule GameHub.Audit.AuditLog do
   
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
   
   @derive {Jason.Encoder, only: [:id, :action, :entity_type, :entity_id, :changes, :ip_address, :user_agent, :metadata, :user_id, :inserted_at, :updated_at]}
   @primary_key {:id, :id, autogenerate: true}
@@ -62,7 +64,32 @@ defmodule GameHub.Audit.AuditLog do
       # Responsible gaming
       "self_exclusion", "limit_updated",
       # Admin
-      "admin_action", "system_action"
+      "admin_action", "system_action",
+      # Payment
+      "payment_failed"
     ]
+  end
+
+  @doc """
+  Helper pour créer un log d'audit rapidement.
+  
+  ## Parameters
+    - action: type d'action (voir all_actions/0)
+    - user_id: ID de l'utilisateur qui a effectué l'action
+    - entity_type: type d'entité concernée
+    - entity_id: ID de l'entité
+    - metadata: données additionnelles
+  """
+  @spec log(String.t(), integer() | nil, String.t(), String.t(), map()) :: {:ok, t()} | {:error, term()}
+  def log(action, user_id, entity_type, entity_id, metadata \\ %{}) do
+    %__MODULE__{}
+    |> create_changeset(%{
+      action: action,
+      user_id: user_id,
+      entity_type: entity_type,
+      entity_id: entity_id,
+      metadata: metadata
+    })
+    |> GameHub.Repo.insert()
   end
 end

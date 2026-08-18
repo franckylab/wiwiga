@@ -220,7 +220,6 @@ class _AuditLogTile extends StatelessWidget {
     final userId = log['user_id'];
     final insertedAt = log['inserted_at'] as String? ?? '';
     final changes = log['changes'] as Map<String, dynamic>? ?? {};
-    final metadata = log['metadata'] as Map<String, dynamic>? ?? {};
     final ipAddress = log['ip_address'] as String?;
 
     final color = _actionColor(action);

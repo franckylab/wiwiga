@@ -7,6 +7,7 @@
 // ============================================================
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/auth/avatar_picker.dart';
 import '../../widgets/auth/success_animation.dart';
+import '../../providers/config_provider.dart';
 
 /// Écran d'authentification multi-méthodes
 ///
@@ -143,13 +145,21 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       } else {
         setState(() {
           _isLoading = false;
-          _error = newState.error ?? 'Erreur de connexion';
+          if (!kReleaseMode) {
+            _error = '${newState.error ?? "Erreur de connexion"}\nUtilisez les identifiants DEV ci-dessous.';
+          } else {
+            _error = newState.error ?? 'Erreur de connexion';
+          }
         });
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Identifiants incorrects. Vérifiez votre numéro/email et mot de passe.';
+        if (kDebugMode) {
+          _error = 'Identifiants incorrects.\nUtilisez les identifiants DEV affichés ci-dessous.';
+        } else {
+          _error = 'Identifiants incorrects. Vérifiez votre numéro/email et mot de passe.';
+        }
       });
     }
   }
@@ -380,6 +390,17 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           height: 52,
           child: OutlinedButton(
             onPressed: () {
+              // Vérifier si les inscriptions sont ouvertes
+              final isRegistrationOpen = ref.read(isRegistrationOpenProvider);
+              if (!isRegistrationOpen) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Les inscriptions sont temporairement désactivées'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
               _resetState();
               setState(() => _currentFlow = _AuthFlow.registerIdentifier);
             },
@@ -504,6 +525,13 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           ],
         ),
 
+        // Panneau identifiants dev (visible en debug et profile, pas en release)
+        if (!kReleaseMode) ...[
+          const SizedBox(height: 8),
+          _buildDevCredentialsPanel(),
+          const SizedBox(height: 8),
+        ],
+
         // Retour
         TextButton(
           onPressed: () {
@@ -513,6 +541,93 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           child: const Text('Retour', style: TextStyle(color: Colors.white38)),
         ),
       ],
+    );
+  }
+
+  /// Remplit les champs avec des identifiants de développement
+  void _fillDevCredentials(String identifier, String password) {
+    setState(() {
+      if (identifier.contains('@')) {
+        _selectedMethod = _AuthMethod.email;
+      } else {
+        _selectedMethod = _AuthMethod.phone;
+      }
+      _identifierController.text = identifier;
+      _passwordController.text = password;
+      _error = null;
+    });
+  }
+
+  /// Panneau affichant les identifiants seed en mode développement
+  Widget _buildDevCredentialsPanel() {
+    const credentials = [
+      {'label': 'Super Admin', 'phone': '+237600000000', 'email': 'superadmin@wiwiga.com', 'password': 'Wiwiga@Super2026!'},
+      {'label': 'Admin', 'phone': '+237699999999', 'email': 'admin@wiwiga.com', 'password': 'Wiwiga@Admin2026!'},
+      {'label': 'Modérateur', 'phone': '+237688888888', 'email': 'moderator@wiwiga.com', 'password': 'Wiwiga@Modo2026!'},
+      {'label': 'Test', 'phone': '+237677777777', 'email': 'test@wiwiga.com', 'password': 'Wiwiga@Test2026!'},
+      {'label': 'Joueur', 'phone': '+237666666666', 'email': 'joueur1@wiwiga.com', 'password': 'Wiwiga@Joueur2026!'},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A3E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.bug_report, size: 16, color: Color(0xFF00FF88)),
+              SizedBox(width: 6),
+              Text(
+                'DEV — Identifiants de test',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00FF88),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...credentials.map((c) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: InkWell(
+              onTap: () => _fillDevCredentials(
+                _selectedMethod == _AuthMethod.email ? c['email'] as String : c['phone'] as String,
+                c['password'] as String,
+              ),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: Text(c['label']!, style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w600)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _selectedMethod == _AuthMethod.email ? c['email'] as String : c['phone'] as String,
+                        style: const TextStyle(fontSize: 11, color: Colors.white54, fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const Icon(Icons.touch_app, size: 14, color: Color(0xFF00FF88)),
+                  ],
+                ),
+              ),
+            ),
+          ),),
+          Text(
+            'Appuyez pour remplir automatiquement',
+            style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.3), fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
     );
   }
 

@@ -24,8 +24,6 @@ defmodule GameHub.Users.Avatars do
   - `wiwiga_8` — Étoile
   """
   
-  @avatar_dir "priv/static/avatars"
-  
   @avatars [
     %{
       type: "default",

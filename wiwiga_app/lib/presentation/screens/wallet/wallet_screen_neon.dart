@@ -7,7 +7,9 @@ import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../../data/providers/token_provider.dart';
+import '../../../data/providers/friend_provider.dart' hide apiServiceProvider;
 import '../../../data/models/token_transaction_model.dart';
+import '../../providers/config_provider.dart';
 
 /// Écran Wallet redesigné avec système de jetons
 class WalletScreenNeon extends ConsumerStatefulWidget {
@@ -67,7 +69,7 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
       ),
       body: Column(
         children: [
-          _TokenBalanceHeader(),
+          _TokenBalanceHeader(onQuickAction: (tab) => setState(() => _currentTab = tab)),
           _TabSelector(
             currentIndex: _currentTab,
             onTabChanged: (index) => setState(() => _currentTab = index),
@@ -95,6 +97,8 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
 // ============================================================
 
 class _TokenBalanceHeader extends ConsumerWidget {
+  final void Function(int tab)? onQuickAction;
+  const _TokenBalanceHeader({this.onQuickAction});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokenState = ref.watch(tokenProvider);
@@ -165,7 +169,7 @@ class _TokenBalanceHeader extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'ACHETER',
-                  onPressed: () {},
+                  onPressed: () => onQuickAction?.call(1),
                   variant: NeonButtonVariant.success,
                   icon: Icons.add,
                 ),
@@ -174,7 +178,7 @@ class _TokenBalanceHeader extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'ÉCHANGER',
-                  onPressed: () {},
+                  onPressed: () => onQuickAction?.call(2),
                   variant: NeonButtonVariant.outline,
                   icon: Icons.swap_horiz,
                 ),
@@ -183,7 +187,7 @@ class _TokenBalanceHeader extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'CADEAU',
-                  onPressed: () {},
+                  onPressed: () => onQuickAction?.call(3),
                   variant: NeonButtonVariant.secondary,
                   icon: Icons.card_giftcard,
                 ),
@@ -418,6 +422,29 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
   @override
   Widget build(BuildContext context) {
     final tokenState = ref.watch(tokenProvider);
+    final featureConfigAsync = ref.watch(featureConfigProvider);
+    final paymentsConfigAsync = ref.watch(paymentsConfigProvider);
+
+    // Valeurs par défaut si config non chargée
+    final minDeposit = featureConfigAsync.when(
+      data: (c) => c.minDepositAmount,
+      loading: () => 500,
+      error: (_, __) => 500,
+    );
+    final maxDeposit = featureConfigAsync.when(
+      data: (c) => c.maxDepositAmount,
+      loading: () => 1000000,
+      error: (_, __) => 1000000,
+    );
+
+    // Providers de paiement actifs
+    final activeProviders = paymentsConfigAsync.when(
+      data: (c) => c.providers.entries.where((e) => e.value.isEnabled).map((e) => e.key).toList(),
+      loading: () => <String>[],
+      error: (_, __) => <String>[],
+    );
+
+    final isAmountValid = _selectedAmount >= minDeposit && _selectedAmount <= maxDeposit;
     final tokensPreview = _selectedAmount > 0
         ? (_selectedAmount * tokenState.exchangeRate).floor()
         : 0;
@@ -436,11 +463,24 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                 children: [
                   Text('MÉTHODE DE PAIEMENT', style: AppTypography.heading4),
                   const SizedBox(height: 12),
-                  _PaymentMethod(name: 'Campay', icon: Icons.payment, isSelected: _selectedPayment == 'Campay', onTap: () => setState(() => _selectedPayment = 'Campay')),
-                  const SizedBox(height: 8),
-                  _PaymentMethod(name: 'MTN MoMo', icon: Icons.phone_android, isSelected: _selectedPayment == 'MTN', onTap: () => setState(() => _selectedPayment = 'MTN')),
-                  const SizedBox(height: 8),
-                  _PaymentMethod(name: 'Orange Money', icon: Icons.phone_iphone, isSelected: _selectedPayment == 'OM', onTap: () => setState(() => _selectedPayment = 'OM')),
+                  if (activeProviders.isEmpty) ...[
+                    _PaymentMethod(name: 'Campay', icon: Icons.payment, isSelected: _selectedPayment == 'Campay', onTap: () => setState(() => _selectedPayment = 'Campay')),
+                    const SizedBox(height: 8),
+                    _PaymentMethod(name: 'MTN MoMo', icon: Icons.phone_android, isSelected: _selectedPayment == 'MTN', onTap: () => setState(() => _selectedPayment = 'MTN')),
+                    const SizedBox(height: 8),
+                    _PaymentMethod(name: 'Orange Money', icon: Icons.phone_iphone, isSelected: _selectedPayment == 'OM', onTap: () => setState(() => _selectedPayment = 'OM')),
+                  ] else ...[
+                    ...activeProviders.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final key = entry.value;
+                      final labels = {'campay': ('Campay', Icons.payment), 'mtn_momo': ('MTN MoMo', Icons.phone_android), 'orange_money': ('Orange Money', Icons.phone_iphone)};
+                      final (name, icon) = labels[key] ?? (key.toUpperCase(), Icons.payment);
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: i < activeProviders.length - 1 ? 8 : 0),
+                        child: _PaymentMethod(name: name, icon: icon, isSelected: _selectedPayment == key, onTap: () => setState(() => _selectedPayment = key)),
+                      );
+                    }),
+                  ],
                 ],
               ),
             ),
@@ -500,18 +540,29 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                 ),
               ),
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          // Validation min/max
+          if (_selectedAmount > 0 && !isAmountValid)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _selectedAmount < minDeposit
+                    ? 'Montant minimum: ${minDeposit.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} FCFA'
+                    : 'Montant maximum: ${maxDeposit.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} FCFA',
+                style: const TextStyle(color: NeonColors.error, fontSize: 12, fontFamily: 'Inter'),
+              ),
+            ),
           NeonButton(
             text: 'ACHETER DES JETONS',
             onPressed: () {
-              if (_selectedAmount > 0) {
+              if (isAmountValid) {
                 ref.read(tokenProvider.notifier).purchaseTokens(_selectedAmount);
               }
             },
             variant: NeonButtonVariant.success,
             icon: Icons.shopping_cart,
             width: double.infinity,
-            isEnabled: _selectedAmount > 0,
+            isEnabled: isAmountValid,
           ),
         ],
       ),
@@ -811,11 +862,68 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
           const SizedBox(height: 20),
           NeonButton(
             text: _isGift ? 'ENVOYER LE CADEAU' : 'TRANSFÉRER',
-            onPressed: () {
-              // TODO: rechercher user par phone et transférer
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fonctionnalité en cours de développement')),
-              );
+            onPressed: () async {
+              final phone = _phoneController.text.trim();
+              if (phone.isEmpty || _selectedTokens <= 0) return;
+
+              // Vérifier solde suffisant
+              if (_selectedTokens > tokenState.tokenBalance) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Solde insuffisant'), backgroundColor: NeonColors.error),
+                );
+                return;
+              }
+
+              // Rechercher le destinataire par téléphone
+              try {
+                final friendRepo = ref.read(friendRepositoryProvider);
+                final results = await friendRepo.searchPlayer(phone);
+
+                if (results.isEmpty) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Aucun joueur trouvé avec ce numéro'), backgroundColor: NeonColors.error),
+                  );
+                  return;
+                }
+
+                final recipient = results.first;
+
+                // Exécuter le transfert ou le cadeau
+                if (_isGift) {
+                  await ref.read(tokenProvider.notifier).sendGift(
+                    recipient.id.toString(), _selectedTokens, message: _messageController.text,
+                  );
+                } else {
+                  await ref.read(tokenProvider.notifier).transferTokens(
+                    recipient.id.toString(), _selectedTokens,
+                  );
+                }
+
+                if (!context.mounted) return;
+                final tokenStateAfter = ref.read(tokenProvider);
+                if (tokenStateAfter.error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(tokenStateAfter.error!), backgroundColor: NeonColors.error),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_isGift ? 'Cadeau envoyé à ${recipient.name}!' : 'Transfert réussi à ${recipient.name}!'),
+                      backgroundColor: NeonColors.success,
+                    ),
+                  );
+                  _phoneController.clear();
+                  _amountController.clear();
+                  _messageController.clear();
+                  setState(() => _selectedTokens = 0);
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
+                );
+              }
             },
             variant: _isGift ? NeonButtonVariant.success : NeonButtonVariant.primary,
             icon: _isGift ? Icons.card_giftcard : Icons.send,

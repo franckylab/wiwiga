@@ -23,6 +23,7 @@ defmodule GameHub.Friends do
   alias GameHub.Repo
   alias GameHub.Friends.{Friendship, FriendMessage, FriendActivity}
   alias GameHub.Users.User
+  alias GameHub.Admin.PlatformConfig
 
   # === Demandes d'amis ===
 
@@ -49,7 +50,18 @@ defmodule GameHub.Friends do
     from_id_int = to_integer(from_id)
 
     # Vérifier qu'on ne s'ajoute pas soi-même
-    if from_id_int == to_id, do: {:error, :cannot_add_self}, else: do_send_request(from_id_int, to_id)
+    if from_id_int == to_id do
+      {:error, :cannot_add_self}
+    else
+      # Vérifier limite max d'amis via PlatformConfig
+      max_friends = PlatformConfig.get_int("social", "max_friends", 200)
+      current_count = count_friends(from_id_int)
+      if current_count >= max_friends do
+        {:error, :max_friends_reached}
+      else
+        do_send_request(from_id_int, to_id)
+      end
+    end
   end
 
   defp do_send_request(from_id, to_id) do
@@ -346,24 +358,29 @@ defmodule GameHub.Friends do
     sender_id = to_integer(sender_id)
     receiver_id = to_integer(receiver_id)
 
-    %FriendMessage{}
-    |> FriendMessage.create_changeset(%{
-      sender_id: sender_id,
-      receiver_id: receiver_id,
-      content: content,
-      emoji_type: emoji_type
-    })
-    |> Repo.insert()
-    |> case do
-      {:ok, message} ->
-        # Notifier via PubSub
-        Phoenix.PubSub.broadcast(
-          GameHub.PubSub,
-          "user:#{receiver_id}:friends",
-          %{event: "chat_message", payload: %{from_user_id: sender_id, content: content, emoji_type: emoji_type}}
-        )
-        {:ok, message}
-      error -> error
+    # Vérifier que le chat est activé via PlatformConfig
+    unless PlatformConfig.get_bool("social", "chat_enabled", true) do
+      {:error, :chat_disabled}
+    else
+      %FriendMessage{}
+      |> FriendMessage.create_changeset(%{
+        sender_id: sender_id,
+        receiver_id: receiver_id,
+        content: content,
+        emoji_type: emoji_type
+      })
+      |> Repo.insert()
+      |> case do
+        {:ok, message} ->
+          # Notifier via PubSub
+          Phoenix.PubSub.broadcast(
+            GameHub.PubSub,
+            "user:#{receiver_id}:friends",
+            %{event: "chat_message", payload: %{from_user_id: sender_id, content: content, emoji_type: emoji_type}}
+          )
+          {:ok, message}
+        error -> error
+      end
     end
   end
 
@@ -444,4 +461,13 @@ defmodule GameHub.Friends do
     end
   end
   defp to_integer(val), do: val
+
+  # Compte le nombre d'amis acceptés d'un utilisateur
+  defp count_friends(user_id) do
+    Repo.one(
+      from f in Friendship,
+        where: f.status == "accepted" and (f.user_id == ^user_id or f.friend_id == ^user_id),
+        select: count(f.id)
+    ) || 0
+  end
 end

@@ -19,8 +19,43 @@ defmodule GameHub.ResponsibleGaming do
   
   alias GameHub.Repo
   alias GameHub.ResponsibleGaming.ResponsibleGamingLimit
+  alias GameHub.Admin.PlatformConfig
   import Ecto.Query
+
+  # Table ETS pour le tracking de session en mémoire
+  @session_table :rg_session_tracker
   
+  @doc """
+  Initialise le tracker de session ETS.
+  Appeler au démarrage de l'application.
+  """
+  def init_session_tracker do
+    if :ets.info(@session_table) == :undefined do
+      :ets.new(@session_table, [:set, :named_table, :public, read_concurrency: true])
+    end
+    :ok
+  end
+
+  @doc """
+  Démarre une session de jeu pour un utilisateur.
+  """
+  @spec start_session(integer()) :: :ok
+  def start_session(user_id) do
+    init_session_tracker()
+    :ets.insert(@session_table, {user_id, System.monotonic_time(:second)})
+    :ok
+  end
+
+  @doc """
+  Arrête une session de jeu.
+  """
+  @spec end_session(integer()) :: :ok
+  def end_session(user_id) do
+    init_session_tracker()
+    :ets.delete(@session_table, user_id)
+    :ok
+  end
+
   @doc """
   Vérifie si un utilisateur peut placer un pari.
   
@@ -31,30 +66,41 @@ defmodule GameHub.ResponsibleGaming do
   ## Returns
     - `:ok`: Pari autorisé
     - `{:error, reason}`: Pari bloqué
-  
-  ## Examples
-  
-      iex> ResponsibleGaming.check_before_bet(1, 5000)
-      :ok
-      
-      iex> ResponsibleGaming.check_before_bet(1, 999999)
-      {:error, :daily_limit_reached}
   """
   @spec check_before_bet(integer(), integer()) :: :ok | {:error, atom()}
-  def check_before_bet(user_id, _bet_amount) do
+  def check_before_bet(user_id, bet_amount) do
     limits = get_limits(user_id)
     
+    # Limites par défaut depuis PlatformConfig si pas de limites perso
+    max_daily_loss = if limits && limits.daily_loss_limit do
+      limits.daily_loss_limit
+    else
+      PlatformConfig.get_int("gaming", "default_daily_loss_limit", 500_000)
+    end
+
+    max_session_minutes = if limits && limits.session_time_limit_minutes do
+      limits.session_time_limit_minutes
+    else
+      PlatformConfig.get_int("gaming", "default_session_time_minutes", 120)
+    end
+
+    max_bet = PlatformConfig.get_int("gaming", "max_bet_per_round", 1_000_000)
+
     cond do
       # Auto-exclusion active
       limits && is_self_excluded?(limits) ->
         {:error, :self_excluded}
+
+      # Mise max par round
+      bet_amount > max_bet ->
+        {:error, :max_bet_exceeded}
       
       # Limite de perte quotidienne atteinte
-      limits && limits.daily_loss_limit && daily_loss_exceeded?(user_id, limits.daily_loss_limit) ->
+      daily_loss_exceeded?(user_id, max_daily_loss) ->
         {:error, :daily_limit_reached}
       
       # Limite de temps de session
-      limits && limits.session_time_limit_minutes && session_time_exceeded?(user_id, limits.session_time_limit_minutes) ->
+      session_time_exceeded?(user_id, max_session_minutes) ->
         {:error, :session_time_exceeded}
       
       true -> :ok
@@ -63,25 +109,24 @@ defmodule GameHub.ResponsibleGaming do
   
   @doc """
   Planifie un rappel de réalité.
-  
-  ## Parameters
-    - `user_id`: ID utilisateur
-  
-  ## Returns
-    - `:ok`: Rappel planifié
-    - `:no_limits`: Pas de configuration
+  Utilise l'intervalle PlatformConfig si pas de config perso.
   """
   @spec schedule_reality_check(integer()) :: :ok | :no_limits
   def schedule_reality_check(user_id) do
     limits = get_limits(user_id)
-    
-    if limits && limits.reality_check_interval_minutes do
+
+    interval = if limits && limits.reality_check_interval_minutes do
+      limits.reality_check_interval_minutes
+    else
+      PlatformConfig.get_int("gaming", "reality_check_interval_minutes", 30)
+    end
+
+    if interval > 0 do
       Process.send_after(
         self(),
         {:reality_check, user_id},
-        limits.reality_check_interval_minutes * 60_000
+        interval * 60_000
       )
-      
       :ok
     else
       :no_limits
@@ -176,10 +221,17 @@ defmodule GameHub.ResponsibleGaming do
     total_loss >= daily_limit
   end
   
-  defp session_time_exceeded?(_user_id, _limit_minutes) do
-    # TODO: Implémenter avec Redis pour tracking session
-    # Pour l'instant, retourne toujours false
-    false
+  defp session_time_exceeded?(user_id, limit_minutes) do
+    init_session_tracker()
+    case :ets.lookup(@session_table, user_id) do
+      [{^user_id, start_time}] ->
+        elapsed_seconds = System.monotonic_time(:second) - start_time
+        elapsed_seconds > limit_minutes * 60
+      _ ->
+        false
+    end
+  rescue
+    _ -> false
   end
   
   defp get_or_create_limits(user_id) do

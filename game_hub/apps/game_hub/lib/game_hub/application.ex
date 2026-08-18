@@ -39,7 +39,10 @@ defmodule GameHub.Application do
       GameHub.GameMatch,
       
       # Game Room Manager (GenServer)
-      GameHub.GameRoom
+      GameHub.GameRoom,
+      
+      # Admin Alert Thresholds Monitor (GenServer)
+      GameHub.Admin.AlertThresholds
     ]
     
     opts = [strategy: :one_for_one, name: GameHub.Supervisor]

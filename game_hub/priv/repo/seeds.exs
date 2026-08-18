@@ -51,6 +51,15 @@ defmodule GameHub.Repo.Seeds do
     # 10. Achievements par défaut
     seed_achievements()
 
+    # 11. Game Rules (règles de jeu)
+    seed_game_rules()
+
+    # 12. Player Level Configs (progression)
+    seed_player_levels()
+
+    # 13. Platform Config (configuration plateforme)
+    seed_platform_config()
+
     print_summary()
     IO.puts("✅ Seeds complétés avec succès!")
   end
@@ -434,6 +443,9 @@ defmodule GameHub.Repo.Seeds do
     IO.puts("🪙 Token config: 1 (singleton)")
     IO.puts("🎁 Promo tokens: 3 (bienvenue, parrainage, flash)")
     IO.puts("🏆 Achievements: 14 (badges par défaut)")
+    IO.puts("🎲 Game rules: 2 (dice/normal, dice/cible)")
+    IO.puts("📈 Player levels: 6 (Bronze → Legend)")
+    IO.puts("⚙️  Platform configs: 37 (7 catégories)")
     IO.puts(String.duplicate("=", 60))
   end
   
@@ -445,6 +457,145 @@ defmodule GameHub.Repo.Seeds do
       {:ok, count} -> IO.puts("   ✅ #{count} achievements créés")
       _ -> IO.puts("   ⚠️  Achievements déjà existants")
     end
+  end
+
+  # === Game Rules ===
+  defp seed_game_rules do
+    IO.puts("\n🎲 Seeding game rules...")
+
+    rules = [
+      {"dice", "normal", "Normal", "High roll séquentiel, ordre tournant", %{
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
+        "dice_faces" => 6, "commission_rate" => 0.05,
+        "min_bet" => 100, "max_bet" => 500_000,
+        "min_players" => 2, "max_players" => 5,
+        "tie_rule" => "replay", "turn_order" => "rotating"
+      }},
+      {"dice", "cible", "Cible", "Vote pour nombre cible, plus proche gagne", %{
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
+        "dice_faces" => 6, "commission_rate" => 0.05,
+        "min_bet" => 100, "max_bet" => 500_000,
+        "min_players" => 2, "max_players" => 5,
+        "tie_rule" => "replay", "target_vote_mode" => "average"
+      }}
+    ]
+
+    Enum.each(rules, fn {game_type, rule_type, name, desc, config} ->
+      case Repo.get_by(GameHub.Games.GameRule, game_type: game_type, rule_type: rule_type) do
+        nil ->
+          %GameHub.Games.GameRule{}
+          |> GameHub.Games.GameRule.create_changeset(%{
+            game_type: game_type, rule_type: rule_type,
+            name: name, description: desc, config: config, is_active: true
+          })
+          |> Repo.insert!()
+          IO.puts("  ✓ Created rule: #{game_type}/#{rule_type}")
+        existing ->
+          IO.puts("  ⊘ Rule #{existing.game_type}/#{existing.rule_type} already exists")
+      end
+    end)
+  end
+
+  # === Player Level Configs ===
+  defp seed_player_levels do
+    IO.puts("\n📈 Seeding player level configs...")
+
+    levels = [
+      {"bronze", "Bronze", 0, 499, "shield", "#CD7F32",
+       %{"cashback_rate" => 0.0, "withdrawal_bonus" => 0.0, "bet_discount" => 0.0, "daily_bonus_multiplier" => 1.0, "label" => "Débutant"}, 1},
+      {"silver", "Silver", 500, 1999, "workspace_premium", "#C0C0C0",
+       %{"cashback_rate" => 0.02, "withdrawal_bonus" => 0.01, "bet_discount" => 0.02, "daily_bonus_multiplier" => 1.1, "label" => "Apprenti"}, 2},
+      {"gold", "Gold", 2000, 4999, "emoji_events", "#FFD700",
+       %{"cashback_rate" => 0.04, "withdrawal_bonus" => 0.02, "bet_discount" => 0.05, "daily_bonus_multiplier" => 1.25, "label" => "Confirmé"}, 3},
+      {"platinum", "Platinum", 5000, 9999, "star", "#E5E4E2",
+       %{"cashback_rate" => 0.06, "withdrawal_bonus" => 0.03, "bet_discount" => 0.08, "daily_bonus_multiplier" => 1.5, "label" => "Expert"}, 4},
+      {"diamond", "Diamond", 10000, 24999, "diamond", "#B9F2FF",
+       %{"cashback_rate" => 0.08, "withdrawal_bonus" => 0.05, "bet_discount" => 0.12, "daily_bonus_multiplier" => 2.0, "label" => "Maître"}, 5},
+      {"legend", "Legend", 25000, nil, "military_tech", "#FF6B6B",
+       %{"cashback_rate" => 0.10, "withdrawal_bonus" => 0.08, "bet_discount" => 0.15, "daily_bonus_multiplier" => 3.0, "label" => "Légende"}, 6}
+    ]
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Enum.each(levels, fn {tier, name, min_xp, max_xp, icon, color, benefits, order} ->
+      case Repo.query!("SELECT id FROM player_level_configs WHERE tier = $1", [tier]) do
+        %{num_rows: 0} ->
+          Repo.query!("""
+            INSERT INTO player_level_configs (tier, name, min_xp, max_xp, icon, color, benefits, display_order, is_active, inserted_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $9)
+          """, [tier, name, min_xp, max_xp, icon, color, Jason.encode!(benefits), order, now])
+          IO.puts("  ✓ Created level: #{tier} (#{name})")
+        _ ->
+          IO.puts("  ⊘ Level #{tier} already exists")
+      end
+    end)
+  end
+
+  # === Platform Config ===
+  defp seed_platform_config do
+    IO.puts("\n⚙️  Seeding platform config...")
+
+    configs = [
+      # Payment
+      {"payment", "min_deposit", "500", "integer", "Dépôt minimum", "Montant minimum de dépôt en FCFA"},
+      {"payment", "max_deposit", "1000000", "integer", "Dépôt maximum", "Montant maximum de dépôt en FCFA"},
+      {"payment", "min_withdrawal", "1000", "integer", "Retrait minimum", "Montant minimum de retrait en FCFA"},
+      {"payment", "max_withdrawal", "5000000", "integer", "Retrait maximum", "Montant maximum de retrait en FCFA"},
+      {"payment", "withdrawal_fee_percent", "0", "float", "Frais retrait (%)", "Pourcentage de frais sur retrait"},
+      {"payment", "kyc_required", "false", "boolean", "KYC requis", "Vérification KYC obligatoire"},
+      {"payment", "kyc_threshold", "500000", "integer", "Seuil KYC", "Seuil au-delà duquel le KYC est requis"},
+      # Security
+      {"security", "rate_limit_api", "100", "integer", "Rate limit API", "Requêtes max par minute"},
+      {"security", "rate_limit_game", "30", "integer", "Rate limit jeu", "Actions jeu max par minute"},
+      {"security", "max_login_attempts", "5", "integer", "Tentatives login max", "Nombre max de tentatives de connexion"},
+      {"security", "lockout_duration", "900", "integer", "Durée verrouillage", "Durée du verrouillage en secondes"},
+      {"security", "session_max_age", "86400", "integer", "Durée session", "Durée max de session en secondes"},
+      # Registration
+      {"registration", "registration_enabled", "true", "boolean", "Inscription activée", "Autoriser les nouvelles inscriptions"},
+      {"registration", "require_phone_verification", "true", "boolean", "Vérification phone", "Exiger vérification téléphone"},
+      {"registration", "minimum_age", "18", "integer", "Âge minimum", "Âge minimum pour s'inscrire"},
+      {"registration", "welcome_bonus_amount", "0", "integer", "Bonus bienvenue", "Montant du bonus de bienvenue"},
+      {"registration", "welcome_bonus_wagering", "1", "integer", "Wagering bonus", "Multiplicateur de mise pour le bonus"},
+      # Social
+      {"social", "max_friends", "200", "integer", "Amis max", "Nombre maximum d'amis"},
+      {"social", "chat_enabled", "true", "boolean", "Chat activé", "Activer le chat entre joueurs"},
+      {"social", "activity_feed_enabled", "true", "boolean", "Feed d'activité", "Activer le flux d'activité"},
+      {"social", "friend_request_cooldown", "60", "integer", "Cooldown demande", "Délai entre demandes d'ami (secondes)"},
+      # Ranking
+      {"ranking", "leaderboard_reward_top1", "50000", "integer", "Récompense #1", "Récompense pour le 1er du classement"},
+      {"ranking", "leaderboard_reward_top2", "25000", "integer", "Récompense #2", "Récompense pour le 2ème du classement"},
+      {"ranking", "leaderboard_reward_top3", "10000", "integer", "Récompense #3", "Récompense pour le 3ème du classement"},
+      {"ranking", "leaderboard_season_days", "30", "integer", "Durée saison", "Durée d'une saison de classement en jours"},
+      # Gaming
+      {"gaming", "default_daily_loss_limit", "500000", "integer", "Perte quotidienne max", "Limite de perte quotidienne par défaut"},
+      {"gaming", "default_session_time_minutes", "120", "integer", "Durée session max", "Durée max de session de jeu (minutes)"},
+      {"gaming", "max_bet_per_round", "1000000", "integer", "Mise max par tour", "Mise maximum par tour de jeu"},
+      {"gaming", "reality_check_interval_minutes", "30", "integer", "Intervalle reality check", "Intervalle des rappels de jeu (minutes)"},
+      {"gaming", "fallback_timeout_seconds", "15", "integer", "Timeout fallback", "Délai d'attente fallback (secondes)"},
+      {"gaming", "fallback_tolerance_pct", "5", "integer", "Tolérance fallback", "Pourcentage de tolérance fallback"},
+      # Notification
+      {"notification", "push_enabled", "true", "boolean", "Push activés", "Notifications push activées"},
+      {"notification", "email_enabled", "true", "boolean", "Email activé", "Notifications email activées"},
+      {"notification", "webhook_enabled", "false", "boolean", "Webhook activé", "Webhooks activés"},
+      {"notification", "alert_large_loss", "100000", "integer", "Alerte grosse perte", "Seuil d'alerte de perte importante"}
+    ]
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Enum.each(configs, fn {category, key, value, value_type, label, description} ->
+      case Repo.query!("SELECT id FROM platform_configs WHERE category = $1 AND key = $2", [category, key]) do
+        %{num_rows: 0} ->
+          Repo.query!("""
+            INSERT INTO platform_configs (category, key, value, value_type, label, description, default_value, is_editable, inserted_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $3, true, $7, $7)
+          """, [category, key, value, value_type, label, description, now])
+          IO.puts("  ✓ Created config: #{category}/#{key}")
+        _ ->
+          IO.puts("  ⊘ Config #{category}/#{key} already exists")
+      end
+    end)
   end
 end
 

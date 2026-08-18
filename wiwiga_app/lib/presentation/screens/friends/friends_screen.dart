@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/friend_provider.dart' hide apiServiceProvider;
 import '../../../data/repositories/friend_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
@@ -131,20 +132,12 @@ class _FriendsListTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // TODO: Utiliser un FutureProvider/StreamProvider pour les amis
-    return FutureBuilder<List<FriendModel>>(
-      future: _loadFriends(ref),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
+    final friendsAsync = ref.watch(friendsProvider);
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}', style: const TextStyle(color: NeonColors.error)));
-        }
-
-        final friends = snapshot.data ?? [];
-
+    return friendsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      data: (friends) {
         if (friends.isEmpty) {
           return const Center(
             child: Column(
@@ -160,31 +153,30 @@ class _FriendsListTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: friends.length,
-          itemBuilder: (context, index) {
-            final friend = friends[index];
-            return _FriendCard(friend: friend);
-          },
+        return RefreshIndicator(
+          color: NeonColors.primary,
+          onRefresh: () async => ref.invalidate(friendsProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: friends.length,
+            itemBuilder: (context, index) {
+              final friend = friends[index];
+              return _FriendCard(friend: friend);
+            },
+          ),
         );
       },
     );
   }
-
-  Future<List<FriendModel>> _loadFriends(WidgetRef ref) async {
-    final apiService = ref.read(apiServiceProvider);
-    return FriendRepository(apiService).listFriends();
-  }
 }
 
-class _FriendCard extends StatelessWidget {
+class _FriendCard extends ConsumerWidget {
   final FriendModel friend;
 
   const _FriendCard({required this.friend});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: NeonCard(
@@ -245,14 +237,31 @@ class _FriendCard extends StatelessWidget {
             PopupMenuButton<String>(
               color: NeonColors.surface,
               icon: const Icon(Icons.more_vert, color: NeonColors.textSecondary),
-              onSelected: (value) {
-                switch (value) {
-                  case 'remove':
-                    // TODO: Supprimer ami
-                    break;
-                  case 'block':
-                    // TODO: Bloquer
-                    break;
+              onSelected: (value) async {
+                final repo = ref.read(friendRepositoryProvider);
+                try {
+                  if (value == 'remove') {
+                    await repo.removeFriend(friend.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ami supprimé'), backgroundColor: NeonColors.success),
+                      );
+                    }
+                  } else if (value == 'block') {
+                    await repo.blockUser(friend.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Utilisateur bloqué'), backgroundColor: NeonColors.warning),
+                      );
+                    }
+                  }
+                  ref.invalidate(friendsProvider);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
+                    );
+                  }
                 }
               },
               itemBuilder: (context) => [
@@ -274,15 +283,12 @@ class _RequestsListTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<List<FriendRequestModel>>(
-      future: _loadRequests(ref),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
+    final requestsAsync = ref.watch(pendingRequestsProvider);
 
-        final requests = snapshot.data ?? [];
-
+    return requestsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      data: (requests) {
         if (requests.isEmpty) {
           return const Center(
             child: Column(
@@ -296,21 +302,20 @@ class _RequestsListTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: requests.length,
-          itemBuilder: (context, index) {
-            final request = requests[index];
-            return _RequestCard(request: request);
-          },
+        return RefreshIndicator(
+          color: NeonColors.primary,
+          onRefresh: () async => ref.invalidate(pendingRequestsProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              return _RequestCard(request: request);
+            },
+          ),
         );
       },
     );
-  }
-
-  Future<List<FriendRequestModel>> _loadRequests(WidgetRef ref) async {
-    final apiService = ref.read(apiServiceProvider);
-    return FriendRepository(apiService).listPendingRequests();
   }
 }
 
@@ -350,10 +355,22 @@ class _RequestCard extends ConsumerWidget {
               icon: const Icon(Icons.check_circle, color: Colors.green),
               onPressed: () async {
                 try {
-                  final apiService = ref.read(apiServiceProvider);
-                  await FriendRepository(apiService).acceptRequest(request.id);
-                  // Refresh
-                } catch (_) {}
+                  final repo = ref.read(friendRepositoryProvider);
+                  await repo.acceptRequest(request.id);
+                  ref.invalidate(pendingRequestsProvider);
+                  ref.invalidate(friendsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Demande acceptée'), backgroundColor: NeonColors.success),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
+                    );
+                  }
+                }
               },
             ),
             // Refuser
@@ -361,8 +378,9 @@ class _RequestCard extends ConsumerWidget {
               icon: const Icon(Icons.cancel_outlined, color: Colors.red),
               onPressed: () async {
                 try {
-                  final apiService = ref.read(apiServiceProvider);
-                  await FriendRepository(apiService).rejectRequest(request.id);
+                  final repo = ref.read(friendRepositoryProvider);
+                  await repo.rejectRequest(request.id);
+                  ref.invalidate(pendingRequestsProvider);
                 } catch (_) {}
               },
             ),
@@ -380,15 +398,12 @@ class _ActivityTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<List<FriendActivityModel>>(
-      future: _loadActivity(ref),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
+    final activityAsync = ref.watch(friendActivityProvider);
 
-        final activities = snapshot.data ?? [];
-
+    return activityAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      data: (activities) {
         if (activities.isEmpty) {
           return const Center(
             child: Column(
@@ -402,21 +417,20 @@ class _ActivityTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: activities.length,
-          itemBuilder: (context, index) {
-            final activity = activities[index];
-            return _ActivityCard(activity: activity);
-          },
+        return RefreshIndicator(
+          color: NeonColors.primary,
+          onRefresh: () async => ref.invalidate(friendActivityProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: activities.length,
+            itemBuilder: (context, index) {
+              final activity = activities[index];
+              return _ActivityCard(activity: activity);
+            },
+          ),
         );
       },
     );
-  }
-
-  Future<List<FriendActivityModel>> _loadActivity(WidgetRef ref) async {
-    final apiService = ref.read(apiServiceProvider);
-    return FriendRepository(apiService).getActivity();
   }
 }
 
@@ -481,15 +495,12 @@ class _LeaderboardTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<List<FriendLeaderboardEntry>>(
-      future: _loadLeaderboard(ref),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
+    final leaderboardAsync = ref.watch(friendLeaderboardProvider);
 
-        final entries = snapshot.data ?? [];
-
+    return leaderboardAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      data: (entries) {
         if (entries.isEmpty) {
           return const Center(
             child: Column(
@@ -503,21 +514,20 @@ class _LeaderboardTab extends ConsumerWidget {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final entry = entries[index];
-            return _LeaderboardRow(entry: entry, rank: index + 1);
-          },
+        return RefreshIndicator(
+          color: NeonColors.primary,
+          onRefresh: () async => ref.invalidate(friendLeaderboardProvider),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return _LeaderboardRow(entry: entry, rank: index + 1);
+            },
+          ),
         );
       },
     );
-  }
-
-  Future<List<FriendLeaderboardEntry>> _loadLeaderboard(WidgetRef ref) async {
-    final apiService = ref.read(apiServiceProvider);
-    return FriendRepository(apiService).getLeaderboard();
   }
 }
 
@@ -694,10 +704,12 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
     try {
       final apiService = ref.read(apiServiceProvider);
       await FriendRepository(apiService).sendRequest(userId: result.id);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Demande envoyée à ${result.name}')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
       );

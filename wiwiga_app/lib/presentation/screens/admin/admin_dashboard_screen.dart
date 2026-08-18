@@ -12,6 +12,11 @@ import 'package:go_router/go_router.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
+import '../../providers/admin_metrics_provider.dart';
+import '../../widgets/admin/metric_card.dart';
+import '../../widgets/admin/chart_widget.dart';
+import '../../widgets/admin/alert_badge.dart';
+import '../../../../core/theme/neon_theme.dart';
 
 /// Dashboard d'administration principal
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -30,6 +35,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    // Charger les métriques dashboard
+    Future.microtask(() {
+      ref.read(adminMetricsProvider.notifier).loadDashboard();
+      ref.read(adminAlertsProvider.notifier).loadUnreadCount();
+    });
   }
 
   Future<void> _loadStats() async {
@@ -134,6 +144,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       _buildAdminProfile(user),
                       const SizedBox(height: 20),
+                      // Santé plateforme + Alertes résumé
+                      _buildPlatformHealthAndAlerts(),
+                      const SizedBox(height: 20),
+                      // Section métriques temps réel avec KPI cards
+                      _buildLiveMetricsSection(),
+                      const SizedBox(height: 20),
                       _buildStatsGrid(),
                       const SizedBox(height: 20),
                       _buildActivityMetrics(),
@@ -186,6 +202,186 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPlatformHealthAndAlerts() {
+    final alertsState = ref.watch(adminAlertsProvider);
+    final unreadAlerts = alertsState.unreadNotifications;
+
+    // Calculer un score de santé simplifié
+    final totalUsers = (_stats?['total_users'] as int?) ?? 0;
+    final activeUsers = (_stats?['active_users'] as int?) ?? 0;
+    final healthScore = totalUsers > 0 ? ((activeUsers / totalUsers) * 100).round() : 0;
+    final healthColor = healthScore >= 80 ? NeonColors.success : healthScore >= 50 ? NeonColors.warning : NeonColors.error;
+
+    return Row(
+      children: [
+        // Score santé plateforme
+        Expanded(
+          child: GestureDetector(
+            onTap: () => context.go('/admin/monitoring'),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: healthColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: healthColor.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.favorite, color: healthColor, size: 18),
+                      const SizedBox(width: 6),
+                      const Text('Santé Plateforme', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text('$healthScore%', style: TextStyle(color: healthColor, fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: healthScore / 100,
+                      backgroundColor: healthColor.withValues(alpha: 0.15),
+                      valueColor: AlwaysStoppedAnimation(healthColor),
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Résumé alertes
+        Expanded(
+          child: GestureDetector(
+            onTap: () => context.go('/admin/alerts'),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: (unreadAlerts > 0 ? NeonColors.warning : NeonColors.success).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: (unreadAlerts > 0 ? NeonColors.warning : NeonColors.success).withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(unreadAlerts > 0 ? Icons.warning_amber : Icons.check_circle, color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, size: 18),
+                      const SizedBox(width: 6),
+                      const Text('Alertes', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text('$unreadAlerts', style: TextStyle(color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(unreadAlerts > 0 ? 'non traitées' : 'tout va bien', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLiveMetricsSection() {
+    final metricsState = ref.watch(adminMetricsProvider);
+    final alertsState = ref.watch(adminAlertsProvider);
+    final dashboard = metricsState.dashboard ?? {};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Métriques en direct',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            AdminAlertBadge(
+              count: alertsState.unreadNotifications,
+              child: GestureDetector(
+                onTap: () => context.go('/admin/alerts'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.notifications_active, color: Color(0xFFEF4444), size: 14),
+                      SizedBox(width: 4),
+                      Text('Alertes', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.8,
+          children: [
+            AdminMetricCard(
+              title: 'Revenus 24h',
+              value: _formatCurrency(dashboard['total_revenue_24h'] ?? 0),
+              icon: Icons.account_balance_wallet,
+              color: const Color(0xFF10B981),
+              deltaPercent: (dashboard['revenue_delta'] as num?)?.toDouble(),
+            ),
+            AdminMetricCard(
+              title: 'Parties actives',
+              value: '${dashboard['active_games'] ?? 0}',
+              icon: Icons.videogame_asset,
+              color: const Color(0xFF00D9FF),
+            ),
+            AdminMetricCard(
+              title: 'Users connectés',
+              value: '${dashboard['active_users'] ?? dashboard['logged_in_users'] ?? 0}',
+              icon: Icons.people,
+              color: const Color(0xFF3B82F6),
+            ),
+            AdminMetricCard(
+              title: 'Alertes actives',
+              value: '${dashboard['active_alerts'] ?? alertsState.unreadNotifications}',
+              icon: Icons.warning_amber,
+              color: const Color(0xFFF59E0B),
+            ),
+          ],
+        ),
+        // Mini sparkline si données disponibles
+        if (dashboard['timeseries'] != null && (dashboard['timeseries'] as List).isNotEmpty) ...[
+          const SizedBox(height: 12),
+          AdminSparkline(
+            data: (dashboard['timeseries'] as List).map((e) => (e is num ? e.toDouble() : 0.0)).toList(),
+            color: const Color(0xFF00FF88),
+            height: 40,
+            width: double.infinity,
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatCurrency(dynamic value) {
+    final num amount = (value is num) ? value : double.tryParse(value.toString()) ?? 0;
+    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
+    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}K FCFA';
+    return '${amount.toStringAsFixed(0)} FCFA';
   }
 
   Widget _buildStatsGrid() {
@@ -321,12 +517,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               onTap: () => context.go('/admin/audit'),
             ),
             _QuickActionCard(
-              icon: Icons.bar_chart, label: 'Statistiques\ndétaillées', color: const Color(0xFF00FFFF),
-              onTap: () => _showStatsDialog(),
+              icon: Icons.monetization_on, label: 'Revenue\nAnalytics', color: const Color(0xFF2DD4BF),
+              onTap: () => context.go('/admin/analytics/revenue'),
             ),
             _QuickActionCard(
-              icon: Icons.admin_panel_settings, label: 'Rôles &\nPermissions', color: const Color(0xFFFF6600),
-              onTap: () => _showRolesDialog(),
+              icon: Icons.people_outline, label: 'Player\nAnalytics', color: const Color(0xFF00D9FF),
+              onTap: () => context.go('/admin/analytics/players'),
+            ),
+            _QuickActionCard(
+              icon: Icons.swap_horiz, label: 'Flux\nMonétaire', color: const Color(0xFFF59E0B),
+              onTap: () => context.go('/admin/analytics/monetary-flow'),
+            ),
+            _QuickActionCard(
+              icon: Icons.card_giftcard, label: 'Bonus &\nPromos', color: const Color(0xFF3B82F6),
+              onTap: () => context.go('/admin/bonuses'),
             ),
           ],
         ),
@@ -380,69 +584,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  void _showRolesDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Rôles & Permissions', style: TextStyle(color: Colors.white)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: UserRole.values.map((role) {
-              final color = Color(int.parse(role.color.replaceFirst('#', '0xFF')));
-              return ListTile(
-                leading: Icon(Icons.shield, color: color),
-                title: Text(role.displayName, style: TextStyle(color: color)),
-                subtitle: Text(_roleDescription(role), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-              );
-            }).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer', style: TextStyle(color: Color(0xFF00FF88)))),
-        ],
-      ),
-    );
-  }
 
-  void _showStatsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Statistiques complètes', style: TextStyle(color: Colors.white)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _statsRow('Total utilisateurs', (_stats?['total_users'] ?? 0).toString()),
-                _statsRow('Utilisateurs actifs', (_stats?['active_users'] ?? 0).toString()),
-                _statsRow('Actifs 24h', (_stats?['active_24h'] ?? 0).toString()),
-                _statsRow('Nouveaux (7j)', (_stats?['new_users_7d'] ?? 0).toString()),
-                _statsRow('Sessions actives', (_stats?['active_sessions'] ?? 0).toString()),
-                _statsRow('Appareils actifs', (_stats?['active_devices'] ?? 0).toString()),
-                _statsRow('KYC vérifiés', (_stats?['kyc_verified'] ?? 0).toString()),
-                _statsRow('KYC en attente', (_stats?['kyc_pending'] ?? 0).toString()),
-                _statsRow('Auto-exclus', (_stats?['self_excluded'] ?? 0).toString()),
-                _statsRow('Inactifs', (_stats?['inactive_users'] ?? 0).toString()),
-                _statsRow('Événements audit 24h', (_stats?['audit_events_24h'] ?? 0).toString()),
-                _statsRow('Solde total (FCFA)', _formatMoney(_stats?['total_balance'] ?? '0')),
-                _statsRow('Jetons en circulation', _formatNumber(_stats?['total_token_balance'] ?? '0')),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer', style: TextStyle(color: Color(0xFF00FF88)))),
-        ],
-      ),
-    );
-  }
 
   Widget _metricRow(String label, String value, Color color) {
     return Padding(
@@ -457,18 +599,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _statsRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          Text(value, style: const TextStyle(color: Color(0xFF00FF88), fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
 
   String _formatMoney(dynamic value) {
     final amount = int.tryParse(value.toString()) ?? 0;
@@ -482,15 +612,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return num.toString();
   }
 
-  String _roleDescription(UserRole role) {
-    switch (role) {
-      case UserRole.superAdmin: return 'Accès total: tout gérer';
-      case UserRole.admin: return 'Gérer users, config, modération';
-      case UserRole.moderator: return 'Modération: ban, mute, signalements';
-      case UserRole.test: return 'Accès fonctionnalités de test';
-      case UserRole.user: return 'Accès standard: jouer, transactions';
-    }
-  }
 
   Color _roleColor(UserRole role) {
     return Color(int.parse(role.color.replaceFirst('#', '0xFF')));

@@ -3,39 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../dice_game/dice_game_screen.dart';
 
 // === Providers ===
 
 enum MatchmakingMode { create, join, autoMatch }
-
-enum GameRoomStatus { waiting, starting, inProgress, ended }
-
-class GameRoom {
-  final String id;
-  final String gameType;
-  final String creatorName;
-  final int betAmount;
-  final int currentPlayers;
-  final int maxPlayers;
-  final int minPlayers;
-  final GameRoomStatus status;
-  final DateTime createdAt;
-
-  GameRoom({
-    required this.id,
-    required this.gameType,
-    required this.creatorName,
-    required this.betAmount,
-    required this.currentPlayers,
-    required this.maxPlayers,
-    required this.minPlayers,
-    required this.status,
-    required this.createdAt,
-  });
-}
 
 final matchmakingModeProvider =
     StateProvider<MatchmakingMode>((ref) => MatchmakingMode.autoMatch);
@@ -44,43 +20,50 @@ final betAmountProvider = StateProvider<int>((ref) => 500);
 
 final maxPlayersProvider = StateProvider<int>((ref) => 2);
 
-final availableRoomsProvider = StateProvider<List<GameRoom>>((ref) => [
-      GameRoom(
-        id: 'room_1',
-        gameType: 'dice',
-        creatorName: 'Joueur_X',
-        betAmount: 500,
-        currentPlayers: 1,
-        maxPlayers: 4,
-        minPlayers: 2,
-        status: GameRoomStatus.waiting,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 2)),
-      ),
-      GameRoom(
-        id: 'room_2',
-        gameType: 'dice',
-        creatorName: 'ProGamer',
-        betAmount: 1000,
-        currentPlayers: 3,
-        maxPlayers: 5,
-        minPlayers: 2,
-        status: GameRoomStatus.waiting,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      ),
-      GameRoom(
-        id: 'room_3',
-        gameType: 'dice',
-        creatorName: 'Chanceux',
-        betAmount: 200,
-        currentPlayers: 1,
-        maxPlayers: 2,
-        minPlayers: 2,
-        status: GameRoomStatus.waiting,
-        createdAt: DateTime.now().subtract(const Duration(seconds: 30)),
-      ),
-    ],);
-
 final isSearchingProvider = StateProvider<bool>((ref) => false);
+
+/// Config de jeu dynamique depuis les règles admin
+final lobbyRulesConfigProvider = FutureProvider.family<Map<String, dynamic>, String>(
+  (ref, gameType) async {
+    final rulesAsync = ref.watch(gameRulesProvider(gameType));
+    return rulesAsync.when(
+      data: (rules) {
+        if (rules.isEmpty) return _defaultLobbyConfig();
+        final rule = rules.firstWhere(
+          (r) => r.ruleType == 'normal',
+          orElse: () => rules.first,
+        );
+        return {
+          'min_bet': (rule.config['min_bet'] as num?)?.toInt() ?? 100,
+          'max_bet': (rule.config['max_bet'] as num?)?.toInt() ?? 500000,
+          'min_players': (rule.config['min_players'] as num?)?.toInt() ?? 2,
+          'max_players': (rule.config['max_players'] as num?)?.toInt() ?? 5,
+          'default_dice': (rule.config['default_dice'] as num?)?.toInt() ?? 2,
+          'commission_rate': (rule.config['commission_rate'] as num?)?.toDouble() ?? 0.05,
+        };
+      },
+      loading: () => _defaultLobbyConfig(),
+      error: (_, __) => _defaultLobbyConfig(),
+    );
+  },
+);
+
+Map<String, dynamic> _defaultLobbyConfig() => {
+  'min_bet': 100, 'max_bet': 500000,
+  'min_players': 2, 'max_players': 5,
+  'default_dice': 2, 'commission_rate': 0.05,
+};
+
+/// Génère les presets de mise basés sur la config admin
+List<int> _generateBetPresets(int minBet, int maxBet) {
+  final presets = <int>[];
+  final steps = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+  for (final step in steps) {
+    if (step >= minBet && step <= maxBet) presets.add(step);
+  }
+  if (presets.isEmpty) presets.addAll([minBet, maxBet]);
+  return presets.take(6).toList();
+}
 
 // === Écran GameLobby ===
 
@@ -241,6 +224,23 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
   Widget _buildCreateView() {
     final betAmount = ref.watch(betAmountProvider);
     final maxPlayers = ref.watch(maxPlayersProvider);
+    final rulesConfig = ref.watch(lobbyRulesConfigProvider(widget.gameType));
+
+    final cfg = rulesConfig.when(
+      data: (c) => c,
+      loading: () => _defaultLobbyConfig(),
+      error: (_, __) => _defaultLobbyConfig(),
+    );
+
+    final minBet = cfg['min_bet'] as int;
+    final maxBet = cfg['max_bet'] as int;
+    final minPlayers = cfg['min_players'] as int;
+    final maxPlayersCfg = cfg['max_players'] as int;
+    final betPresets = _generateBetPresets(minBet, maxBet);
+    final playerOptions = List.generate(
+      maxPlayersCfg - minPlayers + 1,
+      (i) => minPlayers + i,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -259,40 +259,41 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                   children: [
                     const Icon(Icons.monetization_on, color: NeonColors.primary),
                     const SizedBox(width: 8),
-                    Text('MISE PAR JOUEUR',
-                        style: AppTypography.subtitle,),
+                    Text('MISE PAR JOUEUR', style: AppTypography.subtitle),
+                    const Spacer(),
+                    Text(
+                      'min $minBet',
+                      style: const TextStyle(
+                        color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Presets
+                // Presets dynamiques depuis config admin
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [100, 250, 500, 1000, 2500, 5000].map((amount) {
+                  children: betPresets.map((amount) {
                     final isSelected = betAmount == amount;
                     return GestureDetector(
-                      onTap: () => ref.read(betAmountProvider.notifier).state =
-                          amount,
+                      onTap: () => ref.read(betAmountProvider.notifier).state = amount,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10,),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? NeonColors.primary.withValues(alpha: 0.2)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isSelected
-                                ? NeonColors.primary
-                                : NeonColors.border,
+                            color: isSelected ? NeonColors.primary : NeonColors.border,
                             width: isSelected ? 2 : 1,
                           ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: NeonColors.primary
-                                        .withValues(alpha: NeonGlow.opacityLow),
+                                    color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
                                     blurRadius: 8,
                                   ),
                                 ]
@@ -301,13 +302,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                         child: Text(
                           '${_formatTokens(amount)} jetons',
                           style: TextStyle(
-                            color: isSelected
-                                ? NeonColors.primary
-                                : NeonColors.textSecondary,
+                            color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
                             fontFamily: 'Orbitron',
                             fontSize: 13,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -322,7 +320,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                   keyboardType: TextInputType.number,
                   onChanged: (value) {
                     final amount = int.tryParse(value);
-                    if (amount != null && amount >= 100) {
+                    if (amount != null && amount >= minBet && amount <= maxBet) {
                       ref.read(betAmountProvider.notifier).state = amount;
                     }
                   },
@@ -333,7 +331,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
 
           const SizedBox(height: 16),
 
-          // Nombre de joueurs
+          // Nombre de joueurs (dynamique depuis config)
           NeonCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,9 +344,9 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Minimum 2 joueurs pour démarrer',
-                  style: TextStyle(
+                Text(
+                  'Minimum $minPlayers joueurs pour démarrer',
+                  style: const TextStyle(
                     color: NeonColors.textSecondary,
                     fontSize: 12,
                     fontFamily: 'Inter',
@@ -356,13 +354,13 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                 ),
                 const SizedBox(height: 16),
                 Row(
-                  children: [2, 3, 4, 5].map((num) {
-                    final isSelected = maxPlayers == num;
+                  children: playerOptions.map((playerNum) {
+                    final isSelected = maxPlayers == playerNum;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
                         onTap: () =>
-                            ref.read(maxPlayersProvider.notifier).state = num,
+                            ref.read(maxPlayersProvider.notifier).state = playerNum,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           width: 56,
@@ -390,7 +388,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                           ),
                           alignment: Alignment.center,
                           child: Text(
-                            '$num',
+                            '$playerNum',
                             style: TextStyle(
                               color: isSelected
                                   ? NeonColors.secondary
@@ -421,8 +419,8 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                     label: 'Mise', value: '${_formatTokens(betAmount)} jetons',),
                 _SummaryRow(
                     label: 'Joueurs max', value: '$maxPlayers',),
-                const _SummaryRow(
-                    label: 'Min. pour démarrer', value: '2',),
+                _SummaryRow(
+                    label: 'Min. pour démarrer', value: '$minPlayers',),
                 const SizedBox(height: 16),
                 NeonButton(
                   text: 'CRÉER LA PARTIE',
@@ -442,8 +440,33 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
   // === JOIN VIEW ===
 
   Widget _buildJoinView() {
-    final rooms = ref.watch(availableRoomsProvider);
+    final roomsAsync = ref.watch(waitingRoomsProvider(widget.gameType));
 
+    return roomsAsync.when(
+      data: (rooms) => _buildJoinContent(rooms),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: NeonColors.primary),
+      ),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+            const SizedBox(height: 12),
+            Text(e.toString(), style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            NeonButton(
+              text: 'RÉESSAYER',
+              onPressed: () => ref.invalidate(waitingRoomsProvider(widget.gameType)),
+              variant: NeonButtonVariant.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinContent(List<GameRoomModel> rooms) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -488,16 +511,20 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: rooms.length,
-                  itemBuilder: (context, index) {
-                    final room = rooms[index];
-                    return _RoomCard(
-                      room: room,
-                      onJoin: () => _joinRoom(room),
-                    );
-                  },
+              : RefreshIndicator(
+                  color: NeonColors.primary,
+                  onRefresh: () async => ref.invalidate(waitingRoomsProvider(widget.gameType)),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: rooms.length,
+                    itemBuilder: (context, index) {
+                      final room = rooms[index];
+                      return _RoomCard(
+                        room: room,
+                        onJoin: () => _joinRoom(room),
+                      );
+                    },
+                  ),
                 ),
         ),
       ],
@@ -508,6 +535,17 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
 
   Widget _buildAutoMatchView() {
     final betAmount = ref.watch(betAmountProvider);
+    final rulesConfig = ref.watch(lobbyRulesConfigProvider(widget.gameType));
+
+    final cfg = rulesConfig.when(
+      data: (c) => c,
+      loading: () => _defaultLobbyConfig(),
+      error: (_, __) => _defaultLobbyConfig(),
+    );
+
+    final minBet = cfg['min_bet'] as int;
+    final maxBet = cfg['max_bet'] as int;
+    final betPresets = _generateBetPresets(minBet, maxBet);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -560,7 +598,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           ),
           const SizedBox(height: 32),
 
-          // Mise
+          // Mise (presets dynamiques)
           NeonCard(
             child: Column(
               children: [
@@ -569,7 +607,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [100, 500, 1000, 5000].map((amount) {
+                  children: betPresets.map((amount) {
                     final isSelected = betAmount == amount;
                     return GestureDetector(
                       onTap: () =>
@@ -700,7 +738,6 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
   void _startCreateGame() async {
     final gameWs = ref.read(gameWebSocketServiceProvider);
     final betAmount = ref.read(betAmountProvider);
-    final maxPlayers = ref.read(maxPlayersProvider);
     
     // Connecter WebSocket si nécessaire
     if (!gameWs.isConnected && !gameWs.isFallbackMode) {
@@ -708,7 +745,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
     }
     
     try {
-      final result = await gameWs.joinMatchmaking(
+      await gameWs.joinMatchmaking(
         gameType: widget.gameType,
         betAmount: betAmount,
       );
@@ -749,7 +786,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
     }
   }
 
-  void _joinRoom(GameRoom room) async {
+  void _joinRoom(GameRoomModel room) async {
     final gameWs = ref.read(gameWebSocketServiceProvider);
     
     // Connecter WebSocket si nécessaire
@@ -758,7 +795,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
     }
     
     try {
-      gameWs.joinGame(room.id);
+      gameWs.joinGame(room.roomId);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -773,7 +810,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           MaterialPageRoute(
             builder: (_) => ProviderScope(
               child: DiceGameScreen(
-                gameId: room.id,
+                gameId: room.roomId,
                 betAmount: room.betAmount,
               ),
             ),
@@ -919,7 +956,7 @@ class _ModeChip extends StatelessWidget {
 }
 
 class _RoomCard extends StatelessWidget {
-  final GameRoom room;
+  final GameRoomModel room;
   final VoidCallback onJoin;
 
   const _RoomCard({required this.room, required this.onJoin});
@@ -949,7 +986,7 @@ class _RoomCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    room.creatorName,
+                    room.creatorId.isNotEmpty ? 'Salle ${room.roomCode}' : 'Salle ${room.roomCode}',
                     style: AppTypography.subtitle,
                   ),
                   const SizedBox(height: 4),
@@ -971,13 +1008,23 @@ class _RoomCard extends StatelessWidget {
                           color: NeonColors.textSecondary, size: 14,),
                       const SizedBox(width: 4),
                       Text(
-                        '${room.currentPlayers}/${room.maxPlayers}',
+                        '${room.playersCount}/${room.maxPlayers}',
                         style: const TextStyle(
                           color: NeonColors.textSecondary,
                           fontSize: 12,
                           fontFamily: 'Inter',
                         ),
                       ),
+                      if (room.setsCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '${room.setsCount} sets',
+                          style: const TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

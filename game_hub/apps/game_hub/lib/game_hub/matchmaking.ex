@@ -21,9 +21,21 @@ defmodule GameHub.Matchmaking do
   """
 
   alias GameHub.Redis
+  alias GameHub.Admin.PlatformConfig
 
-  @fallback_timeout_seconds 30
-  @fallback_tolerance_pct 0.20  # ±20%
+  # Valeurs par défaut (utilisées si PlatformConfig indisponible)
+  @default_fallback_timeout 30
+  @default_fallback_tolerance 0.20
+
+  # Récupère le timeout de fallback depuis la config plateforme.
+  defp fallback_timeout_seconds do
+    PlatformConfig.get_int("gaming", "fallback_timeout_seconds", @default_fallback_timeout)
+  end
+
+  # Récupère la tolérance de fallback (pourcentage) depuis la config plateforme.
+  defp fallback_tolerance_pct do
+    PlatformConfig.get_float("gaming", "fallback_tolerance_pct", @default_fallback_tolerance)
+  end
 
   @doc """
   Rejoint file d'attente matchmaking.
@@ -110,7 +122,7 @@ defmodule GameHub.Matchmaking do
         entry_time = String.to_integer(timestamp_str)
         elapsed = System.system_time(:second) - entry_time
 
-        if elapsed >= @fallback_timeout_seconds do
+        if elapsed >= fallback_timeout_seconds() do
           # Récupérer la mise du joueur
           case Redix.command(Redis, ["HGET", queue_key, user_id]) do
             {:ok, bet_str} ->
@@ -174,8 +186,8 @@ defmodule GameHub.Matchmaking do
   defp find_best_alternative_bet(queue_key, original_bet, user_id) do
     {:ok, players} = Redix.command(Redis, ["HGETALL", queue_key])
 
-    min_bet = round(original_bet * (1 - @fallback_tolerance_pct))
-    max_bet = round(original_bet * (1 + @fallback_tolerance_pct))
+    min_bet = round(original_bet * (1 - fallback_tolerance_pct()))
+    max_bet = round(original_bet * (1 + fallback_tolerance_pct()))
 
     # Trouver les mises alternatives disponibles
     alternatives =

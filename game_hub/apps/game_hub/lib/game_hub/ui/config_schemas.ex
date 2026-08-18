@@ -58,9 +58,9 @@ defmodule GameHub.UI.GameConfig do
     |> case do
       {:ok, updated_config} ->
         try do
-          GameHubWeb.Endpoint.broadcast!("game_config:update:#{game_type}", %{
+          apply(GameHubWeb.Endpoint, :broadcast!, ["game_config:update:#{game_type}", %{
             config: Map.from_struct(updated_config)
-          })
+          }])
         rescue
           _ -> :ok
         end
@@ -153,9 +153,9 @@ defmodule GameHub.UI.PaymentConfig do
       {:ok, updated_config} ->
         # Broadcast WebSocket (ignore si Endpoint pas encore chargé)
         try do
-          GameHubWeb.Endpoint.broadcast!("payment_config:update:#{provider}", %{
+          apply(GameHubWeb.Endpoint, :broadcast!, ["payment_config:update:#{provider}", %{
             config: Map.drop(Map.from_struct(updated_config), [:api_key, :api_secret])
-          })
+          }])
         rescue
           _ -> :ok
         end

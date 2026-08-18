@@ -2,47 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../../data/models/game_stats_models.dart';
+import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
-
-// === Models ===
-
-class LeaderboardEntry {
-  final int rank;
-  final String name;
-  final int wins;
-  final int losses;
-  final int totalEarnings;
-  final int winRate;
-  final String rankTier;
-
-  LeaderboardEntry({
-    required this.rank,
-    required this.name,
-    required this.wins,
-    required this.losses,
-    required this.totalEarnings,
-    required this.winRate,
-    required this.rankTier,
-  });
-}
 
 // === Providers ===
 
+final leaderboardGameTypeProvider = StateProvider<String>((ref) => 'dice');
 final leaderboardPeriodProvider = StateProvider<String>((ref) => 'weekly');
+final leaderboardMetricProvider = StateProvider<String>((ref) => 'wins');
 
-final leaderboardEntriesProvider = Provider<List<LeaderboardEntry>>((ref) {
-  return [
-    LeaderboardEntry(rank: 1, name: 'ProGamer_CM', wins: 156, losses: 23, totalEarnings: 2450000, winRate: 87, rankTier: 'diamond'),
-    LeaderboardEntry(rank: 2, name: 'DiceKing', wins: 142, losses: 31, totalEarnings: 1890000, winRate: 82, rankTier: 'diamond'),
-    LeaderboardEntry(rank: 3, name: 'LuckyHand', wins: 128, losses: 42, totalEarnings: 1560000, winRate: 75, rankTier: 'platinum'),
-    LeaderboardEntry(rank: 4, name: 'Chanceux237', wins: 115, losses: 38, totalEarnings: 1230000, winRate: 75, rankTier: 'platinum'),
-    LeaderboardEntry(rank: 5, name: 'NeonPlayer', wins: 98, losses: 45, totalEarnings: 980000, winRate: 69, rankTier: 'gold'),
-    LeaderboardEntry(rank: 6, name: 'Gamer_X', wins: 87, losses: 52, totalEarnings: 750000, winRate: 63, rankTier: 'gold'),
-    LeaderboardEntry(rank: 7, name: 'RollMaster', wins: 76, losses: 48, totalEarnings: 620000, winRate: 61, rankTier: 'gold'),
-    LeaderboardEntry(rank: 8, name: 'BetKing_CM', wins: 65, losses: 55, totalEarnings: 480000, winRate: 54, rankTier: 'silver'),
-    LeaderboardEntry(rank: 9, name: 'Vous', wins: 47, losses: 29, totalEarnings: 350000, winRate: 62, rankTier: 'silver'),
-    LeaderboardEntry(rank: 10, name: 'Newbie237', wins: 23, losses: 34, totalEarnings: 120000, winRate: 40, rankTier: 'bronze'),
-  ];
+/// Provider qui récupère les récompenses ranking depuis PlatformConfig
+final rankingRewardsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final adminRepo = ref.read(adminRepositoryProvider);
+    final configs = await adminRepo.getPlatformConfigByCategory('ranking');
+    final rewards = <Map<String, dynamic>>[];
+    for (final c in configs) {
+      final key = c['key'] as String? ?? '';
+      if (key.startsWith('leaderboard_reward_top')) {
+        final rank = int.tryParse(key.replaceAll('leaderboard_reward_top', '')) ?? 0;
+        final amount = int.tryParse(c['value']?.toString() ?? c['default_value']?.toString() ?? '0') ?? 0;
+        if (rank > 0) rewards.add({'rank': rank, 'amount': amount});
+      }
+    }
+    rewards.sort((a, b) => (a['rank'] as int).compareTo(b['rank'] as int));
+    return rewards;
+  } catch (_) {
+    return [];
+  }
 });
 
 // === Écran ===
@@ -52,22 +41,46 @@ class LeaderboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(leaderboardEntriesProvider);
+    final gameType = ref.watch(leaderboardGameTypeProvider);
     final period = ref.watch(leaderboardPeriodProvider);
+    final metric = ref.watch(leaderboardMetricProvider);
+
+    // Map period to API format
+    final apiPeriod = switch (period) {
+      'daily' => 'day',
+      'weekly' => 'week',
+      'monthly' => 'month',
+      _ => 'all',
+    };
+
+    final leaderboardAsync = ref.watch(gameLeaderboardProvider((
+      gameType: gameType,
+      metric: metric,
+      period: apiPeriod,
+    ),),);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             _buildHeader(),
-            // Period selector
+            _buildMetricSelector(ref, metric),
             _buildPeriodSelector(ref, period),
-            // Top 3 podium
-            _buildPodium(entries.take(3).toList()),
-            // Full list
             Expanded(
-              child: _buildLeaderboardList(entries),
+              child: leaderboardAsync.when(
+                data: (leaderboard) => Column(
+                  children: [
+                    if (leaderboard.entries.length >= 3)
+                      _buildPodium(leaderboard.entries.take(3).toList()),
+                    _buildRewardsBanner(ref),
+                    Expanded(child: _buildLeaderboardList(leaderboard)),
+                    if (leaderboard.myRank != null)
+                      _buildMyRankFooter(leaderboard),
+                  ],
+                ),
+                loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+                error: (e, _) => _buildError(e.toString()),
+              ),
             ),
           ],
         ),
@@ -99,6 +112,60 @@ class LeaderboardScreen extends ConsumerWidget {
             color: NeonColors.rankGold,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMetricSelector(WidgetRef ref, String current) {
+    final metrics = [
+      {'key': 'wins', 'label': 'Victoires', 'icon': Icons.emoji_events},
+      {'key': 'total_won', 'label': 'Gains', 'icon': Icons.monetization_on},
+      {'key': 'biggest_win', 'label': 'Plus gros gain', 'icon': Icons.trending_up},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: metrics.map((m) {
+          final isSelected = current == m['key'];
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: GestureDetector(
+                onTap: () => ref.read(leaderboardMetricProvider.notifier).state = m['key'] as String,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? NeonColors.secondary.withValues(alpha: 0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected ? NeonColors.secondary : NeonColors.border,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(m['key'] as IconData? ?? Icons.star, size: 14, color: isSelected ? NeonColors.secondary : NeonColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        m['label'] as String,
+                        style: TextStyle(
+                          color: isSelected ? NeonColors.secondary : NeonColors.textSecondary,
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -151,7 +218,7 @@ class LeaderboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPodium(List<LeaderboardEntry> top3) {
+  Widget _buildPodium(List<GameLeaderboardEntry> top3) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -170,21 +237,17 @@ class LeaderboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLeaderboardList(List<LeaderboardEntry> entries) {
+  Widget _buildLeaderboardList(GameLeaderboard leaderboard) {
+    final entries = leaderboard.entries;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
-        final isYou = entry.name == 'Vous';
+        final tierColor = _getRankColor(entry.rank);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: isYou ? NeonColors.primary.withValues(alpha: 0.08) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: isYou ? Border.all(color: NeonColors.primary.withValues(alpha: 0.3)) : null,
-          ),
           child: NeonCard(
             child: Row(
               children: [
@@ -194,13 +257,13 @@ class LeaderboardScreen extends ConsumerWidget {
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _getRankColor(entry.rankTier).withValues(alpha: 0.15),
+                    color: tierColor.withValues(alpha: 0.15),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     '${entry.rank}',
                     style: TextStyle(
-                      color: _getRankColor(entry.rankTier),
+                      color: tierColor,
                       fontFamily: 'Orbitron',
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -208,58 +271,37 @@ class LeaderboardScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Name + stats
+                // Name + value
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            entry.name,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: isYou ? FontWeight.bold : FontWeight.w500,
-                              color: isYou ? NeonColors.primary : NeonColors.textPrimary,
-                            ),
-                          ),
-                          if (isYou) ...[
-                            const SizedBox(width: 6),
-                            const GlowBadge(text: 'VOUS', color: NeonColors.primary),
-                          ],
-                        ],
+                      Text(
+                        entry.name,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w500,
+                          color: NeonColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '${entry.wins}V - ${entry.losses}D',
-                            style: const TextStyle(
-                              color: NeonColors.textSecondary,
-                              fontSize: 11,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            '${entry.winRate}% win',
-                            style: TextStyle(
-                              color: entry.winRate >= 60 ? NeonColors.success : NeonColors.textSecondary,
-                              fontSize: 11,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '${entry.wins} victoires',
+                        style: const TextStyle(
+                          color: NeonColors.textSecondary,
+                          fontSize: 11,
+                          fontFamily: 'Inter',
+                        ),
                       ),
                     ],
                   ),
                 ),
-                // Earnings
+                // Value
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _formatTokens(entry.totalEarnings),
+                      _formatValue(entry.value),
                       style: const TextStyle(
                         color: NeonColors.rankGold,
                         fontFamily: 'Orbitron',
@@ -268,7 +310,7 @@ class LeaderboardScreen extends ConsumerWidget {
                       ),
                     ),
                     const Text(
-                      'jetons',
+                      'pts',
                       style: TextStyle(
                         color: NeonColors.textSecondary,
                         fontSize: 10,
@@ -285,27 +327,109 @@ class LeaderboardScreen extends ConsumerWidget {
     );
   }
 
-  Color _getRankColor(String tier) {
-    switch (tier) {
-      case 'diamond': return NeonColors.rankDiamond;
-      case 'platinum': return NeonColors.rankPlatinum;
-      case 'gold': return NeonColors.rankGold;
-      case 'silver': return NeonColors.rankSilver;
-      case 'bronze': return NeonColors.rankBronze;
-      default: return NeonColors.textSecondary;
-    }
+  Widget _buildMyRankFooter(GameLeaderboard leaderboard) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NeonColors.primary.withValues(alpha: 0.1),
+        border: Border(top: BorderSide(color: NeonColors.primary.withValues(alpha: 0.3))),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Votre rang: #${leaderboard.myRank}',
+            style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.bold),
+          ),
+          const Spacer(),
+          Text(
+            _formatValue(leaderboard.myValue ?? 0),
+            style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron'),
+          ),
+        ],
+      ),
+    );
   }
 
-  String _formatTokens(int amount) {
-    return amount.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ',);
+  Widget _buildRewardsBanner(WidgetRef ref) {
+    final rewardsAsync = ref.watch(rankingRewardsProvider);
+    return rewardsAsync.when(
+      data: (rewards) {
+        if (rewards.isEmpty) return const SizedBox.shrink();
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                NeonColors.rankGold.withValues(alpha: 0.15),
+                NeonColors.secondary.withValues(alpha: 0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: NeonColors.rankGold.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.card_giftcard, color: NeonColors.rankGold, size: 18),
+              const SizedBox(width: 8),
+              const Text('R\u00e9compenses', style: TextStyle(color: NeonColors.rankGold, fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              ...rewards.take(3).map((r) {
+                final rank = r['rank'] as int;
+                final amount = r['amount'] as int;
+                final color = rank == 1 ? NeonColors.rankGold : rank == 2 ? NeonColors.rankSilver : NeonColors.rankBronze;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('#$rank', style: TextStyle(color: color, fontSize: 10, fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                      Text('${(amount / 1000).toStringAsFixed(0)}K', style: TextStyle(color: color, fontSize: 11, fontFamily: 'Orbitron', fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildError(String error) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+          const SizedBox(height: 12),
+          Text(error, style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Color _getRankColor(int rank) {
+    if (rank <= 3) return NeonColors.rankGold;
+    if (rank <= 5) return NeonColors.rankPlatinum;
+    if (rank <= 10) return NeonColors.rankSilver;
+    if (rank <= 20) return NeonColors.rankBronze;
+    return NeonColors.textSecondary;
+  }
+
+  String _formatValue(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+    return value.toString();
   }
 }
 
 // === Podium Card ===
 
 class _PodiumCard extends StatelessWidget {
-  final LeaderboardEntry entry;
+  final GameLeaderboardEntry entry;
   final double height;
   final Color color;
 
@@ -356,7 +480,7 @@ class _PodiumCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${entry.winRate}%',
+              '${entry.value}',
               style: TextStyle(
                 color: color,
                 fontFamily: 'Orbitron',

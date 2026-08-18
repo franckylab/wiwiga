@@ -30,6 +30,7 @@ defmodule GameHub.GameRules do
   import Ecto.Query
   alias GameHub.Repo
   alias GameHub.Games.GameRule
+  alias GameHub.Admin.GameConfig
 
   @cache_table :game_rules_cache
   @cache_ttl_seconds 300
@@ -199,15 +200,21 @@ defmodule GameHub.GameRules do
   """
   @spec calculate_commission(String.t(), integer()) :: {:ok, integer()} | {:error, atom()}
   def calculate_commission(game_type, amount) when amount > 0 do
-    case get_rules(game_type, "normal") do
+    rate = case get_rules(game_type, "normal") do
       {:ok, rules} ->
-        rate = GameRule.get_config_decimal(rules, "commission_rate", Decimal.new("0.05"))
-        commission = amount |> Decimal.new() |> Decimal.mult(rate) |> Decimal.to_float() |> trunc()
-        {:ok, commission}
-
-      error ->
-        error
+        GameRule.get_config_decimal(rules, "commission_rate", nil)
+      _ ->
+        nil
     end
+
+    # Fallback: GameConfig admin → défaut 5%
+    rate = case rate do
+      nil -> Decimal.new(GameConfig.get_commission_rate(game_type))
+      r -> r
+    end
+
+    commission = amount |> Decimal.new() |> Decimal.mult(rate) |> Decimal.to_float() |> trunc()
+    {:ok, commission}
   end
 
   def calculate_commission(_game_type, _amount), do: {:ok, 0}

@@ -22,6 +22,7 @@ defmodule GameHub.GameRoom do
   require Logger
 
   alias GameHub.{GameMatch, GameRules}
+  alias GameHub.ResponsibleGaming
 
   @table :game_rooms
   @cleanup_interval_ms 60_000
@@ -200,6 +201,13 @@ defmodule GameHub.GameRoom do
             :ets.insert(state.table, {room_id, updated})
             Logger.info("Player #{player_id} joined room #{room_id}")
 
+            # Tracker session de jeu pour Responsible Gaming
+            try do
+              if is_integer(player_id), do: ResponsibleGaming.start_session(player_id)
+            rescue
+              _ -> :ok
+            end
+
             # Notifier via PubSub
             broadcast_room_update(room_id, updated)
 
@@ -231,6 +239,13 @@ defmodule GameHub.GameRoom do
       {:ok, room} ->
         if room.status in [:waiting] do
           updated_players = Enum.reject(room.players, fn p -> p.id == player_id end)
+
+          # Fin session Responsible Gaming
+          try do
+            if is_integer(player_id), do: ResponsibleGaming.end_session(player_id)
+          rescue
+            _ -> :ok
+          end
 
           # Si le créateur part → annuler la room
           if player_id == room.creator_id do

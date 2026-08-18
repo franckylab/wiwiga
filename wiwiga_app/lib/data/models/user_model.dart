@@ -249,22 +249,26 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: (json['id'] ?? '').toString(),
-      phone: json['phone'],
-      email: json['email'],
-      username: json['username'] ?? '',
-      name: json['name'],
-      role: UserRole.fromString(json['role']),
-      avatarType: AvatarType.fromString(json['avatar_type']),
-      avatarUrl: json['avatar_url'],
+      phone: json['phone']?.toString(),
+      email: json['email']?.toString(),
+      username: (json['username'] ?? '').toString(),
+      name: json['name']?.toString(),
+      role: UserRole.fromString(json['role']?.toString()),
+      avatarType: AvatarType.fromString(json['avatar_type']?.toString()),
+      avatarUrl: json['avatar_url']?.toString(),
       balance: ((json['balance'] ?? 0) as num).toDouble() / 100.0,
-      tokenBalance: (json['token_balance'] ?? 0) as int,
+      tokenBalance: ((json['token_balance'] ?? 0) as num).toInt(),
       isActive: json['is_active'] ?? true,
       hasVerifiedKyc: json['has_verified_kyc'] ?? false,
       selfExcluded: json['self_excluded'] ?? false,
-      loginCount: (json['login_count'] ?? 0) as int,
-      lastLoginAt: json['last_login_at'] != null ? DateTime.tryParse(json['last_login_at']) : null,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
+      loginCount: ((json['login_count'] ?? 0) as num).toInt(),
+      lastLoginAt: json['last_login_at'] != null ? DateTime.tryParse(json['last_login_at'].toString()) : null,
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? (DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now())
+          : DateTime.now(),
     );
   }
 

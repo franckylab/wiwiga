@@ -81,7 +81,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   /// Met à jour le username via l'API
   Future<bool> updateUsername(String newUsername) async {
     try {
-      final user = await _repository.updateProfile(username: newUsername);
+      await _repository.updateProfile(username: newUsername);
       // Mettre à jour le user dans authProvider
       _ref.read(authProvider.notifier).refreshProfile();
       return true;

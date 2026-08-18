@@ -52,6 +52,7 @@ class UserProfile {
   
   String get rankLabel {
     switch (rankTier) {
+      case 'legend': return 'Légende';
       case 'diamond': return 'Diamant';
       case 'platinum': return 'Platine';
       case 'gold': return 'Or';

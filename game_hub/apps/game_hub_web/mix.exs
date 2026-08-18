@@ -33,7 +33,9 @@ defmodule GameHubWeb.MixProject do
       {:phoenix, "~> 1.7.10"},
       {:phoenix_ecto, "~> 4.4"},
       {:cowboy, "~> 2.10"},
-      {:game_hub, in_umbrella: true}
+      {:game_hub, in_umbrella: true},
+      {:dice_game, in_umbrella: true},
+      {:pbkdf2_elixir, "~> 2.0"}
     ]
   end
 end

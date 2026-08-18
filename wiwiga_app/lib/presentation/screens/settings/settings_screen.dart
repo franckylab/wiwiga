@@ -276,7 +276,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               newPassword: newP,
                             );
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
+                        if (context.mounted) {
                           _showSnackbar(context, 'Mot de passe modifié !');
                         }
                       } catch (e) {
@@ -560,7 +560,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       transitionDuration: Duration.zero,
     );
     Future.delayed(const Duration(milliseconds: 1800), () {
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop();
         context.go('/auth');
       }
@@ -729,6 +729,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _toggleOtp(BuildContext context, bool newValue) {
     ref.read(authProvider.notifier).updateOtpRequired(enabled: newValue).then((success) {
+      if (!context.mounted) return;
       if (success) {
         ref.read(otpRequiredProvider.notifier).state = newValue;
         _showSnackbar(context, newValue ? 'OTP activé' : 'OTP désactivé');

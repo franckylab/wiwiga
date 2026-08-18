@@ -20,6 +20,26 @@ import '../../presentation/screens/admin/admin_user_detail_screen.dart';
 import '../../presentation/screens/admin/admin_config_screen.dart';
 import '../../presentation/screens/admin/admin_audit_screen.dart';
 import '../../presentation/screens/admin/admin_monitoring_screen.dart';
+import '../../presentation/screens/admin/admin_metrics_screen.dart';
+import '../../presentation/screens/admin/admin_alerts_screen.dart';
+import '../../presentation/screens/admin/admin_games_live_screen.dart';
+import '../../presentation/screens/admin/admin_security_screen.dart';
+import '../../presentation/screens/admin/admin_responsible_gaming_screen.dart';
+import '../../presentation/screens/admin/admin_notifications_screen.dart';
+import '../../presentation/screens/admin/admin_crm_screen.dart';
+import '../../presentation/screens/admin/admin_reconciliation_screen.dart';
+import '../../presentation/screens/admin/admin_settings_screen.dart';
+import '../../presentation/screens/admin/admin_shell_screen.dart';
+import '../../presentation/screens/admin/admin_game_config_screen.dart';
+import '../../presentation/screens/admin/admin_bonuses_screen.dart';
+import '../../presentation/screens/admin/admin_reports_screen.dart';
+import '../../presentation/screens/admin/admin_platform_config_screen.dart';
+import '../../presentation/screens/admin/admin_player_progression_screen.dart';
+import '../../presentation/screens/admin/analytics/admin_revenue_analytics_screen.dart';
+import '../../presentation/screens/admin/analytics/admin_player_analytics_screen.dart';
+import '../../presentation/screens/admin/analytics/admin_game_analytics_screen.dart';
+import '../../presentation/screens/admin/analytics/admin_monetary_flow_screen.dart';
+import '../../presentation/screens/admin/analytics/admin_player_wealth_screen.dart';
 import '../../presentation/screens/dice_game/dice_game_screen.dart';
 import '../../presentation/screens/dice_game/dice_match_screen.dart';
 import '../../presentation/screens/friends/friends_screen.dart';
@@ -45,7 +65,16 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 const _protectedRoutes = {'/profile', '/settings', '/transactions'};
 
 /// Routes qui nécessitent un rôle admin
-const _adminRoutes = {'/admin', '/admin/users', '/admin/config', '/admin/audit', '/admin/monitoring'};
+const _adminRoutes = {
+  '/admin', '/admin/users', '/admin/config', '/admin/audit', '/admin/monitoring',
+  '/admin/metrics', '/admin/alerts', '/admin/games-live', '/admin/security',
+  '/admin/responsible-gaming', '/admin/notifications', '/admin/crm',
+  '/admin/reconciliation', '/admin/settings',
+  '/admin/analytics/revenue', '/admin/analytics/players', '/admin/analytics/games',
+  '/admin/analytics/monetary-flow', '/admin/analytics/wealth',
+  '/admin/game-config', '/admin/bonuses', '/admin/reports',
+  '/admin/platform-config', '/admin/player-progression',
+};
 
 /// Provider du routeur de l'application
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -73,7 +102,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       
       // Si l'utilisateur n'est pas admin et accède à une route admin
-      if (path.startsWith('/admin') && !authState.isAdmin) {
+      if (_adminRoutes.contains(path) && !authState.isAdmin) {
         return '/home';
       }
       
@@ -93,16 +122,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AuthScreenV2(),
       ),
-      // --- Routes Admin (protégées par rôle) ---
+      // --- Routes Admin (protégées par rôle, dans un shell de navigation) ---
       GoRoute(
         path: '/admin',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (context, state) => const AdminShellScreen(child: AdminDashboardScreen()),
       ),
       GoRoute(
         path: '/admin/users',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminUsersScreen(),
+        builder: (context, state) => const AdminShellScreen(child: AdminUsersScreen()),
       ),
       GoRoute(
         path: '/admin/users/:id',
@@ -114,17 +143,114 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/config',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminConfigScreen(),
+        builder: (context, state) => const AdminShellScreen(child: AdminConfigScreen()),
       ),
       GoRoute(
         path: '/admin/audit',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminAuditScreen(),
+        builder: (context, state) => const AdminShellScreen(child: AdminAuditScreen()),
       ),
       GoRoute(
         path: '/admin/monitoring',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminMonitoringScreen(),
+        builder: (context, state) => const AdminShellScreen(child: AdminMonitoringScreen()),
+      ),
+      GoRoute(
+        path: '/admin/metrics',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminMetricsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/alerts',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminAlertsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/games-live',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminGamesLiveScreen()),
+      ),
+      GoRoute(
+        path: '/admin/security',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminSecurityScreen()),
+      ),
+      GoRoute(
+        path: '/admin/responsible-gaming',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminResponsibleGamingScreen()),
+      ),
+      GoRoute(
+        path: '/admin/notifications',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/crm',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminCrmScreen()),
+      ),
+      GoRoute(
+        path: '/admin/reconciliation',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminReconciliationScreen()),
+      ),
+      GoRoute(
+        path: '/admin/settings',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminSettingsScreen()),
+      ),
+      // --- Analytics (V3) ---
+      GoRoute(
+        path: '/admin/analytics/revenue',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminRevenueAnalyticsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/analytics/players',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminPlayerAnalyticsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/analytics/games',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminGameAnalyticsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/analytics/monetary-flow',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminMonetaryFlowScreen()),
+      ),
+      GoRoute(
+        path: '/admin/analytics/wealth',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminPlayerWealthScreen()),
+      ),
+      // --- Management (V3) ---
+      GoRoute(
+        path: '/admin/game-config',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminGameConfigScreen()),
+      ),
+      GoRoute(
+        path: '/admin/bonuses',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminBonusesScreen()),
+      ),
+      GoRoute(
+        path: '/admin/reports',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminReportsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/platform-config',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminPlatformConfigScreen()),
+      ),
+      GoRoute(
+        path: '/admin/player-progression',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminPlayerProgressionScreen()),
       ),
       GoRoute(
         path: '/profile',

@@ -78,6 +78,11 @@ defmodule GameHub.Users.User do
     # Préférences OTP
     field :otp_required_on_login, :boolean, default: false
     
+    # 2FA TOTP (admin)
+    field :totp_secret, :string
+    field :totp_enabled, :boolean, default: false
+    field :totp_activated_at, :utc_datetime
+    
     # Préférences utilisateur (JSONB: son, vibration, langue, thème, etc.)
     field :preferences, :map, default: %{}
     
@@ -109,7 +114,8 @@ defmodule GameHub.Users.User do
     |> cast(attrs, [
       :phone, :email, :username, :name, :role, :avatar_type, :avatar_url,
       :balance, :is_active, :has_verified_kyc, :self_excluded,
-      :daily_deposit_limit, :daily_loss_limit, :last_login_at, :login_count
+      :daily_deposit_limit, :daily_loss_limit, :last_login_at, :login_count,
+      :totp_secret, :totp_enabled, :totp_activated_at
     ])
     |> validate_phone_or_email()
     |> validate_username()

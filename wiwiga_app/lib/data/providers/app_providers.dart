@@ -5,6 +5,7 @@
 // Date: 2026-06-23
 // ============================================================
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import '../services/game_websocket_service.dart';
@@ -228,6 +229,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? email,
     required String password,
   }) async {
+    final identifier = phone ?? email;
+    if (kDebugMode) {
+      debugPrint('[AUTH] Login attempt: identifier=$identifier, passwordLength=${password.length}');
+    }
+    
     state = state.copyWith(
       status: AuthStatus.authenticating,
       isLoading: true,
@@ -239,6 +245,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+      
+      if (kDebugMode) {
+        debugPrint('[AUTH] Login success for $identifier');
+      }
       
       final otpRequired = result['otp_required'] as bool? ?? false;
       
@@ -260,10 +270,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       }
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AUTH] Login failed for $identifier: $e');
+      }
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Identifiants incorrects: $e',
+        error: 'Identifiants incorrects',
       );
     }
   }

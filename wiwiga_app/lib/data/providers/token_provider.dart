@@ -133,7 +133,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
   Future<void> purchaseTokens(int amountFcfa) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _repository.purchaseTokens(
+      await _repository.purchaseTokens(
         amount: (amountFcfa * 100).round(),
         idempotencyKey: 'purchase_${DateTime.now().millisecondsSinceEpoch}',
       );
@@ -153,7 +153,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
   Future<void> exchangeTokens(int tokenAmount) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _repository.exchangeTokens(
+      await _repository.exchangeTokens(
         tokenAmount: tokenAmount,
         idempotencyKey: 'exchange_${DateTime.now().millisecondsSinceEpoch}',
       );

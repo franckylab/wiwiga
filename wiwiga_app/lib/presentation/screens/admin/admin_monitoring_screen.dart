@@ -27,6 +27,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
   String? _error;
   bool _autoRefresh = true;
   Timer? _refreshTimer;
+  int _refreshInterval = 10; // secondes
+  final List<int> _intervalOptions = [5, 10, 30, 60];
 
   @override
   void initState() {
@@ -42,7 +44,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
   }
 
   void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(Duration(seconds: _refreshInterval), (_) {
       if (_autoRefresh && mounted) {
         _loadHealth();
       }
@@ -107,6 +110,28 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
+          // Sélecteur d'intervalle de refresh
+          PopupMenuButton<int>(
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer, color: Colors.white54, size: 16),
+                const SizedBox(width: 4),
+                Text('${_refreshInterval}s', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+              ],
+            ),
+            onSelected: (interval) {
+              setState(() => _refreshInterval = interval);
+              _startAutoRefresh();
+            },
+            itemBuilder: (context) => _intervalOptions.map((i) => PopupMenuItem(
+              value: i,
+              child: Text('${i}s', style: TextStyle(
+                color: _refreshInterval == i ? const Color(0xFF00FF88) : Colors.white,
+                fontWeight: _refreshInterval == i ? FontWeight.bold : FontWeight.normal,
+              ),),
+            ),).toList(),
+          ),
           IconButton(
             icon: Icon(_autoRefresh ? Icons.sync : Icons.sync_disabled, color: _autoRefresh ? const Color(0xFF00FF88) : Colors.white38),
             onPressed: () => setState(() => _autoRefresh = !_autoRefresh),

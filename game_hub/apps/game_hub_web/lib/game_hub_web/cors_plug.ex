@@ -64,13 +64,13 @@ defmodule GameHubWeb.CORSPlug do
   
   # === Fonctions Privées ===
   
-  defp allowed_origin?(_origin) do
+  defp allowed_origin?(origin) do
     # En développement, accepter toutes les origines
     if Application.get_env(:game_hub_web, :allow_all_origins, false) do
       true
     else
       allowed = get_allowed_origins()
-      _origin in allowed
+      origin in allowed
     end
   end
   

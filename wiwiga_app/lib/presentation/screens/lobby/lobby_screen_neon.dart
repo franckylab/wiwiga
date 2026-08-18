@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -13,7 +14,6 @@ class LobbyScreenNeon extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeConfig = ref.watch(themeConfigProvider);
     final featureConfig = ref.watch(featureConfigProvider);
     final isMaintenance = ref.watch(isMaintenanceActiveProvider);
 
@@ -104,11 +104,11 @@ class _HeaderSection extends ConsumerWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined, color: NeonColors.primary),
-                    onPressed: () {},
+                    onPressed: () => context.push('/settings'),
                   ),
                   IconButton(
                     icon: const Icon(Icons.account_circle_outlined, color: NeonColors.primary),
-                    onPressed: () {},
+                    onPressed: () => context.push('/profile'),
                   ),
                 ],
               ),
@@ -128,7 +128,7 @@ class _HeaderSection extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'ACHETER',
-                  onPressed: () {},
+                  onPressed: () => context.push('/tokens'),
                   variant: NeonButtonVariant.success,
                   icon: Icons.shopping_cart,
                 ),
@@ -137,7 +137,7 @@ class _HeaderSection extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'ÉCHANGER',
-                  onPressed: () {},
+                  onPressed: () => context.push('/tokens'),
                   variant: NeonButtonVariant.outline,
                   icon: Icons.swap_horiz,
                 ),
@@ -526,7 +526,7 @@ class _MaintenanceScreen extends StatelessWidget {
               const SizedBox(height: 32),
               NeonButton(
                 text: 'RÉESSAYER',
-                onPressed: () {},
+                onPressed: () => context.go('/home'),
                 variant: NeonButtonVariant.secondary,
               ),
             ],

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../../data/providers/app_providers.dart';
 
 /// Écran Profile redesigné avec style néon gaming
-class ProfileScreenNeon extends StatelessWidget {
+class ProfileScreenNeon extends ConsumerWidget {
   const ProfileScreenNeon({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -24,7 +27,7 @@ class ProfileScreenNeon extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit, color: NeonColors.primary),
-            onPressed: () {},
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -260,9 +263,9 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _SettingsSections extends StatelessWidget {
+class _SettingsSections extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -323,7 +326,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeThumbColor: NeonColors.primary,
+                  activeColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -334,7 +337,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeThumbColor: NeonColors.primary,
+                  activeColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -345,7 +348,7 @@ class _SettingsSections extends StatelessWidget {
                 trailing: Switch(
                   value: true,
                   onChanged: (value) {},
-                  activeThumbColor: NeonColors.primary,
+                  activeColor: NeonColors.primary,
                 ),
                 onTap: () {},
               ),
@@ -423,7 +426,12 @@ class _SettingsSections extends StatelessWidget {
           // Déconnexion
           NeonButton(
             text: 'DÉCONNEXION',
-            onPressed: () {},
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/auth');
+              }
+            },
             variant: NeonButtonVariant.danger,
             icon: Icons.logout,
             width: double.infinity,

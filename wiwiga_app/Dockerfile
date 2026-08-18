@@ -31,6 +31,10 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copier les fichiers buildés
 COPY --from=build /app/build/web /usr/share/nginx/html
 
+# Patch flutter_bootstrap.js pour charger CanvasKit depuis nginx (local)
+# au lieu du CDN Google (www.gstatic.com) qui peut être inaccessible
+RUN sed -i 's|_flutter.loader.load({|_flutter.loader.load({config:{canvasKitBaseUrl:"/canvaskit/"},|' /usr/share/nginx/html/flutter_bootstrap.js
+
 # Copier la config nginx personnalisée
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

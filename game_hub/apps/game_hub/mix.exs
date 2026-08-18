@@ -34,7 +34,8 @@ defmodule GameHub.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:redix, "~> 1.5"},
       {:guardian, "~> 2.3"},
-      {:phoenix_pubsub, "~> 2.1"}
+      {:phoenix_pubsub, "~> 2.1"},
+      {:pbkdf2_elixir, "~> 2.0"}
     ]
   end
 end

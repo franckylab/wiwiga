@@ -62,19 +62,11 @@ flutter:
     - assets/images/icons/
     - assets/animations/
   
-  # Fonts: Using google_fonts package instead of custom assets
-  # fonts:
-  #   - family: Inter
-  #     fonts:
-  #       - asset: assets/fonts/Inter-Regular.ttf
-  #       - asset: assets/fonts/Inter-Bold.ttf
-  #         weight: 700
-  #       - asset: assets/fonts/Inter-Medium.ttf
-  #         weight: 500
-  #   - family: Orbitron
-  #     fonts:
-  #       - asset: assets/fonts/Orbitron-Regular.ttf
-  #       - asset: assets/fonts/Orbitron-Medium.ttf
-  #         weight: 500
-  #       - asset: assets/fonts/Orbitron-Bold.ttf
-  #         weight: 700
+  # Fonts locales WIWIGA (Inter + Orbitron)
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+    - family: Orbitron
+      fonts:
+        - asset: assets/fonts/Orbitron-Regular.ttf
