@@ -222,7 +222,18 @@ defmodule GameHubWeb.GameController do
                   
                   {:error, reason} ->
                     # Rollback pari si matchmaking échoue
-                    # TODO: Implémenter compensation transaction
+                    refund_key = "refund_#{user_id}_#{game_id}_#{System.os_time(:millisecond)}"
+                    Wallet.credit_winnings(user_id, bet_amount, game_id, refund_key)
+
+                    AuditLog.log(
+                      "bet_refunded",
+                      user_id,
+                      "game",
+                      game_id,
+                      %{bet_amount: bet_amount, reason: reason, status: "refunded"},
+                      %{idempotency_key: refund_key}
+                    )
+
                     conn
                     |> put_status(400)
                     |> json(Errors.error("Erreur matchmaking: #{reason}", 400, "MATCHMAKING_ERROR"))

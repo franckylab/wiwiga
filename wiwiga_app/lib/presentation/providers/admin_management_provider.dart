@@ -396,8 +396,110 @@ class AdminPlayerProgressionNotifier extends StateNotifier<AdminPlayerProgressio
       return false;
     }
   }
+
+  Future<bool> createLevel(Map<String, dynamic> config) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final adminRepo = ref.read(adminRepositoryProvider);
+      await adminRepo.createPlayerLevel(config);
+      await loadLevels();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> deleteLevel(String tier) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final adminRepo = ref.read(adminRepositoryProvider);
+      await adminRepo.deletePlayerLevel(tier);
+      await loadLevels();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
 }
 
 final adminPlayerProgressionProvider = StateNotifierProvider<AdminPlayerProgressionNotifier, AdminPlayerProgressionState>((ref) {
   return AdminPlayerProgressionNotifier(ref);
+});
+
+// ========================================
+// XP RULES
+// ========================================
+
+class AdminXPRulesState {
+  final bool isLoading;
+  final String? error;
+  final List<dynamic> rules;
+  final bool isSaving;
+
+  const AdminXPRulesState({
+    this.isLoading = false, this.error, this.rules = const [], this.isSaving = false,
+  });
+
+  AdminXPRulesState copyWith({
+    bool? isLoading, String? error, List<dynamic>? rules, bool? isSaving, bool clearError = false,
+  }) {
+    return AdminXPRulesState(
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      rules: rules ?? this.rules,
+      isSaving: isSaving ?? this.isSaving,
+    );
+  }
+}
+
+class AdminXPRulesNotifier extends StateNotifier<AdminXPRulesState> {
+  final Ref ref;
+  AdminXPRulesNotifier(this.ref) : super(const AdminXPRulesState());
+
+  Future<void> loadRules() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final adminRepo = ref.read(adminRepositoryProvider);
+      final rules = await adminRepo.getXPRules();
+      state = state.copyWith(isLoading: false, rules: rules);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<bool> saveRules(String gameType, Map<String, dynamic> rules) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final adminRepo = ref.read(adminRepositoryProvider);
+      await adminRepo.upsertXPRules(gameType, rules);
+      await loadRules();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> deleteRules(String gameType) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final adminRepo = ref.read(adminRepositoryProvider);
+      await adminRepo.deleteXPRules(gameType);
+      await loadRules();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
+}
+
+final adminXPRulesProvider = StateNotifierProvider<AdminXPRulesNotifier, AdminXPRulesState>((ref) {
+  return AdminXPRulesNotifier(ref);
 });

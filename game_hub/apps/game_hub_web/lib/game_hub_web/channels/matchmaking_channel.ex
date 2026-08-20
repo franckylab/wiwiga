@@ -118,7 +118,7 @@ defmodule GameHubWeb.MatchmakingChannel do
     if user_id && game_type do
       # Retirer de la file automatiquement
       Matchmaking.leave_queue(user_id, game_type)
-      IO.puts("[MATCHMAKING] User #{user_id} left queue #{game_type}")
+      Logger.info("[MATCHMAKING] User #{user_id} left queue #{game_type}")
     end
     
     :ok

@@ -25,7 +25,9 @@ import '../models/game_model.dart';
 
 /// Provider du service API
 final apiServiceProvider = Provider<ApiService>((ref) {
-  return ApiService();
+  final apiService = ApiService();
+  ref.onDispose(() => apiService.dispose());
+  return apiService;
 });
 
 /// Provider du repository Auth
@@ -450,12 +452,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
   }
+  
+  /// Gère l'expiration de la session (tokens effacés)
+  /// Appelé quand ApiService détecte une session expirée
+  void handleSessionExpired() {
+    state = const AuthState(status: AuthStatus.guest);
+  }
 }
 
 /// Provider principal Auth
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  final apiService = ref.watch(apiServiceProvider);
+  final notifier = AuthNotifier(repository);
+  
+  // Écouter les expiration de session et mettre à jour l'état
+  apiService.onSessionExpired.listen((_) {
+    notifier.handleSessionExpired();
+  });
+  
+  return notifier;
 });
 
 // ============================================================

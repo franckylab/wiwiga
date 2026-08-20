@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/admin/skeleton_loader.dart';
+import '../../widgets/admin/analytics_helpers.dart';
 
 /// Écran gestion des bonus et promotions
 class AdminBonusesScreen extends ConsumerStatefulWidget {
@@ -49,9 +53,9 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const AdminSkeletonList(itemCount: 5)
           : state.error != null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses())
               : _buildContent(state),
     );
   }
@@ -61,81 +65,83 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     final activeBonuses = bonuses.where((b) => b['is_active'] == true).toList();
     final inactiveBonuses = bonuses.where((b) => b['is_active'] != true).toList();
 
-    return RefreshIndicator(
-      onRefresh: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses(),
-      color: NeonColors.primary,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          // Filtres
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildFilterChip(null, 'Tous'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('welcome', 'Bienvenue'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('deposit', 'Depot'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('cashback', 'Cashback'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('tournament', 'Tournoi'),
-                ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 600 ? 2 : 1;
+        return RefreshIndicator(
+          onRefresh: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses(),
+          color: NeonColors.primary,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // Filtres
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip(null, 'Tous'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('welcome', 'Bienvenue'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('deposit', 'Dépôt'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('cashback', 'Cashback'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('tournament', 'Tournoi'),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          // Résumé
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildSummaryBadge('${activeBonuses.length} actifs', NeonColors.success),
-                  const SizedBox(width: 8),
-                  _buildSummaryBadge('${inactiveBonuses.length} inactifs', NeonColors.textMuted),
-                  const SizedBox(width: 8),
-                  _buildSummaryBadge('${bonuses.length} total', NeonColors.primary),
-                ],
+              // Résumé
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      _buildSummaryBadge('${activeBonuses.length} actifs', NeonColors.success),
+                      _buildSummaryBadge('${inactiveBonuses.length} inactifs', NeonColors.textMuted),
+                      _buildSummaryBadge('${bonuses.length} total', NeonColors.primary),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          // Liste bonus
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildBonusCard(bonuses[index] as Map<String, dynamic>),
-                childCount: bonuses.length,
+              // Liste bonus en grille responsive
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildBonusCard(bonuses[index] as Map<String, dynamic>),
+                    childCount: bonuses.length,
+                  ),
+                ),
               ),
-            ),
-          ),
 
           if (bonuses.isEmpty)
             SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.card_giftcard, color: NeonColors.textMuted, size: 64),
-                    const SizedBox(height: 16),
-                    const Text('Aucun bonus configuré', style: TextStyle(color: NeonColors.textSecondary)),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _showCreateDialog(),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Créer un bonus'),
-                      style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-                    ),
-                  ],
-                ),
+              child: AdminEmptyState(
+                icon: Icons.card_giftcard,
+                title: 'Aucun bonus configuré',
+                actionLabel: 'Créer un bonus',
+                actionIcon: Icons.add,
+                onAction: () => _showCreateDialog(),
               ),
             ),
         ],
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -192,17 +198,13 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                   final bonusName = bonus['name'] as String? ?? '';
                   final success = await ref.read(adminBonusesManagementProvider.notifier).toggleBonus(id, value);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success
-                            ? '"$bonusName" ${value ? "activé" : "désactivé"}'
-                            : 'Erreur de mise à jour',),
-                        backgroundColor: success ? NeonColors.success : NeonColors.error,
-                      ),
+                    context.showResult(success,
+                      successMsg: '"$bonusName" ${value ? "activé" : "désactivé"}',
+                      errorMsg: 'Erreur de mise à jour',
                     );
                   }
                 },
-                activeColor: NeonColors.primary,
+                activeThumbColor: NeonColors.primary,
               ),
             ],
           ),
@@ -211,16 +213,16 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
             children: [
               _buildStatItem('Valeur', '${value.toStringAsFixed(0)} FCFA', color),
               const SizedBox(width: 16),
-              _buildStatItem('Wagering', '${wageringReq.toStringAsFixed(0)}x', NeonColors.secondary),
+              _buildStatItem('Mise', '${wageringReq.toStringAsFixed(0)}x', NeonColors.secondary),
               const SizedBox(width: 16),
               _buildStatItem('Utilisations', '$usageCount', NeonColors.accent),
               const SizedBox(width: 16),
-              _buildStatItem('Coût total', _formatAmount(totalCost), NeonColors.error),
+              _buildStatItem('Coût total', AnalyticsFormat.amount(totalCost), NeonColors.error),
             ],
           ),
           if (expiresAt != null) ...[
             const SizedBox(height: 8),
-            Text('Expire: ${_formatDate(expiresAt)}', style: TextStyle(
+            Text('Expire: ${AnalyticsFormat.date(expiresAt)}', style: TextStyle(
               color: _isExpired(expiresAt) ? NeonColors.error : NeonColors.textMuted,
               fontSize: 10,
             ),),
@@ -288,7 +290,7 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
               _buildTextField(nameCtrl, 'Nom du bonus', Icons.label),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: 'welcome',
+                initialValue: 'welcome',
                 dropdownColor: NeonColors.surface,
                 decoration: const InputDecoration(
                   labelText: 'Type',
@@ -297,7 +299,7 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(value: 'welcome', child: Text('Bienvenue', style: TextStyle(color: NeonColors.textPrimary))),
-                  DropdownMenuItem(value: 'deposit', child: Text('Depot', style: TextStyle(color: NeonColors.textPrimary))),
+                  DropdownMenuItem(value: 'deposit', child: Text('Dépôt', style: TextStyle(color: NeonColors.textPrimary))),
                   DropdownMenuItem(value: 'cashback', child: Text('Cashback', style: TextStyle(color: NeonColors.textPrimary))),
                   DropdownMenuItem(value: 'tournament', child: Text('Tournoi', style: TextStyle(color: NeonColors.textPrimary))),
                 ],
@@ -306,9 +308,9 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
               const SizedBox(height: 12),
               _buildTextField(valueCtrl, 'Valeur (FCFA)', Icons.monetization_on),
               const SizedBox(height: 12),
-              _buildTextField(wageringCtrl, 'Wagering Requirement (x)', Icons.refresh),
+              _buildTextField(wageringCtrl, 'Condition de mise (x)', Icons.refresh),
               const SizedBox(height: 12),
-              _buildTextField(minDepositCtrl, 'Depot Min (FCFA)', Icons.arrow_downward),
+              _buildTextField(minDepositCtrl, 'Dépôt Min (FCFA)', Icons.arrow_downward),
               const SizedBox(height: 12),
               _buildTextField(maxBonusCtrl, 'Bonus Max (FCFA)', Icons.arrow_upward),
             ],
@@ -330,21 +332,15 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
 
               // Validation
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Le nom du bonus est requis'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Le nom du bonus est requis');
                 return;
               }
               if (value <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('La valeur doit être supérieure à 0'), backgroundColor: NeonColors.error),
-                );
+                context.showError('La valeur doit être supérieure à 0');
                 return;
               }
               if (minDeposit > maxBonus) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Le dépôt min ne peut pas dépasser le bonus max'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Le dépôt min ne peut pas dépasser le bonus max');
                 return;
               }
 
@@ -360,11 +356,9 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
               });
 
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? 'Bonus "$name" créé avec succès' : 'Erreur lors de la création du bonus'),
-                    backgroundColor: success ? NeonColors.success : NeonColors.error,
-                  ),
+                context.showResult(success,
+                  successMsg: 'Bonus "$name" créé avec succès',
+                  errorMsg: 'Erreur lors de la création du bonus',
                 );
               }
             },
@@ -394,44 +388,6 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatAmount(dynamic value) {
-    if (value == null) return '0 FCFA';
-    final amount = (value as num).toDouble();
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return '-';
-    try {
-      final dt = DateTime.parse(date.toString());
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    } catch (_) {
-      return '-';
-    }
   }
 
   bool _isExpired(String dateStr) {

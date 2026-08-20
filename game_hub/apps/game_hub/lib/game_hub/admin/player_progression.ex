@@ -139,6 +139,63 @@ defmodule GameHub.Admin.PlayerProgression do
   end
 
   @doc """
+  Crée une nouvelle configuration de niveau.
+  """
+  @spec create_level_config(map(), integer()) :: {:ok, map()} | {:error, term()}
+  def create_level_config(attrs, created_by) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    result = Repo.insert_all("player_level_configs", [%{
+      tier: Map.get(attrs, "tier"),
+      name: Map.get(attrs, "name"),
+      min_xp: Map.get(attrs, "min_xp", 0),
+      max_xp: Map.get(attrs, "max_xp"),
+      icon: Map.get(attrs, "icon", "shield"),
+      color: Map.get(attrs, "color", "#808080"),
+      benefits: Map.get(attrs, "benefits", %{}),
+      display_order: Map.get(attrs, "display_order", 0),
+      is_active: Map.get(attrs, "is_active", true),
+      inserted_at: now,
+      updated_at: now
+    }])
+    |> case do
+      {1, _} ->
+        config = get_level_config(Map.get(attrs, "tier"))
+        {:ok, config}
+      _ -> {:error, :insert_failed}
+    end
+
+    case result do
+      {:ok, config} ->
+        AuditLog.log("admin_action", created_by, "player_progression", config.tier, %{
+          "action" => "create_level_config",
+          "data" => attrs
+        })
+        {:ok, config}
+      error -> error
+    end
+  end
+
+  @doc """
+  Supprime une configuration de niveau.
+  """
+  @spec delete_level_config(String.t(), integer()) :: {:ok, map()} | {:error, term()}
+  def delete_level_config(tier, deleted_by) do
+    query = from lc in "player_level_configs",
+      where: lc.tier == ^tier
+
+    case Repo.delete_all(query) do
+      {1, _} ->
+        invalidate_cache({:level, tier})
+        AuditLog.log("admin_action", deleted_by, "player_progression", tier, %{
+          "action" => "delete_level_config"
+        })
+        {:ok, %{tier: tier, deleted: true}}
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc """
   Met à jour la configuration d'un niveau.
   """
   @spec update_level_config(String.t(), map(), integer()) :: {:ok, map()} | {:error, term()}

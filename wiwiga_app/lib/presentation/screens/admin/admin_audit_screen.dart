@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../widgets/admin/skeleton_loader.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/analytics_helpers.dart';
 
 /// Écran des logs d'audit admin (données réelles API)
 class AdminAuditScreen extends ConsumerStatefulWidget {
@@ -74,14 +78,14 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
 
     if (user == null || !user.isModerator) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: Colors.white, fontSize: 20)),
+              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
             ],
@@ -91,20 +95,16 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/admin'),
-        ),
-        title: const Text('Logs d\'audit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: NeonColors.surface,
+        title: const Text('Logs d\'audit', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
         actions: [
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Text('$_total événements', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+              child: Text('$_total événements', style: TextStyle(color: NeonColors.textMuted, fontSize: 13)),
             ),
           ),
         ],
@@ -118,15 +118,15 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _FilterChip(label: 'Tout', isSelected: _filterAction == '', onTap: () { _filterAction = ''; _loadLogs(); }, color: const Color(0xFF00FF88)),
+                  _FilterChip(label: 'Tout', isSelected: _filterAction == '', onTap: () { _filterAction = ''; _loadLogs(); }, color: NeonColors.primary),
                   const SizedBox(width: 8),
-                  _FilterChip(label: 'Auth', isSelected: _filterAction == 'password_login', onTap: () { _filterAction = 'password_login'; _loadLogs(); }, color: const Color(0xFF00FFFF)),
+                  _FilterChip(label: 'Auth', isSelected: _filterAction == 'password_login', onTap: () { _filterAction = 'password_login'; _loadLogs(); }, color: NeonColors.adminCyan),
                   const SizedBox(width: 8),
-                  _FilterChip(label: 'Admin', isSelected: _filterAction == 'admin_action', onTap: () { _filterAction = 'admin_action'; _loadLogs(); }, color: const Color(0xFFFF6600)),
+                  _FilterChip(label: 'Admin', isSelected: _filterAction == 'admin_action', onTap: () { _filterAction = 'admin_action'; _loadLogs(); }, color: NeonColors.paymentOrange),
                   const SizedBox(width: 8),
-                  _FilterChip(label: 'OTP', isSelected: _filterAction == 'otp_verified', onTap: () { _filterAction = 'otp_verified'; _loadLogs(); }, color: const Color(0xFFFF00FF)),
+                  _FilterChip(label: 'OTP', isSelected: _filterAction == 'otp_verified', onTap: () { _filterAction = 'otp_verified'; _loadLogs(); }, color: NeonColors.adminMagenta),
                   const SizedBox(width: 8),
-                  _FilterChip(label: 'Échecs', isSelected: _filterAction == 'password_login_failed', onTap: () { _filterAction = 'password_login_failed'; _loadLogs(); }, color: Colors.redAccent),
+                  _FilterChip(label: 'Échecs', isSelected: _filterAction == 'password_login_failed', onTap: () { _filterAction = 'password_login_failed'; _loadLogs(); }, color: NeonColors.error),
                 ],
               ),
             ),
@@ -135,34 +135,17 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
           // Liste
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)))
+                ? const AdminSkeletonTable(rowCount: 6, columnCount: 4)
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                            const SizedBox(height: 12),
-                            Text(_error!, style: const TextStyle(color: Colors.white54)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(onPressed: _loadLogs, child: const Text('Réessayer')),
-                          ],
-                        ),
-                      )
+                    ? AdminErrorState(error: _error!, onRetry: _loadLogs)
                     : _logs.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.inbox, color: Colors.white.withValues(alpha: 0.3), size: 64),
-                                const SizedBox(height: 12),
-                                Text('Aucun log d\'audit', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
-                              ],
-                            ),
+                        ? const AdminEmptyState(
+                            icon: Icons.inbox,
+                            title: 'Aucun log d\'audit',
                           )
                         : RefreshIndicator(
                             onRefresh: _loadLogs,
-                            color: const Color(0xFF00FF88),
+                            color: NeonColors.primary,
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: _logs.length,
@@ -183,17 +166,17 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_left, color: Color(0xFF00FF88)),
+                    icon: const Icon(Icons.chevron_left, color: NeonColors.primary),
                     onPressed: _page > 1
                         ? () { _page--; _loadLogs(); }
                         : null,
                   ),
                   Text(
                     'Page $_page / ${(_total / _pageSize).ceil()}',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                    style: TextStyle(color: NeonColors.textSecondary),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right, color: Color(0xFF00FF88)),
+                    icon: const Icon(Icons.chevron_right, color: NeonColors.primary),
                     onPressed: _page * _pageSize < _total
                         ? () { _page++; _loadLogs(); }
                         : null,
@@ -224,12 +207,12 @@ class _AuditLogTile extends StatelessWidget {
 
     final color = _actionColor(action);
     final icon = _actionIcon(action);
-    final timeStr = _formatTime(insertedAt);
+    final timeStr = AnalyticsFormat.relativeTime(insertedAt);
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
@@ -254,7 +237,7 @@ class _AuditLogTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         _actionLabel(action),
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                     ),
                     Container(
@@ -271,7 +254,7 @@ class _AuditLogTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     changes.entries.map((e) => '${e.key}: ${e.value}').join(', '),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
+                    style: TextStyle(color: NeonColors.textMuted, fontSize: 11),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -280,20 +263,20 @@ class _AuditLogTile extends StatelessWidget {
                 Row(
                   children: [
                     if (userId != null) ...[
-                      Icon(Icons.person_outline, color: Colors.white.withValues(alpha: 0.4), size: 12),
+                      Icon(Icons.person_outline, color: NeonColors.textMuted, size: 12),
                       const SizedBox(width: 4),
-                      Text('User #$userId', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+                      Text('User #$userId', style: TextStyle(color: NeonColors.textMuted, fontSize: 11)),
                       const SizedBox(width: 12),
                     ],
                     if (ipAddress != null) ...[
-                      Icon(Icons.language, color: Colors.white.withValues(alpha: 0.4), size: 12),
+                      Icon(Icons.language, color: NeonColors.textMuted, size: 12),
                       const SizedBox(width: 4),
-                      Text(ipAddress, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+                      Text(ipAddress, style: TextStyle(color: NeonColors.textMuted, fontSize: 11)),
                       const SizedBox(width: 12),
                     ],
-                    Icon(Icons.access_time, color: Colors.white.withValues(alpha: 0.4), size: 12),
+                    Icon(Icons.access_time, color: NeonColors.textMuted, size: 12),
                     const SizedBox(width: 4),
-                    Text(timeStr, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+                    Text(timeStr, style: TextStyle(color: NeonColors.textMuted, fontSize: 11)),
                   ],
                 ),
               ],
@@ -305,11 +288,11 @@ class _AuditLogTile extends StatelessWidget {
   }
 
   Color _actionColor(String action) {
-    if (action.contains('login') || action.contains('otp') || action.contains('register')) return const Color(0xFF00FFFF);
-    if (action.contains('admin') || action.contains('role')) return const Color(0xFFFF6600);
-    if (action.contains('fail') || action.contains('error')) return Colors.redAccent;
-    if (action.contains('deposit') || action.contains('withdraw') || action.contains('transfer')) return const Color(0xFF00FF88);
-    return const Color(0xFFAA00FF);
+    if (action.contains('login') || action.contains('otp') || action.contains('register')) return NeonColors.adminCyan;
+    if (action.contains('admin') || action.contains('role')) return NeonColors.paymentOrange;
+    if (action.contains('fail') || action.contains('error')) return NeonColors.error;
+    if (action.contains('deposit') || action.contains('withdraw') || action.contains('transfer')) return NeonColors.primary;
+    return NeonColors.adminPurple;
   }
 
   IconData _actionIcon(String action) {
@@ -341,20 +324,6 @@ class _AuditLogTile extends StatelessWidget {
     }
   }
 
-  String _formatTime(String timestamp) {
-    if (timestamp.isEmpty) return 'N/A';
-    try {
-      final dt = DateTime.parse(timestamp);
-      final now = DateTime.now();
-      final diff = now.difference(dt.toLocal());
-      if (diff.inMinutes < 1) return 'À l\'instant';
-      if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes}min';
-      if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return timestamp;
-    }
-  }
 }
 
 /// Chip de filtre
@@ -378,17 +347,17 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+          color: isSelected ? color.withValues(alpha: 0.2) : NeonColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? color : Colors.white.withValues(alpha: 0.1),
+            color: isSelected ? color : NeonColors.border,
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? color : Colors.white54,
+            color: isSelected ? color : NeonColors.textMuted,
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),

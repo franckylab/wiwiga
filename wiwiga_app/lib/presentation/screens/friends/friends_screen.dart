@@ -13,8 +13,7 @@ import '../../../data/models/friend_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/friend_provider.dart' hide apiServiceProvider;
 import '../../../data/repositories/friend_repository.dart';
-import '../../widgets/neon/neon_button.dart';
-import '../../widgets/neon/neon_card.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Masque partiellement un numéro de téléphone pour la confidentialité.
 /// Ex: "+237691234567" → "+237 6** *** 567"
@@ -135,7 +134,7 @@ class _FriendsListTab extends ConsumerWidget {
     final friendsAsync = ref.watch(friendsProvider);
 
     return friendsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
       data: (friends) {
         if (friends.isEmpty) {
@@ -286,7 +285,7 @@ class _RequestsListTab extends ConsumerWidget {
     final requestsAsync = ref.watch(pendingRequestsProvider);
 
     return requestsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
       data: (requests) {
         if (requests.isEmpty) {
@@ -401,7 +400,7 @@ class _ActivityTab extends ConsumerWidget {
     final activityAsync = ref.watch(friendActivityProvider);
 
     return activityAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
       data: (activities) {
         if (activities.isEmpty) {
@@ -498,7 +497,7 @@ class _LeaderboardTab extends ConsumerWidget {
     final leaderboardAsync = ref.watch(friendLeaderboardProvider);
 
     return leaderboardAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+      loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
       data: (entries) {
         if (entries.isEmpty) {
@@ -650,7 +649,7 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
           ),
           const SizedBox(height: 16),
           if (_isSearching)
-            const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+            const NeonLoadingSpinner.center()
           else
             ..._results.map((result) => Padding(
               padding: const EdgeInsets.only(bottom: 8),

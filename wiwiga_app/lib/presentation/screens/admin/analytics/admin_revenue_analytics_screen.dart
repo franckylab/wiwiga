@@ -11,6 +11,9 @@ import '../../../../core/theme/neon_theme.dart';
 import '../../../providers/admin_analytics_provider.dart';
 import '../../../widgets/admin/metric_card.dart';
 import '../../../widgets/admin/chart_widget.dart';
+import '../../../widgets/admin/empty_state.dart';
+import '../../../widgets/admin/analytics_helpers.dart';
+import '../../../widgets/neon/neon_widgets.dart';
 
 /// Écran Revenue Analytics (GGR, NGR, Commissions, ARPU, ARPPU)
 class AdminRevenueAnalyticsScreen extends ConsumerStatefulWidget {
@@ -21,9 +24,6 @@ class AdminRevenueAnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyticsScreen> {
-  static const _periods = ['24h', '7d', '30d', '90d'];
-  static const _periodLabels = ['24h', '7j', '30j', '90j'];
-
   @override
   void initState() {
     super.initState();
@@ -39,39 +39,27 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Revenue Analytics'),
+        title: const Text('Analytique Revenus'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: DropdownButton<String>(
-              value: state.selectedPeriod,
-              dropdownColor: NeonColors.surface,
-              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13),
-              underline: const SizedBox(),
-              items: List.generate(_periods.length, (i) {
-                return DropdownMenuItem(
-                  value: _periods[i],
-                  child: Text(_periodLabels[i]),
-                );
-              }),
-              onChanged: (value) {
-                if (value != null) {
-                  final notifier = ref.read(adminRevenueAnalyticsProvider.notifier);
-                  notifier.setPeriod(value);
-                  notifier.load(period: value);
-                }
-              },
-            ),
+          AnalyticsPeriodSelector(
+            value: state.selectedPeriod,
+            onChanged: (value) {
+              if (value != null) {
+                final notifier = ref.read(adminRevenueAnalyticsProvider.notifier);
+                notifier.setPeriod(value);
+                notifier.load(period: value);
+              }
+            },
           ),
         ],
       ),
       body: state.isLoading && state.data == null
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : state.error != null && state.data == null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminRevenueAnalyticsProvider.notifier).load())
               : _buildContent(state),
     );
   }
@@ -98,7 +86,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
 
             // Graphique GGR/NGR timeseries
             if (timeseries.isNotEmpty) ...[
-              _buildSectionTitle('Évolution Revenue'),
+              const AnalyticsSectionTitle('Évolution Revenue'),
               const SizedBox(height: 8),
               _buildRevenueChart(timeseries),
               const SizedBox(height: 20),
@@ -106,7 +94,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
 
             // Commissions par jeu
             if (commissionsByGame.isNotEmpty) ...[
-              _buildSectionTitle('Commissions par Jeu'),
+              const AnalyticsSectionTitle('Commissions par Jeu'),
               const SizedBox(height: 8),
               _buildCommissionChart(commissionsByGame),
               const SizedBox(height: 20),
@@ -121,59 +109,48 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
   }
 
   Widget _buildKpiCards(Map<String, dynamic> summary, Map<String, dynamic> deltas) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        final crossCount = isWide ? 5 : 2;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossCount,
-          mainAxisSpacing: 12,
-          childAspectRatio: isWide ? 1.4 : 1.2,
-          children: [
-            AdminMetricCard(
-              title: 'GGR',
-              value: _formatAmount(summary['ggr']),
-              icon: Icons.account_balance_wallet,
-              color: NeonColors.primary,
-              deltaPercent: _toDouble(deltas['ggr_delta']),
-              subtitle: 'Gross Gaming Revenue',
-            ),
-            AdminMetricCard(
-              title: 'NGR',
-              value: _formatAmount(summary['ngr']),
-              icon: Icons.savings,
-              color: NeonColors.success,
-              deltaPercent: _toDouble(deltas['ngr_delta']),
-              subtitle: 'Net Gaming Revenue',
-            ),
-            AdminMetricCard(
-              title: 'Commissions',
-              value: _formatAmount(summary['total_commissions']),
-              icon: Icons.percent,
-              color: NeonColors.secondary,
-              deltaPercent: _toDouble(deltas['commissions_delta']),
-            ),
-            AdminMetricCard(
-              title: 'ARPU',
-              value: _formatAmount(summary['arpu']),
-              icon: Icons.people_alt,
-              color: NeonColors.accent,
-              deltaPercent: _toDouble(deltas['arpu_delta']),
-              subtitle: 'Rev / utilisateur',
-            ),
-            AdminMetricCard(
-              title: 'ARPPU',
-              value: _formatAmount(summary['arppu']),
-              icon: Icons.workspace_premium,
-              color: NeonColors.info,
-              deltaPercent: _toDouble(deltas['arppu_delta']),
-              subtitle: 'Rev / payant',
-            ),
-          ],
-        );
-      },
+    return AnalyticsKpiGrid(
+      children: [
+        AdminMetricCard(
+          title: 'GGR',
+          value: AnalyticsFormat.amount(summary['ggr']),
+          icon: Icons.account_balance_wallet,
+          color: NeonColors.primary,
+          deltaPercent: AnalyticsFormat.toDouble(deltas['ggr_delta']),
+          subtitle: 'Gross Gaming Revenue',
+        ),
+        AdminMetricCard(
+          title: 'NGR',
+          value: AnalyticsFormat.amount(summary['ngr']),
+          icon: Icons.savings,
+          color: NeonColors.success,
+          deltaPercent: AnalyticsFormat.toDouble(deltas['ngr_delta']),
+          subtitle: 'Net Gaming Revenue',
+        ),
+        AdminMetricCard(
+          title: 'Commissions',
+          value: AnalyticsFormat.amount(summary['total_commissions']),
+          icon: Icons.percent,
+          color: NeonColors.secondary,
+          deltaPercent: AnalyticsFormat.toDouble(deltas['commissions_delta']),
+        ),
+        AdminMetricCard(
+          title: 'ARPU',
+          value: AnalyticsFormat.amount(summary['arpu']),
+          icon: Icons.people_alt,
+          color: NeonColors.accent,
+          deltaPercent: AnalyticsFormat.toDouble(deltas['arpu_delta']),
+          subtitle: 'Rev / utilisateur',
+        ),
+        AdminMetricCard(
+          title: 'ARPPU',
+          value: AnalyticsFormat.amount(summary['arppu']),
+          icon: Icons.workspace_premium,
+          color: NeonColors.info,
+          deltaPercent: AnalyticsFormat.toDouble(deltas['arppu_delta']),
+          subtitle: 'Rev / payant',
+        ),
+      ],
     );
   }
 
@@ -193,9 +170,9 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
         children: [
           Row(
             children: [
-              _buildLegendDot(NeonColors.primary, 'GGR'),
+              AnalyticsLegendDot(NeonColors.primary, 'GGR'),
               const SizedBox(width: 16),
-              _buildLegendDot(NeonColors.success, 'NGR'),
+              AnalyticsLegendDot(NeonColors.success, 'NGR'),
             ],
           ),
           const SizedBox(height: 12),
@@ -248,7 +225,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
             columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(2), 3: FlexColumnWidth(1)},
             children: [
               const TableRow(
-                decoration: BoxDecoration(color: Color(0xFF1E293B)),
+                decoration: BoxDecoration(color: NeonColors.background),
                 children: [
                   Padding(padding: EdgeInsets.all(8), child: Text('Joueur', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
                   Padding(padding: EdgeInsets.all(8), child: Text('Mises', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
@@ -259,8 +236,8 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
               ...players.take(10).map((p) => TableRow(
                 children: [
                   Padding(padding: const EdgeInsets.all(8), child: Text(p['username'] as String? ?? '#${p['user_id']}', style: const TextStyle(color: NeonColors.textPrimary, fontSize: 11))),
-                  Padding(padding: const EdgeInsets.all(8), child: Text(_formatAmount(p['total_wagered']), style: const TextStyle(color: NeonColors.textPrimary, fontSize: 11))),
-                  Padding(padding: const EdgeInsets.all(8), child: Text(_formatAmount(p['ggr']), style: const TextStyle(color: NeonColors.success, fontSize: 11))),
+                  Padding(padding: const EdgeInsets.all(8), child: Text(AnalyticsFormat.amount(p['total_wagered']), style: const TextStyle(color: NeonColors.textPrimary, fontSize: 11))),
+                  Padding(padding: const EdgeInsets.all(8), child: Text(AnalyticsFormat.amount(p['ggr']), style: const TextStyle(color: NeonColors.success, fontSize: 11))),
                   Padding(padding: const EdgeInsets.all(8), child: Text('${p['matches'] ?? 0}', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11))),
                 ],
               ),),
@@ -271,51 +248,4 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminRevenueAnalyticsProvider.notifier).load(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600));
-  }
-
-  Widget _buildLegendDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
-      ],
-    );
-  }
-
-  String _formatAmount(dynamic value) {
-    if (value == null) return '0 FCFA';
-    final amount = (value as num).toDouble();
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
-  }
-
-  double? _toDouble(dynamic value) {
-    if (value == null) return null;
-    return (value as num).toDouble();
-  }
 }

@@ -21,6 +21,7 @@ import '../../core/errors/api_exception.dart';
 /// - Refresh token automatique (silent retry)
 /// - Device ID unique par appareil
 /// - Gestion des erreurs 401 avec retry
+/// - Notification quand la session est expirée (tokens effacés)
 class ApiService {
   final http.Client _client;
   final FlutterSecureStorage _storage;
@@ -34,6 +35,13 @@ class ApiService {
   // État du refresh pour éviter les refresh simultanés
   bool _isRefreshing = false;
   Completer<bool>? _refreshCompleter;
+  
+  // Stream pour notifier quand les tokens sont effacés (session expirée)
+  final _sessionExpiredController = StreamController<bool>.broadcast();
+  
+  /// Stream qui émet `true` quand les tokens sont effacés (session expirée)
+  /// Les listeners peuvent utiliser cela pour rediriger vers /auth
+  Stream<bool> get onSessionExpired => _sessionExpiredController.stream;
   
   ApiService({http.Client? client, FlutterSecureStorage? storage})
       : _client = client ?? http.Client(),
@@ -93,6 +101,8 @@ class ApiService {
       _storage.delete(key: _keyRefreshToken),
       _storage.delete(key: _keyLegacyToken),
     ]);
+    // Notifier les listeners que la session est expirée
+    _sessionExpiredController.add(true);
   }
   
   /// Compatibilité: clearToken()
@@ -503,6 +513,7 @@ class ApiService {
   
   /// Libère les ressources
   void dispose() {
+    _sessionExpiredController.close();
     _client.close();
   }
 }

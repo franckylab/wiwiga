@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran configuration progression joueur (niveaux, XP, récompenses)
 class AdminPlayerProgressionScreen extends ConsumerStatefulWidget {
@@ -39,16 +42,28 @@ class _AdminPlayerProgressionScreenState extends ConsumerState<AdminPlayerProgre
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _showCreateDialog(),
+            tooltip: 'Ajouter un niveau',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.read(adminPlayerProgressionProvider.notifier).loadLevels(),
           ),
         ],
       ),
       body: state.isLoading && state.levels.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
-          : state.error != null && state.levels.isEmpty
-              ? _buildError(state.error!)
-              : _buildLevelsList(state),
+          ? const NeonLoadingSpinner.center()
+          : RefreshIndicator(
+              color: NeonColors.primary,
+              onRefresh: () => ref.read(adminPlayerProgressionProvider.notifier).loadLevels(),
+              child: state.error != null && state.levels.isEmpty
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: AdminErrorState(error: state.error!, onRetry: () => ref.read(adminPlayerProgressionProvider.notifier).loadLevels()),
+                    )
+                  : _buildLevelsList(state),
+            ),
     );
   }
 
@@ -169,14 +184,22 @@ class _AdminPlayerProgressionScreenState extends ConsumerState<AdminPlayerProgre
               ],
             ),
             const SizedBox(height: 12),
-            // Edit button
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _showEditDialog(level),
-                icon: Icon(Icons.edit, color: color, size: 18),
-                label: Text('Configurer', style: TextStyle(color: color)),
-              ),
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _confirmDeleteLevel(tier, name),
+                  icon: const Icon(Icons.delete, color: NeonColors.error, size: 18),
+                  label: const Text('Supprimer', style: TextStyle(color: NeonColors.error)),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _showEditDialog(level),
+                  icon: Icon(Icons.edit, color: color, size: 18),
+                  label: Text('Configurer', style: TextStyle(color: color)),
+                ),
+              ],
             ),
           ],
         ),
@@ -294,29 +317,116 @@ class _AdminPlayerProgressionScreenState extends ConsumerState<AdminPlayerProgre
     };
     final success = await ref.read(adminPlayerProgressionProvider.notifier).updateLevel(tier, config);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? 'Niveau mis à jour' : 'Erreur de sauvegarde'),
-          backgroundColor: success ? NeonColors.success : NeonColors.error,
-        ),
+      context.showResult(success,
+        successMsg: 'Niveau mis à jour',
+        errorMsg: 'Erreur de sauvegarde',
       );
     }
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-        const SizedBox(height: 12),
-        Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => ref.read(adminPlayerProgressionProvider.notifier).loadLevels(),
-          icon: const Icon(Icons.refresh), label: const Text('Réessayer'),
-          style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-        ),
-      ],),
+  
+  void _confirmDeleteLevel(String tier, String name) async {
+    final confirmed = await showAdminConfirmDialog(
+      context,
+      title: 'Confirmer la suppression',
+      message: 'Voulez-vous vraiment supprimer le niveau "$name" ?',
+      confirmLabel: 'Supprimer',
+      confirmColor: NeonColors.error,
+      icon: Icons.delete_outline,
     );
+    if (!confirmed) return;
+    final success = await ref.read(adminPlayerProgressionProvider.notifier).deleteLevel(tier);
+    if (mounted) {
+      context.showResult(success,
+        successMsg: 'Niveau supprimé',
+        errorMsg: 'Erreur de suppression',
+      );
+    }
+  }
+
+  void _showCreateDialog() {
+    final tierCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final minXPctrl = TextEditingController(text: '0');
+    final maxXPctrl = TextEditingController();
+    final cashbackCtrl = TextEditingController(text: '0');
+    final betDiscountCtrl = TextEditingController(text: '0');
+    final dailyMultCtrl = TextEditingController(text: '1.0');
+    final colorCtrl = TextEditingController(text: '#808080');
+    final iconCtrl = TextEditingController(text: 'shield');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Créer un nouveau niveau', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _buildDialogField('Tier (ex: elite)', tierCtrl, TextInputType.text),
+            const SizedBox(height: 12),
+            _buildDialogField('Nom affiché', nameCtrl, TextInputType.text),
+            const SizedBox(height: 12),
+            _buildDialogField('Min XP', minXPctrl, TextInputType.number),
+            const SizedBox(height: 12),
+            _buildDialogField('Max XP (vide = illimité)', maxXPctrl, TextInputType.number),
+            const SizedBox(height: 12),
+            _buildDialogField('Couleur (hex)', colorCtrl, TextInputType.text),
+            const SizedBox(height: 12),
+            _buildDialogField('Icône (shield, star, diamond...)', iconCtrl, TextInputType.text),
+            const SizedBox(height: 12),
+            _buildDialogField('Cashback (%)', cashbackCtrl, TextInputType.number),
+            const SizedBox(height: 12),
+            _buildDialogField('Réduction commission (%)', betDiscountCtrl, TextInputType.number),
+            const SizedBox(height: 12),
+            _buildDialogField('Multiplicateur bonus journalier', dailyMultCtrl, const TextInputType.numberWithOptions(decimal: true)),
+          ],),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary))),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _createNewLevel(
+                tierCtrl.text, nameCtrl.text, minXPctrl.text, maxXPctrl.text,
+                colorCtrl.text, iconCtrl.text, cashbackCtrl.text, betDiscountCtrl.text, dailyMultCtrl.text,
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            child: const Text('Créer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _createNewLevel(String tier, String name, String minXp, String maxXp, String color, String icon, String cashback, String betDiscount, String dailyMult) async {
+    if (tier.isEmpty || name.isEmpty) {
+      context.showError('Tier et nom requis');
+      return;
+    }
+
+    final config = <String, dynamic>{
+      'tier': tier.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+      'name': name,
+      'min_xp': int.tryParse(minXp) ?? 0,
+      'max_xp': int.tryParse(maxXp),
+      'color': color,
+      'icon': icon,
+      'benefits': {
+        'cashback_rate': (double.tryParse(cashback) ?? 0) / 100,
+        'bet_discount': (double.tryParse(betDiscount) ?? 0) / 100,
+        'daily_bonus_multiplier': double.tryParse(dailyMult) ?? 1.0,
+        'label': name,
+      },
+    };
+    final success = await ref.read(adminPlayerProgressionProvider.notifier).createLevel(config);
+    if (mounted) {
+      context.showResult(success,
+        successMsg: 'Niveau créé',
+        errorMsg: 'Erreur de création',
+      );
+    }
   }
 
   Color _parseColor(String hex) {

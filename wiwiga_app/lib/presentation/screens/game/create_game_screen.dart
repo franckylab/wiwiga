@@ -16,6 +16,7 @@ import '../../../data/providers/game_stats_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
+import '../../providers/config_provider.dart';
 
 /// Écran de création de partie (Free ou Betting)
 class CreateGameScreen extends ConsumerStatefulWidget {
@@ -90,10 +91,21 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   Widget build(BuildContext context) {
     // Watch game rules from admin config (dynamic per game type)
     final rulesAsync = ref.watch(gameRulesProvider(widget.gameType));
+    // Watch tokens config for min bets
+    final tokensConfigAsync = ref.watch(tokensConfigProvider);
 
     return rulesAsync.when(
       data: (rules) {
         _applyRulesConfig(rules);
+        // Apply tokens config min bets
+        tokensConfigAsync.whenData((tokensConfig) {
+          if (widget.gameType == 'dice') {
+            minBet = tokensConfig.diceMinBet > minBet ? tokensConfig.diceMinBet : minBet;
+          } else if (widget.gameType == 'cards') {
+            minBet = tokensConfig.cardsMinBet > minBet ? tokensConfig.cardsMinBet : minBet;
+          }
+          if (_betAmount < minBet) _betAmount = minBet;
+        });
         return _buildBody();
       },
       loading: () => _buildBody(),

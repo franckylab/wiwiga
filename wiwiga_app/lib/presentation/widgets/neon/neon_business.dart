@@ -305,6 +305,8 @@ class GameStatusIndicator extends StatelessWidget {
         return NeonColors.accent;
       case GameStatus.cancelled:
         return NeonColors.danger;
+      case GameStatus.comingSoon:
+        return NeonColors.textSecondary;
     }
   }
 
@@ -318,6 +320,8 @@ class GameStatusIndicator extends StatelessWidget {
         return Icons.check_circle;
       case GameStatus.cancelled:
         return Icons.cancel;
+      case GameStatus.comingSoon:
+        return Icons.event_note;
     }
   }
 
@@ -331,6 +335,8 @@ class GameStatusIndicator extends StatelessWidget {
         return 'Terminé';
       case GameStatus.cancelled:
         return 'Annulé';
+      case GameStatus.comingSoon:
+        return 'Bientôt disponible';
     }
   }
 }
@@ -340,4 +346,5 @@ enum GameStatus {
   inProgress,
   finished,
   cancelled,
+  comingSoon,
 }

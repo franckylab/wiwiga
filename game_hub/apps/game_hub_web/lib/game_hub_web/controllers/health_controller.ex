@@ -140,7 +140,7 @@ defmodule GameHubWeb.HealthController do
         :ok
       rescue
         error ->
-          IO.puts("DB Health Check Error: #{inspect(error)}")
+          Logger.error("DB Health Check Error: #{inspect(error)}")
           :error
       end
     

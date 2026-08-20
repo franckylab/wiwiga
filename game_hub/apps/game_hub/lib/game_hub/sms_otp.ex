@@ -210,11 +210,8 @@ defmodule GameHub.SmsOtp do
   end
   
   defp send_sms(phone, code) do
-    # TODO: Intégrer provider SMS (Campay, Twilio, etc.)
-    IO.puts("[SMS OTP] Sending code #{code} to #{mask_phone(phone)}")
-    
-    # Simuler envoi réussi
-    :ok
+    message = "[WIWIGA] Votre code de vérification: #{code}"
+    GameHub.SmsProvider.send_sms(phone, message)
   end
   
   defp get_otp_from_redis(otp_id) do

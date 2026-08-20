@@ -35,6 +35,7 @@ import '../../presentation/screens/admin/admin_bonuses_screen.dart';
 import '../../presentation/screens/admin/admin_reports_screen.dart';
 import '../../presentation/screens/admin/admin_platform_config_screen.dart';
 import '../../presentation/screens/admin/admin_player_progression_screen.dart';
+import '../../presentation/screens/admin/admin_xp_rules_screen.dart';
 import '../../presentation/screens/admin/analytics/admin_revenue_analytics_screen.dart';
 import '../../presentation/screens/admin/analytics/admin_player_analytics_screen.dart';
 import '../../presentation/screens/admin/analytics/admin_game_analytics_screen.dart';
@@ -50,6 +51,7 @@ import '../../presentation/screens/games/game_detail_screen.dart';
 import '../../presentation/screens/games/games_catalog_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/leaderboard/leaderboard_screen.dart';
+import '../../presentation/screens/legal/legal_screen.dart';
 import '../../presentation/screens/main/main_shell_screen.dart';
 import '../../presentation/screens/profile/profile_screen_enhanced.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
@@ -73,7 +75,7 @@ const _adminRoutes = {
   '/admin/analytics/revenue', '/admin/analytics/players', '/admin/analytics/games',
   '/admin/analytics/monetary-flow', '/admin/analytics/wealth',
   '/admin/game-config', '/admin/bonuses', '/admin/reports',
-  '/admin/platform-config', '/admin/player-progression',
+  '/admin/platform-config', '/admin/player-progression', '/admin/xp-rules',
 };
 
 /// Provider du routeur de l'application
@@ -86,8 +88,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authProvider);
       final path = state.uri.path;
       
+      // Route racine : rediriger vers splash ou auth selon l'état
+      if (path == '/') {
+        if (authState.isUnknown) return '/splash';
+        if (authState.isAuthenticated) return '/home';
+        return '/auth';
+      }
+      
       // Ne pas rediriger pendant l'initialisation (splash)
-      if (authState.isUnknown) return null;
+      if (authState.isUnknown) {
+        // Si l'utilisateur est inconnu et n'est pas sur splash, rediriger vers splash
+        if (path != '/splash') return '/splash';
+        return null;
+      }
       
       // Si l'utilisateur est guest et accède à une route protégée,
       // on le redirige vers /auth avec l'intent de retour
@@ -96,8 +109,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/auth';
       }
       
+      // Si l'utilisateur est guest et accède à une route admin
+      if (authState.isGuest && _adminRoutes.contains(path)) {
+        return '/auth';
+      }
+      
       // Si l'utilisateur est authentifié et va sur /auth, rediriger vers /home
       if (authState.isAuthenticated && path == '/auth') {
+        return '/home';
+      }
+      
+      // Si l'utilisateur est authentifié et va sur /splash, rediriger vers /home
+      if (authState.isAuthenticated && path == '/splash') {
         return '/home';
       }
       
@@ -253,6 +276,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminShellScreen(child: AdminPlayerProgressionScreen()),
       ),
       GoRoute(
+        path: '/admin/xp-rules',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminXPRulesScreen()),
+      ),
+      GoRoute(
         path: '/profile',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ProfileScreenEnhanced(),
@@ -261,6 +289,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const LegalScreen(documentType: LegalDocumentType.terms),
+      ),
+      GoRoute(
+        path: '/legal/privacy',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const LegalScreen(documentType: LegalDocumentType.privacy),
       ),
       GoRoute(
         path: '/transactions',

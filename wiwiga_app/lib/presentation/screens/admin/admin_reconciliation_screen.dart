@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/skeleton_loader.dart';
 
 /// Écran de réconciliation financière
 class AdminReconciliationScreen extends ConsumerStatefulWidget {
@@ -79,9 +81,9 @@ class _AdminReconciliationScreenState extends ConsumerState<AdminReconciliationS
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const AdminSkeletonTable(rowCount: 5, columnCount: 4)
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              ? AdminErrorState(error: _error!, onRetry: _loadData)
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -107,15 +109,15 @@ class _DailyTab extends StatelessWidget {
       children: [
         Text('Résumé du ${data!['date']}', style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
-        _metricCard('Dépôts', data!['deposits'], Colors.green, Icons.arrow_downward),
-        _metricCard('Retraits', data!['withdrawals'], Colors.orange, Icons.arrow_upward),
-        _metricCard('Mises', data!['bets'], Colors.blue, Icons.casino),
-        _metricCard('Gains', data!['winnings'], Colors.purple, Icons.emoji_events),
-        _metricCard('Commissions', data!['commissions'], Colors.teal, Icons.percent),
+        _metricCard('Dépôts', data!['deposits'], NeonColors.success, Icons.arrow_downward),
+        _metricCard('Retraits', data!['withdrawals'], NeonColors.warning, Icons.arrow_upward),
+        _metricCard('Mises', data!['bets'], NeonColors.info, Icons.casino),
+        _metricCard('Gains', data!['winnings'], NeonColors.adminPurple, Icons.emoji_events),
+        _metricCard('Commissions', data!['commissions'], NeonColors.primary, Icons.percent),
         const SizedBox(height: 16),
         _summaryRow('GGR', data!['ggr'], NeonColors.primary),
-        _summaryRow('Revenue net', data!['net_revenue'], Colors.green),
-        _summaryRow('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? Colors.green : Colors.red),
+        _summaryRow('Revenue net', data!['net_revenue'], NeonColors.success),
+        _summaryRow('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? NeonColors.success : NeonColors.error),
       ],
     );
   }
@@ -168,7 +170,7 @@ class _DiscrepanciesTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 64),
+            Icon(Icons.check_circle, color: NeonColors.success, size: 64),
             SizedBox(height: 16),
             Text('Aucun écart détecté', style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
@@ -190,14 +192,14 @@ class _DiscrepanciesTab extends StatelessWidget {
           color: NeonColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: isCritical ? Colors.red : Colors.orange, width: 1),
+            side: BorderSide(color: isCritical ? NeonColors.error : NeonColors.warning, width: 1),
           ),
           child: ListTile(
-            leading: Icon(isCritical ? Icons.error : Icons.warning, color: isCritical ? Colors.red : Colors.orange),
+            leading: Icon(isCritical ? Icons.error : Icons.warning, color: isCritical ? NeonColors.error : NeonColors.warning),
             title: Text(disc['type'] as String? ?? 'Écart', style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
             subtitle: Text(disc['description'] as String? ?? '', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
             trailing: Text('${((disc['difference'] as num?)?.toInt() ?? 0) / 100} FCFA',
-              style: TextStyle(color: isCritical ? Colors.red : Colors.orange, fontWeight: FontWeight.bold),),
+              style: TextStyle(color: isCritical ? NeonColors.error : NeonColors.warning, fontWeight: FontWeight.bold),),
           ),
         );
       },
@@ -217,20 +219,20 @@ class _BalanceTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _balanceItem('Solde joueurs (FCFA)', data!['total_player_balance'], NeonColors.primary),
-        _balanceItem('Solde tokens', data!['total_token_balance'], Colors.purple),
-        _balanceItem('Total dépôts', data!['total_deposits'], Colors.green),
-        _balanceItem('Total retraits', data!['total_withdrawals'], Colors.orange),
-        _balanceItem('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? Colors.green : Colors.red),
+        _balanceItem('Solde tokens', data!['total_token_balance'], NeonColors.adminPurple),
+        _balanceItem('Total dépôts', data!['total_deposits'], NeonColors.success),
+        _balanceItem('Total retraits', data!['total_withdrawals'], NeonColors.warning),
+        _balanceItem('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? NeonColors.success : NeonColors.error),
         const Divider(color: NeonColors.border, height: 32),
-        _balanceItem('Engagement total', data!['total_engagement'], Colors.red),
+        _balanceItem('Engagement total', data!['total_engagement'], NeonColors.error),
         _balanceItem('Réserve', data!['reserve'], NeonColors.primary),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: ((data!['reserve_ratio'] as num?)?.toDouble() ?? 0) >= 100
-                ? Colors.green.withValues(alpha: 0.1)
-                : Colors.red.withValues(alpha: 0.1),
+                ? NeonColors.success.withValues(alpha: 0.1)
+                : NeonColors.error.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -240,7 +242,7 @@ class _BalanceTab extends StatelessWidget {
               Text(
                 '${data!['reserve_ratio']}%',
                 style: TextStyle(
-                  color: ((data!['reserve_ratio'] as num?)?.toDouble() ?? 0) >= 100 ? Colors.green : Colors.red,
+                  color: ((data!['reserve_ratio'] as num?)?.toDouble() ?? 0) >= 100 ? NeonColors.success : NeonColors.error,
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
                 ),

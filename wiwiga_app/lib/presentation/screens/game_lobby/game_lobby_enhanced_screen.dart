@@ -13,6 +13,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../providers/config_provider.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
@@ -107,6 +108,13 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
   }
 
   Widget _buildHeader() {
+    final gamesConfig = ref.watch(gamesConfigProvider);
+    final gameConfig = gamesConfig.when(
+      data: (config) => config.gameTypes[widget.gameType],
+      loading: () => null,
+      error: (_, __) => null,
+    );
+
     return Row(
       children: [
         Expanded(
@@ -122,6 +130,12 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                 '${_rooms.length} salle${_rooms.length > 1 ? 's' : ''} en attente',
                 style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14),
               ),
+              if (gameConfig != null) ...[                const SizedBox(height: 2),
+                Text(
+                  'Mise: ${gameConfig.minBet} - ${gameConfig.maxBet} jetons | Commission: ${gameConfig.commissionPercent.toInt()}%',
+                  style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11),
+                ),
+              ],
             ],
           ),
         ),
@@ -447,15 +461,26 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
   }
 
   Future<void> _startAutoMatch() async {
+    // Récupérer la mise minimale depuis la config admin
+    final gamesConfig = ref.read(gamesConfigProvider);
+    final betAmount = gamesConfig.when(
+      data: (config) {
+        final gameConfig = config.gameTypes[widget.gameType];
+        return gameConfig?.minBet ?? 500;
+      },
+      loading: () => 500,
+      error: (_, __) => 500,
+    );
+
     try {
       final repo = ref.read(gameRepositoryProvider);
-      final result = await repo.joinGame(gameId: widget.gameType, betAmount: 500);
+      final result = await repo.joinGame(gameId: widget.gameType, betAmount: betAmount);
 
       if (!mounted) return;
 
       if (result['status'] == 'matched') {
         final gameId = result['game_id'] as String? ?? '';
-        context.push('/games/${widget.gameType}/session/$gameId', extra: {'bet_amount': 500});
+        context.push('/games/${widget.gameType}/session/$gameId', extra: {'bet_amount': betAmount});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

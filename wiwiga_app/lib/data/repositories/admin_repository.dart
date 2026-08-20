@@ -15,6 +15,14 @@ class AdminRepository {
 
   AdminRepository({required ApiService apiService}) : _apiService = apiService;
 
+  /// Construit la query string pour les paramètres period/from/to (utilisé par les analytics)
+  String _periodQueryString(String period, {String? from, String? to}) {
+    final params = <String, String>{'period': period};
+    if (from != null) params['from'] = from;
+    if (to != null) params['to'] = to;
+    return params.entries.map((e) => '${e.key}=${e.value}').join('&');
+  }
+
   /// Liste des utilisateurs avec filtres et pagination
   Future<Map<String, dynamic>> listUsers({
     int page = 1,
@@ -206,9 +214,8 @@ class AdminRepository {
     String? from,
     String? to,
   }) async {
-    final params = 'period=$period${from != null ? '&from=$from' : ''}${to != null ? '&to=$to' : ''}';
     final response = await _apiService.get(
-      '${ApiEndpoints.adminMetricsFinancial}?$params',
+      '${ApiEndpoints.adminMetricsFinancial}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
     return response['data'] as Map<String, dynamic>;
@@ -693,12 +700,8 @@ class AdminRepository {
 
   /// Analytics revenue (GGR, NGR, ARPU, ARPPU, commissions)
   Future<Map<String, dynamic>> getRevenueAnalytics({String period = '30d', String? from, String? to}) async {
-    final params = <String, String>{'period': period};
-    if (from != null) params['from'] = from;
-    if (to != null) params['to'] = to;
-    final qs = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     final response = await _apiService.get(
-      '${ApiEndpoints.adminAnalyticsRevenue}?$qs',
+      '${ApiEndpoints.adminAnalyticsRevenue}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
     return response['data'] as Map<String, dynamic>;
@@ -706,12 +709,8 @@ class AdminRepository {
 
   /// Analytics joueurs (DAU, WAU, MAU, stickiness, Reg2Dep)
   Future<Map<String, dynamic>> getPlayerAnalytics({String period = '30d', String? from, String? to}) async {
-    final params = <String, String>{'period': period};
-    if (from != null) params['from'] = from;
-    if (to != null) params['to'] = to;
-    final qs = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     final response = await _apiService.get(
-      '${ApiEndpoints.adminAnalyticsPlayers}?$qs',
+      '${ApiEndpoints.adminAnalyticsPlayers}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
     return response['data'] as Map<String, dynamic>;
@@ -737,12 +736,8 @@ class AdminRepository {
 
   /// Performance par jeu
   Future<Map<String, dynamic>> getGameAnalytics({String period = '30d', String? from, String? to}) async {
-    final params = <String, String>{'period': period};
-    if (from != null) params['from'] = from;
-    if (to != null) params['to'] = to;
-    final qs = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     final response = await _apiService.get(
-      '${ApiEndpoints.adminAnalyticsGames}?$qs',
+      '${ApiEndpoints.adminAnalyticsGames}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
     return response['data'] as Map<String, dynamic>;
@@ -750,12 +745,8 @@ class AdminRepository {
 
   /// Flux monétaire
   Future<Map<String, dynamic>> getMonetaryFlow({String period = '30d', String? from, String? to}) async {
-    final params = <String, String>{'period': period};
-    if (from != null) params['from'] = from;
-    if (to != null) params['to'] = to;
-    final qs = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     final response = await _apiService.get(
-      '${ApiEndpoints.adminAnalyticsMonetaryFlow}?$qs',
+      '${ApiEndpoints.adminAnalyticsMonetaryFlow}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
     return response['data'] as Map<String, dynamic>;
@@ -918,6 +909,24 @@ class AdminRepository {
     return response['data'] as Map<String, dynamic>;
   }
 
+  /// Crée une nouvelle configuration de niveau
+  Future<Map<String, dynamic>> createPlayerLevel(Map<String, dynamic> config) async {
+    final response = await _apiService.post(
+      ApiEndpoints.adminPlayerProgressionLevels,
+      body: config,
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  /// Supprime une configuration de niveau
+  Future<void> deletePlayerLevel(String tier) async {
+    await _apiService.delete(
+      '${ApiEndpoints.adminPlayerProgressionLevels}/$tier',
+      requiresAuth: true,
+    );
+  }
+
   /// Calcule le tier pour un XP donné
   Future<Map<String, dynamic>> calculateTier(int xp) async {
     final response = await _apiService.get(
@@ -976,5 +985,55 @@ class AdminRepository {
       requiresAuth: true,
     );
     return response['data'] as List<dynamic>;
+  }
+
+  // ========================================
+  // XP Rules (Règles de gain XP par jeu)
+  // ========================================
+
+  /// Liste toutes les règles XP
+  Future<List<dynamic>> getXPRules() async {
+    final response = await _apiService.get(
+      ApiEndpoints.adminXPRules,
+      requiresAuth: true,
+    );
+    return response['data'] as List<dynamic>? ?? [];
+  }
+
+  /// Récupère les règles XP pour un type de jeu
+  Future<Map<String, dynamic>> getXPRulesByGameType(String gameType) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminXPRules}/$gameType',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>;
+  }
+
+  /// Crée ou met à jour les règles XP pour un type de jeu
+  Future<Map<String, dynamic>> upsertXPRules(String gameType, Map<String, dynamic> rules) async {
+    final response = await _apiService.post(
+      ApiEndpoints.adminXPRules,
+      body: {'game_type': gameType, ...rules},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? response;
+  }
+
+  /// Supprime les règles XP pour un type de jeu
+  Future<void> deleteXPRules(String gameType) async {
+    await _apiService.delete(
+      '${ApiEndpoints.adminXPRules}/$gameType',
+      requiresAuth: true,
+    );
+  }
+
+  /// Calcule l'XP gagné pour un résultat
+  Future<Map<String, dynamic>> calculateXP(String gameType, String result, {int winStreak = 0}) async {
+    final response = await _apiService.post(
+      ApiEndpoints.adminXPRulesCalculate,
+      body: {'game_type': gameType, 'result': result, 'win_streak': winStreak},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>;
   }
 }

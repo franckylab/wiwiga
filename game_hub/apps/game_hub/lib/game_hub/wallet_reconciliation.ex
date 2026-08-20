@@ -38,7 +38,7 @@ defmodule GameHub.WalletReconciliation do
   """
   @spec run() :: {:ok, map()} | {:error, atom()}
   def run do
-    IO.puts("[RECONCILIATION] Starting wallet reconciliation...")
+    Logger.info("[RECONCILIATION] Starting wallet reconciliation...")
     
     start_time = System.monotonic_time(:millisecond)
     
@@ -74,7 +74,7 @@ defmodule GameHub.WalletReconciliation do
       executed_at: DateTime.utc_now()
     }
     
-    IO.puts("[RECONCILIATION] Completed: #{checked} users checked, #{length(mismatched)} mismatches found")
+    Logger.info("[RECONCILIATION] Completed: #{checked} users checked, #{length(mismatched)} mismatches found")
     
     # Log d'audit
     AuditLog.log(
@@ -136,11 +136,11 @@ defmodule GameHub.WalletReconciliation do
   """
   @spec handle_mismatches(list()) :: :ok
   def handle_mismatches(mismatches) do
-    IO.puts("[RECONCILIATION] ⚠️  MISMATCHES DETECTED: #{length(mismatches)}")
+    Logger.warning("[RECONCILIATION] ⚠️  MISMATCHES DETECTED: #{length(mismatches)}")
     
     Enum.each(mismatches, fn mismatch ->
       # Log critique
-      IO.puts("[RECONCILIATION] User #{mismatch.user_id}: expected #{mismatch.current_balance}, calculated #{mismatch.calculated_balance}, diff #{mismatch.difference}")
+      Logger.error("[RECONCILIATION] User #{mismatch.user_id}: expected #{mismatch.current_balance}, calculated #{mismatch.calculated_balance}, diff #{mismatch.difference}")
       
       # Log d'audit
       AuditLog.log(
@@ -156,8 +156,18 @@ defmodule GameHub.WalletReconciliation do
         %{severity: "critical"}
       )
       
-      # TODO: Envoyer alerte admin (email, Slack, etc.)
-      # TODO: Optionnel - Pause retraits pour utilisateurs affectés
+      # Envoyer alerte admin via PubSub
+      Phoenix.PubSub.broadcast(
+        GameHub.PubSub,
+        "admin:alerts",
+        %{event: "reconciliation_mismatch", user_id: mismatch.user_id,
+          difference: mismatch.difference, severity: "critical"}
+      )
+
+      # Logger pour monitoring
+      Logger.error(
+        "[RECONCILIATION] Mismatch user=#{mismatch.user_id} diff=#{mismatch.difference}"
+      )
     end)
     
     :ok

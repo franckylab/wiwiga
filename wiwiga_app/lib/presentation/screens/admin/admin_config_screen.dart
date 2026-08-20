@@ -1,6 +1,6 @@
 // ============================================================
 // Fichier: admin_config_screen.dart
-// Description: Configuration admin (jeux, paiements, thème, features, tokens)
+// Description: Configuration admin (paiements, thème, features, tokens)
 // Auteur: WIWIGA Team
 // Date: 2026-08-01
 // ============================================================
@@ -10,6 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/config_provider.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
 
 /// Écran de configuration admin
 /// Permet de modifier les paramètres globaux de la plateforme
@@ -27,7 +31,7 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -43,15 +47,15 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
 
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
               const Text('Accès non autorisé',
-                  style: TextStyle(color: Colors.white, fontSize: 20),),
+                  style: TextStyle(color: NeonColors.textPrimary, fontSize: 20),),
               const SizedBox(height: 16),
               ElevatedButton(
                   onPressed: () => context.go('/home'),
@@ -63,19 +67,15 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/admin'),
-        ),
-        title: const Text('Configuration',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+        backgroundColor: NeonColors.surface,
+        title: const Text('Services App',
+            style: TextStyle(fontWeight: FontWeight.bold),),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history, color: Color(0xFF00D9FF)),
+            icon: const Icon(Icons.history, color: NeonColors.accent),
             tooltip: 'Voir l\'historique',
             onPressed: () => _showConfigHistory(context, ref),
           ),
@@ -83,11 +83,10 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: const Color(0xFF00FF88),
-          labelColor: const Color(0xFF00FF88),
-          unselectedLabelColor: Colors.white54,
+          indicatorColor: NeonColors.primary,
+          labelColor: NeonColors.primary,
+          unselectedLabelColor: NeonColors.textMuted,
           tabs: const [
-            Tab(text: 'Jeux'),
             Tab(text: 'Paiements'),
             Tab(text: 'Thème'),
             Tab(text: 'Features'),
@@ -95,14 +94,21 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _GamesConfigTab(),
-          _PaymentsConfigTab(),
-          _ThemeConfigTab(),
-          _FeaturesConfigTab(),
-          _TokensConfigTab(),
+          // Bannière de navigation vers l'écran dédié Jeux
+          _GamesConfigRedirectBanner(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _PaymentsConfigTab(),
+                _ThemeConfigTab(),
+                _FeaturesConfigTab(),
+                _TokensConfigTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -111,7 +117,7 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
   void _showConfigHistory(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: NeonColors.card,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.6,
@@ -125,12 +131,12 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
             children: [
               Row(
                 children: [
-                  const Icon(Icons.history, color: Color(0xFF00D9FF)),
+                  const Icon(Icons.history, color: NeonColors.accent),
                   const SizedBox(width: 8),
                   const Text('Historique des changements',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),),
+                    style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),),
                   const Spacer(),
-                  IconButton(icon: const Icon(Icons.close, color: Colors.white54),
+                  IconButton(icon: const Icon(Icons.close, color: NeonColors.textMuted),
                     onPressed: () => Navigator.pop(ctx),),
                 ],
               ),
@@ -140,27 +146,27 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
                   future: _loadHistory(ref),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)));
+                      return const NeonLoadingSpinner.center();
                     }
                     final history = snapshot.data ?? [];
                     if (history.isEmpty) {
                       return const Center(child: Text('Aucun changement récent',
-                        style: TextStyle(color: Colors.white54),),);
+                        style: TextStyle(color: NeonColors.textMuted),),);
                     }
                     return ListView.separated(
                       controller: scrollController,
                       itemCount: history.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white12),
+                      separatorBuilder: (_, __) => const Divider(color: NeonColors.border),
                       itemBuilder: (_, i) {
                         final entry = history[i];
                         return ListTile(
-                          leading: const Icon(Icons.settings, color: Color(0xFF00FF88), size: 20),
+                          leading: const Icon(Icons.settings, color: NeonColors.primary, size: 20),
                           title: Text(entry['summary'] ?? entry['config_type'] ?? 'Modification',
-                            style: const TextStyle(color: Colors.white, fontSize: 14),),
+                            style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14),),
                           subtitle: Text(entry['changed_at']?.toString() ?? '',
-                            style: const TextStyle(color: Colors.white54, fontSize: 11),),
+                            style: const TextStyle(color: NeonColors.textMuted, fontSize: 11),),
                           trailing: Text(entry['config_type'] ?? '',
-                            style: const TextStyle(color: Color(0xFF00D9FF), fontSize: 11),),
+                            style: const TextStyle(color: NeonColors.accent, fontSize: 11),),
                         );
                       },
                     );
@@ -189,197 +195,65 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
   }
 }
 
-// ============================================================
-// Tab: Configuration Jeux (éditable)
-// ============================================================
-class _GamesConfigTab extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final gamesConfig = ref.watch(gamesConfigProvider);
-
-    return gamesConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
-      data: (config) {
-        final gameTypes = config.gameTypes;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const _SectionHeader(title: 'Paramètres des jeux', icon: Icons.casino),
-            const SizedBox(height: 16),
-            // Cartes de chaque type de jeu
-            ...gameTypes.entries.map((entry) {
-              final game = entry.value;
-              return _GameTypeEditor(
-                gameType: game,
-                onSave: (updates) {
-                  _showConfirmDialog(context, 'Sauvegarder la configuration de ${game.type} ?', () {
-                    ref.read(gamesConfigProvider.notifier).updateGameType(game.type, updates);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Configuration jeu mise à jour'), backgroundColor: Color(0xFF00FF88)),
-                    );
-                  });
-                },
-              );
-            }),
-            const SizedBox(height: 16),
-            // Matchmaking timeouts
-            _ConfigCard(
-              title: 'Matchmaking',
-              subtitle: 'Paramètres de mise en relation',
-              fields: [
-                _ConfigField(label: 'Timeout création', value: '${config.matchmakingCreateTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Timeout join', value: '${config.matchmakingJoinTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Timeout tour', value: '${config.turnTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Inactivité jeu', value: '${config.inactivityTimeout}s', icon: Icons.timer_off),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const _InfoBanner(
-              message: 'Les modifications prennent effet immédiatement pour les nouvelles parties.',
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showConfirmDialog(BuildContext context, String message, VoidCallback onConfirm) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-            onPressed: () { Navigator.pop(ctx); onConfirm(); },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
-          ),
-        ],
-      ),
-    );
-  }
+/// Dialog de confirmation partagé pour les modifications de configuration
+void _showConfigConfirmDialog(BuildContext context, String message, VoidCallback onConfirm) {
+  showAdminConfirmDialog(
+    context,
+    title: 'Confirmer',
+    message: message,
+    confirmLabel: 'Confirmer',
+    icon: Icons.save,
+  ).then((confirmed) {
+    if (confirmed) onConfirm();
+  });
 }
 
-/// Éditeur pour un type de jeu (sliders + inputs)
-class _GameTypeEditor extends StatefulWidget {
-  final GameTypeConfigModel gameType;
-  final ValueChanged<Map<String, dynamic>> onSave;
-
-  const _GameTypeEditor({required this.gameType, required this.onSave});
-
-  @override
-  State<_GameTypeEditor> createState() => _GameTypeEditorState();
-}
-
-class _GameTypeEditorState extends State<_GameTypeEditor> {
-  late int _minBet;
-  late int _maxBet;
-  late double _commission;
-  late bool _isActive;
-  late int _maxPlayers;
-
-  @override
-  void initState() {
-    super.initState();
-    _minBet = widget.gameType.minBet;
-    _maxBet = widget.gameType.maxBet;
-    _commission = widget.gameType.commissionPercent;
-    _isActive = widget.gameType.isActive;
-    _maxPlayers = widget.gameType.maxPlayers;
-  }
-
+// ============================================================
+// Bannière de redirection vers l'écran dédié Règles Jeux
+// ============================================================
+class _GamesConfigRedirectBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _isActive ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.primary.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.casino, color: Color(0xFF00FF88), size: 20),
-              const SizedBox(width: 8),
-              Text(widget.gameType.type.toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isActive ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(_isActive ? 'Actif' : 'Inactif',
-                  style: TextStyle(color: _isActive ? const Color(0xFF00FF88) : Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Toggle actif/inactif
-          Row(
-            children: [
-              Text('Jeu actif', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-              const Spacer(),
-              Switch(value: _isActive, onChanged: (v) => setState(() => _isActive = v),
-                activeColor: const Color(0xFF00FF88),),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Slider mise min
-          Text('Mise minimum: $_minBet FCFA', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _minBet.toDouble(), min: 10, max: 10000, divisions: 100,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _minBet = v.round()),),
-          // Slider mise max
-          Text('Mise maximum: $_maxBet FCFA', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _maxBet.toDouble(), min: 1000, max: 500000, divisions: 100,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _maxBet = v.round()),),
-          // Slider commission
-          Text('Commission: ${_commission.toStringAsFixed(1)}%', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _commission, min: 0, max: 20, divisions: 40,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _commission = v),),
-          // Max joueurs
-          Text('Max joueurs: $_maxPlayers', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Row(
-            children: [1, 2, 3, 4, 6].map((n) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text('$n'),
-                selected: _maxPlayers == n,
-                selectedColor: const Color(0xFF00FF88).withValues(alpha: 0.3),
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
-                labelStyle: TextStyle(color: _maxPlayers == n ? const Color(0xFF00FF88) : Colors.white54, fontSize: 12),
-                onSelected: (sel) => setState(() => _maxPlayers = n),
-              ),
-            ),).toList(),
-          ),
-          const SizedBox(height: 12),
-          // Bouton Sauvegarder
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.save, size: 16),
-              label: const Text('Sauvegarder'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-              onPressed: () => widget.onSave({
-                'min_bet': _minBet,
-                'max_bet': _maxBet,
-                'commission_percent': _commission,
-                'is_active': _isActive,
-                'max_players': _maxPlayers,
-              }),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: NeonColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: const Icon(Icons.sports_esports, color: NeonColors.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Configuration des jeux',
+                  style: TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text('Mises, commissions, limites et paramètres par jeu',
+                  style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text('Gérer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            onPressed: () => context.go('/admin/game-config'),
           ),
         ],
       ),
@@ -396,8 +270,8 @@ class _PaymentsConfigTab extends ConsumerWidget {
     final paymentsConfig = ref.watch(paymentsConfigProvider);
 
     return paymentsConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(paymentsConfigProvider)),
       data: (config) {
         final providers = config.providers;
         return ListView(
@@ -410,11 +284,9 @@ class _PaymentsConfigTab extends ConsumerWidget {
               return _PaymentProviderEditor(
                 provider: prov,
                 onSave: (updates) {
-                  _showConfirmDialog(context, 'Sauvegarder la configuration de ${prov.provider} ?', () {
+                  _showConfigConfirmDialog(context, 'Sauvegarder la configuration de ${prov.provider} ?', () {
                     ref.read(paymentsConfigProvider.notifier).updateProvider(prov.provider, updates);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Provider mis à jour'), backgroundColor: Color(0xFF00FF88)),
-                    );
+                    context.showSuccess('Provider mis à jour');
                   });
                 },
               );
@@ -426,25 +298,6 @@ class _PaymentsConfigTab extends ConsumerWidget {
           ],
         );
       },
-    );
-  }
-
-  void _showConfirmDialog(BuildContext context, String message, VoidCallback onConfirm) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-            onPressed: () { Navigator.pop(ctx); onConfirm(); },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -482,29 +335,29 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _isEnabled ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),),
+          color: _isEnabled ? NeonColors.primary.withValues(alpha: 0.3) : NeonColors.border,),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.payment, color: _isEnabled ? const Color(0xFF00FF88) : Colors.white38),
+              Icon(Icons.payment, color: _isEnabled ? NeonColors.primary : NeonColors.textMuted),
               const SizedBox(width: 8),
-              Text(name, style: TextStyle(color: _isEnabled ? Colors.white : Colors.white38,
+              Text(name, style: TextStyle(color: _isEnabled ? NeonColors.textPrimary : NeonColors.textMuted,
                 fontSize: 16, fontWeight: FontWeight.bold,),),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _isEnabled ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                  color: _isEnabled ? NeonColors.primary.withValues(alpha: 0.2) : NeonColors.error.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(_isEnabled ? 'Actif' : 'Inactif',
-                  style: TextStyle(color: _isEnabled ? const Color(0xFF00FF88) : Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),),
+                  style: TextStyle(color: _isEnabled ? NeonColors.primary : NeonColors.error, fontSize: 11, fontWeight: FontWeight.bold),),
               ),
             ],
           ),
@@ -512,10 +365,10 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
           // Toggle enabled
           Row(
             children: [
-              Text('Provider actif', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+              Text('Provider actif', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               const Spacer(),
               Switch(value: _isEnabled, onChanged: (v) => setState(() => _isEnabled = v),
-                activeColor: const Color(0xFF00FF88),),
+                activeThumbColor: NeonColors.primary,),
             ],
           ),
           const SizedBox(height: 8),
@@ -531,9 +384,9 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
           ),
           // Frais retrait
           Text('Frais retrait: ${_withdrawalFee.toStringAsFixed(1)}%',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),),
           Slider(value: _withdrawalFee, min: 0, max: 10, divisions: 20,
-            activeColor: const Color(0xFF00FF88),
+            activeColor: NeonColors.primary,
             onChanged: (v) => setState(() => _withdrawalFee = v),),
           const SizedBox(height: 8),
           Align(
@@ -541,7 +394,7 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
             child: ElevatedButton.icon(
               icon: const Icon(Icons.save, size: 16),
               label: const Text('Sauvegarder'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
+              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
               onPressed: () => widget.onSave({
                 'is_enabled': _isEnabled,
                 'deposit_min': _depositMin,
@@ -565,8 +418,8 @@ class _ThemeConfigTab extends ConsumerWidget {
     final themeConfig = ref.watch(themeConfigProvider);
 
     return themeConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(themeConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -661,16 +514,14 @@ class _ThemeConfigTab extends ConsumerWidget {
   }
 
   void _snack(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Thème mis à jour'), backgroundColor: Color(0xFF00FF88), duration: Duration(seconds: 2)),
-    );
+    context.showSuccess('Thème mis à jour');
   }
 
   static Color _parseColor(String hex) {
     try {
       return Color(int.parse(hex.replaceFirst('#', '0xFF')));
     } catch (_) {
-      return const Color(0xFF00FF88);
+      return NeonColors.primary;
     }
   }
 }
@@ -708,32 +559,32 @@ class _ColorEditRowState extends State<_ColorEditRow> {
     try {
       preview = Color(int.parse(widget.currentColor.replaceFirst('#', '0xFF')));
     } catch (_) {
-      preview = const Color(0xFF00FF88);
+      preview = NeonColors.primary;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.border),
       ),
       child: Row(
         children: [
           Container(width: 24, height: 24, decoration: BoxDecoration(color: preview, shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24),),),
+            border: Border.all(color: NeonColors.border),),),
           const SizedBox(width: 12),
-          Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(widget.label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           const Spacer(),
           SizedBox(
             width: 100,
             child: TextField(
               controller: _controller,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12),
               decoration: const InputDecoration(
                 isDense: true,
-                border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF88))),
+                border: UnderlineInputBorder(borderSide: BorderSide(color: NeonColors.primary)),
               ),
               onSubmitted: (val) {
                 final hex = val.trim();
@@ -789,23 +640,23 @@ class _SliderEditRowState extends State<_SliderEditRow> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+              Text(widget.label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               const Spacer(),
-              Text(display, style: const TextStyle(color: Color(0xFF00FF88), fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(display, style: const TextStyle(color: NeonColors.primary, fontSize: 13, fontWeight: FontWeight.w600)),
             ],
           ),
           Slider(
             value: _value, min: widget.min, max: widget.max, divisions: widget.divisions,
-            activeColor: const Color(0xFF00FF88),
+            activeColor: NeonColors.primary,
             onChanged: (v) => setState(() => _value = v),
             onChangeEnd: widget.onChanged,
           ),
@@ -824,8 +675,8 @@ class _FeaturesConfigTab extends ConsumerWidget {
     final featureConfig = ref.watch(featureConfigProvider);
 
     return featureConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(featureConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -835,7 +686,7 @@ class _FeaturesConfigTab extends ConsumerWidget {
             title: 'Mode maintenance',
             description: 'Active le mode maintenance (app inaccessible aux users)',
             isEnabled: config.maintenanceMode,
-            color: Colors.redAccent,
+            color: NeonColors.error,
             onChanged: (val) {
               ref.read(featureConfigProvider.notifier).updateConfig({'maintenance_mode': val});
               _showSaveConfirmation(context, ref);
@@ -845,7 +696,7 @@ class _FeaturesConfigTab extends ConsumerWidget {
             title: 'Inscriptions ouvertes',
             description: 'Permet aux nouveaux utilisateurs de s\'inscrire',
             isEnabled: config.registrationEnabled,
-            color: const Color(0xFF00FF88),
+            color: NeonColors.primary,
             onChanged: (val) {
               ref.read(featureConfigProvider.notifier).updateConfig({'registration_enabled': val});
               _showSaveConfirmation(context, ref);
@@ -855,28 +706,28 @@ class _FeaturesConfigTab extends ConsumerWidget {
             title: 'PvP Enabled',
             description: 'Active les parties entre joueurs',
             isEnabled: true,
-            color: Color(0xFF00FF88),
+            color: NeonColors.primary,
             onChanged: null, // Lecture seule pour l'instant
           ),
           const _InteractiveFeatureToggle(
             title: 'Tournois',
             description: 'Active les tournois et compétitions',
             isEnabled: false,
-            color: Color(0xFFFF6600),
+            color: NeonColors.paymentOrange,
             onChanged: null,
           ),
           const _InteractiveFeatureToggle(
             title: 'Chat en jeu',
             description: 'Active le chat pendant les parties',
             isEnabled: true,
-            color: Color(0xFF00FFFF),
+            color: NeonColors.adminCyan,
             onChanged: null,
           ),
           const _InteractiveFeatureToggle(
             title: 'Transferts de jetons',
             description: 'Permet aux joueurs de se transférer des jetons',
             isEnabled: true,
-            color: Color(0xFFAA00FF),
+            color: NeonColors.adminPurple,
             onChanged: null,
           ),
           const SizedBox(height: 16),
@@ -938,13 +789,7 @@ class _FeaturesConfigTab extends ConsumerWidget {
   }
 
   void _showSaveConfirmation(BuildContext context, WidgetRef ref) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configuration mise à jour'),
-        backgroundColor: Color(0xFF00FF88),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    context.showSuccess('Configuration mise à jour');
   }
 }
 
@@ -970,9 +815,9 @@ class _InteractiveFeatureToggle extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isEnabled ? color.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: isEnabled ? color.withValues(alpha: 0.3) : NeonColors.border),
       ),
       child: Row(
         children: [
@@ -980,16 +825,16 @@ class _InteractiveFeatureToggle extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(description, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11)),
+                Text(description, style: TextStyle(color: NeonColors.textMuted, fontSize: 11)),
               ],
             ),
           ),
           Switch(
             value: isEnabled,
             onChanged: onChanged,
-            activeColor: color,
+            activeThumbColor: color,
           ),
         ],
       ),
@@ -1037,15 +882,15 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.edit_outlined, color: Color(0xFF00FF88), size: 16),
+          const Icon(Icons.edit_outlined, color: NeonColors.primary, size: 16),
           const SizedBox(width: 12),
-          Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(widget.label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           const Spacer(),
           if (_isEditing)
             SizedBox(
@@ -1053,10 +898,10 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
               child: TextField(
                 controller: _controller,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13),
                 decoration: const InputDecoration(
                   isDense: true,
-                  border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF88))),
+                  border: UnderlineInputBorder(borderSide: BorderSide(color: NeonColors.primary)),
                 ),
                 onSubmitted: (val) {
                   final parsed = int.tryParse(val);
@@ -1075,7 +920,7 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
               },
               child: Text(
                 '${widget.value}${widget.suffix}',
-                style: const TextStyle(color: Color(0xFF00FF88), fontSize: 13, fontWeight: FontWeight.w600),
+                style: const TextStyle(color: NeonColors.primary, fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
         ],
@@ -1093,8 +938,8 @@ class _TokensConfigTab extends ConsumerWidget {
     final tokensConfig = ref.watch(tokensConfigProvider);
 
     return tokensConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(tokensConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1114,13 +959,19 @@ class _TokensConfigTab extends ConsumerWidget {
           _EditableLimitField(
             label: 'Taux tokens/FCFA', value: config.exchangeRate, suffix: ' tokens',
             onSave: (v) {
-              _confirmAndSave(context, ref, {'exchange_rate': v});
+              _showConfigConfirmDialog(context, 'Sauvegarder cette modification ?', () {
+                ref.read(tokensConfigProvider.notifier).updateConfig({'exchange_rate': v});
+                context.showSuccess('Configuration tokens mise à jour');
+              });
             },
           ),
           _EditableLimitField(
             label: 'Frais fixe exchange', value: config.exchangeFixedFee, suffix: ' FCFA',
             onSave: (v) {
-              _confirmAndSave(context, ref, {'exchange_fixed_fee': v});
+              _showConfigConfirmDialog(context, 'Sauvegarder cette modification ?', () {
+                ref.read(tokensConfigProvider.notifier).updateConfig({'exchange_fixed_fee': v});
+                context.showSuccess('Configuration tokens mise à jour');
+              });
             },
           ),
           const SizedBox(height: 16),
@@ -1136,11 +987,11 @@ class _TokensConfigTab extends ConsumerWidget {
           const SizedBox(height: 12),
           _EditableLimitField(
             label: 'Achat journalier max', value: config.dailyPurchaseLimit, suffix: ' FCFA',
-            onSave: (v) => _confirmAndSave(context, ref, {'daily_purchase_limit': v}),
+            onSave: (v) => _confirmAndSaveInline(context, ref, 'daily_purchase_limit', v),
           ),
           _EditableLimitField(
             label: 'Transfert journalier max', value: config.dailyTransferLimit, suffix: ' tokens',
-            onSave: (v) => _confirmAndSave(context, ref, {'daily_transfer_limit': v}),
+            onSave: (v) => _confirmAndSaveInline(context, ref, 'daily_transfer_limit', v),
           ),
           const SizedBox(height: 16),
           _ConfigCard(
@@ -1154,11 +1005,11 @@ class _TokensConfigTab extends ConsumerWidget {
           const SizedBox(height: 12),
           _EditableLimitField(
             label: 'Dés min', value: config.diceMinBet, suffix: ' tokens',
-            onSave: (v) => _confirmAndSave(context, ref, {'dice_min_bet': v}),
+            onSave: (v) => _confirmAndSaveInline(context, ref, 'dice_min_bet', v),
           ),
           _EditableLimitField(
             label: 'Cartes min', value: config.cardsMinBet, suffix: ' tokens',
-            onSave: (v) => _confirmAndSave(context, ref, {'cards_min_bet': v}),
+            onSave: (v) => _confirmAndSaveInline(context, ref, 'cards_min_bet', v),
           ),
           const SizedBox(height: 24),
           const _InfoBanner(
@@ -1168,31 +1019,14 @@ class _TokensConfigTab extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _confirmAndSave(BuildContext context, WidgetRef ref, Map<String, dynamic> updates) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
-        content: const Text('Sauvegarder cette modification ?', style: TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(tokensConfigProvider.notifier).updateConfig(updates);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuration tokens mise à jour'), backgroundColor: Color(0xFF00FF88)),
-              );
-            },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
-          ),
-        ],
-      ),
-    );
-  }
+/// Helper inline pour tokens - confirmation + sauvegarde
+void _confirmAndSaveInline(BuildContext context, WidgetRef ref, String key, int value) {
+  _showConfigConfirmDialog(context, 'Sauvegarder cette modification ?', () {
+    ref.read(tokensConfigProvider.notifier).updateConfig({key: value});
+    context.showSuccess('Configuration tokens mise à jour');
+  });
 }
 
 // ============================================================
@@ -1209,11 +1043,11 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF00FF88), size: 24),
+        Icon(icon, color: NeonColors.primary, size: 24),
         const SizedBox(width: 12),
         Text(title,
             style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,),),
+                color: NeonColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold,),),
       ],
     );
   }
@@ -1235,28 +1069,28 @@ class _ConfigCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
               style: const TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,),),
+                  color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold,),),
           const SizedBox(height: 4),
           Text(subtitle,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),),
+              style: TextStyle(color: NeonColors.textMuted, fontSize: 12),),
           const SizedBox(height: 16),
           ...fields.map((f) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    Icon(f.icon, color: const Color(0xFF00FF88), size: 16),
+                    Icon(f.icon, color: NeonColors.primary, size: 16),
                     const SizedBox(width: 12),
                     Text(f.label,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
+                        style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),),
                     const Spacer(),
                     if (f.color != null) ...[
                       Container(
@@ -1265,14 +1099,14 @@ class _ConfigCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: f.color,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
+                          border: Border.all(color: NeonColors.border),
                         ),
                       ),
                       const SizedBox(width: 8),
                     ],
                     Text(f.value,
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500,),),
+                            color: NeonColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500,),),
                   ],
                 ),
               ),),
@@ -1308,17 +1142,17 @@ class _InfoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF00FF88).withValues(alpha: 0.08),
+        color: NeonColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.2)),
+        border: Border.all(color: NeonColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: Color(0xFF00FF88), size: 20),
+          const Icon(Icons.info_outline, color: NeonColors.primary, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(message,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
+                style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),),
           ),
         ],
       ),

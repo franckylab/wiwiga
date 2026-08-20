@@ -16,7 +16,10 @@ import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/metric_card.dart';
 import '../../widgets/admin/chart_widget.dart';
 import '../../widgets/admin/alert_badge.dart';
+import '../../widgets/admin/analytics_helpers.dart';
 import '../../../../core/theme/neon_theme.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/empty_state.dart';
 
 /// Dashboard d'administration principal
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -70,14 +73,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: Colors.white, fontSize: 20)),
+              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour à l\'accueil')),
             ],
@@ -87,21 +90,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/home'),
-        ),
+        backgroundColor: NeonColors.surface,
         title: const Text(
           'Administration',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF00FF88)),
+            icon: const Icon(Icons.refresh, color: NeonColors.primary),
             onPressed: _loadStats,
           ),
           Padding(
@@ -123,42 +122,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadStats,
-        color: const Color(0xFF00FF88),
+        color: NeonColors.primary,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)))
+            ? const NeonLoadingSpinner.center()
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                        const SizedBox(height: 12),
-                        Text(_error!, style: const TextStyle(color: Colors.white54)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _loadStats, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  )
+                ? AdminErrorState(error: _error!, onRetry: _loadStats)
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       _buildAdminProfile(user),
                       const SizedBox(height: 20),
-                      // Santé plateforme + Alertes résumé
                       _buildPlatformHealthAndAlerts(),
-                      const SizedBox(height: 20),
-                      // Section métriques temps réel avec KPI cards
-                      _buildLiveMetricsSection(),
-                      const SizedBox(height: 20),
-                      _buildStatsGrid(),
-                      const SizedBox(height: 20),
-                      _buildActivityMetrics(),
-                      const SizedBox(height: 20),
-                      _buildQuickActions(),
-                      const SizedBox(height: 20),
-                      if (_stats != null) _buildRoleDistribution(),
-                      const SizedBox(height: 20),
-                      _buildFinancialOverview(),
+                      const SizedBox(height: 16),
+                      CollapsibleSection(
+                        title: 'Métriques en direct',
+                        icon: Icons.insights,
+                        children: [_buildLiveMetricsSection()],
+                      ),
+                      CollapsibleSection(
+                        title: 'Utilisateurs',
+                        icon: Icons.people,
+                        children: [_buildStatsGrid()],
+                      ),
+                      CollapsibleSection(
+                        title: 'Activité & Sécurité',
+                        icon: Icons.security,
+                        children: [_buildActivityMetrics()],
+                      ),
+                      CollapsibleSection(
+                        title: 'Actions rapides',
+                        icon: Icons.bolt,
+                        children: [_buildQuickActions()],
+                      ),
+                      if (_stats != null)
+                        CollapsibleSection(
+                          title: 'Répartition par rôle',
+                          icon: Icons.pie_chart,
+                          children: [_buildRoleDistribution()],
+                        ),
+                      CollapsibleSection(
+                        title: 'Aperçu financier',
+                        icon: Icons.account_balance,
+                        children: [_buildFinancialOverview()],
+                      ),
                     ],
                   ),
       ),
@@ -172,7 +178,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         gradient: LinearGradient(
           colors: [
             _roleColor(user.role).withValues(alpha: 0.15),
-            const Color(0xFF00FF88).withValues(alpha: 0.05),
+            NeonColors.primary.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
@@ -188,17 +194,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 Text(
                   user.username.isNotEmpty ? user.username : user.phone ?? 'Admin',
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? user.phone ?? '',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                  style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.verified, color: Color(0xFF00FF88), size: 24),
+          const Icon(Icons.verified, color: NeonColors.primary, size: 24),
         ],
       ),
     );
@@ -234,7 +240,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Icon(Icons.favorite, color: healthColor, size: 18),
                       const SizedBox(width: 6),
-                      const Text('Santé Plateforme', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      const Text('Santé Plateforme', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -273,13 +279,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Icon(unreadAlerts > 0 ? Icons.warning_amber : Icons.check_circle, color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, size: 18),
                       const SizedBox(width: 6),
-                      const Text('Alertes', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      const Text('Alertes', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text('$unreadAlerts', style: TextStyle(color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(unreadAlerts > 0 ? 'non traitées' : 'tout va bien', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                  Text(unreadAlerts > 0 ? 'non traitées' : 'tout va bien', style: const TextStyle(color: NeonColors.textMuted, fontSize: 10)),
                 ],
               ),
             ),
@@ -298,12 +304,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            const Text(
-              'Métriques en direct',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
             AdminAlertBadge(
               count: alertsState.unreadNotifications,
               child: GestureDetector(
@@ -311,15 +313,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    color: NeonColors.error.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.notifications_active, color: Color(0xFFEF4444), size: 14),
+                      Icon(Icons.notifications_active, color: NeonColors.error, size: 14),
                       SizedBox(width: 4),
-                      Text('Alertes', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11)),
+                      Text('Alertes', style: TextStyle(color: NeonColors.error, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -328,38 +330,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.8,
+        AdminResponsiveGrid(
+          desktopColumns: 4,
+          desktopRatio: 1.8,
           children: [
             AdminMetricCard(
               title: 'Revenus 24h',
-              value: _formatCurrency(dashboard['total_revenue_24h'] ?? 0),
+              value: AnalyticsFormat.amount(dashboard['total_revenue_24h'] ?? 0),
               icon: Icons.account_balance_wallet,
-              color: const Color(0xFF10B981),
+              color: NeonColors.success,
               deltaPercent: (dashboard['revenue_delta'] as num?)?.toDouble(),
             ),
             AdminMetricCard(
               title: 'Parties actives',
               value: '${dashboard['active_games'] ?? 0}',
               icon: Icons.videogame_asset,
-              color: const Color(0xFF00D9FF),
+              color: NeonColors.accent,
             ),
             AdminMetricCard(
-              title: 'Users connectés',
+              title: 'Utilisateurs connectés',
               value: '${dashboard['active_users'] ?? dashboard['logged_in_users'] ?? 0}',
               icon: Icons.people,
-              color: const Color(0xFF3B82F6),
+              color: NeonColors.info,
             ),
             AdminMetricCard(
               title: 'Alertes actives',
               value: '${dashboard['active_alerts'] ?? alertsState.unreadNotifications}',
               icon: Icons.warning_amber,
-              color: const Color(0xFFF59E0B),
+              color: NeonColors.warning,
             ),
           ],
         ),
@@ -368,20 +366,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           const SizedBox(height: 12),
           AdminSparkline(
             data: (dashboard['timeseries'] as List).map((e) => (e is num ? e.toDouble() : 0.0)).toList(),
-            color: const Color(0xFF00FF88),
+            color: NeonColors.primary,
             height: 40,
             width: double.infinity,
           ),
         ],
       ],
     );
-  }
-
-  String _formatCurrency(dynamic value) {
-    final num amount = (value is num) ? value : double.tryParse(value.toString()) ?? 0;
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
   }
 
   Widget _buildStatsGrid() {
@@ -395,34 +386,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final kycPending = _stats?['kyc_pending'] ?? 0;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Utilisateurs',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
         Row(
           children: [
-            _StatCard(icon: Icons.people, label: 'Total', value: totalUsers.toString(), color: const Color(0xFF00FF88)),
+            _StatCard(icon: Icons.people, label: 'Total', value: totalUsers.toString(), color: NeonColors.primary),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.check_circle, label: 'Actifs', value: activeUsers.toString(), color: const Color(0xFF00FFFF)),
+            _StatCard(icon: Icons.check_circle, label: 'Actifs', value: activeUsers.toString(), color: NeonColors.adminCyan),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.today, label: '24h', value: active24h.toString(), color: const Color(0xFFFF6600)),
+            _StatCard(icon: Icons.today, label: '24h', value: active24h.toString(), color: NeonColors.paymentOrange),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.trending_up, label: '7j', value: newUsers7d.toString(), color: const Color(0xFFFF00FF)),
+            _StatCard(icon: Icons.trending_up, label: '7j', value: newUsers7d.toString(), color: NeonColors.adminMagenta),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            _StatCard(icon: Icons.devices, label: 'Sessions', value: activeSessions.toString(), color: const Color(0xFF4488FF)),
+            _StatCard(icon: Icons.devices, label: 'Sessions', value: activeSessions.toString(), color: NeonColors.adminBlue),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.smartphone, label: 'Appareils', value: activeDevices.toString(), color: const Color(0xFFAA00FF)),
+            _StatCard(icon: Icons.smartphone, label: 'Appareils', value: activeDevices.toString(), color: NeonColors.adminPurple),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.verified_user, label: 'KYC OK', value: kycVerified.toString(), color: const Color(0xFF00FF88)),
+            _StatCard(icon: Icons.verified_user, label: 'KYC OK', value: kycVerified.toString(), color: NeonColors.primary),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.hourglass_empty, label: 'KYC Wait', value: kycPending.toString(), color: const Color(0xFFFFAA00)),
+            _StatCard(icon: Icons.hourglass_empty, label: 'KYC En attente', value: kycPending.toString(), color: NeonColors.adminAmber),
           ],
         ),
       ],
@@ -434,26 +419,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final selfExcluded = _stats?['self_excluded'] ?? 0;
     final inactiveUsers = _stats?['inactive_users'] ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Activité & Sécurité',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _metricRow('Événements audit (24h)', audit24h.toString(), const Color(0xFFAA00FF)),
-          _metricRow('Auto-exclus', selfExcluded.toString(), const Color(0xFFFF4444)),
-          _metricRow('Utilisateurs inactifs', inactiveUsers.toString(), const Color(0xFFFFAA00)),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _metricRow('Événements audit (24h)', audit24h.toString(), NeonColors.adminPurple),
+        _metricRow('Auto-exclus', selfExcluded.toString(), NeonColors.error),
+        _metricRow('Utilisateurs inactifs', inactiveUsers.toString(), NeonColors.adminAmber),
+      ],
     );
   }
 
@@ -461,78 +433,51 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final totalBalance = _stats?['total_balance'] ?? '0';
     final totalTokenBalance = _stats?['total_token_balance'] ?? '0';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF00FF88).withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Aperçu financier',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _metricRow('Solde total (FCFA)', _formatMoney(totalBalance), const Color(0xFF00FF88)),
-          _metricRow('Jetons en circulation', _formatNumber(totalTokenBalance), const Color(0xFF00FFFF)),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _metricRow('Solde total (FCFA)', _formatMoney(totalBalance), NeonColors.primary),
+        _metricRow('Jetons en circulation', AnalyticsFormat.number(totalTokenBalance), NeonColors.adminCyan),
+      ],
     );
   }
 
   Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return AdminResponsiveGrid(
+      desktopColumns: 4,
+      desktopRatio: 1.5,
       children: [
-        const Text(
-          'Actions rapides',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        _QuickActionCard(
+          icon: Icons.people, label: 'Utilisateurs', color: NeonColors.primary,
+          onTap: () => context.go('/admin/users'),
         ),
-        const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            _QuickActionCard(
-              icon: Icons.people, label: 'Utilisateurs', color: const Color(0xFF00FF88),
-              onTap: () => context.go('/admin/users'),
-            ),
-            _QuickActionCard(
-              icon: Icons.monitor_heart, label: 'Supervision\nSystème', color: const Color(0xFF4488FF),
-              onTap: () => context.go('/admin/monitoring'),
-            ),
-            _QuickActionCard(
-              icon: Icons.settings, label: 'Configuration', color: const Color(0xFFFF00FF),
-              onTap: () => context.go('/admin/config'),
-            ),
-            _QuickActionCard(
-              icon: Icons.history, label: 'Logs d\'audit', color: const Color(0xFFAA00FF),
-              onTap: () => context.go('/admin/audit'),
-            ),
-            _QuickActionCard(
-              icon: Icons.monetization_on, label: 'Revenue\nAnalytics', color: const Color(0xFF2DD4BF),
-              onTap: () => context.go('/admin/analytics/revenue'),
-            ),
-            _QuickActionCard(
-              icon: Icons.people_outline, label: 'Player\nAnalytics', color: const Color(0xFF00D9FF),
-              onTap: () => context.go('/admin/analytics/players'),
-            ),
-            _QuickActionCard(
-              icon: Icons.swap_horiz, label: 'Flux\nMonétaire', color: const Color(0xFFF59E0B),
-              onTap: () => context.go('/admin/analytics/monetary-flow'),
-            ),
-            _QuickActionCard(
-              icon: Icons.card_giftcard, label: 'Bonus &\nPromos', color: const Color(0xFF3B82F6),
-              onTap: () => context.go('/admin/bonuses'),
-            ),
-          ],
+        _QuickActionCard(
+          icon: Icons.monitor_heart, label: 'Supervision', color: NeonColors.adminBlue,
+          onTap: () => context.go('/admin/monitoring'),
+        ),
+        _QuickActionCard(
+          icon: Icons.settings, label: 'Configuration', color: NeonColors.adminMagenta,
+          onTap: () => context.go('/admin/config'),
+        ),
+        _QuickActionCard(
+          icon: Icons.history, label: 'Logs d\'audit', color: NeonColors.adminPurple,
+          onTap: () => context.go('/admin/audit'),
+        ),
+        _QuickActionCard(
+          icon: Icons.monetization_on, label: 'Analytique\nRevenus', color: NeonColors.primary,
+          onTap: () => context.go('/admin/analytics/revenue'),
+        ),
+        _QuickActionCard(
+          icon: Icons.people_outline, label: 'Analytique\nJoueurs', color: NeonColors.accent,
+          onTap: () => context.go('/admin/analytics/players'),
+        ),
+        _QuickActionCard(
+          icon: Icons.swap_horiz, label: 'Flux\nMonétaire', color: NeonColors.warning,
+          onTap: () => context.go('/admin/analytics/monetary-flow'),
+        ),
+        _QuickActionCard(
+          icon: Icons.card_giftcard, label: 'Bonus &\nPromos', color: NeonColors.info,
+          onTap: () => context.go('/admin/bonuses'),
         ),
       ],
     );
@@ -544,11 +489,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Répartition par rôle',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
         ...UserRole.values.map((role) {
           final count = usersByRole[role.value] ?? 0;
           final total = (_stats?['total_users'] ?? 1) as int;
@@ -575,7 +515,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(count.toString(), style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+                Text(count.toString(), style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               ],
             ),
           );
@@ -592,7 +532,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
+          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
         ],
       ),
@@ -604,14 +544,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final amount = int.tryParse(value.toString()) ?? 0;
     return '${(amount / 100).toStringAsFixed(0)} FCFA';
   }
-
-  String _formatNumber(dynamic value) {
-    final num = int.tryParse(value.toString()) ?? 0;
-    if (num >= 1000000) return '${(num / 1000000).toStringAsFixed(1)}M';
-    if (num >= 1000) return '${(num / 1000).toStringAsFixed(1)}K';
-    return num.toString();
-  }
-
 
   Color _roleColor(UserRole role) {
     return Color(int.parse(role.color.replaceFirst('#', '0xFF')));
@@ -644,7 +576,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10)),
+            Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
           ],
         ),
       ),
@@ -675,7 +607,7 @@ class _QuickActionCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: NeonColors.textPrimary, fontSize: 12)),
           ],
         ),
       ),

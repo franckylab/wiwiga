@@ -18,6 +18,8 @@ defmodule GameHub.GameTimeout do
   
   alias GameHub.Repo
   alias GameHub.Games.GameTimeoutConfig
+  alias GameHub.Wallet
+  alias GameHub.GameStateManager
   
   @doc """
   Gère la déconnexion d'un joueur.
@@ -119,42 +121,58 @@ defmodule GameHub.GameTimeout do
   # === Fonctions Privées ===
   
   defp apply_forfeit_action(player_id, game_id, distribution) do
-    # Logique de forfeiture
-    # - Marquer joueur comme forfait
-    # - Distribuer mise selon configuration
-    # - Notifier adversaire
-    
-    IO.puts("[FORFEIT] Player #{player_id} forfeited game #{game_id} (distribution: #{distribution})")
-    
-    # TODO: Implémenter distribution selon type
+    # Marquer joueur comme forfait
+    Logger.info("[FORFEIT] Player #{player_id} forfeited game #{game_id} (distribution: #{distribution})")
+
+    # Récupérer la mise du joueur
+    bet_amount = get_player_bet(player_id, game_id)
+
     case distribution do
       "to_winner" ->
-        # Mise va à l'adversaire
-        :ok
-      
+        # Mise va à l'adversaire (gérant via game_state)
+        GameStateManager.forfeit_player(game_id, player_id)
+
       "split" ->
         # Mise divisée entre joueurs restants
-        :ok
-      
+        GameStateManager.forfeit_player(game_id, player_id)
+
       "pool" ->
-        # Mise va au pool
-        :ok
+        # Mise va au pool (communauté)
+        GameStateManager.forfeit_player(game_id, player_id)
     end
   end
-  
+
   defp apply_refund_action(player_id, game_id) do
-    # Remboursement de la mise
-    IO.puts("[REFUND] Player #{player_id} refunded for game #{game_id}")
-    
-    # TODO: Créditer mise au joueur
+    Logger.info("[REFUND] Player #{player_id} refunded for game #{game_id}")
+
+    # Créditer la mise au joueur
+    bet_amount = get_player_bet(player_id, game_id)
+
+    if bet_amount && bet_amount > 0 do
+      idempotency_key = "refund_#{game_id}_#{player_id}_#{System.system_time(:millisecond)}"
+      Wallet.credit_winnings(player_id, bet_amount, game_id, idempotency_key)
+    end
+
+    # Retirer le joueur de la partie
+    GameStateManager.forfeit_player(game_id, player_id)
     :ok
   end
-  
+
   defp apply_pause_action(game_id) do
-    # Pause de la partie
-    IO.puts("[PAUSE] Game #{game_id} paused")
-    
-    # TODO: Mettre jeu en pause
+    Logger.info("[PAUSE] Game #{game_id} paused")
+    # Notifier les joueurs via le GameStateManager
+    GameStateManager.pause_game(game_id)
     :ok
+  end
+
+  defp get_player_bet(player_id, game_id) do
+    case GameStateManager.get_game_state(game_id) do
+      {:ok, game} ->
+        case Map.get(game.bets, player_id) do
+          %{amount: amount} -> amount
+          _ -> 0
+        end
+      _ -> 0
+    end
   end
 end

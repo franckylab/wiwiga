@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/empty_state.dart';
 
 /// Écran de supervision système pour les administrateurs
 /// Affiche l'état de santé du backend en temps réel
@@ -80,14 +83,14 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
 
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: Colors.white, fontSize: 20)),
+              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
             ],
@@ -97,27 +100,23 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/admin'),
-        ),
+        backgroundColor: NeonColors.surface,
         title: const Text(
           'Supervision',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
         actions: [
           // Sélecteur d'intervalle de refresh
           PopupMenuButton<int>(
             icon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, color: Colors.white54, size: 16),
+                const Icon(Icons.timer, color: NeonColors.textMuted, size: 16),
                 const SizedBox(width: 4),
-                Text('${_refreshInterval}s', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text('${_refreshInterval}s', style: const TextStyle(color: NeonColors.textMuted, fontSize: 12)),
               ],
             ),
             onSelected: (interval) {
@@ -127,39 +126,28 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
             itemBuilder: (context) => _intervalOptions.map((i) => PopupMenuItem(
               value: i,
               child: Text('${i}s', style: TextStyle(
-                color: _refreshInterval == i ? const Color(0xFF00FF88) : Colors.white,
+                color: _refreshInterval == i ? NeonColors.primary : NeonColors.textPrimary,
                 fontWeight: _refreshInterval == i ? FontWeight.bold : FontWeight.normal,
               ),),
             ),).toList(),
           ),
           IconButton(
-            icon: Icon(_autoRefresh ? Icons.sync : Icons.sync_disabled, color: _autoRefresh ? const Color(0xFF00FF88) : Colors.white38),
+            icon: Icon(_autoRefresh ? Icons.sync : Icons.sync_disabled, color: _autoRefresh ? NeonColors.primary : NeonColors.textMuted),
             onPressed: () => setState(() => _autoRefresh = !_autoRefresh),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF00FF88)),
+            icon: const Icon(Icons.refresh, color: NeonColors.primary),
             onPressed: _loadHealth,
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadHealth,
-        color: const Color(0xFF00FF88),
+        color: NeonColors.primary,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)))
+            ? const NeonLoadingSpinner.center()
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                        const SizedBox(height: 12),
-                        Text(_error!, style: const TextStyle(color: Colors.white54)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _loadHealth, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  )
+                ? AdminErrorState(error: _error!, onRetry: _loadHealth)
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -190,17 +178,17 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: allHealthy
-              ? [const Color(0xFF00FF88).withValues(alpha: 0.15), const Color(0xFF00FFFF).withValues(alpha: 0.05)]
-              : [Colors.redAccent.withValues(alpha: 0.15), Colors.orange.withValues(alpha: 0.05)],
+              ? [NeonColors.primary.withValues(alpha: 0.15), NeonColors.adminCyan.withValues(alpha: 0.05)]
+              : [NeonColors.error.withValues(alpha: 0.15), NeonColors.warning.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: allHealthy ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.redAccent.withValues(alpha: 0.3)),
+        border: Border.all(color: allHealthy ? NeonColors.primary.withValues(alpha: 0.3) : NeonColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Icon(
             allHealthy ? Icons.check_circle : Icons.warning,
-            color: allHealthy ? const Color(0xFF00FF88) : Colors.redAccent,
+            color: allHealthy ? NeonColors.primary : NeonColors.error,
             size: 48,
           ),
           const SizedBox(width: 16),
@@ -211,7 +199,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
                 Text(
                   allHealthy ? 'Système opérationnel' : 'Alerte système',
                   style: TextStyle(
-                    color: allHealthy ? const Color(0xFF00FF88) : Colors.redAccent,
+                    color: allHealthy ? NeonColors.primary : NeonColors.error,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -219,7 +207,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Dernière vérification: ${_formatTimestamp(_health?['timestamp'])}',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                  style: TextStyle(color: NeonColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -241,7 +229,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       status: status,
       isHealthy: isHealthy,
       children: [
-        _healthMetric('Statut', status, isHealthy ? const Color(0xFF00FF88) : Colors.redAccent),
+        _healthMetric('Statut', status, isHealthy ? NeonColors.primary : NeonColors.error),
         _healthMetric('Latence', '$latency ms', _latencyColor(double.tryParse(latency) ?? 999)),
       ],
     );
@@ -260,9 +248,9 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       status: status,
       isHealthy: isHealthy,
       children: [
-        _healthMetric('Statut', status, isHealthy ? const Color(0xFF00FF88) : Colors.redAccent),
+        _healthMetric('Statut', status, isHealthy ? NeonColors.primary : NeonColors.error),
         _healthMetric('Latence', '$latency ms', _latencyColor(double.tryParse(latency) ?? 999)),
-        _healthMetric('Clés actives', keys.toString(), const Color(0xFF00FFFF)),
+        _healthMetric('Clés actives', keys.toString(), NeonColors.adminCyan),
       ],
     );
   }
@@ -281,11 +269,11 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       status: 'active',
       isHealthy: true,
       children: [
-        _healthMetric('Total', '$totalMb MB', const Color(0xFF00FF88)),
-        _healthMetric('Processus', '$processesMb MB', const Color(0xFF00FFFF)),
-        _healthMetric('Système', '$systemMb MB', const Color(0xFF4488FF)),
-        _healthMetric('Atomes', '$atomMb MB', const Color(0xFFAA00FF)),
-        _healthMetric('Binaire', '$binaryMb MB', const Color(0xFFFF00FF)),
+        _healthMetric('Total', '$totalMb MB', NeonColors.primary),
+        _healthMetric('Processus', '$processesMb MB', NeonColors.adminCyan),
+        _healthMetric('Système', '$systemMb MB', NeonColors.adminBlue),
+        _healthMetric('Atomes', '$atomMb MB', NeonColors.adminPurple),
+        _healthMetric('Binaire', '$binaryMb MB', NeonColors.adminMagenta),
       ],
     );
   }
@@ -303,9 +291,9 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       status: 'active',
       isHealthy: true,
       children: [
-        _healthMetric('Processus BEAM', '$count / $limit', const Color(0xFF00FF88)),
-        _healthMetric('Utilisation', '$usagePercent%', const Color(0xFF00FFFF)),
-        _healthMetric('Sessions actives', sessions.toString(), const Color(0xFFFF6600)),
+        _healthMetric('Processus BEAM', '$count / $limit', NeonColors.primary),
+        _healthMetric('Utilisation', '$usagePercent%', NeonColors.adminCyan),
+        _healthMetric('Sessions actives', sessions.toString(), NeonColors.paymentOrange),
       ],
     );
   }
@@ -321,9 +309,9 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       status: 'running',
       isHealthy: true,
       children: [
-        _healthMetric('Erlang/OTP', 'v$erlangVersion', const Color(0xFF00FF88)),
-        _healthMetric('Système (kernel)', 'v$systemVersion', const Color(0xFF00FFFF)),
-        _healthMetric('Uptime', '$uptimeHours heures', const Color(0xFFFF6600)),
+        _healthMetric('Erlang/OTP', 'v$erlangVersion', NeonColors.primary),
+        _healthMetric('Système (kernel)', 'v$systemVersion', NeonColors.adminCyan),
+        _healthMetric('Uptime', '$uptimeHours heures', NeonColors.paymentOrange),
       ],
     );
   }
@@ -334,7 +322,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
+          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       ),
@@ -342,9 +330,9 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
   }
 
   Color _latencyColor(double latencyMs) {
-    if (latencyMs < 5) return const Color(0xFF00FF88);
-    if (latencyMs < 20) return const Color(0xFFFFAA00);
-    return Colors.redAccent;
+    if (latencyMs < 5) return NeonColors.primary;
+    if (latencyMs < 20) return NeonColors.adminAmber;
+    return NeonColors.error;
   }
 
   String _formatTimestamp(dynamic timestamp) {
@@ -379,10 +367,10 @@ class _HealthCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isHealthy ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+          color: isHealthy ? NeonColors.primary.withValues(alpha: 0.2) : NeonColors.error.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -390,21 +378,21 @@ class _HealthCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: isHealthy ? const Color(0xFF00FF88) : Colors.redAccent, size: 24),
+              Icon(icon, color: isHealthy ? NeonColors.primary : NeonColors.error, size: 24),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (isHealthy ? const Color(0xFF00FF88) : Colors.redAccent).withValues(alpha: 0.15),
+                  color: (isHealthy ? NeonColors.primary : NeonColors.error).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   status.toUpperCase(),
                   style: TextStyle(
-                    color: isHealthy ? const Color(0xFF00FF88) : Colors.redAccent,
+                    color: isHealthy ? NeonColors.primary : NeonColors.error,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),

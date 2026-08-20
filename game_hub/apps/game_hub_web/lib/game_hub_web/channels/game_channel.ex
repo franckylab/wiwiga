@@ -179,7 +179,7 @@ defmodule GameHubWeb.GameChannel do
           :ok
       end
       
-      IO.puts("[DISCONNECT] User #{user_id} left game #{game_id}")
+      Logger.info("[DISCONNECT] User #{user_id} left game #{game_id}")
     end
     
     :ok

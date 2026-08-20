@@ -10,6 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/admin/skeleton_loader.dart';
+import '../../widgets/admin/analytics_helpers.dart';
 
 /// Écran des notifications admin
 class AdminNotificationsScreen extends ConsumerStatefulWidget {
@@ -86,10 +90,17 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
           // Contenu
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
-                : state.alerts.isEmpty
-                    ? _buildEmpty()
-                    : _buildNotificationList(state),
+                ? const AdminSkeletonList(itemCount: 6)
+                : RefreshIndicator(
+                    color: NeonColors.primary,
+                    onRefresh: () => ref.read(adminAlertsProvider.notifier).loadNotifications(),
+                    child: state.alerts.isEmpty
+                        ? SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SizedBox(height: MediaQuery.of(context).size.height * 0.5, child: const AdminEmptyState(icon: Icons.notifications_off, title: 'Aucune notification')),
+                          )
+                        : _buildNotificationList(state),
+                  ),
           ),
         ],
       ),
@@ -100,16 +111,19 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: NeonColors.surface,
-      child: Row(
-        children: [
-          _typeChip(null, 'Toutes'),
-          const SizedBox(width: 8),
-          _typeChip('info', 'Info'),
-          const SizedBox(width: 8),
-          _typeChip('alert', 'Alerte'),
-          const SizedBox(width: 8),
-          _typeChip('broadcast', 'Broadcast'),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _typeChip(null, 'Toutes'),
+            const SizedBox(width: 8),
+            _typeChip('info', 'Info'),
+            const SizedBox(width: 8),
+            _typeChip('alert', 'Alerte'),
+            const SizedBox(width: 8),
+            _typeChip('broadcast', 'Broadcast'),
+          ],
+        ),
       ),
     );
   }
@@ -130,19 +144,6 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
         setState(() => _typeFilter = selected ? value : null);
         ref.read(adminAlertsProvider.notifier).loadNotifications(type: value);
       },
-    );
-  }
-
-  Widget _buildEmpty() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.notifications_off, color: NeonColors.textMuted, size: 48),
-          SizedBox(height: 12),
-          Text('Aucune notification', style: TextStyle(color: NeonColors.textSecondary)),
-        ],
-      ),
     );
   }
 
@@ -215,7 +216,7 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _formatTime(notif['inserted_at']),
+                      AnalyticsFormat.relativeTime(notif['inserted_at'], emptyLabel: ''),
                       style: const TextStyle(color: NeonColors.textMuted, fontSize: 10),
                     ),
                   ],
@@ -286,16 +287,12 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
                     _messageController.text,
                   );
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Message diffusé avec succès'), backgroundColor: NeonColors.success),
-                    );
+                    context.showSuccess('Message diffusé avec succès');
                   }
                   ref.read(adminAlertsProvider.notifier).loadNotifications();
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
-                    );
+                    context.showError('Erreur: $e');
                   }
                 }
               }
@@ -308,15 +305,4 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
     );
   }
 
-  String _formatTime(dynamic timestamp) {
-    if (timestamp == null) return '';
-    final dt = timestamp is DateTime ? timestamp : DateTime.tryParse(timestamp.toString());
-    if (dt == null) return '';
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Maintenant';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}j';
-  }
 }

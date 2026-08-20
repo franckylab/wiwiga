@@ -11,6 +11,9 @@ import '../../../../core/theme/neon_theme.dart';
 import '../../../providers/admin_analytics_provider.dart';
 import '../../../widgets/admin/metric_card.dart';
 import '../../../widgets/admin/chart_widget.dart';
+import '../../../widgets/admin/empty_state.dart';
+import '../../../widgets/admin/analytics_helpers.dart';
+import '../../../widgets/neon/neon_widgets.dart';
 
 /// Écran Player Wealth (distribution gains/pertes, segments, P&L)
 class AdminPlayerWealthScreen extends ConsumerStatefulWidget {
@@ -36,15 +39,15 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Player Wealth'),
+        title: const Text('Distribution Richesse'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
       ),
       body: state.isLoading && state.data == null
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : state.error != null && state.data == null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminWealthProvider.notifier).load())
               : _buildContent(state),
     );
   }
@@ -72,7 +75,7 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
 
             // Distribution quartiles
             if (quartiles.isNotEmpty) ...[
-              _buildSectionTitle('Distribution par Quartile'),
+              const AnalyticsSectionTitle('Distribution par Quartile'),
               const SizedBox(height: 8),
               _buildQuartileCards(quartiles),
               const SizedBox(height: 20),
@@ -80,7 +83,7 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
 
             // Histogramme P&L
             if (histogram.isNotEmpty) ...[
-              _buildSectionTitle('Histogramme P&L'),
+              const AnalyticsSectionTitle('Histogramme P&L'),
               const SizedBox(height: 8),
               AdminBarChart(
                 data: histogram.map((h) => (h['count'] as num?)?.toDouble() ?? 0.0).toList(),
@@ -181,12 +184,12 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${q['player_count'] ?? 0} joueurs', style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text('Mises: ${_formatAmount(q['total_wagered'])} | Gains: ${_formatAmount(q['total_won'])}', style: const TextStyle(color: NeonColors.textMuted, fontSize: 10)),
+                    Text('Mises: ${AnalyticsFormat.amount(q['total_wagered'])} | Gains: ${AnalyticsFormat.amount(q['total_won'])}', style: const TextStyle(color: NeonColors.textMuted, fontSize: 10)),
                   ],
                 ),
               ),
               Text(
-                _formatAmount(pnl),
+                AnalyticsFormat.amount(pnl),
                 style: TextStyle(color: pnl >= 0 ? NeonColors.success : NeonColors.error, fontSize: 13, fontWeight: FontWeight.bold),
               ),
             ],
@@ -219,7 +222,7 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
                   Text('#${players.indexOf(p) + 1}', style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 8),
                   Expanded(child: Text(p['username'] as String? ?? 'Joueur', style: const TextStyle(color: NeonColors.textPrimary, fontSize: 11))),
-                  Text(_formatAmount(pnl), style: TextStyle(color: pnl >= 0 ? NeonColors.success : NeonColors.error, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(AnalyticsFormat.amount(pnl), style: TextStyle(color: pnl >= 0 ? NeonColors.success : NeonColors.error, fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
             );
@@ -230,35 +233,4 @@ class _AdminPlayerWealthScreenState extends ConsumerState<AdminPlayerWealthScree
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminWealthProvider.notifier).load(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600));
-  }
-
-  String _formatAmount(dynamic value) {
-    if (value == null) return '0 FCFA';
-    final amount = (value as num).toDouble();
-    if (amount.abs() >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount.abs() >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
-  }
 }

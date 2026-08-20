@@ -6,7 +6,8 @@ import '../../../core/theme/typography.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../providers/config_provider.dart';
 import '../../../data/providers/token_provider.dart';
-import '../game_lobby/game_lobby_screen.dart';
+import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/models/game_model.dart';
 
 /// Écran Lobby redesigné avec style néon gaming
 class LobbyScreenNeon extends ConsumerWidget {
@@ -197,125 +198,113 @@ class _TokenBalanceWidget extends ConsumerWidget {
   }
 }
 
-class _GameGrid extends StatelessWidget {
+class _GameGrid extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final games = [
-      {
-        'name': 'Jeu de Dés',
-        'icon': Icons.casino,
-        'minBet': '100 jetons',
-        'players': '1,234',
-        'status': GameStatus.inProgress,
-      },
-      {
-        'name': 'Poker',
-        'icon': Icons.games,
-        'minBet': '500 jetons',
-        'players': '856',
-        'status': GameStatus.waiting,
-      },
-      {
-        'name': 'Blackjack',
-        'icon': Icons.auto_awesome,
-        'minBet': '200 jetons',
-        'players': '642',
-        'status': GameStatus.inProgress,
-      },
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalogAsync = ref.watch(gamesCatalogProvider);
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: games.length,
-      itemBuilder: (context, index) {
-        final game = games[index];
-        return _GameCardWidget(game: game);
+    return catalogAsync.when(
+      data: (games) {
+        if (games.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Text('Aucun jeu disponible', style: TextStyle(color: NeonColors.textSecondary)),
+            ),
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: games.length,
+          itemBuilder: (context, index) {
+            final game = games[index];
+            return _GameCardWidget(gameModel: game);
+          },
+        );
       },
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (error, _) => const Center(
+        child: Text('Erreur de chargement', style: TextStyle(color: NeonColors.error)),
+      ),
     );
   }
 }
 
 class _GameCardWidget extends StatelessWidget {
-  final Map<String, dynamic> game;
+  final GameModel gameModel;
 
-  const _GameCardWidget({required this.game});
+  const _GameCardWidget({required this.gameModel});
 
   @override
   Widget build(BuildContext context) {
+    // Icône selon le type de jeu
+    final gameIcon = switch (gameModel.type) {
+      'dice' => Icons.casino,
+      'cards' => Icons.style,
+      _ => Icons.games,
+    };
+
     return NeonCard(
       onTap: () {
-        // Naviguer vers le GameLobby pour ce jeu
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const ProviderScope(
-              child: GameLobbyScreen(gameType: 'dice'),
-            ),
-          ),
-        );
+        if (gameModel.comingSoon) return;
+        context.push('/games/${gameModel.type}');
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icône du jeu
           Container(
             width: double.infinity,
             height: 80,
             decoration: BoxDecoration(
-              color: NeonColors.primary.withValues(alpha: 0.1),
+              color: gameModel.comingSoon
+                  ? NeonColors.textSecondary.withValues(alpha: 0.1)
+                  : NeonColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              game['icon'] as IconData,
-              size: 48,
-              color: NeonColors.primary,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  gameIcon,
+                  size: 48,
+                  color: gameModel.comingSoon ? NeonColors.textSecondary : NeonColors.primary,
+                ),
+                if (gameModel.comingSoon)
+                  const Text('Bientôt', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+              ],
             ),
           ),
-          
           const SizedBox(height: 12),
-          
-          // Nom du jeu
           Text(
-            game['name'] as String,
+            gameModel.name,
             style: AppTypography.heading4,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          
           const SizedBox(height: 8),
-          
-          // Statut
           GameStatusIndicator(
-            status: game['status'] as GameStatus,
+            status: gameModel.comingSoon ? GameStatus.comingSoon : GameStatus.inProgress,
           ),
-          
           const Spacer(),
-          
-          // Infos
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Min: ${game['minBet']}',
-                style: const TextStyle(
-                  color: NeonColors.textSecondary,
-                  fontSize: 12,
-                  fontFamily: 'Inter',
-                ),
+                'Min: ${gameModel.minBet.toInt()} jetons',
+                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
               ),
               Text(
-                '${game['players']} joueurs',
-                style: const TextStyle(
-                  color: NeonColors.textSecondary,
-                  fontSize: 12,
-                  fontFamily: 'Inter',
-                ),
+                gameModel.playersOnline > 0
+                    ? '${gameModel.playersOnline} en ligne'
+                    : '${gameModel.maxPlayers} max',
+                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
               ),
             ],
           ),
@@ -458,10 +447,104 @@ class _FooterButton extends StatelessWidget {
     required this.label,
   });
 
+  void _onTap(BuildContext context) {
+    switch (label) {
+      case 'Aide':
+        _showHelpDialog(context);
+      case 'Règles':
+        _showRulesDialog(context);
+      case 'Support':
+        _showSupportDialog(context);
+      case 'Historique':
+        context.push('/transactions');
+    }
+  }
+
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Centre d\'aide', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Bienvenue dans l\'aide WIWIGA !\n\n'
+          '• Pour jouer, créez ou rejoignez une partie\n'
+          '• Gérez vos jetons dans le Wallet\n'
+          '• Invitez des amis et jouez ensemble\n'
+          '• Consultez les règles de chaque jeu\n\n'
+          'Contact: support@wiwiga.cm',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showRulesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Règles des jeux', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('🎲 Dés', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+            SizedBox(height: 8),
+            Text('Lancez les dés, le plus haut score gagne !\nMisez des jetons et affrontez vos amis.', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+            SizedBox(height: 16),
+            Text('♟️ Ludo', style: TextStyle(color: NeonColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+            SizedBox(height: 8),
+            Text('Course stratégique jusqu\'à l\'arrivée.\nBloquez vos adversaires et atteignez le premier la ligne.', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+            SizedBox(height: 16),
+            Text('🃏 Cartes', style: TextStyle(color: NeonColors.accent, fontWeight: FontWeight.bold, fontSize: 16)),
+            SizedBox(height: 8),
+            Text('Variantes multiples de jeux de cartes.\nStratégie et bluff au programme !', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+          ],),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showSupportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Support', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Besoin d\'aide ?', style: TextStyle(color: NeonColors.textSecondary)),
+          SizedBox(height: 16),
+          Row(children: [
+            Icon(Icons.email, color: NeonColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text('support@wiwiga.cm', style: TextStyle(color: NeonColors.textPrimary)),
+          ],),
+          SizedBox(height: 12),
+          Row(children: [
+            Icon(Icons.phone, color: NeonColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text('+237 6XX XXX XXX', style: TextStyle(color: NeonColors.textPrimary)),
+          ],),
+        ],),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {},
+      onTap: () => _onTap(context),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

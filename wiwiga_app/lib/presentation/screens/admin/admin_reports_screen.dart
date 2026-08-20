@@ -10,6 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../../../data/providers/app_providers.dart';
 import '../../providers/admin_management_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/analytics_helpers.dart';
 
 /// Écran gestion des rapports
 class AdminReportsScreen extends ConsumerStatefulWidget {
@@ -48,9 +52,9 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : state.error != null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminReportsManagementProvider.notifier).loadReports())
               : _buildContent(state),
     );
   }
@@ -59,22 +63,12 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
     final reports = state.reports;
 
     if (reports.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.assessment, color: NeonColors.textMuted, size: 64),
-            const SizedBox(height: 16),
-            const Text('Aucun rapport généré', style: TextStyle(color: NeonColors.textSecondary)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _showGenerateDialog(),
-              icon: const Icon(Icons.add_chart),
-              label: const Text('Générer un rapport'),
-              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-            ),
-          ],
-        ),
+      return AdminEmptyState(
+        icon: Icons.assessment,
+        title: 'Aucun rapport généré',
+        actionLabel: 'Générer un rapport',
+        actionIcon: Icons.add_chart,
+        onAction: () => _showGenerateDialog(),
       );
     }
 
@@ -179,9 +173,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
                     final repo = ref.read(adminRepositoryProvider);
                     final url = repo.getReportDownloadUrl(id);
                     // Trigger download via API service
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Téléchargement: $url'), backgroundColor: NeonColors.primary, duration: const Duration(seconds: 2)),
-                    );
+                    context.showInfo('Téléchargement: $url');
                   },
                 ),
             ],
@@ -193,7 +185,7 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
               const SizedBox(width: 16),
               _buildInfoItem(_formatFileSize(fileSize), Icons.storage, NeonColors.textSecondary),
               const SizedBox(width: 16),
-              _buildInfoItem(insertedAt != null ? _formatDate(insertedAt) : '-', Icons.schedule, NeonColors.textMuted),
+              _buildInfoItem(insertedAt != null ? AnalyticsFormat.dateTime(insertedAt) : '-', Icons.schedule, NeonColors.textMuted),
             ],
           ),
         ],
@@ -288,39 +280,10 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminReportsManagementProvider.notifier).loadReports(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _formatFileSize(int bytes) {
     if (bytes == 0) return '0 B';
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final dt = DateTime.parse(dateStr);
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return '-';
-    }
   }
 }

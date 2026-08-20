@@ -51,16 +51,22 @@ defmodule GameHub.Admin.GameConfig do
         select: %{
           id: gc.id,
           game_type: gc.game_type,
+          name: gc.name,
+          description: gc.description,
           commission_rate: gc.commission_rate,
+          commission_mode: gc.commission_mode,
           min_bet: gc.min_bet,
           max_bet: gc.max_bet,
-          max_players: gc.max_players,
+          min_bet_tokens: gc.min_bet_tokens,
           is_enabled: gc.is_active,
+          coming_soon: gc.coming_soon,
+          display_order: gc.display_order,
           settings: gc.config,
           inserted_at: gc.inserted_at,
           updated_at: gc.updated_at
         }
     )
+    |> Enum.map(&serialize_config/1)
   end
 
   @doc """
@@ -80,14 +86,20 @@ defmodule GameHub.Admin.GameConfig do
             select: %{
               id: gc.id,
               game_type: gc.game_type,
+              name: gc.name,
+              description: gc.description,
               commission_rate: gc.commission_rate,
+              commission_mode: gc.commission_mode,
               min_bet: gc.min_bet,
               max_bet: gc.max_bet,
-              max_players: gc.max_players,
+              min_bet_tokens: gc.min_bet_tokens,
               is_enabled: gc.is_active,
+              coming_soon: gc.coming_soon,
+              display_order: gc.display_order,
               settings: gc.config
             }
         )
+        |> serialize_config()
 
         if config do
           :ets.insert(@cache_table, {game_type, config})
@@ -125,43 +137,72 @@ defmodule GameHub.Admin.GameConfig do
         select: gc.id
     )
 
+    # Préparer les valeurs, en acceptant les params du controller ou des valeurs par défaut
+    commission_rate = Map.get(attrs, "commission_rate", 0.05)
+    min_bet = Map.get(attrs, "min_bet", 100)
+    max_bet = Map.get(attrs, "max_bet", 1_000_000)
+    min_bet_tokens = Map.get(attrs, "min_bet_tokens")
+    is_active = Map.get(attrs, "is_enabled", Map.get(attrs, "is_active", true))
+    settings = Map.get(attrs, "settings", Map.get(attrs, "config", %{}))
+    name = Map.get(attrs, "name")
+    description = Map.get(attrs, "description")
+    coming_soon = Map.get(attrs, "coming_soon")
+    display_order = Map.get(attrs, "display_order")
+
     result = if existing do
+      # Construire la liste des champs à mettre à jour dynamiquement
+      updates = [
+        commission_rate: commission_rate,
+        min_bet: min_bet,
+        max_bet: max_bet,
+        is_active: is_active,
+        config: settings,
+        updated_at: now
+      ]
+
+      # Ajouter les champs optionnels seulement s'ils sont fournis
+      updates = maybe_add_field(updates, :name, name)
+      updates = maybe_add_field(updates, :description, description)
+      updates = maybe_add_field(updates, :coming_soon, coming_soon)
+      updates = maybe_add_field(updates, :display_order, display_order)
+      updates = maybe_add_field(updates, :min_bet_tokens, min_bet_tokens)
+
       query = from gc in "game_configs",
         where: gc.id == ^existing,
-        update: [set: [
-          commission_rate: ^Map.get(attrs, "commission_rate", 0.05),
-          min_bet: ^Map.get(attrs, "min_bet", 100),
-          max_bet: ^Map.get(attrs, "max_bet", 1_000_000),
-          max_players: ^Map.get(attrs, "max_players", 10),
-          is_active: ^Map.get(attrs, "is_enabled", true),
-          config: ^Map.get(attrs, "settings", %{}),
-          updated_at: ^now
-        ]],
-        select: %{id: gc.id, game_type: gc.game_type, commission_rate: gc.commission_rate,
-                  min_bet: gc.min_bet, max_bet: gc.max_bet, max_players: gc.max_players,
-                  is_enabled: gc.is_active, config: gc.config}
+        update: [set: ^updates],
+        select: %{
+          id: gc.id, game_type: gc.game_type, name: gc.name,
+          commission_rate: gc.commission_rate, commission_mode: gc.commission_mode,
+          min_bet: gc.min_bet, max_bet: gc.max_bet, min_bet_tokens: gc.min_bet_tokens,
+          is_enabled: gc.is_active, coming_soon: gc.coming_soon,
+          display_order: gc.display_order, config: gc.config
+        }
 
       Repo.update_all(query, [])
       |> case do
-        {1, [config]} -> {:ok, config}
+        {1, [config]} -> {:ok, serialize_config(config)}
         _ -> {:error, :update_failed}
       end
     else
-      Repo.insert_all("game_configs", [
-        %{
-          game_type: game_type,
-          commission_rate: Map.get(attrs, "commission_rate", 0.05),
-          min_bet: Map.get(attrs, "min_bet", 100),
-          max_bet: Map.get(attrs, "max_bet", 1_000_000),
-          max_players: Map.get(attrs, "max_players", 10),
-          is_active: Map.get(attrs, "is_enabled", true),
-          config: Map.get(attrs, "settings", %{}),
-          inserted_at: now,
-          updated_at: now
-        }
-      ], returning: true)
+      insert_data = %{
+        game_type: game_type,
+        commission_rate: commission_rate,
+        min_bet: min_bet,
+        max_bet: max_bet,
+        is_active: is_active,
+        config: settings,
+        inserted_at: now,
+        updated_at: now
+      }
+      |> maybe_put(:name, name)
+      |> maybe_put(:description, description)
+      |> maybe_put(:coming_soon, coming_soon)
+      |> maybe_put(:display_order, display_order)
+      |> maybe_put(:min_bet_tokens, min_bet_tokens)
+
+      Repo.insert_all("game_configs", [insert_data], returning: true)
       |> case do
-        {1, [config]} -> {:ok, config}
+        {1, [config]} -> {:ok, serialize_config(config)}
         _ -> {:error, :insert_failed}
       end
     end
@@ -174,7 +215,7 @@ defmodule GameHub.Admin.GameConfig do
       {:ok, config} ->
         AuditLog.log("admin_action", updated_by, "game_configs", game_type, %{
           "action" => if(existing, do: "update_config", else: "create_config"),
-          "commission_rate" => config.commission_rate
+          "commission_rate" => config[:commission_rate]
         })
       _ -> :ok
     end
@@ -192,11 +233,15 @@ defmodule GameHub.Admin.GameConfig do
     query = from gc in "game_configs",
       where: gc.game_type == ^game_type,
       update: [set: [is_active: ^enabled, updated_at: ^now]],
-      select: %{id: gc.id, game_type: gc.game_type, is_enabled: gc.is_active}
+      select: %{
+        id: gc.id,
+        game_type: gc.game_type,
+        is_enabled: gc.is_active
+      }
 
     result = Repo.update_all(query, [])
     |> case do
-      {1, [config]} -> {:ok, config}
+      {1, [config]} -> {:ok, serialize_config(config)}
       _ -> {:error, :not_found}
     end
 
@@ -233,4 +278,32 @@ defmodule GameHub.Admin.GameConfig do
       _ -> :ok
     end
   end
+
+  # ========================================
+  # Helpers — Sérialisation
+  # ========================================
+
+  # Convertit les Decimal en float pour la sérialisation JSON
+  defp serialize_config(nil), do: nil
+
+  defp serialize_config(%{} = config) do
+    config
+    |> maybe_convert_decimal(:commission_rate)
+  end
+
+  defp maybe_convert_decimal(map, key) do
+    case Map.get(map, key) do
+      %Decimal{} = val -> Map.put(map, key, Decimal.to_float(val))
+      _ -> map
+    end
+  end
+
+  # Helpers pour champs optionnels dans upsert
+  defp maybe_add_field(updates, _key, nil), do: updates
+  defp maybe_add_field(updates, key, value) do
+    Keyword.put(updates, key, value)
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

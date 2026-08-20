@@ -87,7 +87,7 @@ defmodule GameHubWeb.PaymentWebhookController do
   
   defp process_payment(conn, %{"status" => "FAILED"}) do
     # Paiement échoué - logger
-    IO.puts("[PAYMENT] Failed: #{inspect(conn.params)}")
+    Logger.warning("[PAYMENT] Failed: #{inspect(conn.params)}")
     
     conn
     |> put_status(200)
@@ -114,7 +114,7 @@ defmodule GameHubWeb.PaymentWebhookController do
         case Wallet.deposit(user.id, amount, idempotency_key) do
           {:ok, transaction} ->
             # Log succès
-            IO.puts("[PAYMENT] SUCCESS: User #{user.id} credited #{amount} centimes (TX: #{tx_id})")
+            Logger.info("[PAYMENT] SUCCESS: User #{user.id} credited #{amount} centimes (TX: #{tx_id})")
             
             conn
             |> put_status(200)
@@ -132,7 +132,7 @@ defmodule GameHubWeb.PaymentWebhookController do
           
           {:error, reason} ->
             # Erreur - log critique
-            IO.puts("[PAYMENT] ERROR: #{reason} for TX #{tx_id}")
+            Logger.error("[PAYMENT] ERROR: #{reason} for TX #{tx_id}")
             
             conn
             |> put_status(500)

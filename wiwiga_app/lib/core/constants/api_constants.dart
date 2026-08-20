@@ -76,6 +76,10 @@ class ApiEndpoints {
   static const String friendsLeaderboard = '/api/friends/leaderboard';
   static const String friendsActivity = '/api/friends/activity';
   
+  // Jeu responsable (utilisateur)
+  static const String responsibleGamingLimits = '/api/responsible-gaming/limits';
+  static const String responsibleGamingSelfExclude = '/api/responsible-gaming/self-exclude';
+  
   // Webhooks
   static const String campayWebhook = '/api/webhooks/campay';
   
@@ -185,6 +189,10 @@ class ApiEndpoints {
   // Admin - Player Progression (V3)
   static const String adminPlayerProgressionLevels = '/api/admin/player-progression/levels';
   static const String adminPlayerProgressionCalculate = '/api/admin/player-progression/calculate';
+
+  // Admin - XP Rules (V3)
+  static const String adminXPRules = '/api/admin/xp-rules';
+  static const String adminXPRulesCalculate = '/api/admin/xp-rules/calculate';
 
   // Admin - Platform Config (V3)
   static const String adminPlatformConfig = '/api/admin/platform-config';

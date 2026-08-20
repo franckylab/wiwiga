@@ -11,6 +11,10 @@ import 'package:go_router/go_router.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/admin/empty_state.dart';
 
 /// Écran de détail d'un utilisateur (vue admin)
 class AdminUserDetailScreen extends ConsumerStatefulWidget {
@@ -63,18 +67,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       setState(() => _user = updatedUser);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Rôle changé en ${UserRole.fromString(newRole).displayName}'),
-            backgroundColor: const Color(0xFF00FF88),
-          ),
-        );
+        context.showInfo('Rôle changé en ${UserRole.fromString(newRole).displayName}');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent),
-        );
+        context.showError('Erreur: $e');
       }
     }
   }
@@ -89,18 +86,15 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       setState(() => _user = updatedUser);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(activate ? 'Utilisateur activé' : 'Utilisateur désactivé'),
-            backgroundColor: activate ? const Color(0xFF00FF88) : Colors.orange,
-          ),
-        );
+        if (activate) {
+          context.showSuccess('Utilisateur activé');
+        } else {
+          context.showWarning('Utilisateur désactivé');
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent),
-        );
+        context.showError('Erreur: $e');
       }
     }
   }
@@ -112,14 +106,14 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
     if (currentUser == null || !currentUser.isAdmin) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: Colors.white, fontSize: 20)),
+              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
             ],
@@ -129,39 +123,28 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: NeonColors.textPrimary),
           onPressed: () => context.go('/admin/users'),
         ),
         title: const Text(
           'Détail utilisateur',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)))
+          ? const NeonLoadingSpinner.center()
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                      const SizedBox(height: 12),
-                      Text(_error!, style: const TextStyle(color: Colors.white54)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
-                    ],
-                  ),
-                )
+              ? AdminErrorState(error: _error!, onRetry: _loadUser)
               : _user == null
-                  ? const Center(child: Text('Utilisateur introuvable', style: TextStyle(color: Colors.white54)))
+                  ? const Center(child: Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)))
                   : RefreshIndicator(
                       onRefresh: _loadUser,
-                      color: const Color(0xFF00FF88),
+                      color: NeonColors.primary,
                       child: ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
@@ -185,7 +168,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [roleColor.withValues(alpha: 0.15), const Color(0xFF00FF88).withValues(alpha: 0.05)],
+          colors: [roleColor.withValues(alpha: 0.15), NeonColors.primary.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: roleColor.withValues(alpha: 0.3)),
@@ -196,7 +179,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           const SizedBox(height: 16),
           Text(
             _user!.username.isNotEmpty ? _user!.username : 'Sans nom',
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: const TextStyle(color: NeonColors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Container(
@@ -216,10 +199,10 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.2),
+                color: NeonColors.error.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('DÉSACTIVÉ', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+              child: const Text('DÉSACTIVÉ', style: TextStyle(color: NeonColors.error, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ],
         ],
@@ -265,7 +248,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           return ListTile(
             leading: Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? roleColor : Colors.white24,
+              color: isSelected ? roleColor : NeonColors.border,
             ),
             title: Text(role.displayName, style: TextStyle(color: roleColor, fontWeight: FontWeight.w600)),
             trailing: isSelected
@@ -295,12 +278,12 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         ListTile(
           leading: Icon(
             _user!.isActive ? Icons.block : Icons.check_circle,
-            color: _user!.isActive ? Colors.orange : const Color(0xFF00FF88),
+            color: _user!.isActive ? NeonColors.warning : NeonColors.primary,
           ),
           title: Text(
             _user!.isActive ? 'Désactiver le compte' : 'Activer le compte',
             style: TextStyle(
-              color: _user!.isActive ? Colors.orange : const Color(0xFF00FF88),
+              color: _user!.isActive ? NeonColors.warning : NeonColors.primary,
             ),
           ),
           onTap: _toggleActive,
@@ -315,16 +298,16 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Changer le rôle', style: TextStyle(color: Colors.white)),
+        backgroundColor: NeonColors.card,
+        title: const Text('Changer le rôle', style: TextStyle(color: NeonColors.textPrimary)),
         content: RichText(
           text: TextSpan(
-            style: const TextStyle(color: Colors.white70, fontSize: 15),
+            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 15),
             children: [
               const TextSpan(text: 'Attribuer le rôle '),
               TextSpan(text: newRole.displayName, style: TextStyle(color: roleColor, fontWeight: FontWeight.bold)),
               const TextSpan(text: ' à '),
-              TextSpan(text: _user!.username, style: const TextStyle(color: Color(0xFF00FF88), fontWeight: FontWeight.bold)),
+              TextSpan(text: _user!.username, style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
               const TextSpan(text: ' ?'),
             ],
           ),
@@ -332,7 +315,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler', style: TextStyle(color: Colors.white54)),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: roleColor),
@@ -340,7 +323,7 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
               Navigator.pop(dialogContext);
               _changeRole(newRole.value);
             },
-            child: Text('Confirmer', style: TextStyle(color: roleColor == const Color(0xFF0A0A1A) ? const Color(0xFF0A0A1A) : Colors.white)),
+            child: Text('Confirmer', style: TextStyle(color: roleColor == NeonColors.background ? NeonColors.background : NeonColors.textPrimary)),
           ),
         ],
       ),
@@ -361,14 +344,14 @@ class _Section extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: NeonColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -390,12 +373,12 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF00FF88), size: 18),
+          Icon(icon, color: NeonColors.primary, size: 18),
           const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
+          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           const Spacer(),
           Flexible(
-            child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+            child: Text(value, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
           ),
         ],
       ),

@@ -58,6 +58,13 @@ class NeonColors {
   static const Color tokenSilver = Color(0xFFC0C0C0);     // Argent
   static const Color tokenBronze = Color(0xFFCD7F32);     // Bronze
   static const Color tokenGlow = Color(0xFF00FFD4);       // Lueur jeton
+
+  // Couleurs admin / analytics
+  static const Color adminCyan = Color(0xFF00FFFF);       // Cyan données
+  static const Color adminMagenta = Color(0xFFFF00FF);    // Magenta analytics
+  static const Color adminPurple = Color(0xFFAA00FF);     // Purple metrics
+  static const Color adminBlue = Color(0xFF4488FF);       // Blue systèmes
+  static const Color adminAmber = Color(0xFFFFAA00);      // Amber warnings
 }
 
 /// Paramètres des effets Glow

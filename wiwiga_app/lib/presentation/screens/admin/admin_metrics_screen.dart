@@ -11,8 +11,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
 import '../../widgets/admin/metric_card.dart';
 import '../../widgets/admin/chart_widget.dart';
+import '../../widgets/admin/analytics_helpers.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran des métriques admin
 class AdminMetricsScreen extends ConsumerStatefulWidget {
@@ -69,10 +73,17 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
           // Contenu
           Expanded(
             child: state.isLoading && state.dashboard == null
-                ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
-                : state.error != null
-                    ? _buildError(state.error!)
-                    : _buildTabContent(state),
+                ? const NeonLoadingSpinner.center()
+                : RefreshIndicator(
+                    color: NeonColors.primary,
+                    onRefresh: () => ref.read(adminMetricsProvider.notifier).loadAll(),
+                    child: state.error != null
+                        ? SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: AdminErrorState(error: state.error!, onRetry: () => ref.read(adminMetricsProvider.notifier).loadAll()),
+                          )
+                        : _buildTabContent(state),
+                  ),
           ),
         ],
       ),
@@ -179,35 +190,31 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
           const SizedBox(height: 16),
           const Text('Vue d\'ensemble', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
+          AdminResponsiveGrid(
+            desktopColumns: 4,
+            desktopRatio: 1.6,
             children: [
               AdminMetricCard(
                 title: 'Revenu total',
-                value: _formatCurrency(financial['total_revenue'] ?? dashboard['total_revenue_24h'] ?? 0),
+                value: AnalyticsFormat.amount(financial['total_revenue'] ?? dashboard['total_revenue_24h'] ?? 0),
                 icon: Icons.account_balance_wallet,
                 color: NeonColors.success,
               ),
               AdminMetricCard(
                 title: 'Commissions',
-                value: _formatCurrency(financial['total_commissions'] ?? 0),
+                value: AnalyticsFormat.amount(financial['total_commissions'] ?? 0),
                 icon: Icons.percent,
                 color: NeonColors.primary,
               ),
               AdminMetricCard(
                 title: 'Volume dépôts',
-                value: _formatCurrency(financial['total_deposits'] ?? 0),
+                value: AnalyticsFormat.amount(financial['total_deposits'] ?? 0),
                 icon: Icons.arrow_downward,
                 color: NeonColors.info,
               ),
               AdminMetricCard(
                 title: 'Volume retraits',
-                value: _formatCurrency(financial['total_withdrawals'] ?? 0),
+                value: AnalyticsFormat.amount(financial['total_withdrawals'] ?? 0),
                 icon: Icons.arrow_upward,
                 color: NeonColors.warning,
               ),
@@ -235,13 +242,9 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
         children: [
           const Text('Performance Jeux', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
+          AdminResponsiveGrid(
+            desktopColumns: 4,
+            desktopRatio: 1.6,
             children: [
               AdminMetricCard(
                 title: 'Parties actives',
@@ -257,13 +260,13 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
               ),
               AdminMetricCard(
                 title: 'Mise moyenne',
-                value: _formatCurrency(games['average_bet'] ?? 0),
+                value: AnalyticsFormat.amount(games['average_bet'] ?? 0),
                 icon: Icons.monetization_on,
                 color: NeonColors.secondary,
               ),
               AdminMetricCard(
                 title: 'GGR',
-                value: _formatCurrency(games['ggr'] ?? games['gross_gaming_revenue'] ?? 0),
+                value: AnalyticsFormat.amount(games['ggr'] ?? games['gross_gaming_revenue'] ?? 0),
                 icon: Icons.trending_up,
                 color: NeonColors.primary,
               ),
@@ -284,13 +287,9 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
         children: [
           const Text('Utilisateurs', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
+          AdminResponsiveGrid(
+            desktopColumns: 4,
+            desktopRatio: 1.6,
             children: [
               AdminMetricCard(
                 title: 'Inscriptions',
@@ -305,7 +304,7 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
                 color: NeonColors.info,
               ),
               AdminMetricCard(
-                title: 'Total users',
+                title: 'Total utilisateurs',
                 value: '${users['total_users'] ?? 0}',
                 icon: Icons.group,
                 color: NeonColors.primary,
@@ -333,13 +332,9 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
         children: [
           const Text('Paiements', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
+          AdminResponsiveGrid(
+            desktopColumns: 4,
+            desktopRatio: 1.6,
             children: [
               AdminMetricCard(
                 title: 'Taux succès',
@@ -355,7 +350,7 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
               ),
               AdminMetricCard(
                 title: 'Volume total',
-                value: _formatCurrency(payments['total_volume'] ?? 0),
+                value: AnalyticsFormat.amount(payments['total_volume'] ?? 0),
                 icon: Icons.payments,
                 color: NeonColors.primary,
               ),
@@ -382,13 +377,9 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
         children: [
           const Text('Sécurité', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.6,
+          AdminResponsiveGrid(
+            desktopColumns: 4,
+            desktopRatio: 1.6,
             children: [
               AdminMetricCard(
                 title: 'Auth échouées',
@@ -397,7 +388,7 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
                 color: NeonColors.error,
               ),
               AdminMetricCard(
-                title: 'Rate limités',
+                title: 'Requêtes limitées',
                 value: '${security['rate_limited_requests'] ?? 0}',
                 icon: Icons.speed,
                 color: NeonColors.warning,
@@ -409,7 +400,7 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
                 color: NeonColors.secondary,
               ),
               AdminMetricCard(
-                title: 'Bans actifs',
+                title: 'Exclusions actives',
                 value: '${security['active_bans'] ?? 0}',
                 icon: Icons.block,
                 color: NeonColors.danger,
@@ -421,40 +412,23 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () => ref.read(adminMetricsProvider.notifier).loadAll(),
-            child: const Text('Réessayer'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   void _showExportDialog() {
     final adminRepo = ref.read(adminRepositoryProvider);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Exporter les données', style: TextStyle(color: Colors.white)),
+        backgroundColor: NeonColors.card,
+        title: const Text('Exporter les données', style: TextStyle(color: NeonColors.textPrimary)),
         content: const Text('Choisissez le type d\'export au format CSV.',
-          style: TextStyle(color: Colors.white70),),
+          style: TextStyle(color: NeonColors.textSecondary),),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: Colors.white54)),),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textMuted)),),
           // Export utilisateurs
           TextButton.icon(
-            icon: const Icon(Icons.people, color: Color(0xFF00FF88), size: 18),
-            label: const Text('Users', style: TextStyle(color: Color(0xFF00FF88))),
+            icon: const Icon(Icons.people, color: NeonColors.primary, size: 18),
+            label: const Text('Utilisateurs', style: TextStyle(color: NeonColors.primary)),
             onPressed: () {
               Navigator.pop(ctx);
               _launchExport(adminRepo.getExportUsersUrl(), 'utilisateurs');
@@ -462,8 +436,8 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
           ),
           // Export transactions
           TextButton.icon(
-            icon: const Icon(Icons.receipt_long, color: Color(0xFF00D9FF), size: 18),
-            label: const Text('Transactions', style: TextStyle(color: Color(0xFF00D9FF))),
+            icon: const Icon(Icons.receipt_long, color: NeonColors.accent, size: 18),
+            label: const Text('Transactions', style: TextStyle(color: NeonColors.accent)),
             onPressed: () {
               Navigator.pop(ctx);
               _launchExport(adminRepo.getExportTransactionsUrl(), 'transactions');
@@ -471,8 +445,8 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
           ),
           // Export parties
           TextButton.icon(
-            icon: const Icon(Icons.videogame_asset, color: Color(0xFFFF00FF), size: 18),
-            label: const Text('Parties', style: TextStyle(color: Color(0xFFFF00FF))),
+            icon: const Icon(Icons.videogame_asset, color: NeonColors.adminMagenta, size: 18),
+            label: const Text('Parties', style: TextStyle(color: NeonColors.adminMagenta)),
             onPressed: () {
               Navigator.pop(ctx);
               _launchExport(adminRepo.getExportGamesUrl(), 'parties');
@@ -484,22 +458,9 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
   }
 
   void _launchExport(String url, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Export $label en cours... Le fichier CSV sera téléchargé.'),
-        backgroundColor: const Color(0xFF00FF88),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    context.showInfo('Export $label en cours... Le fichier CSV sera téléchargé.');
     // L'URL d'export est construite - le téléchargement se fait via le navigateur
     // ou un launcher d'URL externe
-  }
-
-  String _formatCurrency(dynamic value) {
-    final num amount = (value is num) ? value : double.tryParse(value.toString()) ?? 0;
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
   }
 
   List<double> _extractTimeseriesValues(dynamic timeseries) {
@@ -537,11 +498,11 @@ class _AdminMetricsScreenState extends ConsumerState<AdminMetricsScreen> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              _buildAnalyticsChip('Revenue', Icons.monetization_on, () => context.go('/admin/analytics/revenue')),
+              _buildAnalyticsChip('Revenus', Icons.monetization_on, () => context.go('/admin/analytics/revenue')),
               _buildAnalyticsChip('Joueurs', Icons.people_outline, () => context.go('/admin/analytics/players')),
               _buildAnalyticsChip('Jeux', Icons.sports_esports, () => context.go('/admin/analytics/games')),
               _buildAnalyticsChip('Flux', Icons.swap_horiz, () => context.go('/admin/analytics/monetary-flow')),
-              _buildAnalyticsChip('Wealth', Icons.account_tree, () => context.go('/admin/analytics/wealth')),
+              _buildAnalyticsChip('Richesse', Icons.account_tree, () => context.go('/admin/analytics/wealth')),
             ],
           ),
         ],

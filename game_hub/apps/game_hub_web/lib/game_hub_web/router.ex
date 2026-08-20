@@ -192,6 +192,11 @@ defmodule GameHubWeb.Router do
     get "/friends/leaderboard", FriendController, :leaderboard
     get "/friends/activity", FriendController, :activity
     post "/friends/:id/add-from-game", FriendController, :add_from_game
+    
+    # Jeu responsable (utilisateur)
+    get "/responsible-gaming/limits", ResponsibleGamingController, :get_my_limits
+    put "/responsible-gaming/limits", ResponsibleGamingController, :update_my_limits
+    post "/responsible-gaming/self-exclude", ResponsibleGamingController, :self_exclude
   end
   
   ## WebSocket
@@ -409,8 +414,20 @@ defmodule GameHubWeb.Router do
     # Player Progression (V3)
     # ========================================
     get "/player-progression/levels", AdminPlayerProgressionController, :levels
+    post "/player-progression/levels", AdminPlayerProgressionController, :create_level
     put "/player-progression/levels/:tier", AdminPlayerProgressionController, :update_level
+    delete "/player-progression/levels/:tier", AdminPlayerProgressionController, :delete_level
     get "/player-progression/calculate/:xp", AdminPlayerProgressionController, :calculate_tier
+
+    # ========================================
+    # XP Rules (Règles de gain XP par jeu)
+    # ========================================
+    get "/xp-rules", AdminXPRulesController, :index
+    get "/xp-rules/:game_type", AdminXPRulesController, :show
+    post "/xp-rules", AdminXPRulesController, :upsert
+    put "/xp-rules/:game_type", AdminXPRulesController, :upsert
+    delete "/xp-rules/:game_type", AdminXPRulesController, :delete
+    post "/xp-rules/calculate", AdminXPRulesController, :calculate
 
     # ========================================
     # Platform Config (V3)

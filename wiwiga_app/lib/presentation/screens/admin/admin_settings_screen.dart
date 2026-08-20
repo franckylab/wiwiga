@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
 
 /// Écran de configuration système
 class AdminSettingsScreen extends ConsumerStatefulWidget {
@@ -61,7 +64,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> with 
       backgroundColor: NeonColors.background,
       appBar: AppBar(
         backgroundColor: NeonColors.surface,
-        title: const Text('Settings Système', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: const Text('Préférences Admin', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -72,9 +75,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> with 
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              ? AdminErrorState(error: _error!, onRetry: _loadSettings)
               : TabBarView(
                   controller: _tabController,
                   children: _categories.map((c) => _CategoryTab(
@@ -123,15 +126,11 @@ class _CategoryTabState extends ConsumerState<_CategoryTab> {
       await ref.read(adminRepositoryProvider).updateSetting(key, value);
       widget.onUpdate();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$key mis à jour'), backgroundColor: Colors.green, duration: const Duration(seconds: 2)),
-        );
+        context.showSuccess('$key mis à jour');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-        );
+        context.showError('Erreur: $e');
       }
     }
   }
@@ -161,7 +160,7 @@ class _CategoryTabState extends ConsumerState<_CategoryTab> {
               title: Text(key.replaceAll('_', ' '), style: const TextStyle(color: NeonColors.textPrimary)),
               subtitle: description != null ? Text(description, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)) : null,
               value: value == 'true',
-              activeColor: NeonColors.primary,
+              activeThumbColor: NeonColors.primary,
               onChanged: (v) => _updateSetting(key, v ? 'true' : 'false'),
             ),
           );

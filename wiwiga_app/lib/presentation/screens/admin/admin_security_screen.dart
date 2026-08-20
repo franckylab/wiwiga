@@ -11,6 +11,9 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/metric_card.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/analytics_helpers.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran de gestion de la sécurité admin
 class AdminSecurityScreen extends ConsumerStatefulWidget {
@@ -35,14 +38,20 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
       body: Column(
         children: [
           _buildTabBar(),
-          Expanded(child: _buildTabContent()),
+          Expanded(
+            child: RefreshIndicator(
+              color: NeonColors.primary,
+              onRefresh: () async => setState(() {}),
+              child: _buildTabContent(),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildTabBar() {
-    const tabs = ['Vue d\'ensemble', 'IP Whitelist', 'Auth échouées', 'Bans'];
+    const tabs = ['Vue d\'ensemble', 'Liste blanche IP', 'Auth. échouées', 'Exclusions'];
     return Container(
       color: NeonColors.surface,
       child: Row(
@@ -97,8 +106,8 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     final securityAsync = ref.watch(adminSecurityOverviewProvider);
 
     return securityAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminSecurityOverviewProvider)),
       data: (data) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -107,13 +116,9 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
             // Score de sécurité
             _buildSecurityScore(data['security_score'] ?? 75, data['threat_level'] ?? 'medium'),
             const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.6,
+            AdminResponsiveGrid(
+              desktopColumns: 4,
+              desktopRatio: 1.6,
               children: [
                 AdminMetricCard(
                   title: 'Auth échouées (1h)',
@@ -128,13 +133,13 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                   color: NeonColors.warning,
                 ),
                 AdminMetricCard(
-                  title: 'Rate limités',
+                  title: 'Requêtes limitées',
                   value: '${data['rate_limited_24h'] ?? 0}',
                   icon: Icons.speed,
                   color: NeonColors.secondary,
                 ),
                 AdminMetricCard(
-                  title: 'Bans actifs',
+                  title: 'Exclusions actives',
                   value: '${data['active_bans'] ?? 0}',
                   icon: Icons.block,
                   color: NeonColors.danger,
@@ -199,67 +204,62 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
   }
 
   Widget _buildIpWhitelist() {
-    return FutureBuilder<List<dynamic>>(
-      future: ref.read(adminRepositoryProvider).getIpWhitelist(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
-        final ips = snapshot.data ?? [];
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: () => _showAddIpDialog(),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Ajouter une IP'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
-                  foregroundColor: NeonColors.primary,
-                ),
+    final whitelistAsync = ref.watch(adminIpWhitelistProvider);
+
+    return whitelistAsync.when(
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminIpWhitelistProvider)),
+      data: (ips) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: () => _showAddIpDialog(),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Ajouter une IP'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
+                foregroundColor: NeonColors.primary,
               ),
             ),
-            Expanded(
-              child: ips.isEmpty
-                  ? const Center(child: Text('Aucune IP dans la whitelist', style: TextStyle(color: NeonColors.textSecondary)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: ips.length,
-                      itemBuilder: (context, index) {
-                        final entry = ips[index] as Map<String, dynamic>;
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.language, color: NeonColors.accent),
-                          title: Text(entry['ip_address'] ?? '', style: const TextStyle(color: NeonColors.textPrimary, fontFamily: 'monospace')),
-                          subtitle: Text(entry['description'] ?? '', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: NeonColors.error, size: 18),
-                            onPressed: () async {
-                              await ref.read(adminRepositoryProvider).removeIpFromWhitelist(entry['ip_address'] ?? '');
-                              setState(() {});
-                            },
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
+          ),
+          Expanded(
+            child: ips.isEmpty
+                ? const Center(child: Text('Aucune IP dans la whitelist', style: TextStyle(color: NeonColors.textSecondary)))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: ips.length,
+                    itemBuilder: (context, index) {
+                      final entry = ips[index] as Map<String, dynamic>;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.language, color: NeonColors.accent),
+                        title: Text(entry['ip_address'] ?? '', style: const TextStyle(color: NeonColors.textPrimary, fontFamily: 'monospace')),
+                        subtitle: Text(entry['description'] ?? '', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: NeonColors.error, size: 18),
+                          onPressed: () async {
+                            await ref.read(adminRepositoryProvider).removeIpFromWhitelist(entry['ip_address'] ?? '');
+                            ref.invalidate(adminIpWhitelistProvider);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildFailedAuths() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: ref.read(adminRepositoryProvider).getFailedAuths(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
-        final data = snapshot.data ?? {};
-        final logs = data['logs'] as List? ?? [];
+    final failedAuthsAsync = ref.watch(adminFailedAuthsProvider);
 
+    return failedAuthsAsync.when(
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminFailedAuthsProvider)),
+      data: (data) {
+        final logs = data['logs'] as List? ?? [];
         return logs.isEmpty
             ? const Center(child: Text('Aucune auth échouée récente', style: TextStyle(color: NeonColors.textSecondary)))
             : ListView.builder(
@@ -283,14 +283,75 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
   }
 
   Widget _buildBans() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: ref.read(adminRepositoryProvider).getSecurityOverview(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
-        return const Center(
-          child: Text('Liste des bans actifs', style: TextStyle(color: NeonColors.textSecondary)),
+    final securityAsync = ref.watch(adminSecurityOverviewProvider);
+
+    return securityAsync.when(
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminSecurityOverviewProvider)),
+      data: (data) {
+        final activeBans = data['active_bans'] as int? ?? 0;
+        final bansList = data['bans_list'] as List? ?? [];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdminMetricCard(
+                title: 'Exclusions actives',
+                value: '$activeBans',
+                icon: Icons.block,
+                color: NeonColors.danger,
+              ),
+              const SizedBox(height: 16),
+              if (bansList.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('Aucun ban actif', style: TextStyle(color: NeonColors.textSecondary)),
+                  ),
+                )
+              else
+                ...bansList.map((ban) {
+                  final banMap = ban as Map<String, dynamic>;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: NeonColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: NeonColors.danger.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.block, color: NeonColors.danger, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'User #${banMap['user_id'] ?? 'N/A'}',
+                                style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                'Raison: ${banMap['reason'] ?? 'Non spécifiée'}',
+                                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+                              ),
+                              if (banMap['banned_until'] != null)
+                                Text(
+                                  'Jusqu\'au: ${banMap['banned_until']}',
+                                  style: const TextStyle(color: NeonColors.textMuted, fontSize: 11),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
         );
       },
     );
@@ -340,7 +401,7 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                   ipController.text,
                   description: descController.text,
                 );
-                setState(() {});
+                ref.invalidate(adminIpWhitelistProvider);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),

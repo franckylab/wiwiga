@@ -1,6 +1,6 @@
 // ============================================================
 // Fichier: empty_state.dart
-// Description: Widget empty state pour les écrans admin
+// Description: Widgets état vide et erreur pour les écrans admin
 // Auteur: WIWIGA Team
 // Date: 2026-08-25
 // ============================================================
@@ -14,6 +14,7 @@ class AdminEmptyState extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? actionLabel;
+  final IconData? actionIcon;
   final VoidCallback? onAction;
 
   const AdminEmptyState({
@@ -22,6 +23,7 @@ class AdminEmptyState extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.actionLabel,
+    this.actionIcon,
     this.onAction,
   });
 
@@ -52,11 +54,57 @@ class AdminEmptyState extends StatelessWidget {
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: onAction,
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: Icon(actionIcon ?? Icons.refresh, size: 18),
                 label: Text(actionLabel!),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: NeonColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: NeonColors.textPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget état erreur avec message et bouton réessayer
+class AdminErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback? onRetry;
+
+  const AdminErrorState({
+    super.key,
+    required this.error,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              error,
+              style: const TextStyle(color: NeonColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Réessayer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NeonColors.primary,
+                  foregroundColor: NeonColors.textPrimary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),

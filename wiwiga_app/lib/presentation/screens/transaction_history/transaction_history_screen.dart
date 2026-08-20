@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../../data/providers/app_providers.dart';
+import '../../../data/repositories/wallet_repository.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 // === Models ===
@@ -90,21 +92,52 @@ class TransactionItem {
 
 final transactionFilterProvider = StateProvider<String>((ref) => 'all');
 
-final transactionsProvider = Provider<List<TransactionItem>>((ref) {
-  final now = DateTime.now();
-  return [
-    TransactionItem(id: '1', type: TransactionType.win, amount: 850, balanceAfter: 4500, timestamp: now.subtract(const Duration(hours: 2)), reference: 'WIN_001', gameName: 'Dice Game'),
-    TransactionItem(id: '2', type: TransactionType.bet, amount: -500, balanceAfter: 3650, timestamp: now.subtract(const Duration(hours: 2, minutes: 5)), reference: 'BET_042', gameName: 'Dice Game'),
-    TransactionItem(id: '3', type: TransactionType.tokenPurchase, amount: 2000, balanceAfter: 4150, timestamp: now.subtract(const Duration(hours: 5)), reference: 'PUR_012', status: 'completed'),
-    TransactionItem(id: '4', type: TransactionType.tokenExchange, amount: -1000, balanceAfter: 2150, timestamp: now.subtract(const Duration(hours: 24)), reference: 'EXC_008', status: 'pending'),
-    TransactionItem(id: '5', type: TransactionType.win, amount: 1200, balanceAfter: 3150, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'WIN_002', gameName: 'Dice Game'),
-    TransactionItem(id: '6', type: TransactionType.bet, amount: -800, balanceAfter: 1950, timestamp: now.subtract(const Duration(days: 1, hours: 4)), reference: 'BET_041', gameName: 'Dice Game'),
-    TransactionItem(id: '7', type: TransactionType.commission, amount: -50, balanceAfter: 2750, timestamp: now.subtract(const Duration(days: 1, hours: 3)), reference: 'COM_001', gameName: 'Dice Game'),
-    TransactionItem(id: '8', type: TransactionType.tokenPurchase, amount: 1500, balanceAfter: 3550, timestamp: now.subtract(const Duration(days: 2)), reference: 'PUR_011', status: 'completed'),
-    TransactionItem(id: '9', type: TransactionType.tokenGift, amount: 300, balanceAfter: 2050, timestamp: now.subtract(const Duration(days: 3)), reference: 'GFT_001', gameName: 'Cadeau'),
-    TransactionItem(id: '10', type: TransactionType.tokenExchange, amount: -500, balanceAfter: 1750, timestamp: now.subtract(const Duration(days: 4)), reference: 'EXC_007', status: 'completed'),
-  ];
+final transactionsProvider = FutureProvider<List<TransactionItem>>((ref) async {
+  try {
+    final apiService = ref.watch(apiServiceProvider);
+    final walletRepo = WalletRepository(apiService: apiService);
+    final result = await walletRepo.getTransactions(limit: 50);
+    final rawTransactions = result['transactions'] as List? ?? [];
+
+    return rawTransactions.map((tx) {
+      final t = tx as Map<String, dynamic>;
+      final typeStr = (t['type'] as String? ?? 'other').toLowerCase();
+      final type = _mapTransactionType(typeStr);
+      final amount = (t['amount'] as num?)?.toInt() ?? 0;
+
+      return TransactionItem(
+        id: t['id']?.toString() ?? '',
+        type: type,
+        amount: amount,
+        balanceAfter: (t['balance_after'] as num?)?.toInt() ?? 0,
+        timestamp: DateTime.tryParse(t['created_at']?.toString() ?? '') ?? DateTime.now(),
+        reference: t['reference']?.toString() ?? t['id']?.toString() ?? '',
+        gameName: t['game_name'] as String?,
+        status: t['status']?.toString() ?? 'completed',
+        tokenAmount: (t['token_amount'] as num?)?.toInt(),
+      );
+    }).toList();
+  } catch (e) {
+    return [];
+  }
 });
+
+TransactionType _mapTransactionType(String type) {
+  switch (type) {
+    case 'deposit': return TransactionType.deposit;
+    case 'withdrawal': case 'withdraw': return TransactionType.withdraw;
+    case 'bet': return TransactionType.bet;
+    case 'win': case 'winnings': return TransactionType.win;
+    case 'commission': return TransactionType.commission;
+    case 'refund': return TransactionType.refund;
+    case 'token_purchase': case 'purchase': return TransactionType.tokenPurchase;
+    case 'token_exchange': case 'exchange': return TransactionType.tokenExchange;
+    case 'token_transfer': case 'transfer': return TransactionType.tokenTransfer;
+    case 'gift': case 'token_gift': return TransactionType.tokenGift;
+    case 'promo': case 'promo_credit': return TransactionType.promoCredit;
+    default: return TransactionType.commission;
+  }
+}
 
 // === Écran ===
 
@@ -113,12 +146,8 @@ class TransactionHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transactions = ref.watch(transactionsProvider);
+    final transactionsAsync = ref.watch(transactionsProvider);
     final filter = ref.watch(transactionFilterProvider);
-
-    final filtered = filter == 'all'
-        ? transactions
-        : transactions.where((t) => _matchesFilter(t, filter)).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -126,8 +155,34 @@ class TransactionHistoryScreen extends ConsumerWidget {
           children: [
             _buildHeader(context),
             _buildFilterBar(ref, filter),
-            _buildSummary(transactions),
-            Expanded(child: _buildTransactionList(filtered)),
+            Expanded(
+              child: transactionsAsync.when(
+                data: (transactions) {
+                  final filtered = filter == 'all'
+                      ? transactions
+                      : transactions.where((t) => _matchesFilter(t, filter)).toList();
+                  return Column(
+                    children: [
+                      _buildSummary(transactions),
+                      Expanded(child: _buildTransactionList(filtered)),
+                    ],
+                  );
+                },
+                loading: () => const NeonLoadingSpinner.center(),
+                error: (error, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+                      const SizedBox(height: 12),
+                      const Text('Erreur de chargement', style: TextStyle(color: NeonColors.error)),
+                      const SizedBox(height: 12),
+                      NeonButton(text: 'Réessayer', onPressed: () => ref.invalidate(transactionsProvider)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

@@ -451,7 +451,7 @@ class _FooterSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.push('/legal/terms'),
               child: const Text(
                 'Conditions d\'utilisation',
                 style: TextStyle(
@@ -470,7 +470,7 @@ class _FooterSection extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.push('/legal/privacy'),
               child: const Text(
                 'Politique de confidentialité',
                 style: TextStyle(

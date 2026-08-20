@@ -8,10 +8,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_management_provider.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/metric_card.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/analytics_helpers.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran de gestion du jeu responsable
 class AdminResponsibleGamingScreen extends ConsumerStatefulWidget {
@@ -36,7 +38,13 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       body: Column(
         children: [
           _buildTabBar(),
-          Expanded(child: _buildTabContent()),
+          Expanded(
+            child: RefreshIndicator(
+              color: NeonColors.primary,
+              onRefresh: () async => setState(() {}),
+              child: _buildTabContent(),
+            ),
+          ),
         ],
       ),
     );
@@ -98,19 +106,15 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
     final overviewAsync = ref.watch(adminResponsibleGamingProvider);
 
     return overviewAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
       data: (data) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.6,
+            AdminResponsiveGrid(
+              desktopColumns: 4,
+              desktopRatio: 1.6,
               children: [
                 AdminMetricCard(
                   title: 'Auto-exclus',
@@ -125,7 +129,7 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                   color: NeonColors.primary,
                 ),
                 AdminMetricCard(
-                  title: 'Users à risque',
+                  title: 'Joueurs à risque',
                   value: '${data['users_at_risk'] ?? 0}',
                   icon: Icons.warning_amber_rounded,
                   color: NeonColors.error,
@@ -145,13 +149,12 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
   }
 
   Widget _buildSelfExclusions() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: ref.read(adminRepositoryProvider).getSelfExclusions(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
-        final data = snapshot.data ?? {};
+    final exclusionsAsync = ref.watch(adminSelfExclusionsProvider);
+
+    return exclusionsAsync.when(
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
+      data: (data) {
         final exclusions = data['self_exclusions'] as List? ?? [];
 
         return exclusions.isEmpty
@@ -308,13 +311,12 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
   }
 
   Widget _buildRiskIndicators() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: ref.read(adminRepositoryProvider).getRiskIndicators(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: NeonColors.primary));
-        }
-        final data = snapshot.data ?? {};
+    final riskAsync = ref.watch(adminRiskIndicatorsProvider);
+
+    return riskAsync.when(
+      loading: () => const NeonLoadingSpinner.center(),
+      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
+      data: (data) {
         final indicators = data['risk_indicators'] as List? ?? data['high_losers'] as List? ?? [];
 
         return indicators.isEmpty

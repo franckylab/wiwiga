@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../providers/admin_metrics_provider.dart';
+import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/admin/analytics_helpers.dart';
+import '../../widgets/admin/admin_feedback.dart';
 
 /// Écran de supervision des parties en direct
 class AdminGamesLiveScreen extends ConsumerStatefulWidget {
@@ -46,7 +49,7 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : RefreshIndicator(
               color: NeonColors.primary,
               onRefresh: () => ref.read(adminGamesLiveProvider.notifier).loadActiveGames(),
@@ -90,27 +93,48 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
           style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ...games.map((game) => _buildGameTile(game as Map<String, dynamic>)),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cols = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 600 ? 2 : 1;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: games.length,
+              itemBuilder: (context, index) => _buildGameTile(games[index] as Map<String, dynamic>),
+            );
+          },
+        ),
       ],
     );
   }
 
   Widget _buildStatsSummary(Map<String, dynamic> stats) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: NeonColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: NeonColors.border),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 500;
+        final children = [
           _statItem('Actives', '${stats['active_games'] ?? 0}', NeonColors.accent),
           _statItem('Total aujourd\'hui', '${stats['total_games_today'] ?? 0}', NeonColors.primary),
-          _statItem('Mise moy.', _formatCurrency(stats['average_bet'] ?? 0), NeonColors.secondary),
-        ],
-      ),
+          _statItem('Mise moy.', AnalyticsFormat.amount(stats['average_bet'] ?? 0), NeonColors.secondary),
+        ];
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: NeonColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: NeonColors.border),
+          ),
+          child: isWide
+              ? Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: children)
+              : Wrap(spacing: 16, runSpacing: 12, alignment: WrapAlignment.spaceAround, children: children),
+        );
+      },
     );
   }
 
@@ -173,7 +197,7 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
                 ],
               ),
               Text(
-                'Pot: ${_formatCurrency(totalBet)}',
+                'Pot: ${AnalyticsFormat.amount(totalBet)}',
                 style: const TextStyle(color: NeonColors.secondary, fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ],
@@ -200,38 +224,15 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
     );
   }
 
-  void _confirmForceClose(String gameId) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: NeonColors.card,
-        title: const Text('Forcer la clôture', style: TextStyle(color: NeonColors.textPrimary)),
-        content: const Text(
-          'Êtes-vous sûr de vouloir forcer la clôture de cette partie ?',
-          style: TextStyle(color: NeonColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(adminGamesLiveProvider.notifier).forceCloseGame(gameId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.error),
-            child: const Text('Forcer'),
-          ),
-        ],
-      ),
+  void _confirmForceClose(String gameId) async {
+    final confirmed = await showAdminConfirmDialog(
+      context,
+      title: 'Forcer la clôture',
+      message: 'Êtes-vous sûr de vouloir forcer la clôture de cette partie ?',
+      confirmColor: NeonColors.error,
     );
-  }
-
-  String _formatCurrency(dynamic value) {
-    final num amount = (value is num) ? value : double.tryParse(value.toString()) ?? 0;
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}K';
-    return amount.toStringAsFixed(0);
+    if (confirmed) {
+      ref.read(adminGamesLiveProvider.notifier).forceCloseGame(gameId);
+    }
   }
 }

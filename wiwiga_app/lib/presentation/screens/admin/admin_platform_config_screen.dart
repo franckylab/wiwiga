@@ -10,6 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran configuration plateforme centralisée
 class AdminPlatformConfigScreen extends ConsumerStatefulWidget {
@@ -49,7 +52,7 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
     'security': NeonColors.error,
     'registration': NeonColors.accent,
     'social': NeonColors.secondary,
-    'ranking': Color(0xFFB9F2FF),
+    'ranking': NeonColors.rankDiamond,
     'gaming': NeonColors.primary,
     'notification': NeonColors.warning,
   };
@@ -99,7 +102,7 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
       backgroundColor: NeonColors.background,
       appBar: AppBar(
         backgroundColor: NeonColors.surface,
-        title: const Text('Configuration Plateforme', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Config. Plateforme', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -109,9 +112,9 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
         ],
       ),
       body: state.isLoading && state.configs.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : state.error != null && state.configs.isEmpty
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminPlatformConfigProvider.notifier).loadAll())
               : state.categories.isEmpty
                   ? const Center(child: Text('Aucune catégorie', style: TextStyle(color: NeonColors.textSecondary)))
                   : Column(
@@ -164,13 +167,17 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
       return const Center(child: Text('Chargement...', style: TextStyle(color: NeonColors.textSecondary)));
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: configs.length,
-      itemBuilder: (context, index) {
-        final config = configs[index];
-        return _buildConfigItem(config, category, color);
-      },
+    return RefreshIndicator(
+      color: NeonColors.primary,
+      onRefresh: () => ref.read(adminPlatformConfigProvider.notifier).loadAll(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: configs.length,
+        itemBuilder: (context, index) {
+          final config = configs[index];
+          return _buildConfigItem(config, category, color);
+        },
+      ),
     );
   }
 
@@ -277,31 +284,12 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
   void _saveConfig(String category, String key, String value) async {
     final success = await ref.read(adminPlatformConfigProvider.notifier).updateConfig(category, key, value);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? 'Configuration mise à jour' : 'Erreur de sauvegarde'),
-          backgroundColor: success ? NeonColors.success : NeonColors.error,
-          duration: const Duration(seconds: 2),
-        ),
+      context.showResult(success,
+        successMsg: 'Configuration mise à jour',
+        errorMsg: 'Erreur de sauvegarde',
       );
       setState(() => _editingKey = null);
     }
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-        const SizedBox(height: 12),
-        Text(error, style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => ref.read(adminPlatformConfigProvider.notifier).loadAll(),
-          icon: const Icon(Icons.refresh), label: const Text('Réessayer'),
-          style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-        ),
-      ],),
-    );
   }
 
   TextInputType _getKeyboardType(String valueType) {

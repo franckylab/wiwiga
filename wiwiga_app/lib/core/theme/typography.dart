@@ -16,10 +16,10 @@ class AppTypography {
   // Police pour les titres et montants (gaming)
   static const String fontFamilyDisplay = 'Orbitron';
   
-  // Polices de secours pour caractères non couverts (emoji, CJK, etc.)
-  // On ne liste pas Noto Sans explicitement — Flutter utilise automatiquement
-  // les polices système disponibles pour les caractères manquants.
-  static const List<String> fontFamilyFallback = ['Arial'];
+  // Polices de secours pour caractères non couverts (emoji, CJK, arabe, etc.)
+  // Noto Sans couvre les ranges Unicode manquants dans Inter/Orbitron.
+  // La font est chargée via google_fonts dans main.dart.
+  static const List<String> fontFamilyFallback = ['Noto Sans', 'Arial'];
   
   /// TextTheme sombre par défaut
   static const TextTheme darkTheme = TextTheme(
@@ -189,4 +189,10 @@ class AppTypography {
   static TextStyle get headlineLarge => darkTheme.headlineLarge!;
   static TextStyle get headlineMedium => darkTheme.headlineMedium!;
   static TextStyle get headlineSmall => darkTheme.headlineSmall!;
+  static TextStyle get bodyLarge => darkTheme.bodyLarge!;
+  static TextStyle get bodyMedium => darkTheme.bodyMedium!;
+  static TextStyle get bodySmall => darkTheme.bodySmall!;
+  static TextStyle get labelLarge => darkTheme.labelLarge!;
+  static TextStyle get labelMedium => darkTheme.labelMedium!;
+  static TextStyle get labelSmall => darkTheme.labelSmall!;
 }

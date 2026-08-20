@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../providers/admin_crm_provider.dart';
+import '../../widgets/admin/skeleton_loader.dart';
 
 /// Écran CRM avec onglets: Segments, VIP, À risque
 class AdminCrmScreen extends ConsumerStatefulWidget {
@@ -56,7 +57,7 @@ class _AdminCrmScreenState extends ConsumerState<AdminCrmScreen> with SingleTick
         ),
       ),
       body: crmState.isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const AdminSkeletonList(itemCount: 5)
           : TabBarView(
               controller: _tabController,
               children: [
@@ -79,12 +80,12 @@ class _SegmentsTab extends StatelessWidget {
 
   Color _segmentColor(String? color) {
     switch (color) {
-      case 'gold': return Colors.amber;
-      case 'purple': return Colors.purple;
-      case 'green': return Colors.green;
-      case 'gray': return Colors.grey;
-      case 'red': return Colors.red;
-      case 'teal': return Colors.teal;
+      case 'gold': return NeonColors.warning;
+      case 'purple': return NeonColors.adminPurple;
+      case 'green': return NeonColors.success;
+      case 'gray': return NeonColors.textMuted;
+      case 'red': return NeonColors.error;
+      case 'teal': return NeonColors.primary;
       default: return NeonColors.primary;
     }
   }
@@ -198,8 +199,8 @@ class _VipTab extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.amber.withValues(alpha: 0.2),
-              child: Text('#${index + 1}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+              backgroundColor: NeonColors.warning.withValues(alpha: 0.2),
+              child: Text('#${index + 1}', style: const TextStyle(color: NeonColors.warning, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
             title: Text(
               player['name'] as String? ?? 'Joueur ${player['user_id']}',
@@ -210,8 +211,8 @@ class _VipTab extends StatelessWidget {
               style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11),
             ),
             trailing: player['has_kyc'] == true
-                ? const Icon(Icons.verified, color: Colors.teal, size: 18)
-                : const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+                ? const Icon(Icons.verified, color: NeonColors.primary, size: 18)
+                : const Icon(Icons.warning_amber, color: NeonColors.warning, size: 18),
           ),
         );
       },
@@ -234,7 +235,7 @@ class _AtRiskTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 48),
+            Icon(Icons.check_circle, color: NeonColors.success, size: 48),
             SizedBox(height: 16),
             Text('Aucun joueur à risque détecté', style: TextStyle(color: NeonColors.textSecondary)),
           ],
@@ -251,11 +252,11 @@ class _AtRiskTab extends StatelessWidget {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           color: NeonColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.red, width: 0.5)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: NeonColors.error, width: 0.5)),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.red.withValues(alpha: 0.2),
-              child: const Icon(Icons.warning, color: Colors.red, size: 20),
+              backgroundColor: NeonColors.error.withValues(alpha: 0.2),
+              child: const Icon(Icons.warning, color: NeonColors.error, size: 20),
             ),
             title: Text(
               player['name'] as String? ?? 'Joueur ${player['user_id']}',
@@ -264,14 +265,14 @@ class _AtRiskTab extends StatelessWidget {
             subtitle: Text(
               player['self_excluded'] == true ? 'Auto-exclu' : 'Solde négatif',
               style: TextStyle(
-                color: player['self_excluded'] == true ? Colors.red : Colors.orange,
+                color: player['self_excluded'] == true ? NeonColors.error : NeonColors.warning,
                 fontSize: 12,
               ),
             ),
             trailing: Text(
               '${((player['balance'] as num?)?.toInt() ?? 0) / 100} FCFA',
               style: TextStyle(
-                color: ((player['balance'] as num?)?.toInt() ?? 0) >= 0 ? Colors.green : Colors.red,
+                color: ((player['balance'] as num?)?.toInt() ?? 0) >= 0 ? NeonColors.success : NeonColors.error,
                 fontWeight: FontWeight.bold,
               ),
             ),

@@ -428,9 +428,8 @@ defmodule GameHub.Friends do
     end)
   end
 
-  defp get_online_status(_user_id) do
-    # TODO: Intégrer avec la présence Phoenix
-    "offline"
+  defp get_online_status(user_id) do
+    if GameHub.Presence.online?(user_id), do: "online", else: "offline"
   end
 
   defp notify_friend(user_id, event, payload) do

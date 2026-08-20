@@ -78,7 +78,7 @@ class LeaderboardScreen extends ConsumerWidget {
                       _buildMyRankFooter(leaderboard),
                   ],
                 ),
-                loading: () => const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+                loading: () => const NeonLoadingSpinner.center(),
                 error: (e, _) => _buildError(e.toString()),
               ),
             ),

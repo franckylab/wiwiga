@@ -11,6 +11,9 @@ import '../../../../core/theme/neon_theme.dart';
 import '../../../providers/admin_analytics_provider.dart';
 import '../../../widgets/admin/metric_card.dart';
 import '../../../widgets/admin/chart_widget.dart';
+import '../../../widgets/admin/empty_state.dart';
+import '../../../widgets/admin/analytics_helpers.dart';
+import '../../../widgets/neon/neon_widgets.dart';
 
 /// Écran Game Analytics (performance par type de jeu)
 class AdminGameAnalyticsScreen extends ConsumerStatefulWidget {
@@ -21,9 +24,6 @@ class AdminGameAnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScreen> {
-  static const _periods = ['24h', '7d', '30d', '90d'];
-  static const _periodLabels = ['24h', '7j', '30j', '90j'];
-
   @override
   void initState() {
     super.initState();
@@ -39,36 +39,27 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Game Analytics'),
+        title: const Text('Analytique Jeux'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: DropdownButton<String>(
-              value: state.selectedPeriod,
-              dropdownColor: NeonColors.surface,
-              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13),
-              underline: const SizedBox(),
-              items: List.generate(_periods.length, (i) {
-                return DropdownMenuItem(value: _periods[i], child: Text(_periodLabels[i]));
-              }),
-              onChanged: (value) {
-                if (value != null) {
-                  final notifier = ref.read(adminGameAnalyticsProvider.notifier);
-                  notifier.setPeriod(value);
-                  notifier.load(period: value);
-                }
-              },
-            ),
+          AnalyticsPeriodSelector(
+            value: state.selectedPeriod,
+            onChanged: (value) {
+              if (value != null) {
+                final notifier = ref.read(adminGameAnalyticsProvider.notifier);
+                notifier.setPeriod(value);
+                notifier.load(period: value);
+              }
+            },
           ),
         ],
       ),
       body: state.isLoading && state.data == null
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const NeonLoadingSpinner.center()
           : state.error != null && state.data == null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminGameAnalyticsProvider.notifier).load())
               : _buildContent(state),
     );
   }
@@ -93,14 +84,14 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
             const SizedBox(height: 20),
 
             // Performance par jeu (cartes)
-            _buildSectionTitle('Performance par Type de Jeu'),
+            const AnalyticsSectionTitle('Performance par Type de Jeu'),
             const SizedBox(height: 8),
             _buildGameCards(games),
             const SizedBox(height: 20),
 
             // Graphique mises vs gains
             if (games.isNotEmpty) ...[
-              _buildSectionTitle('Mises vs Gains par Jeu'),
+              const AnalyticsSectionTitle('Mises vs Gains par Jeu'),
               const SizedBox(height: 8),
               _buildMisesVsGainsChart(games),
               const SizedBox(height: 20),
@@ -108,7 +99,7 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
 
             // Évolution parties/jour
             if (timeseries.isNotEmpty) ...[
-              _buildSectionTitle('Évolution Parties/Jour'),
+              const AnalyticsSectionTitle('Évolution Parties/Jour'),
               const SizedBox(height: 8),
               AdminLineChart(
                 data: timeseries.map((t) => (t['matches'] as num?)?.toDouble() ?? 0.0).toList(),
@@ -127,44 +118,34 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
   }
 
   Widget _buildSummaryCards(Map<String, dynamic> summary) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        final crossCount = isWide ? 4 : 2;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossCount,
-          mainAxisSpacing: 12,
-          childAspectRatio: isWide ? 1.4 : 1.2,
-          children: [
-            AdminMetricCard(
-              title: 'Total Parties',
-              value: _formatNumber(summary['total_matches']),
-              icon: Icons.sports_esports,
-              color: NeonColors.primary,
-            ),
-            AdminMetricCard(
-              title: 'Total Mises',
-              value: _formatAmount(summary['total_wagered']),
-              icon: Icons.casino,
-              color: NeonColors.secondary,
-            ),
-            AdminMetricCard(
-              title: 'Total Gains',
-              value: _formatAmount(summary['total_won']),
-              icon: Icons.emoji_events,
-              color: NeonColors.success,
-            ),
-            AdminMetricCard(
-              title: 'GGR Global',
-              value: _formatAmount(summary['total_ggr']),
-              icon: Icons.trending_up,
-              color: NeonColors.accent,
-            ),
-          ],
-        );
-      },
+    return AnalyticsKpiGrid(
+      desktopColumns: 4,
+      children: [
+        AdminMetricCard(
+          title: 'Total Parties',
+          value: AnalyticsFormat.number(summary['total_matches']),
+          icon: Icons.sports_esports,
+          color: NeonColors.primary,
+        ),
+        AdminMetricCard(
+          title: 'Total Mises',
+          value: AnalyticsFormat.amount(summary['total_wagered']),
+          icon: Icons.casino,
+          color: NeonColors.secondary,
+        ),
+        AdminMetricCard(
+          title: 'Total Gains',
+          value: AnalyticsFormat.amount(summary['total_won']),
+          icon: Icons.emoji_events,
+          color: NeonColors.success,
+        ),
+        AdminMetricCard(
+          title: 'GGR Global',
+          value: AnalyticsFormat.amount(summary['total_ggr']),
+          icon: Icons.trending_up,
+          color: NeonColors.accent,
+        ),
+      ],
     );
   }
 
@@ -224,10 +205,10 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatColumn('GGR', _formatAmount(ggr)),
+                  _buildStatColumn('GGR', AnalyticsFormat.amount(ggr)),
                   _buildStatColumn('Parties', '$matches'),
                   _buildStatColumn('Joueurs', '$players'),
-                  _buildStatColumn('Mise moy.', _formatAmount(game['avg_bet'])),
+                  _buildStatColumn('Mise moy.', AnalyticsFormat.amount(game['avg_bet'])),
                 ],
               ),
             ],
@@ -253,9 +234,9 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
         children: [
           Row(
             children: [
-              _buildLegendDot(NeonColors.secondary, 'Mises'),
+              AnalyticsLegendDot(NeonColors.secondary, 'Mises'),
               const SizedBox(width: 16),
-              _buildLegendDot(NeonColors.success, 'Gains'),
+              AnalyticsLegendDot(NeonColors.success, 'Gains'),
             ],
           ),
           const SizedBox(height: 12),
@@ -292,7 +273,7 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
             columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(2), 3: FlexColumnWidth(2)},
             children: [
               const TableRow(
-                decoration: BoxDecoration(color: Color(0xFF1E293B)),
+                decoration: BoxDecoration(color: NeonColors.background),
                 children: [
                   Padding(padding: EdgeInsets.all(8), child: Text('Jeu', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
                   Padding(padding: EdgeInsets.all(8), child: Text('House Edge', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
@@ -306,7 +287,7 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
                   children: [
                     Padding(padding: const EdgeInsets.all(8), child: Text((g['game_type'] as String? ?? '').toUpperCase(), style: const TextStyle(color: NeonColors.textPrimary, fontSize: 11))),
                     Padding(padding: const EdgeInsets.all(8), child: Text('${houseEdge.toStringAsFixed(1)}%', style: TextStyle(color: houseEdge >= 0 ? NeonColors.success : NeonColors.error, fontSize: 11))),
-                    Padding(padding: const EdgeInsets.all(8), child: Text(_formatAmount(g['biggest_win']), style: const TextStyle(color: NeonColors.secondary, fontSize: 11))),
+                    Padding(padding: const EdgeInsets.all(8), child: Text(AnalyticsFormat.amount(g['biggest_win']), style: const TextStyle(color: NeonColors.secondary, fontSize: 11))),
                     Padding(padding: const EdgeInsets.all(8), child: Text((g['house_player_ratio'] as num?)?.toDouble().toStringAsFixed(2) ?? '-', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11))),
                   ],
                 );
@@ -326,56 +307,5 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
         Text(label, style: const TextStyle(color: NeonColors.textMuted, fontSize: 10)),
       ],
     );
-  }
-
-  Widget _buildLegendDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
-      ],
-    );
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminGameAnalyticsProvider.notifier).load(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600));
-  }
-
-  String _formatAmount(dynamic value) {
-    if (value == null) return '0 FCFA';
-    final amount = (value as num).toDouble();
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M FCFA';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K FCFA';
-    return '${amount.toStringAsFixed(0)} FCFA';
-  }
-
-  String _formatNumber(dynamic value) {
-    if (value == null) return '0';
-    final n = (value as num).toDouble();
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return n.toStringAsFixed(0);
   }
 }

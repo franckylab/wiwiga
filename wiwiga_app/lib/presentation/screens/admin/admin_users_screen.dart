@@ -11,6 +11,10 @@ import 'package:go_router/go_router.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
+import '../../../core/theme/neon_theme.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/admin/skeleton_loader.dart';
+import '../../widgets/admin/empty_state.dart';
 
 /// Écran de gestion des utilisateurs (admin)
 class AdminUsersScreen extends ConsumerStatefulWidget {
@@ -88,14 +92,14 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
     if (user == null || !user.isAdmin) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A1A),
+        backgroundColor: NeonColors.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
+              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: Colors.white, fontSize: 20)),
+              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
             ],
@@ -105,28 +109,24 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/admin'),
-        ),
+        backgroundColor: NeonColors.surface,
         title: Text(
           'Utilisateurs ($_total)',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
         actions: [
           // Bouton Export CSV
           IconButton(
-            icon: const Icon(Icons.file_download_outlined, color: Color(0xFF00D9FF)),
+            icon: const Icon(Icons.file_download_outlined, color: NeonColors.accent),
             tooltip: 'Exporter CSV',
             onPressed: _exportUsers,
           ),
           if (user.isSuperAdmin)
             IconButton(
-              icon: const Icon(Icons.person_add, color: Color(0xFF00FF88)),
+              icon: const Icon(Icons.person_add, color: NeonColors.primary),
               onPressed: _showCreateUserDialog,
             ),
         ],
@@ -141,14 +141,14 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: NeonColors.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Rechercher par nom, email, phone...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF00FF88)),
+                      hintStyle: TextStyle(color: NeonColors.textMuted),
+                      prefixIcon: const Icon(Icons.search, color: NeonColors.primary),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.white54),
+                              icon: const Icon(Icons.clear, color: NeonColors.textMuted),
                               onPressed: () {
                                 _searchController.clear();
                                 _onSearch('');
@@ -156,14 +156,14 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      fillColor: NeonColors.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF00FF88), width: 1),
+                        borderSide: const BorderSide(color: NeonColors.primary, width: 1),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -175,22 +175,22 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 PopupMenuButton<String?>(
                   onSelected: _onRoleFilter,
                   offset: const Offset(0, 40),
-                  color: const Color(0xFF1A1A2E),
+                  color: NeonColors.card,
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _roleFilter != null
-                          ? const Color(0xFF00FF88).withValues(alpha: 0.2)
-                          : Colors.white.withValues(alpha: 0.05),
+                          ? NeonColors.primary.withValues(alpha: 0.2)
+                          : NeonColors.surface,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.filter_list,
-                      color: _roleFilter != null ? const Color(0xFF00FF88) : Colors.white54,
+                      color: _roleFilter != null ? NeonColors.primary : NeonColors.textMuted,
                     ),
                   ),
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: null, child: Text('Tous les rôles', style: TextStyle(color: Colors.white))),
+                    const PopupMenuItem(value: null, child: Text('Tous les rôles', style: TextStyle(color: NeonColors.textPrimary))),
                     ...UserRole.values.map((role) {
                       final color = Color(int.parse(role.color.replaceFirst('#', '0xFF')));
                       return PopupMenuItem(
@@ -199,7 +199,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                           children: [
                             Icon(Icons.circle, color: color, size: 12),
                             const SizedBox(width: 8),
-                            Text(role.displayName, style: const TextStyle(color: Colors.white)),
+                            Text(role.displayName, style: const TextStyle(color: NeonColors.textPrimary)),
                           ],
                         ),
                       );
@@ -213,34 +213,17 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           // Liste
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)))
+                ? const AdminSkeletonList(itemCount: 8)
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                            const SizedBox(height: 12),
-                            Text(_error!, style: const TextStyle(color: Colors.white54)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(onPressed: _loadUsers, child: const Text('Réessayer')),
-                          ],
-                        ),
-                      )
+                    ? AdminErrorState(error: _error!, onRetry: _loadUsers)
                     : _users.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.people_outline, color: Colors.white24, size: 64),
-                                SizedBox(height: 12),
-                                Text('Aucun utilisateur trouvé', style: TextStyle(color: Colors.white54)),
-                              ],
-                            ),
+                        ? const AdminEmptyState(
+                            icon: Icons.people_outline,
+                            title: 'Aucun utilisateur trouvé',
                           )
                         : RefreshIndicator(
                             onRefresh: _loadUsers,
-                            color: const Color(0xFF00FF88),
+                            color: NeonColors.primary,
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: _users.length,
@@ -261,13 +244,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
     final adminRepo = ref.read(adminRepositoryProvider);
     // ignore: unused_local_variable
     final url = adminRepo.getExportUsersUrl();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export des utilisateurs en cours... Le fichier CSV sera téléchargé.'),
-        backgroundColor: Color(0xFF00FF88),
-        duration: Duration(seconds: 3),
-      ),
-    );
+    context.showInfo('Export des utilisateurs en cours... Le fichier CSV sera téléchargé.');
     // L'URL d'export est construite - le téléchargement se fait via le navigateur
     // ou un launcher d'URL externe
   }
@@ -283,50 +260,50 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A2E),
-          title: const Text('Créer un utilisateur', style: TextStyle(color: Colors.white)),
+          backgroundColor: NeonColors.card,
+          title: const Text('Créer un utilisateur', style: TextStyle(color: NeonColors.textPrimary)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: usernameCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: NeonColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Pseudonyme *',
-                    labelStyle: TextStyle(color: Colors.white54),
+                    labelStyle: TextStyle(color: NeonColors.textMuted),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: NeonColors.textPrimary),
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Téléphone',
-                    labelStyle: TextStyle(color: Colors.white54),
+                    labelStyle: TextStyle(color: NeonColors.textMuted),
                     hintText: '+237 6XX XXX XXX',
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: emailCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: NeonColors.textPrimary),
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(color: Colors.white54),
+                    labelStyle: TextStyle(color: NeonColors.textMuted),
                   ),
                 ),
                 const SizedBox(height: 16),
                 // Sélection rôle
                 DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  dropdownColor: const Color(0xFF1A1A2E),
-                  style: const TextStyle(color: Colors.white),
+                  initialValue: selectedRole,
+                  dropdownColor: NeonColors.card,
+                  style: const TextStyle(color: NeonColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Rôle',
-                    labelStyle: TextStyle(color: Colors.white54),
+                    labelStyle: TextStyle(color: NeonColors.textMuted),
                   ),
                   items: UserRole.values.map((role) {
                     return DropdownMenuItem(
@@ -349,10 +326,10 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler', style: TextStyle(color: Colors.white54)),
+              child: const Text('Annuler', style: TextStyle(color: NeonColors.textMuted)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
+              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
               onPressed: () async {
                 if (usernameCtrl.text.trim().length < 3) return;
                 Navigator.pop(dialogContext);
@@ -368,22 +345,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                   );
                   _loadUsers();
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Utilisateur créé avec succès'),
-                        backgroundColor: Color(0xFF00FF88),
-                      ),
-                    );
+                    context.showSuccess('Utilisateur créé avec succès');
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent),
-                    );
+                    context.showError('Erreur: $e');
                   }
                 }
               },
-              child: const Text('Créer', style: TextStyle(color: Color(0xFF0A0A1A))),
+              child: const Text('Créer', style: TextStyle(color: NeonColors.background)),
             ),
           ],
         ),
@@ -408,9 +378,9 @@ class _UserTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: NeonColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: NeonColors.border),
         ),
         child: Row(
           children: [
@@ -428,7 +398,7 @@ class _UserTile extends StatelessWidget {
                       Flexible(
                         child: Text(
                           user.username.isNotEmpty ? user.username : 'Sans nom',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+                          style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -449,7 +419,7 @@ class _UserTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     user.email ?? user.phone ?? 'Pas de contact',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                    style: TextStyle(color: NeonColors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -460,14 +430,14 @@ class _UserTile extends StatelessWidget {
               children: [
                 Icon(
                   user.isActive ? Icons.check_circle : Icons.cancel,
-                  color: user.isActive ? const Color(0xFF00FF88) : Colors.redAccent,
+                  color: user.isActive ? NeonColors.primary : NeonColors.error,
                   size: 20,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user.isActive ? 'Actif' : 'Inactif',
                   style: TextStyle(
-                    color: user.isActive ? const Color(0xFF00FF88) : Colors.redAccent,
+                    color: user.isActive ? NeonColors.primary : NeonColors.error,
                     fontSize: 10,
                   ),
                 ),
@@ -475,7 +445,7 @@ class _UserTile extends StatelessWidget {
             ),
 
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right, color: Colors.white24),
+            const Icon(Icons.chevron_right, color: NeonColors.border),
           ],
         ),
       ),

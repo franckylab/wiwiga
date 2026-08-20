@@ -14,18 +14,20 @@ defmodule GameHubWeb.UserSocket do
   channel "room:*", GameHubWeb.RoomChannel
   channel "friend:*", GameHubWeb.FriendChannel
 
-  def connect(_params, socket, _connect_info) do
-    # TODO: Extraire et valider le token JWT
-    # case Phoenix.Token.verify(socket, "user_socket", token, max_age: 86400) do
-    #   {:ok, user_id} ->
-    #     socket = assign(socket, :user_id, user_id)
-    #     {:ok, socket}
-    #   {:error, _reason} ->
-    #     :error
-    # end
-    
-    {:ok, socket}
+  @impl true
+  def connect(%{"token" => token}, socket, _connect_info) do
+    case GameHub.Guardian.resource_from_token(token) do
+      {:ok, user, _claims} ->
+        socket = assign(socket, :user_id, user.id)
+        {:ok, socket}
+
+      {:error, _reason} ->
+        :error
+    end
   end
 
-  def id(_socket), do: nil
+  def connect(_params, _socket, _connect_info), do: :error
+
+  @impl true
+  def id(socket), do: "user_socket:#{socket.assigns.user_id}"
 end

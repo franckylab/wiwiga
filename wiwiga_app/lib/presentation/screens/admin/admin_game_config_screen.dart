@@ -8,6 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/admin/skeleton_loader.dart';
 import '../../providers/admin_management_provider.dart';
 
 /// Écran configuration des jeux
@@ -34,7 +37,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Game Config'),
+        title: const Text('Règles & Config. Jeux'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
@@ -47,31 +50,21 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
         ],
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
+          ? const AdminSkeletonList(itemCount: 4)
           : state.error != null
-              ? _buildError(state.error!)
+              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminGameConfigManagementProvider.notifier).loadConfigs())
               : _buildContent(state),
     );
   }
 
   Widget _buildContent(AdminGameConfigState state) {
     if (state.configs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.sports_esports, color: NeonColors.textMuted, size: 64),
-            const SizedBox(height: 16),
-            const Text('Aucune configuration de jeu', style: TextStyle(color: NeonColors.textSecondary)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _showCreateDialog(),
-              icon: const Icon(Icons.add),
-              label: const Text('Créer une configuration'),
-              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-            ),
-          ],
-        ),
+      return AdminEmptyState(
+        icon: Icons.sports_esports,
+        title: 'Aucune configuration de jeu',
+        actionLabel: 'Créer une configuration',
+        actionIcon: Icons.add,
+        onAction: () => _showCreateDialog(),
       );
     }
 
@@ -144,7 +137,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
                     {'is_enabled': value},
                   );
                 },
-                activeColor: NeonColors.primary,
+                activeThumbColor: NeonColors.primary,
               ),
             ],
           ),
@@ -300,21 +293,15 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
               final maxB = int.tryParse(maxBetCtrl.text) ?? 100000;
               final maxP = int.tryParse(maxPlayersCtrl.text) ?? 4;
               if (comm < 0 || comm > 100) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Commission doit être entre 0% et 100%'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Commission doit être entre 0% et 100%');
                 return;
               }
               if (minB < 0 || maxB < minB) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mise Min doit être >= 0 et <= Mise Max'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Mise Min doit être >= 0 et <= Mise Max');
                 return;
               }
               if (maxP < 2 || maxP > 20) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Max Joueurs doit être entre 2 et 20'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Max Joueurs doit être entre 2 et 20');
                 return;
               }
               Navigator.pop(ctx);
@@ -327,11 +314,9 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
                 'settings': parsedSettings,
               });
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? 'Configuration $gameType mise à jour' : 'Erreur de sauvegarde'),
-                    backgroundColor: success ? NeonColors.success : NeonColors.error,
-                  ),
+                context.showResult(success,
+                  successMsg: 'Configuration $gameType mise à jour',
+                  errorMsg: 'Erreur de sauvegarde',
                 );
               }
             },
@@ -405,9 +390,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
             onPressed: () async {
               final type = typeCtrl.text.trim();
               if (type.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Le type de jeu est requis'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Le type de jeu est requis');
                 return;
               }
               final comm = double.tryParse(commCtrl.text) ?? 5;
@@ -415,9 +398,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
               final maxB = int.tryParse(maxBetCtrl.text) ?? 100000;
               final maxP = int.tryParse(maxPlayersCtrl.text) ?? 4;
               if (comm < 0 || comm > 100 || minB < 0 || maxB < minB || maxP < 2) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Valeurs invalides. Vérifiez les champs.'), backgroundColor: NeonColors.error),
-                );
+                context.showError('Valeurs invalides. Vérifiez les champs.');
                 return;
               }
               Navigator.pop(ctx);
@@ -429,11 +410,9 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
                 'max_players': maxP,
               });
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? 'Configuration $type créée' : 'Erreur de création'),
-                    backgroundColor: success ? NeonColors.success : NeonColors.error,
-                  ),
+                context.showResult(success,
+                  successMsg: 'Configuration $type créée',
+                  errorMsg: 'Erreur de création',
                 );
               }
             },
@@ -464,26 +443,6 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: NeonColors.primary),
         ),
-      ),
-    );
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.read(adminGameConfigManagementProvider.notifier).loadConfigs(),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
-          ),
-        ],
       ),
     );
   }

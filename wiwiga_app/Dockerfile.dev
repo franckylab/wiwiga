@@ -4,7 +4,7 @@
 # Rebuild automatique quand les fichiers Dart/Flutter changent
 # Sert le résultat via Nginx
 
-FROM ghcr.io/cirruslabs/flutter:3.27.0
+FROM ghcr.io/cirruslabs/flutter:stable
 
 # Installer inotify-tools pour le file watching + nginx
 RUN apt-get update && \

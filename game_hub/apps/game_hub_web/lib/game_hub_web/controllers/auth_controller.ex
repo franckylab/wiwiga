@@ -240,8 +240,7 @@ defmodule GameHubWeb.AuthController do
   defp do_login(conn, identifier, password, opts) do
     # Debug logging pour diagnostiquer les échecs de connexion
     if Mix.env() == :dev do
-      pw_bytes = :erlang.binary_to_list(password)
-      IO.puts("[LOGIN DEBUG] identifier=#{identifier}, password_length=#{String.length(password)}, bytes=#{inspect(pw_bytes)}")
+      IO.puts("[LOGIN DEBUG] identifier=#{identifier}, password_length=#{String.length(password)}")
     end
     
     case Auth.login_with_password(identifier, password, opts) do

@@ -378,10 +378,34 @@ final adminSecurityOverviewProvider = FutureProvider<Map<String, dynamic>>((ref)
   return repo.getSecurityOverview();
 });
 
+/// Provider pour la whitelist IP
+final adminIpWhitelistProvider = FutureProvider<List<dynamic>>((ref) async {
+  final repo = ref.read(adminRepositoryProvider);
+  return repo.getIpWhitelist();
+});
+
+/// Provider pour les authentifications échouées
+final adminFailedAuthsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repo = ref.read(adminRepositoryProvider);
+  return repo.getFailedAuths();
+});
+
 /// Provider pour le jeu responsable (overview)
 final adminResponsibleGamingProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final repo = ref.read(adminRepositoryProvider);
   return repo.getResponsibleGamingOverview();
+});
+
+/// Provider pour les auto-exclusions
+final adminSelfExclusionsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repo = ref.read(adminRepositoryProvider);
+  return repo.getSelfExclusions();
+});
+
+/// Provider pour les indicateurs de risque
+final adminRiskIndicatorsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final repo = ref.read(adminRepositoryProvider);
+  return repo.getRiskIndicators();
 });
 
 /// Provider pour l'historique de configuration

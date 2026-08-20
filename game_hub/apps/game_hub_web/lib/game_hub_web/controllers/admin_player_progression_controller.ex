@@ -19,6 +19,40 @@ defmodule GameHubWeb.AdminPlayerProgressionController do
   end
 
   @doc """
+  POST /api/admin/player-progression/levels
+  Crée une nouvelle configuration de niveau.
+  """
+  def create_level(conn, params) do
+    admin_id = conn.assigns[:current_admin_id] || 0
+
+    case PlayerProgression.create_level_config(params, admin_id) do
+      {:ok, config} ->
+        conn
+        |> put_status(:created)
+        |> json(%{data: config, message: "Niveau créé"})
+      {:error, reason} ->
+        conn |> put_status(:bad_request) |> json(%{error: to_string(reason)})
+    end
+  end
+
+  @doc """
+  DELETE /api/admin/player-progression/levels/:tier
+  Supprime une configuration de niveau.
+  """
+  def delete_level(conn, %{"tier" => tier}) do
+    admin_id = conn.assigns[:current_admin_id] || 0
+
+    case PlayerProgression.delete_level_config(tier, admin_id) do
+      {:ok, _} ->
+        json(conn, %{message: "Niveau supprimé"})
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Niveau non trouvé"})
+      {:error, reason} ->
+        conn |> put_status(:bad_request) |> json(%{error: to_string(reason)})
+    end
+  end
+
+  @doc """
   PUT /api/admin/player-progression/levels/:tier
   Met à jour la configuration d'un niveau.
   """

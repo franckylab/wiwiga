@@ -1,133 +1,169 @@
+// ============================================================
+// Fichier: profile_screen_neon.dart
+// Description: Écran profil joueur avec design system néon
+// Auteur: WIWIGA Team
+// Date: 2026-08-25
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
-import '../../widgets/neon/neon_widgets.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/preferences_provider.dart';
+import '../../../data/providers/user_profile_provider.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
-/// Écran Profile redesigné avec style néon gaming
+// === Écran ===
+
 class ProfileScreenNeon extends ConsumerWidget {
   const ProfileScreenNeon({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+
+    // Charger les stats profil au premier build
+    Future.microtask(() {
+      if (!ref.read(userProfileProvider).isLoading && ref.read(userProfileProvider).profile == null) {
+        ref.read(userProfileProvider.notifier).loadProfile();
+      }
+    });
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'PROFIL',
-          style: TextStyle(
-            fontFamily: 'Orbitron',
-            fontWeight: FontWeight.bold,
+      backgroundColor: NeonColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(userProfileProvider.notifier).loadProfile();
+          },
+          color: NeonColors.primary,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _ProfileHeader(user: user)),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              SliverToBoxAdapter(child: _ProfileStats()),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              SliverToBoxAdapter(child: _SettingsSections()),
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            ],
           ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: NeonColors.background,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: NeonColors.primary),
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Profile Header
-            _ProfileHeader(),
-            
-            // Stats
-            _ProfileStats(),
-            
-            // Settings Sections
-            _SettingsSections(),
-          ],
         ),
       ),
     );
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
+// === Header ===
+
+class _ProfileHeader extends ConsumerWidget {
+  final dynamic user;
+
+  const _ProfileHeader({required this.user});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileState = ref.watch(userProfileProvider);
+    final profile = profileState.profile;
+    final rankLabel = profile?.rankLabel ?? 'Bronze';
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        gradient: NeonGradients.card,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            NeonColors.primary.withValues(alpha: 0.1),
+            NeonColors.background,
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
       child: Column(
         children: [
-          // Avatar avec rang
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: NeonColors.primary,
-                    width: NeonGlow.borderWidthThick,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
-                      blurRadius: NeonGlow.blurMedium,
-                    ),
-                  ],
+          // Avatar
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: NeonColors.primary, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: NeonColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
                 ),
-                child: const CircleAvatar(
-                  radius: 48,
-                  backgroundColor: NeonColors.surface,
-                  child: Icon(
-                    Icons.person,
-                    size: 48,
-                    color: NeonColors.primary,
-                  ),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 47,
+              backgroundColor: NeonColors.surface,
+              child: Text(
+                user?.username?.substring(0, 1).toUpperCase() ?? 'U',
+                style: AppTypography.heading1.copyWith(
+                  color: NeonColors.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const RankBadge(
-                rank: 'Or',
-                size: 36,
-              ),
-            ],
+            ),
           ),
-          
           const SizedBox(height: 16),
-          
-          // Nom
-          const Text(
-            'Franck CHENDJOU',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+          // Username
+          Text(
+            user?.username ?? 'Utilisateur',
+            style: AppTypography.heading2.copyWith(
               color: NeonColors.textPrimary,
-              fontFamily: 'Orbitron',
+              fontWeight: FontWeight.bold,
             ),
           ),
-          
           const SizedBox(height: 4),
-          
           // Phone
-          const Text(
-            '+237 699 999 999',
-            style: TextStyle(
-              fontSize: 16,
+          Text(
+            user?.phone ?? '+237 6XX XXX XXX',
+            style: AppTypography.bodyMedium.copyWith(
               color: NeonColors.textSecondary,
-              fontFamily: 'Inter',
             ),
           ),
-          
-          const SizedBox(height: 8),
-          
-          // Badge KYC
-          const GlowBadge(
-            text: 'KYC Vérifié',
-            color: NeonColors.success,
+          const SizedBox(height: 12),
+          // Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  NeonColors.rankGold,
+                  NeonColors.secondary,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: NeonColors.rankGold.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.emoji_events, color: Colors.white, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  rankLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    fontFamily: 'Orbitron',
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -135,137 +171,95 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _ProfileStats extends StatelessWidget {
+// === Stats ===
+
+class _ProfileStats extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileState = ref.watch(userProfileProvider);
+    final profile = profileState.profile;
+    final gamesPlayed = profile?.gamesPlayed ?? 0;
+    final wins = profile?.wins ?? 0;
+    final xp = profile?.xpPoints ?? 0;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: NeonCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'STATISTIQUES',
-                style: AppTypography.heading3,
-              ),
-              const SizedBox(height: 16),
-              const Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.games,
-                      label: 'Jeux joués',
-                      value: '156',
-                      color: NeonColors.primary,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.emoji_events,
-                      label: 'Victoires',
-                      value: '97',
-                      color: NeonColors.success,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.trending_up,
-                      label: 'Win Rate',
-                      value: '62%',
-                      color: NeonColors.secondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.local_fire_department,
-                      label: 'Meilleure série',
-                      value: '12',
-                      color: NeonColors.accent,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.attach_money,
-                      label: 'Total gagné',
-                      value: '2.5M',
-                      color: NeonColors.primary,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.star,
-                      label: 'Points XP',
-                      value: '8,450',
-                      color: NeonColors.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(child: _StatCard(label: 'Parties', value: '$gamesPlayed', icon: Icons.sports_esports)),
+          const SizedBox(width: 12),
+          Expanded(child: _StatCard(label: 'Victoires', value: '$wins', icon: Icons.emoji_events)),
+          const SizedBox(width: 12),
+          Expanded(child: _StatCard(label: 'XP', value: '$xp', icon: Icons.star)),
+        ],
       ),
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  final IconData icon;
   final String label;
   final String value;
-  final Color color;
+  final IconData icon;
 
   const _StatCard({
-    required this.icon,
     required this.label,
     required this.value,
-    required this.color,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontFamily: 'Orbitron',
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: NeonColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NeonColors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: NeonColors.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTypography.heading3.copyWith(
+              color: NeonColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 11,
-            color: NeonColors.textSecondary,
-            fontFamily: 'Inter',
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTypography.bodySmall.copyWith(
+              color: NeonColors.textSecondary,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _SettingsSections extends ConsumerWidget {
+// === Settings Sections ===
+
+class _SettingsSections extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SettingsSections> createState() => _SettingsSectionsState();
+}
+
+class _SettingsSectionsState extends ConsumerState<_SettingsSections> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(preferencesProvider.notifier).loadPreferences();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(preferencesProvider);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -282,19 +276,19 @@ class _SettingsSections extends ConsumerWidget {
               _SettingsTile(
                 icon: Icons.person_outline,
                 title: 'Modifier le profil',
-                onTap: () {},
+                onTap: () => context.push('/settings'),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.lock_outline,
                 title: 'Changer le mot de passe',
-                onTap: () {},
+                onTap: () => _showChangePasswordDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.phone_android,
                 title: 'Changer le numéro',
-                onTap: () {},
+                onTap: () => _showChangePhoneDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
@@ -305,7 +299,7 @@ class _SettingsSections extends ConsumerWidget {
                   color: NeonColors.success,
                   fontSize: 10,
                 ),
-                onTap: () {},
+                onTap: () => _showKycDialog(context),
               ),
             ],
           ),
@@ -324,33 +318,33 @@ class _SettingsSections extends ConsumerWidget {
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
                 trailing: Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  value: prefs.notificationsEnabled,
+                  onChanged: (value) => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', value),
+                  activeThumbColor: NeonColors.primary,
                 ),
-                onTap: () {},
+                onTap: () => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', !prefs.notificationsEnabled),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.volume_up_outlined,
                 title: 'Sons',
                 trailing: Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  value: prefs.soundEnabled,
+                  onChanged: (value) => ref.read(preferencesProvider.notifier).updateBool('sound_enabled', value),
+                  activeThumbColor: NeonColors.primary,
                 ),
-                onTap: () {},
+                onTap: () => ref.read(preferencesProvider.notifier).updateBool('sound_enabled', !prefs.soundEnabled),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.animation,
                 title: 'Animations',
                 trailing: Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeColor: NeonColors.primary,
+                  value: prefs.vibrationEnabled,
+                  onChanged: (value) => ref.read(preferencesProvider.notifier).updateBool('vibration_enabled', value),
+                  activeThumbColor: NeonColors.primary,
                 ),
-                onTap: () {},
+                onTap: () => ref.read(preferencesProvider.notifier).updateBool('vibration_enabled', !prefs.vibrationEnabled),
               ),
             ],
           ),
@@ -368,19 +362,19 @@ class _SettingsSections extends ConsumerWidget {
               _SettingsTile(
                 icon: Icons.monetization_on_outlined,
                 title: 'Limites de dépôt',
-                onTap: () {},
+                onTap: () => _showDepositLimitsDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.schedule,
                 title: 'Limites de temps',
-                onTap: () {},
+                onTap: () => _showTimeLimitsDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.block,
                 title: 'Auto-exclusion',
-                onTap: () {},
+                onTap: () => _showSelfExclusionDialog(context),
               ),
             ],
           ),
@@ -398,25 +392,25 @@ class _SettingsSections extends ConsumerWidget {
               _SettingsTile(
                 icon: Icons.help_outline,
                 title: 'Centre d\'aide',
-                onTap: () {},
+                onTap: () => _showHelpDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.chat_outlined,
                 title: 'Contacter le support',
-                onTap: () {},
+                onTap: () => _showSupportDialog(context),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.description_outlined,
                 title: 'Conditions d\'utilisation',
-                onTap: () {},
+                onTap: () => context.push('/legal/terms'),
               ),
               _SettingsDivider(),
               _SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Politique de confidentialité',
-                onTap: () {},
+                onTap: () => context.push('/legal/privacy'),
               ),
             ],
           ),
@@ -433,22 +427,6 @@ class _SettingsSections extends ConsumerWidget {
               }
             },
             variant: NeonButtonVariant.danger,
-            icon: Icons.logout,
-            width: double.infinity,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Version
-          Center(
-            child: Text(
-              'WIWIGA v1.0.0',
-              style: TextStyle(
-                color: NeonColors.textSecondary.withValues(alpha: 0.5),
-                fontSize: 12,
-                fontFamily: 'Inter',
-              ),
-            ),
           ),
           
           const SizedBox(height: 32),
@@ -456,7 +434,190 @@ class _SettingsSections extends ConsumerWidget {
       ),
     );
   }
+
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Centre d\'aide', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Bienvenue dans l\'aide WIWIGA !\n\n'
+          '• Pour jouer, créez ou rejoignez une partie\n'
+          '• Gérez vos jetons dans le Wallet\n'
+          '• Invitez des amis et jouez ensemble\n'
+          '• Consultez les règles de chaque jeu\n\n'
+          'Contact: support@wiwiga.cm',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showSupportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Support', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Besoin d\'aide ?', style: TextStyle(color: NeonColors.textSecondary)),
+          SizedBox(height: 16),
+          Row(children: [
+            Icon(Icons.email, color: NeonColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text('support@wiwiga.cm', style: TextStyle(color: NeonColors.textPrimary)),
+          ],),
+          SizedBox(height: 12),
+          Row(children: [
+            Icon(Icons.phone, color: NeonColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text('+237 6XX XXX XXX', style: TextStyle(color: NeonColors.textPrimary)),
+          ],),
+        ],),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showDepositLimitsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Limites de dépôt', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Fixez-vous des limites de dépôt pour contrôler vos dépenses.\n\n'
+          '• Limite journalière\n'
+          '• Limite hebdomadaire\n'
+          '• Limite mensuelle\n\n'
+          'Ces limites vous aident à jouer de manière responsable.',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showTimeLimitsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Limites de temps', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Gérez votre temps de jeu pour rester maître de vos sessions.\n\n'
+          '• Limite de session\n'
+          '• Rappels périodiques\n'
+          '• Historique de jeu\n\n'
+          'Le jeu doit rester un plaisir, pas une contrainte.',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showSelfExclusionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Auto-exclusion', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Si vous sentez que le jeu devient un problème, vous pouvez vous auto-exclure.\n\n'
+          '• Exclusion temporaire (24h, 7j, 30j)\n'
+          '• Exclusion définitive\n'
+          '• Support et ressources\n\n'
+          'Votre bien-être est notre priorité.',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Changer le mot de passe', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Pour changer votre mot de passe, veuillez contacter le support.\n\n'
+          'Email: support@wiwiga.cm\n'
+          'Téléphone: +237 6XX XXX XXX',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePhoneDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Changer le numéro', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Pour changer votre numéro de téléphone, veuillez contacter le support.\n\n'
+          'Email: support@wiwiga.cm\n'
+          'Téléphone: +237 6XX XXX XXX',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
+
+  void _showKycDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Vérification KYC', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Votre compte est vérifié KYC.\n\n'
+          'La vérification KYC (Know Your Customer) est un processus de vérification d\'identité obligatoire pour garantir la sécurité de tous les utilisateurs.\n\n'
+          'Avantages:\n'
+          '• Retraits illimités\n'
+          '• Accès à toutes les fonctionnalités\n'
+          '• Sécurité renforcée',
+          style: TextStyle(color: NeonColors.textSecondary),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+        ],
+      ),
+    );
+  }
 }
+
+// === Settings Widgets ===
 
 class _SettingsCard extends StatelessWidget {
   final List<Widget> children;

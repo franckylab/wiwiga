@@ -6,7 +6,7 @@
 # Stage 2: Serve with Nginx
 
 # Stage 1: Build
-FROM ghcr.io/cirruslabs/flutter:3.27.0 AS build
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
 

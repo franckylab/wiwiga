@@ -306,8 +306,8 @@ defmodule GameHub.Admin.Analytics do
   end
 
   defp count_returning_users(week_start, min_days, max_days) do
-    period_start = DateTime.add(week_start, min_days * 24 * 3600, :second)
-    period_end = DateTime.add(week_start, max_days * 24 * 3600, :second)
+    period_start = NaiveDateTime.add(week_start, min_days * 24 * 3600, :second)
+    period_end = NaiveDateTime.add(week_start, max_days * 24 * 3600, :second)
 
     Repo.one(
       from u in User,
@@ -338,8 +338,8 @@ defmodule GameHub.Admin.Analytics do
         group_by: u.id,
         select: %{
           user_id: u.id,
-          total_deposits: coalesce(sum(t.amount), 0),
-          days_active: fragment("EXTRACT(DAY FROM ? - ?)", u.last_login_at, u.inserted_at),
+          total_deposits: type(coalesce(sum(t.amount), 0), :integer),
+          days_active: fragment("COALESCE(EXTRACT(DAY FROM ? - ?), 0)", u.last_login_at, u.inserted_at),
           inserted_at: u.inserted_at
         }
     )
@@ -718,23 +718,24 @@ defmodule GameHub.Admin.Analytics do
                gs.last_played_at <= ^date_range.to,
         having: sum(gs.total_wagered) > ^vip_threshold,
         select: count(gs.user_id, :distinct)
-    )
+    ) || 0
 
     # Taux de conversion par etape
+    reg = max(registered || 0, 1)
     stages = [
-      %{stage: "registered", label: "Inscrits", count: registered, rate: 100.0},
-      %{stage: "depositors", label: "Deposants", count: depositors,
-        rate: if(registered > 0, do: Float.round(depositors / registered * 100, 1), else: 0.0)},
-      %{stage: "players", label: "Joueurs actifs", count: players,
-        rate: if(registered > 0, do: Float.round(players / registered * 100, 1), else: 0.0)},
+      %{stage: "registered", label: "Inscrits", count: registered || 0, rate: 100.0},
+      %{stage: "depositors", label: "Deposants", count: depositors || 0,
+        rate: Float.round((depositors || 0) / reg * 100, 1)},
+      %{stage: "players", label: "Joueurs actifs", count: players || 0,
+        rate: Float.round((players || 0) / reg * 100, 1)},
       %{stage: "vip", label: "VIP", count: vip_count,
-        rate: if(registered > 0, do: Float.round(vip_count / registered * 100, 1), else: 0.0)}
+        rate: Float.round(vip_count / reg * 100, 1)}
     ]
 
     %{
       period: period_or_range,
       stages: stages,
-      overall_conversion: if(registered > 0, do: Float.round(vip_count / registered * 100, 2), else: 0.0)
+      overall_conversion: Float.round(vip_count / reg * 100, 2)
     }
   end
 
@@ -842,6 +843,10 @@ defmodule GameHub.Admin.Analytics do
 
   defp safe_avg([]), do: 0.0
   defp safe_avg(values) do
-    Enum.sum(values) / length(values)
+    clean = values |> Enum.reject(&is_nil/1) |> Enum.map(fn v -> if is_struct(v, Decimal), do: Decimal.to_float(v), else: v end)
+    case clean do
+      [] -> 0.0
+      xs -> Enum.sum(xs) / length(xs)
+    end
   end
 end

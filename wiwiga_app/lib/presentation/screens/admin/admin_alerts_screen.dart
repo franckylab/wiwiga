@@ -11,6 +11,9 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/alert_badge.dart';
+import '../../widgets/admin/empty_state.dart';
+import '../../widgets/admin/admin_feedback.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran des alertes admin
 class AdminAlertsScreen extends ConsumerStatefulWidget {
@@ -56,10 +59,17 @@ class _AdminAlertsScreenState extends ConsumerState<AdminAlertsScreen> {
           // Contenu
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator(color: NeonColors.primary))
-                : state.alerts.isEmpty
-                    ? _buildEmpty()
-                    : _buildAlertList(state),
+                ? const NeonLoadingSpinner.center()
+                : RefreshIndicator(
+                    color: NeonColors.primary,
+                    onRefresh: () => ref.read(adminAlertsProvider.notifier).loadNotifications(),
+                    child: state.alerts.isEmpty
+                        ? SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SizedBox(height: MediaQuery.of(context).size.height * 0.5, child: const AdminEmptyState(icon: Icons.notifications_none, title: 'Aucune alerte')),
+                          )
+                        : _buildAlertList(state),
+                  ),
           ),
         ],
       ),
@@ -103,19 +113,6 @@ class _AdminAlertsScreenState extends ConsumerState<AdminAlertsScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.notifications_none, color: NeonColors.textMuted, size: 48),
-          SizedBox(height: 12),
-          Text('Aucune alerte', style: TextStyle(color: NeonColors.textSecondary)),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAlertList(AdminAlertsState state) {
     final filteredAlerts = _severityFilter == null
         ? state.alerts
@@ -142,22 +139,12 @@ class _AdminAlertsScreenState extends ConsumerState<AdminAlertsScreen> {
                   try {
                     await ref.read(adminRepositoryProvider).resolveAlert(alertId);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Alerte résolue'),
-                        backgroundColor: NeonColors.success,
-                      ),
-                    );
+                    context.showSuccess('Alerte résolue');
                     ref.read(adminAlertsProvider.notifier).loadNotifications();
                     ref.read(adminAlertsProvider.notifier).loadUnreadCount();
                   } catch (e) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Erreur: $e'),
-                        backgroundColor: NeonColors.error,
-                      ),
-                    );
+                    context.showError('Erreur: $e');
                   }
                 },
         );

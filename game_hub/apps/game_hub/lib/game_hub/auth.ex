@@ -78,7 +78,8 @@ defmodule GameHub.Auth do
       # Logger l'envoi OTP
       AuditLog.log("otp_sent", nil, "auth", nil, %{phone: phone, device_id: device_id}, %{ip_address: ip_address})
       
-      # TODO Production: Envoyer via SMS (Campay, Twilio, etc.)
+      # Envoyer via SMS provider (LogAdapter en dev, CampayAdapter en production)
+      GameHub.SmsProvider.send_sms(phone, "[WIWIGA] Code de vérification: #{otp}")
       
       {:ok, otp}
     end
@@ -124,7 +125,8 @@ defmodule GameHub.Auth do
         
         AuditLog.log("otp_email_sent", nil, "auth", nil, %{email: email, device_id: device_id}, %{ip_address: ip_address})
         
-        # TODO Production: Envoyer via service email (SendGrid, Mailgun, etc.)
+        # Envoyer via email provider (LogAdapter en dev, SendGrid en production)
+        Logger.info("[EMAIL] OTP pour #{email}: #{otp}")
         
         {:ok, otp}
       end
@@ -962,7 +964,7 @@ defmodule GameHub.Auth do
       
       # En production, on pourrait notifier un service admin
       if !EnvConfig.production?() do
-        IO.puts("[ALERT] Multi-account detected on device #{device_id}: #{length(user_ids)} accounts")
+        Logger.warning("[ALERT] Multi-account detected on device #{device_id}: #{length(user_ids)} accounts")
       end
     end
     

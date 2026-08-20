@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/biometric_provider.dart';
 import '../../../data/providers/preferences_provider.dart';
+import '../../../data/providers/responsible_gaming_provider.dart';
 import '../../../data/providers/sessions_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../widgets/auth/success_animation.dart';
@@ -33,6 +35,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(preferencesProvider.notifier).loadPreferences();
     // Charger les sessions
     await ref.read(sessionsProvider.notifier).loadSessions();
+    // Charger les limites de jeu responsable
+    await ref.read(responsibleGamingProvider.notifier).loadLimits();
     // Charger OTP setting
     final settings = await ref.read(authProvider.notifier).getAuthSettings();
     if (mounted) {
@@ -127,16 +131,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildSection('JEU RESPONSABLE', [
                     _SettingsTile(
                       icon: Icons.monetization_on,
-                      title: 'Limite de mise / jour',
-                      subtitle: 'Pas de limite définie',
+                      title: 'Limite de perte / jour',
+                      subtitle: ref.watch(responsibleGamingProvider).dailyLossLimitLabel,
                       color: NeonColors.error,
                       onTap: () => _showLimitDialog(context),
                     ),
                     _SettingsTile(
                       icon: Icons.block,
                       title: 'Auto-exclusion',
-                      subtitle: 'Désactivé',
-                      color: NeonColors.error,
+                      subtitle: ref.watch(responsibleGamingProvider).selfExclusionLabel,
+                      color: ref.watch(responsibleGamingProvider).isSelfExcluded
+                          ? NeonColors.error
+                          : NeonColors.textSecondary,
                       onTap: () => _showSelfExclusionDialog(context),
                     ),
                   ]),
@@ -162,9 +168,90 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _SettingsTile(
                       icon: Icons.fingerprint,
                       title: 'Biométrie',
-                      subtitle: 'Bientôt disponible',
-                      color: NeonColors.textMuted,
-                      onTap: () => _showSnackbar(context, 'Biométrie - Bientôt disponible'),
+                      subtitle: ref.watch(biometricStateProvider).when(
+                        data: (state) => state.isAvailable
+                            ? 'Activée'
+                            : state.canCheck
+                                ? 'Désactivée'
+                                : 'Non disponible',
+                        loading: () => 'Vérification...',
+                        error: (_, __) => 'Erreur',
+                      ),
+                      color: ref.watch(biometricStateProvider).when(
+                        data: (state) => state.isAvailable
+                            ? NeonColors.success
+                            : NeonColors.textMuted,
+                        loading: () => NeonColors.textMuted,
+                        error: (_, __) => NeonColors.error,
+                      ),
+                      trailing: ref.watch(biometricStateProvider).when(
+                        data: (state) => state.canCheck
+                            ? Switch(
+                                value: state.isEnabled,
+                                onChanged: (value) async {
+                                  final service = ref.read(biometricServiceProvider);
+                                  if (value) {
+                                    // Tester l'authentification avant d'activer
+                                    final result = await service.authenticateWithResult(
+                                      reason: 'Authentifiez-vous pour activer la biométrie',
+                                    );
+                                    if (result.success) {
+                                      await service.setBiometricEnabled(true);
+                                      ref.invalidate(biometricStateProvider);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Biométrie activée'),
+                                            backgroundColor: NeonColors.success,
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(result.error ?? 'Erreur'),
+                                            backgroundColor: NeonColors.error,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    await service.setBiometricEnabled(false);
+                                    ref.invalidate(biometricStateProvider);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Biométrie désactivée'),
+                                          backgroundColor: NeonColors.textSecondary,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                activeThumbColor: NeonColors.success,
+                              )
+                            : null,
+                        loading: () => const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        error: (_, __) => null,
+                      ),
+                      onTap: () async {
+                        final state = await ref.read(biometricStateProvider.future);
+                        if (!state.canCheck) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Biométrie non disponible sur cet appareil'),
+                                backgroundColor: NeonColors.warning,
+                              ),
+                            );
+                          }
+                        }
+                      },
                     ),
                   ]),
                   const SizedBox(height: 16),
@@ -175,20 +262,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       icon: Icons.description,
                       title: 'Conditions générales',
                       color: NeonColors.textSecondary,
-                      onTap: () => _showSnackbar(context, 'CGU - Bientôt disponible'),
+                      onTap: () => context.push('/legal/terms'),
                     ),
                     _SettingsTile(
                       icon: Icons.privacy_tip,
                       title: 'Politique de confidentialité',
                       color: NeonColors.textSecondary,
-                      onTap: () => _showSnackbar(context, 'Politique - Bientôt disponible'),
+                      onTap: () => context.push('/legal/privacy'),
                     ),
                     _SettingsTile(
                       icon: Icons.info,
                       title: 'Version',
                       subtitle: '1.0.0 (build 42)',
                       color: NeonColors.textSecondary,
-                      onTap: () {},
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: NeonColors.card,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('WIWIGA', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                            content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Version 1.0.0 (build 42)', style: TextStyle(color: NeonColors.textSecondary)),
+                              SizedBox(height: 12),
+                              Text('© 2026 WIWIGA Team', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                              SizedBox(height: 8),
+                              Text('Plateforme de jeux de société en ligne', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                            ],),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer', style: TextStyle(color: NeonColors.primary))),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ]),
                   const SizedBox(height: 24),
@@ -429,19 +535,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showLimitDialog(BuildContext context) {
-    final controller = TextEditingController();
+    final currentLimit = ref.read(responsibleGamingProvider).dailyLossLimit;
+    final controller = TextEditingController(
+      text: currentLimit?.toString() ?? '',
+    );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.surface,
-        title: const Text('Limite de mise quotidienne',
+        title: const Text('Limite de perte quotidienne',
             style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Définissez un montant maximum que vous pouvez miser par jour.',
+              'Définissez un montant maximum de perte par jour (en FCFA).',
               style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -450,7 +559,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               keyboardType: TextInputType.number,
               style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
               decoration: InputDecoration(
-                labelText: 'Montant en jetons',
+                labelText: 'Montant en FCFA',
                 labelStyle: const TextStyle(color: NeonColors.textSecondary),
                 prefixIcon: const Icon(Icons.monetization_on, color: NeonColors.warning),
                 enabledBorder: OutlineInputBorder(
@@ -474,9 +583,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showSnackbar(context, 'Limite de mise mise à jour');
+            onPressed: () async {
+              final amount = int.tryParse(controller.text.trim());
+              if (amount != null && amount > 0) {
+                Navigator.pop(ctx);
+                final success = await ref.read(responsibleGamingProvider.notifier).updateLimits({
+                  'daily_loss_limit': amount,
+                });
+                if (context.mounted) {
+                  _showSnackbar(context, success ? 'Limite de perte mise à jour' : 'Erreur lors de la mise à jour');
+                }
+              }
             },
             child: const Text('Définir', style: TextStyle(color: NeonColors.warning, fontWeight: FontWeight.bold)),
           ),
@@ -493,7 +610,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: const Text('Auto-exclusion',
             style: TextStyle(color: NeonColors.error, fontSize: 16),),
         content: const Text(
-          'L\'auto-exclusion vous permet de bloquer l\'accès à votre compte pour une période donnée. Cette action est irréversible.\n\nVoulez-vous continuer ?',
+          'L\'auto-exclusion vous permet de bloquer l\'accès à votre compte pour une période donnée. Cette action est irréversible pendant la durée choisie.\n\nVoulez-vous continuer ?',
           style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
         ),
         actions: [
@@ -502,9 +619,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              _showSnackbar(context, 'Contactez le support pour l\'auto-exclusion');
+              final success = await ref.read(responsibleGamingProvider.notifier).selfExclude(
+                durationDays: 30,
+                reason: 'Auto-exclusion demandée par le joueur',
+              );
+              if (context.mounted) {
+                _showSnackbar(context, success ? 'Auto-exclusion activée (30 jours)' : 'Erreur lors de l\'auto-exclusion');
+              }
             },
             child: const Text('Confirmer', style: TextStyle(color: NeonColors.error, fontWeight: FontWeight.bold)),
           ),
@@ -686,7 +809,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (v != null) onSelect(v);
         },
       ),
-      onTap: () {},
     );
   }
 
