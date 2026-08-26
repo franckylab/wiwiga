@@ -257,17 +257,29 @@ class ApiService {
   Future<Map<String, dynamic>> put(
     String endpoint, {
     Map<String, dynamic>? body,
-    bool requiresAuth = false,
+    bool requiresAuth = true,
   }) async {
-    final headers = await _getHeaders(requiresAuth: requiresAuth);
+    final encodedBody = body != null ? jsonEncode(body) : null;
+    final headers = await _getHeaders(requiresAuth: requiresAuth, includeDeviceId: requiresAuth);
     
     final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
     final response = await _wrapNetwork(
-      () => _client.put(uri, headers: headers, body: body != null ? jsonEncode(body) : null).timeout(
+      () => _client.put(uri, headers: headers, body: encodedBody).timeout(
         const Duration(milliseconds: AppConfig.requestTimeout),
       ),
       url: uri.toString(),
     );
+
+    if (response.statusCode == 401 && requiresAuth) {
+      final retryResponse = await _handle401AndRetry(
+        () async => _client.put(
+          uri,
+          headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
+          body: encodedBody,
+        ).timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
+      );
+      if (retryResponse != null) return _handleResponse(retryResponse);
+    }
     
     return _handleResponse(response);
   }
@@ -277,7 +289,7 @@ class ApiService {
     String endpoint, {
     bool requiresAuth = true,
   }) async {
-    final headers = await _getHeaders(requiresAuth: requiresAuth);
+    final headers = await _getHeaders(requiresAuth: requiresAuth, includeDeviceId: requiresAuth);
     
     final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
     final response = await _wrapNetwork(
@@ -286,6 +298,16 @@ class ApiService {
       ),
       url: uri.toString(),
     );
+
+    if (response.statusCode == 401 && requiresAuth) {
+      final retryResponse = await _handle401AndRetry(
+        () async => _client.delete(
+          uri,
+          headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
+        ).timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
+      );
+      if (retryResponse != null) return _handleResponse(retryResponse);
+    }
     
     return _handleResponse(response);
   }
@@ -419,8 +441,22 @@ class ApiService {
     // Parser le corps de réponse de manière robuste
     Map<String, dynamic> data;
     try {
-      data = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (_) {
+      final decoded = jsonDecode(response.body);
+      if (decoded == null) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return {'data': null};
+        }
+        throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+      }
+      if (decoded is! Map<String, dynamic>) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return {'data': decoded};
+        }
+        throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+      }
+      data = decoded;
+    } catch (e) {
+      if (e is ApiException) rethrow;
       // Le body n'est pas du JSON valide
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return {'data': response.body};

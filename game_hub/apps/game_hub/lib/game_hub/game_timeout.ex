@@ -15,7 +15,9 @@ defmodule GameHub.GameTimeout do
   - Distribution des mises
   - Reconnexion autorisée
   """
-  
+
+  require Logger
+
   alias GameHub.Repo
   alias GameHub.Games.GameTimeoutConfig
   alias GameHub.Wallet
@@ -125,7 +127,7 @@ defmodule GameHub.GameTimeout do
     Logger.info("[FORFEIT] Player #{player_id} forfeited game #{game_id} (distribution: #{distribution})")
 
     # Récupérer la mise du joueur
-    bet_amount = get_player_bet(player_id, game_id)
+    _bet_amount = get_player_bet(player_id, game_id)
 
     case distribution do
       "to_winner" ->

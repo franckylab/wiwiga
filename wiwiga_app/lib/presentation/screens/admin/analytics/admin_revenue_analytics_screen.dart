@@ -168,10 +168,10 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               AnalyticsLegendDot(NeonColors.primary, 'GGR'),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               AnalyticsLegendDot(NeonColors.success, 'NGR'),
             ],
           ),

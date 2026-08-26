@@ -10,8 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
 import '../../widgets/admin/empty_state.dart';
-import '../../widgets/admin/admin_feedback.dart';
-import '../../widgets/admin/skeleton_loader.dart';
+import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran configuration des règles XP par type de jeu
 class AdminXPRulesScreen extends ConsumerStatefulWidget {
@@ -53,7 +52,7 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         ],
       ),
       body: state.isLoading && state.rules.isEmpty
-          ? const AdminSkeletonList(itemCount: 4)
+          ? const NeonLoadingSpinner.center()
           : state.error != null && state.rules.isEmpty
               ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminXPRulesProvider.notifier).loadRules())
               : _buildRulesList(state),
@@ -62,13 +61,25 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
 
   Widget _buildRulesList(AdminXPRulesState state) {
     if (state.rules.isEmpty) {
-      return AdminEmptyState(
-        icon: Icons.stars,
-        title: 'Aucune règle XP configurée',
-        subtitle: 'Les règles XP définissent combien d\'XP est gagné\npour chaque action dans chaque type de jeu.',
-        actionLabel: 'Créer des règles XP',
-        actionIcon: Icons.add,
-        onAction: () => _showCreateDialog(),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.stars, color: NeonColors.textMuted, size: 64),
+            const SizedBox(height: 16),
+            const Text('Aucune règle XP configurée', style: TextStyle(color: NeonColors.textSecondary)),
+            const SizedBox(height: 8),
+            const Text('Les règles XP définissent combien d\'XP est gagné\npour chaque action dans chaque type de jeu.',
+              style: TextStyle(color: NeonColors.textMuted, fontSize: 12), textAlign: TextAlign.center,),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Créer des règles XP'),
+              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            ),
+          ],
+        ),
       );
     }
 
@@ -139,7 +150,7 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(gameType.toUpperCase(),
-                        style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),),
                       if (!isActive) const Text('Désactivé', style: TextStyle(color: NeonColors.textMuted, fontSize: 10)),
                     ],
                   ),
@@ -273,7 +284,7 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         backgroundColor: NeonColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Règles XP - ${gameType.toUpperCase()}',
-          style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+          style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _buildField('XP Victoire', winCtrl, Icons.emoji_events),
@@ -293,12 +304,12 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary))),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _saveRules(gameType, winCtrl.text, lossCtrl.text, drawCtrl.text,
-                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text);
+                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text,);
             },
             style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             child: const Text('Sauvegarder'),
@@ -324,7 +335,7 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         backgroundColor: NeonColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Nouvelles règles XP',
-          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _buildField('Type de jeu', typeCtrl, Icons.sports_esports),
@@ -346,17 +357,19 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary))),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               if (typeCtrl.text.trim().isEmpty) {
-                context.showError('Type de jeu requis');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Type de jeu requis'), backgroundColor: NeonColors.error),
+                );
                 return;
               }
               _saveRules(typeCtrl.text.trim().toLowerCase(),
                 winCtrl.text, lossCtrl.text, drawCtrl.text,
-                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text);
+                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text,);
             },
             style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             child: const Text('Créer'),
@@ -367,7 +380,7 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
   }
 
   void _saveRules(String gameType, String win, String loss, String draw,
-      String part, String streak, String maxStreak, String mult) async {
+      String part, String streak, String maxStreak, String mult,) async {
     final rules = {
       'win_xp': int.tryParse(win) ?? 50,
       'loss_xp': int.tryParse(loss) ?? 10,
@@ -380,31 +393,47 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
     };
     final success = await ref.read(adminXPRulesProvider.notifier).saveRules(gameType, rules);
     if (mounted) {
-      context.showResult(success,
-        successMsg: 'Règles XP $gameType sauvegardées',
-        errorMsg: 'Erreur de sauvegarde',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Règles XP $gameType sauvegardées' : 'Erreur de sauvegarde'),
+          backgroundColor: success ? NeonColors.success : NeonColors.error,
+        ),
       );
     }
   }
 
-  void _confirmDelete(String gameType) async {
-    final confirmed = await showAdminConfirmDialog(
-      context,
-      title: 'Confirmer la suppression',
-      message: 'Supprimer les règles XP pour "$gameType" ?',
-      confirmLabel: 'Supprimer',
-      confirmColor: NeonColors.error,
-      icon: Icons.delete_outline,
+  void _confirmDelete(String gameType) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirmer la suppression',
+          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
+        content: Text('Supprimer les règles XP pour "$gameType" ?',
+          style: const TextStyle(color: NeonColors.textSecondary),),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await ref.read(adminXPRulesProvider.notifier).deleteRules(gameType);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Règles XP supprimées' : 'Erreur de suppression'),
+                    backgroundColor: success ? NeonColors.success : NeonColors.error,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.error),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
     );
-    if (confirmed) {
-      final success = await ref.read(adminXPRulesProvider.notifier).deleteRules(gameType);
-      if (mounted) {
-        context.showResult(success,
-          successMsg: 'Règles XP supprimées',
-          errorMsg: 'Erreur de suppression',
-        );
-      }
-    }
   }
 
   Widget _buildField(String label, TextEditingController controller, IconData icon) {

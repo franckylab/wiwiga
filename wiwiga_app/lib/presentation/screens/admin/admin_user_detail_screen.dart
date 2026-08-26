@@ -5,16 +5,16 @@
 // Date: 2026-08-01
 // ============================================================
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/api_exception.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_widgets.dart';
-import '../../widgets/admin/admin_feedback.dart';
-import '../../widgets/admin/empty_state.dart';
 
 /// Écran de détail d'un utilisateur (vue admin)
 class AdminUserDetailScreen extends ConsumerStatefulWidget {
@@ -30,14 +30,34 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
   UserModel? _user;
   bool _isLoading = true;
   String? _error;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    debugPrint('[ADMIN_DETAIL] init userId=${widget.userId} BUILD v2026-08-26-fix17');
+    // Reporter aussi dans console JS visible en profile
+    // ignore: avoid_print
+    print('[ADMIN_DETAIL] init userId=${widget.userId}');
     _loadUser();
   }
 
   Future<void> _loadUser() async {
+    if (!mounted) return;
+    debugPrint('[ADMIN_DETAIL] _loadUser start userId=${widget.userId} auth=${ref.read(authProvider).user?.role.value ?? 'null'}');
+    // ignore: avoid_print
+    print('[ADMIN_DETAIL] _loadUser userId=${widget.userId}');
+    // Ne pas charger si pas admin (évite 401 inutile)
+    final auth = ref.read(authProvider);
+    if (auth.user == null || !auth.user!.isAdmin) {
+      debugPrint('[ADMIN_DETAIL] skip load: not admin (user=${auth.user?.username})');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = null;
+      });
+      return;
+    }
     setState(() {
       _isLoading = true;
       _error = null;
@@ -45,57 +65,87 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
     try {
       final adminRepo = ref.read(adminRepositoryProvider);
+      debugPrint('[ADMIN_DETAIL] calling adminRepo.getUser(${widget.userId})');
+      // ignore: avoid_print
+      print('[ADMIN_REPO] getUser(${widget.userId})');
       final user = await adminRepo.getUser(widget.userId);
+      debugPrint('[ADMIN_DETAIL] getUser success id=${user.id} username=${user.username}');
+      // ignore: avoid_print
+      print('[ADMIN_DETAIL] success id=${user.id}');
+      if (!mounted) return;
       setState(() {
         _user = user;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ADMIN_DETAIL] getUser ERROR: $e');
+      debugPrint('[ADMIN_DETAIL] stack: $st');
+      // ignore: avoid_print
+      print('[ADMIN_DETAIL] ERROR: $e');
+      print(st);
+      if (!mounted) return;
+      final message = e is ApiException ? e.userMessage : e.toString();
       setState(() {
-        _error = 'Erreur: $e';
+        _error = message;
         _isLoading = false;
       });
     }
   }
 
   Future<void> _changeRole(String newRole) async {
-    if (_user == null) return;
-
+    if (_user == null || _isSaving) return;
+    setState(() => _isSaving = true);
     try {
       final adminRepo = ref.read(adminRepositoryProvider);
       final updatedUser = await adminRepo.updateUserRole(_user!.id, newRole);
-      setState(() => _user = updatedUser);
+      if (!mounted) return;
+      setState(() {
+        _user = updatedUser;
+        _isSaving = false;
+      });
 
-      if (mounted) {
-        context.showInfo('Rôle changé en ${UserRole.fromString(newRole).displayName}');
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Rôle changé en ${UserRole.fromString(newRole).displayName}'),
+          backgroundColor: NeonColors.primary,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        context.showError('Erreur: $e');
-      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      final message = e is ApiException ? e.userMessage : e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: NeonColors.error),
+      );
     }
   }
 
   Future<void> _toggleActive() async {
-    if (_user == null) return;
-
+    if (_user == null || _isSaving) return;
     final activate = !_user!.isActive;
+    setState(() => _isSaving = true);
     try {
       final adminRepo = ref.read(adminRepositoryProvider);
       final updatedUser = await adminRepo.toggleUserActive(_user!.id, activate);
-      setState(() => _user = updatedUser);
+      if (!mounted) return;
+      setState(() {
+        _user = updatedUser;
+        _isSaving = false;
+      });
 
-      if (mounted) {
-        if (activate) {
-          context.showSuccess('Utilisateur activé');
-        } else {
-          context.showWarning('Utilisateur désactivé');
-        }
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(activate ? 'Utilisateur activé' : 'Utilisateur désactivé'),
+          backgroundColor: activate ? NeonColors.primary : Colors.orange,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        context.showError('Erreur: $e');
-      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      final message = e is ApiException ? e.userMessage : e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: NeonColors.error),
+      );
     }
   }
 
@@ -139,24 +189,58 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       body: _isLoading
           ? const NeonLoadingSpinner.center()
           : _error != null
-              ? AdminErrorState(error: _error!, onRetry: _loadUser)
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+                      const SizedBox(height: 12),
+                      Text(_error!, style: const TextStyle(color: NeonColors.textMuted)),
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 8),
+                        Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
+                        const Text('BUILD v2026-08-26-fix16', style: TextStyle(color: Colors.orange, fontSize: 10)),
+                      ],
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
+                    ],
+                  ),
+                )
               : _user == null
-                  ? const Center(child: Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)))
-                  : RefreshIndicator(
-                      onRefresh: _loadUser,
-                      color: NeonColors.primary,
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildProfileHeader(),
-                          const SizedBox(height: 24),
-                          _buildInfoSection(),
-                          const SizedBox(height: 24),
-                          _buildRoleSection(currentUser),
-                          const SizedBox(height: 24),
-                          _buildActionsSection(),
+                          const Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)),
+                          if (kDebugMode) Text('userId: ${widget.userId} BUILD v2026-08-26-fix16', style: const TextStyle(color: Colors.orange, fontSize: 10)),
                         ],
                       ),
+                    )
+                  : Stack(
+                      children: [
+                        RefreshIndicator(
+                          onRefresh: _loadUser,
+                          color: NeonColors.primary,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              _buildProfileHeader(),
+                              const SizedBox(height: 24),
+                              _buildInfoSection(),
+                              const SizedBox(height: 24),
+                              _buildRoleSection(currentUser),
+                              const SizedBox(height: 24),
+                              _buildActionsSection(),
+                            ],
+                          ),
+                        ),
+                        if (_isSaving)
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            child: const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+                          ),
+                      ],
                     ),
     );
   }
@@ -278,12 +362,12 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         ListTile(
           leading: Icon(
             _user!.isActive ? Icons.block : Icons.check_circle,
-            color: _user!.isActive ? NeonColors.warning : NeonColors.primary,
+            color: _user!.isActive ? Colors.orange : NeonColors.primary,
           ),
           title: Text(
             _user!.isActive ? 'Désactiver le compte' : 'Activer le compte',
             style: TextStyle(
-              color: _user!.isActive ? NeonColors.warning : NeonColors.primary,
+              color: _user!.isActive ? Colors.orange : NeonColors.primary,
             ),
           ),
           onTap: _toggleActive,
@@ -375,7 +459,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icon, color: NeonColors.primary, size: 18),
           const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           const Spacer(),
           Flexible(
             child: Text(value, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),

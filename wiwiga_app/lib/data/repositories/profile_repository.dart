@@ -31,8 +31,8 @@ class ProfileRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {});
   }
 
   /// Récupère les statistiques du profil
@@ -42,7 +42,7 @@ class ProfileRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return UserProfile.fromJson({
       'id': '',
       'phone': '',
@@ -61,7 +61,7 @@ class ProfileRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     final list = data['achievements'] as List;
     return list
         .map((a) => Achievement.fromJson(a as Map<String, dynamic>))
@@ -76,7 +76,7 @@ class ProfileRepository {
       filePath: imageFile.path,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return data['avatar_url'] as String;
   }
 
@@ -87,7 +87,7 @@ class ProfileRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return (data['sessions'] as List)
         .map((s) => s as Map<String, dynamic>)
         .toList();

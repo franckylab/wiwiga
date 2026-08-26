@@ -23,6 +23,7 @@ defmodule GameHubWeb.MatchmakingChannel do
   
   use Phoenix.Channel
   
+  require Logger
   alias GameHub.Matchmaking
   
   @doc """

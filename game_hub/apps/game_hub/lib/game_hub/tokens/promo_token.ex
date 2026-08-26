@@ -31,7 +31,6 @@ defmodule GameHub.Tokens.PromoToken do
   import Ecto.Query, warn: false
   
   alias GameHub.Repo
-  alias GameHub.Users.User
   
   @derive {Jason.Encoder, except: [:__meta__]}
   
@@ -46,7 +45,7 @@ defmodule GameHub.Tokens.PromoToken do
     field :valid_from, :utc_datetime
     field :valid_until, :utc_datetime
     
-    belongs_to :created_by, User
+    field :created_by, :integer
     
     timestamps()
   end
@@ -109,7 +108,7 @@ defmodule GameHub.Tokens.PromoToken do
   
   defp create_changeset(promo, attrs) do
     promo
-    |> cast(attrs, [:name, :description, :token_amount, :conditions, :is_active, :max_redemptions, :valid_from, :valid_until, :created_by_id])
+    |> cast(attrs, [:name, :description, :token_amount, :conditions, :is_active, :max_redemptions, :valid_from, :valid_until, :created_by])
     |> validate_required([:name, :token_amount, :valid_from])
     |> validate_number(:token_amount, greater_than: 0)
     |> validate_number(:max_redemptions, greater_than: 0)

@@ -18,6 +18,7 @@ defmodule GameHub.WalletReconciliation do
   3. Investigation requise
   """
   
+  require Logger
   alias GameHub.Repo
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction

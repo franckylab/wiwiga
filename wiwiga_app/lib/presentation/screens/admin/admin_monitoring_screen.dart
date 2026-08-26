@@ -13,7 +13,6 @@ import 'package:go_router/go_router.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_widgets.dart';
-import '../../widgets/admin/empty_state.dart';
 
 /// Écran de supervision système pour les administrateurs
 /// Affiche l'état de santé du backend en temps réel
@@ -102,12 +101,16 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        backgroundColor: NeonColors.surface,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: NeonColors.textPrimary),
+          onPressed: () => context.go('/admin'),
+        ),
         title: const Text(
           'Supervision',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
         ),
-        centerTitle: true,
         actions: [
           // Sélecteur d'intervalle de refresh
           PopupMenuButton<int>(
@@ -147,7 +150,18 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
         child: _isLoading
             ? const NeonLoadingSpinner.center()
             : _error != null
-                ? AdminErrorState(error: _error!, onRetry: _loadHealth)
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+                        const SizedBox(height: 12),
+                        Text(_error!, style: const TextStyle(color: NeonColors.textMuted)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _loadHealth, child: const Text('Réessayer')),
+                      ],
+                    ),
+                  )
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -178,8 +192,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: allHealthy
-              ? [NeonColors.primary.withValues(alpha: 0.15), NeonColors.adminCyan.withValues(alpha: 0.05)]
-              : [NeonColors.error.withValues(alpha: 0.15), NeonColors.warning.withValues(alpha: 0.05)],
+              ? [NeonColors.primary.withValues(alpha: 0.15), const Color(0xFF00FFFF).withValues(alpha: 0.05)]
+              : [NeonColors.error.withValues(alpha: 0.15), Colors.orange.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: allHealthy ? NeonColors.primary.withValues(alpha: 0.3) : NeonColors.error.withValues(alpha: 0.3)),
@@ -207,7 +221,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Dernière vérification: ${_formatTimestamp(_health?['timestamp'])}',
-                  style: TextStyle(color: NeonColors.textMuted, fontSize: 12),
+                  style: const TextStyle(color: NeonColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -250,7 +264,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       children: [
         _healthMetric('Statut', status, isHealthy ? NeonColors.primary : NeonColors.error),
         _healthMetric('Latence', '$latency ms', _latencyColor(double.tryParse(latency) ?? 999)),
-        _healthMetric('Clés actives', keys.toString(), NeonColors.adminCyan),
+        _healthMetric('Clés actives', keys.toString(), const Color(0xFF00FFFF)),
       ],
     );
   }
@@ -270,10 +284,10 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       isHealthy: true,
       children: [
         _healthMetric('Total', '$totalMb MB', NeonColors.primary),
-        _healthMetric('Processus', '$processesMb MB', NeonColors.adminCyan),
-        _healthMetric('Système', '$systemMb MB', NeonColors.adminBlue),
-        _healthMetric('Atomes', '$atomMb MB', NeonColors.adminPurple),
-        _healthMetric('Binaire', '$binaryMb MB', NeonColors.adminMagenta),
+        _healthMetric('Processus', '$processesMb MB', const Color(0xFF00FFFF)),
+        _healthMetric('Système', '$systemMb MB', const Color(0xFF4488FF)),
+        _healthMetric('Atomes', '$atomMb MB', const Color(0xFFAA00FF)),
+        _healthMetric('Binaire', '$binaryMb MB', const Color(0xFFFF00FF)),
       ],
     );
   }
@@ -292,8 +306,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       isHealthy: true,
       children: [
         _healthMetric('Processus BEAM', '$count / $limit', NeonColors.primary),
-        _healthMetric('Utilisation', '$usagePercent%', NeonColors.adminCyan),
-        _healthMetric('Sessions actives', sessions.toString(), NeonColors.paymentOrange),
+        _healthMetric('Utilisation', '$usagePercent%', const Color(0xFF00FFFF)),
+        _healthMetric('Sessions actives', sessions.toString(), const Color(0xFFFF6600)),
       ],
     );
   }
@@ -310,8 +324,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       isHealthy: true,
       children: [
         _healthMetric('Erlang/OTP', 'v$erlangVersion', NeonColors.primary),
-        _healthMetric('Système (kernel)', 'v$systemVersion', NeonColors.adminCyan),
-        _healthMetric('Uptime', '$uptimeHours heures', NeonColors.paymentOrange),
+        _healthMetric('Système (kernel)', 'v$systemVersion', const Color(0xFF00FFFF)),
+        _healthMetric('Uptime', '$uptimeHours heures', const Color(0xFFFF6600)),
       ],
     );
   }
@@ -322,7 +336,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
         ],
       ),
@@ -331,7 +345,7 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
 
   Color _latencyColor(double latencyMs) {
     if (latencyMs < 5) return NeonColors.primary;
-    if (latencyMs < 20) return NeonColors.adminAmber;
+    if (latencyMs < 20) return const Color(0xFFFFAA00);
     return NeonColors.error;
   }
 

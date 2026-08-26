@@ -25,6 +25,7 @@ defmodule GameHubWeb.PaymentWebhookController do
   
   use GameHubWeb, :controller
 
+  require Logger
   import Ecto.Query
 
   alias GameHub.{Wallet, Repo, Errors, EnvConfig}

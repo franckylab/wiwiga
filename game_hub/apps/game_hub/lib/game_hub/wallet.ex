@@ -151,7 +151,7 @@ defmodule GameHub.Wallet do
       end
     end)
   end
-  
+
   @doc """
   Retire fonds du compte.
   

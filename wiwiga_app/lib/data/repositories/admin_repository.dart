@@ -5,9 +5,11 @@
 // Date: 2026-08-01
 // ============================================================
 
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/errors/api_exception.dart';
 
 /// Repository pour les opérations d'administration
 class AdminRepository {
@@ -33,39 +35,100 @@ class AdminRepository {
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
+      'limit': pageSize.toString(),
       'page_size': pageSize.toString(),
     };
     if (role != null && role.isNotEmpty) queryParams['role'] = role;
     if (status != null && status.isNotEmpty) queryParams['status'] = status;
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
+    final queryString = Uri(queryParameters: queryParams).query;
     final response = await _apiService.get(
-      '${ApiEndpoints.adminUsers}?${queryParams.entries.map((e) => '${e.key}=${e.value}').join('&')}',
+      '${ApiEndpoints.adminUsers}?$queryString',
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    final users = (data['users'] as List)
-        .map((u) => UserModel.fromJson(u as Map<String, dynamic>))
+    // Backend renvoie data:{users,total,page,page_size} (+ pagination legacy)
+    // Compatibilité: si data est List (ancien contrat), fallback sur pagination
+    final rawData = response['data'];
+    final Map<String, dynamic> data;
+    if (rawData == null) {
+      throw ApiException.notFound('Aucun utilisateur trouvé');
+    } else if (rawData is List) {
+      final pagination = response['pagination'] as Map<String, dynamic>? ?? {};
+      data = {
+        'users': rawData,
+        'total': pagination['total'] ?? rawData.length,
+        'page': pagination['page'] ?? page,
+        'page_size': pagination['limit'] ?? pagination['page_size'] ?? pageSize,
+      };
+    } else if (rawData is Map<String, dynamic>) {
+      data = rawData;
+    } else {
+      throw ApiException.serverError(url: ApiEndpoints.adminUsers);
+    }
+    final usersList = data['users'] as List? ?? [];
+    final users = usersList
+        .map((u) => UserModel.fromJson(u as Map<String, dynamic>? ?? {}))
         .toList();
 
     return {
       'users': users,
       'total': data['total'] ?? users.length,
       'page': data['page'] ?? page,
-      'page_size': data['page_size'] ?? pageSize,
+      'page_size': data['page_size'] ?? data['limit'] ?? pageSize,
     };
   }
 
   /// Détail d'un utilisateur
   Future<UserModel> getUser(String userId) async {
+    // Guard contre id invalide (ex: "null", "undefined" depuis route)
+    if (userId.isEmpty || userId == 'null' || userId == 'undefined') {
+      throw ApiException.notFound('ID utilisateur invalide: $userId');
+    }
+    debugPrint('[ADMIN_REPO] getUser($userId) start');
+    // ignore: avoid_print
+    print('[ADMIN_REPO] getUser($userId)');
     final response = await _apiService.get(
       '${ApiEndpoints.adminUsers}/$userId',
       requiresAuth: true,
     );
+    debugPrint('[ADMIN_REPO] getUser response keys: ${response.keys} data type: ${response['data'].runtimeType}');
+    // ignore: avoid_print
+    print('[ADMIN_REPO] data type: ${response['data'].runtimeType}');
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final rawData = response['data'];
+    debugPrint('[ADMIN_REPO] rawData==null? ${rawData==null} is Map? ${rawData is Map<String, dynamic>} value: $rawData');
+    if (rawData == null) {
+      throw ApiException.notFound('Utilisateur non trouvé (data null)');
+    }
+    if (rawData is! Map<String, dynamic>) {
+      debugPrint('[ADMIN_REPO] rawData is! Map, actual: ${rawData.runtimeType}');
+      // ignore: avoid_print
+      print('[ADMIN_REPO] invalid format: ${rawData.runtimeType}');
+      throw ApiException.notFound('Format de réponse invalide (${rawData.runtimeType})');
+    }
+    final raw = rawData;
+    final userMap = (raw['user'] as Map<String, dynamic>?) ?? raw;
+    debugPrint('[ADMIN_REPO] userMap keys: ${userMap.keys} id=${userMap['id']}');
+    if (userMap.isEmpty) {
+      throw ApiException.notFound('Utilisateur non trouvé (empty)');
+    }
+    try {
+      final user = UserModel.fromJson(userMap);
+      debugPrint('[ADMIN_REPO] UserModel.fromJson success id=${user.id}');
+      // ignore: avoid_print
+      print('[ADMIN_REPO] success id=${user.id}');
+      return user;
+    } catch (e, st) {
+      debugPrint('[ADMIN_REPO] UserModel.fromJson ERROR: $e');
+      debugPrint('[ADMIN_REPO] stack: $st');
+      debugPrint('[ADMIN_REPO] userMap: $userMap');
+      // ignore: avoid_print
+      print('[ADMIN_REPO] fromJson ERROR: $e');
+      print(st);
+      rethrow;
+    }
   }
 
   /// Créer un utilisateur (super_admin)
@@ -90,8 +153,13 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final rawData = response['data'];
+    if (rawData == null || rawData is! Map<String, dynamic>) {
+      throw ApiException.serverError(url: ApiEndpoints.adminUsers);
+    }
+    final raw = rawData;
+    final userMap = (raw['user'] as Map<String, dynamic>?) ?? raw;
+    return UserModel.fromJson(userMap);
   }
 
   /// Changer le rôle d'un utilisateur
@@ -102,8 +170,13 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final rawData = response['data'];
+    if (rawData == null || rawData is! Map<String, dynamic>) {
+      throw ApiException.serverError(url: '${ApiEndpoints.adminUsers}/$userId/role');
+    }
+    final raw = rawData;
+    final userMap = (raw['user'] as Map<String, dynamic>?) ?? raw;
+    return UserModel.fromJson(userMap);
   }
 
   /// Activer/désactiver un utilisateur
@@ -114,8 +187,13 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final rawData = response['data'];
+    if (rawData == null || rawData is! Map<String, dynamic>) {
+      throw ApiException.serverError(url: '${ApiEndpoints.adminUsers}/$userId/activate');
+    }
+    final raw = rawData;
+    final userMap = (raw['user'] as Map<String, dynamic>?) ?? raw;
+    return UserModel.fromJson(userMap);
   }
 
   /// Statistiques admin
@@ -125,7 +203,7 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Liste des logs d'audit
@@ -154,7 +232,7 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return {
       'logs': data['logs'] as List? ?? [],
       'total': data['total'] ?? 0,
@@ -170,7 +248,7 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Résoudre une alerte
@@ -191,7 +269,7 @@ class AdminRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return (data['roles'] as List).cast<Map<String, dynamic>>();
   }
 
@@ -205,7 +283,7 @@ class AdminRepository {
       ApiEndpoints.adminMetricsDashboard,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Métriques financières
@@ -218,7 +296,7 @@ class AdminRepository {
       '${ApiEndpoints.adminMetricsFinancial}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Métriques jeux
@@ -227,7 +305,7 @@ class AdminRepository {
       '${ApiEndpoints.adminMetricsGames}?period=$period',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Métriques utilisateurs
@@ -236,7 +314,7 @@ class AdminRepository {
       '${ApiEndpoints.adminMetricsUsers}?period=$period',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Métriques paiements
@@ -245,7 +323,7 @@ class AdminRepository {
       '${ApiEndpoints.adminMetricsPayments}?period=$period',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Métriques sécurité
@@ -254,7 +332,7 @@ class AdminRepository {
       '${ApiEndpoints.adminMetricsSecurity}?period=$period',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Données timeseries pour graphiques
@@ -279,7 +357,7 @@ class AdminRepository {
       ApiEndpoints.adminGamesActive,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Résumé stats jeux
@@ -288,7 +366,7 @@ class AdminRepository {
       ApiEndpoints.adminGamesStatsSummary,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Forcer la clôture d'une partie
@@ -298,7 +376,7 @@ class AdminRepository {
       body: {'reason': reason ?? 'Admin forced closure'},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -311,7 +389,7 @@ class AdminRepository {
       ApiEndpoints.adminSecurityOverview,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Logs d'auth échouées
@@ -320,7 +398,7 @@ class AdminRepository {
       '${ApiEndpoints.adminSecurityFailedAuths}?page=$page&limit=$limit',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Statistiques rate limiting
@@ -329,7 +407,7 @@ class AdminRepository {
       ApiEndpoints.adminSecurityRateLimits,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Liste IP whitelist
@@ -348,7 +426,7 @@ class AdminRepository {
       body: {'ip_address': ip, 'description': description ?? ''},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Retirer IP de la whitelist
@@ -366,7 +444,7 @@ class AdminRepository {
       body: {'reason': reason, 'is_permanent': isPermanent},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Débannir un utilisateur
@@ -387,7 +465,7 @@ class AdminRepository {
       ApiEndpoints.adminResponsibleGamingOverview,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Fixer limites personnalisées pour un utilisateur
@@ -397,7 +475,7 @@ class AdminRepository {
       body: limits,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Liste des auto-exclusions
@@ -406,7 +484,7 @@ class AdminRepository {
       '${ApiEndpoints.adminResponsibleGamingSelfExclusions}?page=$page&limit=$limit',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Indicateurs de risque
@@ -415,7 +493,7 @@ class AdminRepository {
       ApiEndpoints.adminResponsibleGamingRiskIndicators,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -441,7 +519,7 @@ class AdminRepository {
       '${ApiEndpoints.adminNotifications}?$queryString',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Marquer une notification comme lue
@@ -459,7 +537,7 @@ class AdminRepository {
       body: {'title': title, 'message': message},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Compteur notifications non lues
@@ -485,7 +563,7 @@ class AdminRepository {
       '${ApiEndpoints.adminConfigHistory}?$queryString',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Restaurer une configuration précédente
@@ -494,7 +572,7 @@ class AdminRepository {
       '${ApiEndpoints.adminConfigHistory}/$logId/rollback',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -541,7 +619,7 @@ class AdminRepository {
       '${ApiEndpoints.adminCrmPlayerSummary}/$userId/summary',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Notes d'un joueur
@@ -560,7 +638,7 @@ class AdminRepository {
       body: {'note': note, 'category': category},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Joueurs VIP
@@ -579,7 +657,7 @@ class AdminRepository {
       body: {'tier': tier},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Joueurs à risque
@@ -601,7 +679,7 @@ class AdminRepository {
         ? '${ApiEndpoints.adminReconciliationDaily}?date=$date'
         : ApiEndpoints.adminReconciliationDaily;
     final response = await _apiService.get(url, requiresAuth: true);
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Écarts détectés
@@ -610,7 +688,7 @@ class AdminRepository {
       '${ApiEndpoints.adminReconciliationDiscrepancies}?period=$period',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Rapport commissions
@@ -620,7 +698,7 @@ class AdminRepository {
       '${ApiEndpoints.adminReconciliationCommissions}?$params',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Solde plateforme
@@ -629,7 +707,7 @@ class AdminRepository {
       ApiEndpoints.adminReconciliationBalance,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -642,7 +720,7 @@ class AdminRepository {
       ApiEndpoints.adminSettings,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Settings par catégorie
@@ -661,7 +739,7 @@ class AdminRepository {
       body: {'value': value},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -674,7 +752,7 @@ class AdminRepository {
       '${ApiEndpoints.adminImpersonateStart}/$userId/start',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Arrêter l'impersonation
@@ -691,7 +769,7 @@ class AdminRepository {
       ApiEndpoints.adminImpersonateStatus,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -704,7 +782,7 @@ class AdminRepository {
       '${ApiEndpoints.adminAnalyticsRevenue}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Analytics joueurs (DAU, WAU, MAU, stickiness, Reg2Dep)
@@ -713,7 +791,7 @@ class AdminRepository {
       '${ApiEndpoints.adminAnalyticsPlayers}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Cohortes de retention
@@ -722,7 +800,7 @@ class AdminRepository {
       ApiEndpoints.adminAnalyticsCohorts,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Estimation LTV
@@ -731,7 +809,7 @@ class AdminRepository {
       ApiEndpoints.adminAnalyticsLtv,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Performance par jeu
@@ -740,7 +818,7 @@ class AdminRepository {
       '${ApiEndpoints.adminAnalyticsGames}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Flux monétaire
@@ -749,7 +827,7 @@ class AdminRepository {
       '${ApiEndpoints.adminAnalyticsMonetaryFlow}?${_periodQueryString(period, from: from, to: to)}',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Distribution richesse joueurs
@@ -758,7 +836,7 @@ class AdminRepository {
       ApiEndpoints.adminAnalyticsWealthDistribution,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Entonnoir de conversion
@@ -767,7 +845,7 @@ class AdminRepository {
       ApiEndpoints.adminAnalyticsConversionFunnel,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -906,7 +984,7 @@ class AdminRepository {
       body: config,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Crée une nouvelle configuration de niveau
@@ -916,7 +994,7 @@ class AdminRepository {
       body: config,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Supprime une configuration de niveau
@@ -933,7 +1011,7 @@ class AdminRepository {
       '${ApiEndpoints.adminPlayerProgressionCalculate}/$xp',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   // ========================================
@@ -965,7 +1043,7 @@ class AdminRepository {
       body: {'value': value},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Met à jour plusieurs configurations d'une catégorie
@@ -1006,7 +1084,7 @@ class AdminRepository {
       '${ApiEndpoints.adminXPRules}/$gameType',
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Crée ou met à jour les règles XP pour un type de jeu
@@ -1034,6 +1112,6 @@ class AdminRepository {
       body: {'game_type': gameType, 'result': result, 'win_streak': winStreak},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 }

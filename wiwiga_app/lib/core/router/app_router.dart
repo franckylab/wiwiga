@@ -66,7 +66,7 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 /// Routes qui nécessitent une authentification
 const _protectedRoutes = {'/profile', '/settings', '/transactions'};
 
-/// Routes qui nécessitent un rôle admin
+/// Routes qui nécessitent un rôle admin (exactes)
 const _adminRoutes = {
   '/admin', '/admin/users', '/admin/config', '/admin/audit', '/admin/monitoring',
   '/admin/metrics', '/admin/alerts', '/admin/games-live', '/admin/security',
@@ -77,6 +77,12 @@ const _adminRoutes = {
   '/admin/game-config', '/admin/bonuses', '/admin/reports',
   '/admin/platform-config', '/admin/player-progression', '/admin/xp-rules',
 };
+
+bool _isAdminRoute(String path) {
+  if (_adminRoutes.contains(path)) return true;
+  // Sous-routes dynamiques /admin/users/:id, /admin/crm/..., etc.
+  return path == '/admin' || path.startsWith('/admin/');
+}
 
 /// Provider du routeur de l'application
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -110,7 +116,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       
       // Si l'utilisateur est guest et accède à une route admin
-      if (authState.isGuest && _adminRoutes.contains(path)) {
+      if (authState.isGuest && _isAdminRoute(path)) {
         return '/auth';
       }
       
@@ -125,7 +131,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
       
       // Si l'utilisateur n'est pas admin et accède à une route admin
-      if (_adminRoutes.contains(path) && !authState.isAdmin) {
+      if (_isAdminRoute(path) && !authState.isAdmin) {
         return '/home';
       }
       
@@ -159,9 +165,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/users/:id',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => AdminUserDetailScreen(
-          userId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) {
+          final id = state.pathParameters['id'];
+          if (id == null || id.isEmpty || id == 'null' || id == 'undefined') {
+            return const AdminUserDetailScreen(userId: '');
+          }
+          return AdminUserDetailScreen(userId: id);
+        },
       ),
       GoRoute(
         path: '/admin/config',

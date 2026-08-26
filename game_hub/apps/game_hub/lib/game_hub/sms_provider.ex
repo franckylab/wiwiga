@@ -18,6 +18,8 @@ defmodule GameHub.SmsProvider do
   - `CampayAdapter` : API Campay (production Afrique)
   """
 
+  require Logger
+
   @type send_result :: :ok | {:error, String.t()}
 
   @doc """

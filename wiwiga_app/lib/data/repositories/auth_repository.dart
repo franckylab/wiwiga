@@ -73,14 +73,14 @@ class AuthRepository {
       requiresAuth: false,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     final otpRequired = data['otp_required'] as bool? ?? false;
     
     if (otpRequired) {
       // OTP requis: pas de tokens, juste l'user
       return {
         'otp_required': true,
-        'user': UserModel.fromJson(data['user'] as Map<String, dynamic>),
+        'user': UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {}),
       };
     }
     
@@ -97,7 +97,7 @@ class AuthRepository {
       'otp_required': false,
       'access_token': accessToken,
       'refresh_token': refreshToken,
-      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>),
+      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {}),
     };
   }
   
@@ -137,9 +137,9 @@ class AuthRepository {
       requiresAuth: false,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     return {
-      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>),
+      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {}),
       'message': data['message'] as String?,
     };
   }
@@ -175,8 +175,8 @@ class AuthRepository {
       requiresAuth: true,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {});
   }
   
   /// Récupère la liste des avatars prédéfinis
@@ -186,7 +186,7 @@ class AuthRepository {
       requiresAuth: false,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     final avatars = data['avatars'] as List;
     return avatars.cast<Map<String, dynamic>>();
   }
@@ -209,7 +209,7 @@ class AuthRepository {
     );
     
     // Backend retourne {success: true, data: {access_token, refresh_token, user}}
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     
     final accessToken = data['access_token'] as String;
     final refreshToken = data['refresh_token'] as String;
@@ -223,7 +223,7 @@ class AuthRepository {
     return {
       'access_token': accessToken,
       'refresh_token': refreshToken,
-      'user': UserModel.fromJson(data['user']),
+      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {}),
     };
   }
   
@@ -244,7 +244,7 @@ class AuthRepository {
       requiresAuth: false,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     
     final accessToken = data['access_token'] as String;
     final refreshToken = data['refresh_token'] as String;
@@ -257,7 +257,7 @@ class AuthRepository {
     return {
       'access_token': accessToken,
       'refresh_token': refreshToken,
-      'user': UserModel.fromJson(data['user']),
+      'user': UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {}),
     };
   }
   
@@ -279,7 +279,7 @@ class AuthRepository {
       requiresAuth: false,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
+    final data = response['data'] as Map<String, dynamic>? ?? {};
     
     final newAccessToken = data['access_token'] as String;
     final newRefreshToken = data['refresh_token'] as String;
@@ -303,8 +303,8 @@ class AuthRepository {
       requiresAuth: true,
     );
     
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user']);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {});
   }
   
   /// Déconnecte l'utilisateur (révoque le refresh token)
@@ -371,7 +371,7 @@ class AuthRepository {
       ApiEndpoints.authSettings,
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
   
   /// Met à jour les préférences OTP
@@ -383,7 +383,7 @@ class AuthRepository {
       body: {'otp_required_on_login': otpRequiredOnLogin},
       requiresAuth: true,
     );
-    return response['data'] as Map<String, dynamic>;
+    return response['data'] as Map<String, dynamic>? ?? {};
   }
 
   /// Change le mot de passe de l'utilisateur
@@ -416,7 +416,7 @@ class AuthRepository {
       requiresAuth: true,
     );
 
-    final data = response['data'] as Map<String, dynamic>;
-    return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return UserModel.fromJson(data['user'] as Map<String, dynamic>? ?? {});
   }
 }

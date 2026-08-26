@@ -24,6 +24,7 @@ defmodule GameHubWeb.GameChannel do
   
   use Phoenix.Channel
   
+  require Logger
   alias DiceGame.Engine
   
   @doc """

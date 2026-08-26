@@ -14,7 +14,6 @@ import '../../providers/admin_metrics_provider.dart';
 import '../../providers/admin_ws_provider.dart';
 import '../../widgets/admin/alert_badge.dart';
 import '../../widgets/admin/admin_search_command.dart';
-import '../../widgets/admin/admin_feedback.dart';
 
 // ============================================================
 // Modèle de navigation
@@ -47,7 +46,7 @@ const List<_NavSection> _navSections = [
     items: [
       _NavItem(label: 'Dashboard', path: '/admin', icon: Icons.dashboard_outlined),
       _NavItem(label: 'Métriques', path: '/admin/metrics', icon: Icons.bar_chart),
-      _NavItem(label: 'Parties en direct', path: '/admin/games-live', icon: Icons.videogame_asset),
+      _NavItem(label: 'Parties Live', path: '/admin/games-live', icon: Icons.videogame_asset),
     ],
   ),
   _NavSection(
@@ -65,7 +64,7 @@ const List<_NavSection> _navSections = [
     title: 'UTILISATEURS',
     icon: Icons.group,
     items: [
-      _NavItem(label: 'Utilisateurs', path: '/admin/users', icon: Icons.people),
+      _NavItem(label: 'Liste', path: '/admin/users', icon: Icons.people),
       _NavItem(label: 'CRM', path: '/admin/crm', icon: Icons.people_alt),
       _NavItem(label: 'Jeu Responsable', path: '/admin/responsible-gaming', icon: Icons.shield),
     ],
@@ -74,10 +73,10 @@ const List<_NavSection> _navSections = [
     title: 'CONFIGURATION',
     icon: Icons.tune,
     items: [
-      _NavItem(label: 'Config. Jeux', path: '/admin/game-config', icon: Icons.tune),
+      _NavItem(label: 'Règles Jeux', path: '/admin/game-config', icon: Icons.tune),
       _NavItem(label: 'Services App', path: '/admin/config', icon: Icons.settings),
       _NavItem(label: 'Config. Plateforme', path: '/admin/platform-config', icon: Icons.settings_suggest),
-      _NavItem(label: 'Progression', path: '/admin/player-progression', icon: Icons.emoji_events),
+      _NavItem(label: 'Progression & Niveaux', path: '/admin/player-progression', icon: Icons.emoji_events),
       _NavItem(label: 'Règles XP', path: '/admin/xp-rules', icon: Icons.stars),
       _NavItem(label: 'Sécurité', path: '/admin/security', icon: Icons.security),
       _NavItem(label: 'Notifications', path: '/admin/notifications', icon: Icons.notifications_outlined),
@@ -87,12 +86,12 @@ const List<_NavSection> _navSections = [
     title: 'OPÉRATIONS',
     icon: Icons.handyman,
     items: [
-      _NavItem(label: 'Supervision', path: '/admin/monitoring', icon: Icons.monitor_heart),
+      _NavItem(label: 'Monitoring', path: '/admin/monitoring', icon: Icons.monitor_heart),
       _NavItem(label: 'Réconciliation', path: '/admin/reconciliation', icon: Icons.account_balance),
       _NavItem(label: 'Bonus & Promos', path: '/admin/bonuses', icon: Icons.card_giftcard),
-      _NavItem(label: 'Logs d\'audit', path: '/admin/audit', icon: Icons.history),
+      _NavItem(label: 'Audit', path: '/admin/audit', icon: Icons.history),
       _NavItem(label: 'Rapports', path: '/admin/reports', icon: Icons.assessment),
-      _NavItem(label: 'Alertes & Notifications', path: '/admin/alerts', icon: Icons.notifications_active),
+      _NavItem(label: 'Alertes', path: '/admin/alerts', icon: Icons.notifications_active),
       _NavItem(label: 'Préférences Admin', path: '/admin/settings', icon: Icons.settings_applications),
     ],
   ),
@@ -115,7 +114,6 @@ class AdminShellScreen extends ConsumerStatefulWidget {
 class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with SingleTickerProviderStateMixin {
   final Set<String> _expandedSections = {};
   late final AnimationController _sidebarAnim;
-  String? _lastAutoExpandedPath;
 
   @override
   void initState() {
@@ -168,18 +166,9 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 900;
 
-    // Écouter les changements de route pour auto-expand (post-frame, uniquement si le path change)
+    // Écouter les changements de route pour auto-expand
     final currentPath = GoRouterState.of(context).uri.path;
-    if (currentPath != _lastAutoExpandedPath) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final sectionsBefore = Set<String>.from(_expandedSections);
-        _autoExpandForPath(currentPath);
-        if (sectionsBefore.length != _expandedSections.length) {
-          setState(() {}); // Rebuild uniquement si de nouvelles sections ont été ajoutées
-        }
-        _lastAutoExpandedPath = currentPath;
-      });
-    }
+    _autoExpandForPath(currentPath);
 
     return Scaffold(
       backgroundColor: NeonColors.background,
@@ -256,7 +245,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'profile', child: Text('Profil', style: TextStyle(color: NeonColors.textPrimary))),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: 'logout', child: Text('Déconnexion', style: TextStyle(color: NeonColors.error))),
+        const PopupMenuItem(value: 'logout', child: Text('Déconnexion', style: TextStyle(color: Colors.red))),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -278,19 +267,27 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
     );
   }
 
-  void _confirmLogout() async {
-    final confirmed = await showAdminConfirmDialog(
-      context,
-      title: 'Déconnexion',
-      message: 'Êtes-vous sûr de vouloir vous déconnecter ?',
-      confirmLabel: 'Déconnexion',
-      confirmColor: NeonColors.error,
-      icon: Icons.logout,
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Déconnexion', style: TextStyle(color: NeonColors.textPrimary)),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?', style: TextStyle(color: NeonColors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary))),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authProvider.notifier).logout();
+              if (mounted) context.go('/auth');
+            },
+            child: const Text('Déconnexion', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
-    if (confirmed) {
-      await ref.read(authProvider.notifier).logout();
-      if (mounted) context.go('/auth');
-    }
   }
 
   // ============================================================
@@ -380,11 +377,11 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: NeonColors.border)),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.info_outline, color: NeonColors.textMuted, size: 14),
-          const SizedBox(width: 8),
-          const Text(
+          Icon(Icons.info_outline, color: NeonColors.textMuted, size: 14),
+          SizedBox(width: 8),
+          Text(
             'v1.0.0',
             style: TextStyle(color: NeonColors.textMuted, fontSize: 11),
           ),
@@ -405,29 +402,27 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
 
     return Column(
       children: [
-        // Header de section avec badge compteur
+        // Header de section
         _SectionHeader(
           title: section.title,
           icon: section.icon,
-          itemCount: section.items.length,
           isExpanded: isExpanded,
           hasActiveChild: hasActiveChild,
           onTap: () => _toggleSection(section.title),
         ),
-        // Items avec AnimatedSize + ClipRect (animation fluide)
-        ClipRect(
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: isExpanded
-                ? _SectionItems(
-                    items: section.items,
-                    currentPath: currentPath,
-                    onNavigate: () {},
-                  )
-                : const SizedBox.shrink(),
+        // Items avec animation
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: _SectionItems(
+            items: section.items,
+            currentPath: currentPath,
+            onNavigate: () {},
           ),
+          firstCurve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+          secondCurve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+          sizeCurve: Curves.easeOutCubic,
+          crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
         ),
       ],
     );
@@ -541,11 +536,10 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
 // Widgets de navigation — composables
 // ============================================================
 
-/// Header de section expansible avec hover, badge compteur et animation du chevron
-class _SectionHeader extends StatefulWidget {
+/// Header de section expansible avec animation du chevron
+class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
-  final int itemCount;
   final bool isExpanded;
   final bool hasActiveChild;
   final VoidCallback onTap;
@@ -553,18 +547,10 @@ class _SectionHeader extends StatefulWidget {
   const _SectionHeader({
     required this.title,
     required this.icon,
-    required this.itemCount,
     required this.isExpanded,
     required this.hasActiveChild,
     required this.onTap,
   });
-
-  @override
-  State<_SectionHeader> createState() => _SectionHeaderState();
-}
-
-class _SectionHeaderState extends State<_SectionHeader> {
-  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -574,62 +560,39 @@ class _SectionHeaderState extends State<_SectionHeader> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: widget.onTap,
-          onHover: (hovered) => setState(() => _isHovered = hovered),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+          onTap: onTap,
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: widget.hasActiveChild
-                  ? NeonColors.primary.withValues(alpha: _isHovered ? 0.12 : 0.06)
-                  : _isHovered
-                      ? NeonColors.primary.withValues(alpha: 0.04)
-                      : Colors.transparent,
+              color: hasActiveChild ? NeonColors.primary.withValues(alpha: 0.06) : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
                 Icon(
-                  widget.icon,
-                  color: widget.hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
+                  icon,
+                  color: hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
                   size: 16,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    widget.title,
+                    title,
                     style: TextStyle(
-                      color: widget.hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
+                      color: hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
                     ),
                   ),
                 ),
-                // Badge compteur d'items
-                AnimatedOpacity(
-                  opacity: widget.isExpanded ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: NeonColors.textMuted.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${widget.itemCount}',
-                      style: const TextStyle(color: NeonColors.textMuted, fontSize: 9, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                if (widget.isExpanded) const SizedBox(width: 2),
                 AnimatedRotation(
-                  turns: widget.isExpanded ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 220),
+                  turns: isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
                   child: Icon(
                     Icons.expand_more,
-                    color: widget.hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
+                    color: hasActiveChild ? NeonColors.primary : NeonColors.textMuted,
                     size: 16,
                   ),
                 ),
@@ -670,7 +633,7 @@ class _SectionItems extends StatelessWidget {
   }
 }
 
-/// Item de navigation avec hover, tooltip et animation d'entrée décalée
+/// Item de navigation avec animation d'entrée décalée
 class _AnimatedNavItem extends StatefulWidget {
   final _NavItem item;
   final String currentPath;
@@ -690,7 +653,6 @@ class _AnimatedNavItem extends StatefulWidget {
 
 class _AnimatedNavItemState extends State<_AnimatedNavItem> with SingleTickerProviderStateMixin {
   late final AnimationController _anim;
-  bool _isHovered = false;
 
   @override
   void initState() {
@@ -722,93 +684,58 @@ class _AnimatedNavItemState extends State<_AnimatedNavItem> with SingleTickerPro
           begin: const Offset(-0.1, 0),
           end: Offset.zero,
         ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut)),
-        child: Tooltip(
-          message: widget.item.label,
-          preferBelow: false,
-          textStyle: const TextStyle(color: NeonColors.textPrimary, fontSize: 12),
-          decoration: BoxDecoration(
-            color: NeonColors.card,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: NeonColors.border),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-            child: MouseRegion(
-              onEnter: (_) => setState(() => _isHovered = true),
-              onExit: (_) => setState(() => _isHovered = false),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: widget.onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: isActive ? NeonColors.primary.withValues(alpha: 0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
-                  onTap: widget.onTap,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? NeonColors.primary.withValues(alpha: 0.12)
-                          : _isHovered
-                              ? NeonColors.primary.withValues(alpha: 0.05)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: isActive
-                          ? const Border(left: BorderSide(color: NeonColors.primary, width: 3))
-                          : null,
+                  border: isActive
+                      ? const Border(left: BorderSide(color: NeonColors.primary, width: 3))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.item.icon,
+                      color: isActive ? NeonColors.primary : NeonColors.textSecondary,
+                      size: 18,
                     ),
-                    child: Row(
-                      children: [
-                        AnimatedDefaultTextStyle(
-                          style: TextStyle(
-                            color: isActive ? NeonColors.primary : NeonColors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                          duration: const Duration(milliseconds: 160),
-                          child: Icon(
-                            widget.item.icon,
-                            color: isActive
-                                ? NeonColors.primary
-                                : _isHovered
-                                    ? NeonColors.textPrimary
-                                    : NeonColors.textSecondary,
-                            size: 18,
-                          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.item.label,
+                        style: TextStyle(
+                          color: isActive ? NeonColors.primary : NeonColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            widget.item.label,
-                            style: TextStyle(
-                              color: isActive
-                                  ? NeonColors.primary
-                                  : _isHovered
-                                      ? NeonColors.textPrimary
-                                      : NeonColors.textSecondary,
-                              fontSize: 13,
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isActive)
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: NeonColors.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: NeonColors.primary.withValues(alpha: 0.5),
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
+                    if (isActive)
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: NeonColors.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: NeonColors.primary.withValues(alpha: 0.5),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -861,7 +788,7 @@ class _WsIndicatorState extends State<_WsIndicator> with SingleTickerProviderSta
           decoration: BoxDecoration(
             color: color.withValues(alpha: widget.status == AdminWsStatus.connected
                 ? 0.6 + (_pulse.value * 0.4)
-                : 1.0),
+                : 1.0,),
             shape: BoxShape.circle,
             boxShadow: widget.status == AdminWsStatus.connected
                 ? [BoxShadow(color: color.withValues(alpha: _pulse.value * 0.4), blurRadius: 4, spreadRadius: 1)]

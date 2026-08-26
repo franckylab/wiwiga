@@ -45,8 +45,8 @@ defmodule GameHubWeb.AdminController do
   """
   def list_users(conn, params) do
     current_user = conn.assigns[:current_user]
-    page = Map.get(params, "page", "1") |> String.to_integer()
-    limit = Map.get(params, "limit", "20") |> String.to_integer() |> min(100)
+    page = parse_int_param(params["page"], 1, min: 1)
+    limit = parse_int_param(params["limit"] || params["page_size"], 20, min: 1, max: 100)
     
     query = from u in User, order_by: [desc: u.inserted_at]
     
@@ -76,11 +76,12 @@ defmodule GameHubWeb.AdminController do
             or ilike(u.name, ^search_pattern)
     end
     
-    # Pagination
-    query = from u in query, limit: ^limit, offset: ^((page - 1) * limit)
+    # Pagination — total filtré (sans limit/offset) pour cohérence
+    filtered_query = query
+    paginated_query = from u in query, limit: ^limit, offset: ^((page - 1) * limit)
     
-    users = Repo.all(query)
-    total = Repo.one(from u in User, select: count(u.id))
+    users = Repo.all(paginated_query)
+    total = Repo.aggregate(filtered_query, :count, :id)
     
     # Formater les utilisateurs (sans données sensibles)
     formatted_users = Enum.map(users, &format_user_for_admin(&1, current_user))
@@ -89,7 +90,15 @@ defmodule GameHubWeb.AdminController do
     |> put_status(200)
     |> json(%{
       success: true,
-      data: formatted_users,
+      data: %{
+        users: formatted_users,
+        total: total,
+        page: page,
+        page_size: limit,
+        total_pages: ceil(total / limit),
+        has_next: page * limit < total,
+        has_prev: page > 1
+      },
       pagination: %{
         page: page,
         limit: limit,
@@ -658,4 +667,23 @@ defmodule GameHubWeb.AdminController do
       String.replace(acc, "%{#{key}}", to_string(value))
     end)
   end
+
+  defp parse_int_param(nil, default, _opts), do: default
+  defp parse_int_param(value, default, opts) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} ->
+        int
+        |> then(fn v -> if min = opts[:min], do: max(v, min), else: v end)
+        |> then(fn v -> if max_val = opts[:max], do: min(v, max_val), else: v end)
+      _ -> default
+    end
+  rescue
+    _ -> default
+  end
+  defp parse_int_param(value, default, opts) when is_integer(value) do
+    value
+    |> then(fn v -> if min = opts[:min], do: max(v, min), else: v end)
+    |> then(fn v -> if max_val = opts[:max], do: min(v, max_val), else: v end)
+  end
+  defp parse_int_param(_, default, _opts), do: default
 end

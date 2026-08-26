@@ -16,6 +16,7 @@ defmodule GameHubWeb.HealthController do
   
   use GameHubWeb, :controller
   
+  require Logger
   alias GameHub.{Repo, Redis}
   
   @doc """

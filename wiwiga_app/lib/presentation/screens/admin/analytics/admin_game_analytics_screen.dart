@@ -232,10 +232,10 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               AnalyticsLegendDot(NeonColors.secondary, 'Mises'),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               AnalyticsLegendDot(NeonColors.success, 'Gains'),
             ],
           ),

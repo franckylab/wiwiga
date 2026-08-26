@@ -24,6 +24,7 @@ defmodule GameHub.Auth do
   - Dev bypass: code `123456` accepté en dev/test
   """
   
+  require Logger
   alias GameHub.{Repo, Guardian, EnvConfig}
   alias GameHub.Users.User
   alias GameHub.Auth.RefreshToken
