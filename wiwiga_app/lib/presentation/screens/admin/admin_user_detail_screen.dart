@@ -151,98 +151,154 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
-    final currentUser = authState.user;
+    try {
+      final authState = ref.watch(authProvider);
+      final currentUser = authState.user;
 
-    if (currentUser == null || !currentUser.isAdmin) {
+      if (currentUser == null || !currentUser.isAdmin) {
+        return Scaffold(
+          backgroundColor: NeonColors.background,
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
+                const SizedBox(height: 16),
+                const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
+                const SizedBox(height: 16),
+                ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: NeonColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: NeonColors.textPrimary),
+            onPressed: () => context.go('/admin/users'),
+          ),
+          title: const Text(
+            'Détail utilisateur',
+            style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: _isLoading
+            ? const NeonLoadingSpinner.center()
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+                        const SizedBox(height: 12),
+                        Text(_error!, style: const TextStyle(color: NeonColors.textMuted)),
+                        const SizedBox(height: 8),
+                        Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
+                        const Text('BUILD v2026-08-26-fix18', style: TextStyle(color: Colors.orange, fontSize: 10)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
+                      ],
+                    ),
+                  )
+                : _user == null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)),
+                            Text('userId: ${widget.userId} BUILD v2026-08-26-fix18', style: const TextStyle(color: Colors.orange, fontSize: 10)),
+                          ],
+                        ),
+                      )
+                    : Builder(
+                        builder: (context) {
+                          try {
+                            return Stack(
+                              children: [
+                                RefreshIndicator(
+                                  onRefresh: _loadUser,
+                                  color: NeonColors.primary,
+                                  child: ListView(
+                                    physics: const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.all(16),
+                                    children: [
+                                      _buildProfileHeader(),
+                                      const SizedBox(height: 24),
+                                      _buildInfoSection(),
+                                      const SizedBox(height: 24),
+                                      _buildRoleSection(currentUser),
+                                      const SizedBox(height: 24),
+                                      _buildActionsSection(),
+                                    ],
+                                  ),
+                                ),
+                                if (_isSaving)
+                                  Container(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    child: const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
+                                  ),
+                              ],
+                            );
+                          } catch (e, st) {
+                            debugPrint('[ADMIN_DETAIL] BUILD ERROR: $e');
+                            debugPrint('[ADMIN_DETAIL] stack: $st');
+                            // ignore: avoid_print
+                            print('[ADMIN_DETAIL] BUILD ERROR: $e');
+                            print(st);
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                                    const SizedBox(height: 12),
+                                    Text('Erreur affichage: $e', style: const TextStyle(color: Colors.white)),
+                                    const SizedBox(height: 8),
+                                    Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
+                                    const SizedBox(height: 8),
+                                    Text('$st', style: const TextStyle(color: Colors.white54, fontSize: 8)),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+      );
+    } catch (e, st) {
+      debugPrint('[ADMIN_DETAIL] BUILD OUTER ERROR: $e');
+      debugPrint('[ADMIN_DETAIL] stack: $st');
+      // ignore: avoid_print
+      print('[ADMIN_DETAIL] OUTER ERROR: $e');
+      print(st);
       return Scaffold(
         backgroundColor: NeonColors.background,
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
-              const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour')),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 12),
+                Text('Erreur: $e', style: const TextStyle(color: Colors.white)),
+                Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
+                const SizedBox(height: 8),
+                Text('$st', style: const TextStyle(color: Colors.white54, fontSize: 8)),
+              ],
+            ),
           ),
         ),
       );
     }
-
-    return Scaffold(
-      backgroundColor: NeonColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: NeonColors.textPrimary),
-          onPressed: () => context.go('/admin/users'),
-        ),
-        title: const Text(
-          'Détail utilisateur',
-          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: _isLoading
-          ? const NeonLoadingSpinner.center()
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-                      const SizedBox(height: 12),
-                      Text(_error!, style: const TextStyle(color: NeonColors.textMuted)),
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 8),
-                        Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                        const Text('BUILD v2026-08-26-fix16', style: TextStyle(color: Colors.orange, fontSize: 10)),
-                      ],
-                      const SizedBox(height: 16),
-                      ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
-                    ],
-                  ),
-                )
-              : _user == null
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)),
-                          if (kDebugMode) Text('userId: ${widget.userId} BUILD v2026-08-26-fix16', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                        ],
-                      ),
-                    )
-                  : Stack(
-                      children: [
-                        RefreshIndicator(
-                          onRefresh: _loadUser,
-                          color: NeonColors.primary,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(16),
-                            children: [
-                              _buildProfileHeader(),
-                              const SizedBox(height: 24),
-                              _buildInfoSection(),
-                              const SizedBox(height: 24),
-                              _buildRoleSection(currentUser),
-                              const SizedBox(height: 24),
-                              _buildActionsSection(),
-                            ],
-                          ),
-                        ),
-                        if (_isSaving)
-                          Container(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            child: const Center(child: CircularProgressIndicator(color: NeonColors.primary)),
-                          ),
-                      ],
-                    ),
-    );
   }
 
   Widget _buildProfileHeader() {
