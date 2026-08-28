@@ -1,18 +1,23 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
-/// Logo WIWIGA dessine en CustomPainter
-/// 
-/// Variantes disponibles :
-/// - [full] : Icone hexagonale + texte "WIWIGA"
-/// - [icon] : Icone hexagonale seule
-/// - [text] : Texte "WIWIGA" seul
+/// Logo WIWIGA — Q CADRE GRAS (hairline 1.2 + W plein)
+///
+/// Choix validé : Q — cadre hairline fin + W plein.
+/// - [LogoVariant.icon] : glyph seul
+///   - sans cadre (par défaut) → W plein fin (header, favicon 16/32/48)
+///   - avec cadre (withFrame: true) → W plein + squircle hairline (PWA 192/512, stores)
+/// - [LogoVariant.full] : icon + texte "WIWIGA" (Orbitron)
+/// - [LogoVariant.text] : texte seul
+///
+/// Design sobre, 1 couleur, trait fin, optimisé favicon.
+/// Favicon 16px : stroke épaissi auto (11% vs 6.2% en grand) pour lisibilité.
 class WiwigaLogo extends StatelessWidget {
   final LogoVariant variant;
   final double size;
   final bool animated;
   final Color? color;
+  final bool withFrame;
 
   const WiwigaLogo({
     super.key,
@@ -20,14 +25,19 @@ class WiwigaLogo extends StatelessWidget {
     this.size = 48,
     this.animated = false,
     this.color,
+    this.withFrame = false,
   });
 
   @override
   Widget build(BuildContext context) {
     if (animated) {
-      return _AnimatedLogo(variant: variant, size: size, color: color);
+      return _AnimatedLogo(
+        variant: variant,
+        size: size,
+        color: color,
+        withFrame: withFrame,
+      );
     }
-
     switch (variant) {
       case LogoVariant.full:
         return _buildFullLogo();
@@ -43,7 +53,7 @@ class WiwigaLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildIcon(),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         _buildText(),
       ],
     );
@@ -54,7 +64,10 @@ class WiwigaLogo extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _LogoIconPainter(color: color),
+        painter: _QLogoPainter(
+          color: color,
+          withFrame: withFrame,
+        ),
       ),
     );
   }
@@ -63,17 +76,12 @@ class WiwigaLogo extends StatelessWidget {
     return Text(
       'WIWIGA',
       style: TextStyle(
-        fontSize: size * 0.5,
-        fontWeight: FontWeight.bold,
+        fontSize: size * 0.48,
+        fontWeight: FontWeight.w800,
         color: color ?? NeonColors.primary,
         fontFamily: 'Orbitron',
-        letterSpacing: 2,
-        shadows: [
-          Shadow(
-            color: (color ?? NeonColors.primary).withValues(alpha: 0.5),
-            blurRadius: 8,
-          ),
-        ],
+        letterSpacing: 3.2,
+        // Sobre : pas de glow par défaut (glow uniquement au hover si besoin)
       ),
     );
   }
@@ -81,103 +89,138 @@ class WiwigaLogo extends StatelessWidget {
 
 enum LogoVariant { full, icon, text }
 
-class _LogoIconPainter extends CustomPainter {
+/// Painter Q — deux rendus :
+/// - sans cadre : W plein fin (M20 36 ...) stroke 6.2% (11% si ≤24px)
+/// - avec cadre : squircle rx24 stroke 1.2% + W M22 36 ... stroke 4.8%
+class _QLogoPainter extends CustomPainter {
   final Color? color;
+  final bool withFrame;
 
-  _LogoIconPainter({this.color});
+  _QLogoPainter({this.color, this.withFrame = false});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
     final primaryColor = color ?? NeonColors.primary;
-
-    // Glow externe
-    final glowPaint = Paint()
-      ..color = primaryColor.withValues(alpha: 0.25)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    canvas.drawPath(_hexPath(center, radius * 0.92), glowPaint);
-
-    // Fond hexagonal
-    final bgPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          primaryColor.withValues(alpha: 0.3),
-          primaryColor.withValues(alpha: 0.1),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawPath(_hexPath(center, radius * 0.88), bgPaint);
-
-    // Bordure hexagonale
-    final borderPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [primaryColor, NeonColors.accent],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.06;
-    canvas.drawPath(_hexPath(center, radius * 0.88), borderPaint);
-
-    // "W" interieur
-    _drawW(canvas, center, radius, primaryColor);
-  }
-
-  Path _hexPath(Offset center, double radius) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final angle = (math.pi / 3) * i - math.pi / 6;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
+    final s = size.width; // carré
+    // Stroke adaptatif favicon-first
+    final double wStroke;
+    final double cadreStroke;
+    if (withFrame) {
+      if (s <= 20) {
+        wStroke = s * 0.11;
+        cadreStroke = s * 0.045;
+      } else if (s <= 34) {
+        wStroke = s * 0.075;
+        cadreStroke = s * 0.028;
       } else {
-        path.lineTo(x, y);
+        wStroke = s * 0.048;
+        cadreStroke = s * 0.012;
+      }
+    } else {
+      if (s <= 20) {
+        wStroke = s * 0.11;
+        cadreStroke = 0;
+      } else if (s <= 34) {
+        wStroke = s * 0.072;
+        cadreStroke = 0;
+      } else {
+        wStroke = s * 0.062;
+        cadreStroke = 0;
       }
     }
-    path.close();
-    return path;
+
+    if (withFrame) {
+      _drawCadre(canvas, size, primaryColor, cadreStroke);
+      _drawWAvecCadre(canvas, size, primaryColor, wStroke);
+    } else {
+      _drawWSansCadre(canvas, size, primaryColor, wStroke);
+    }
   }
 
-  void _drawW(Canvas canvas, Offset center, double radius, Color color) {
-    final wPaint = Paint()
+  void _drawCadre(Canvas canvas, Size size, Color color, double strokeWidth) {
+    final s = size.width;
+    // Cadre : x11 y11 w78 h78 rx24 in viewBox 100
+    final double x = s * 0.11;
+    final double y = s * 0.11;
+    final double w = s * 0.78;
+    final double h = s * 0.78;
+    final double rx = s * 0.24;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(x, y, w, h),
+      Radius.circular(rx),
+    );
+    final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.1
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+    canvas.drawRRect(rrect, paint);
+  }
 
-    final w = radius * 0.45;
-    final h = radius * 0.35;
-    final sx = center.dx - w;
-    final sy = center.dy - h;
+  // Q sans cadre : M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36
+  void _drawWSansCadre(Canvas canvas, Size size, Color color, double strokeWidth) {
+    final s = size.width;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
 
     final path = Path();
-    path.moveTo(sx, sy);
-    path.lineTo(sx + w * 0.5, sy + h * 2);
-    path.lineTo(sx + w * 0.75, sy + h * 0.8);
-    path.lineTo(sx + w * 1.25, sy + h * 0.8);
-    path.lineTo(sx + w * 1.5, sy + h * 2);
-    path.lineTo(sx + w * 2, sy);
+    // Points scaled 0-100 -> 0-s
+    double px(double v) => v / 100 * s;
+    path.moveTo(px(20), px(36));
+    path.lineTo(px(32), px(68));
+    path.lineTo(px(44.5), px(44));
+    path.lineTo(px(55.5), px(44));
+    path.lineTo(px(68), px(68));
+    path.lineTo(px(80), px(36));
+    canvas.drawPath(path, paint);
+  }
 
-    canvas.drawPath(path, wPaint);
+  // Q avec cadre : M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36
+  void _drawWAvecCadre(Canvas canvas, Size size, Color color, double strokeWidth) {
+    final s = size.width;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+
+    final path = Path();
+    double px(double v) => v / 100 * s;
+    path.moveTo(px(22), px(36));
+    path.lineTo(px(33), px(67));
+    path.lineTo(px(44), px(44.5));
+    path.lineTo(px(56), px(44.5));
+    path.lineTo(px(67), px(67));
+    path.lineTo(px(78), px(36));
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) =>
-      color != (oldDelegate as _LogoIconPainter).color;
+  bool shouldRepaint(covariant _QLogoPainter oldDelegate) =>
+      color != oldDelegate.color || withFrame != oldDelegate.withFrame;
 }
 
-/// Logo anime avec glow pulse et rotation subtile
+/// Logo animé — pulse subtil (optionnel, sobre)
 class _AnimatedLogo extends StatefulWidget {
   final LogoVariant variant;
   final double size;
   final Color? color;
+  final bool withFrame;
 
   const _AnimatedLogo({
     required this.variant,
     required this.size,
     this.color,
+    this.withFrame = false,
   });
 
   @override
@@ -187,21 +230,16 @@ class _AnimatedLogo extends StatefulWidget {
 class _AnimatedLogoState extends State<_AnimatedLogo>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _glowAnimation;
-  late Animation<double> _rotateAnimation;
+  late Animation<double> _opacityAnim;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-
-    _glowAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _rotateAnimation = Tween<double>(begin: -0.02, end: 0.02).animate(
+    _opacityAnim = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -217,18 +255,16 @@ class _AnimatedLogoState extends State<_AnimatedLogo>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return Transform.rotate(
-          angle: _rotateAnimation.value,
-          child: Opacity(
-            opacity: 0.85 + (_glowAnimation.value * 0.15),
-            child: child,
-          ),
+        return Opacity(
+          opacity: _opacityAnim.value,
+          child: child,
         );
       },
       child: WiwigaLogo(
         variant: widget.variant,
         size: widget.size,
         color: widget.color,
+        withFrame: widget.withFrame,
       ),
     );
   }

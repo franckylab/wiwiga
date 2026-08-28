@@ -290,10 +290,12 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
               ],
             ),
             child: const Center(
+              // Q sans cadre — dans cercle déjà cadré, pas de double cadre
               child: WiwigaLogo(
                 variant: LogoVariant.icon,
                 size: 32,
                 color: NeonColors.background,
+                withFrame: false,
               ),
             ),
           ),

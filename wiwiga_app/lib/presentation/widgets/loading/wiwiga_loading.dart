@@ -104,11 +104,12 @@ class WiwigaLoading extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo anime
+            // Logo anime — Q sans cadre (contexte loading 80, W plein fin)
             const WiwigaLogo(
               variant: LogoVariant.icon,
               size: 80,
               animated: true,
+              withFrame: false,
             ),
             const SizedBox(height: 32),
             // Spinner

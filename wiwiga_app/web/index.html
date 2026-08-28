@@ -7,8 +7,16 @@
   <meta name="description" content="WIWIGA - Plateforme de jeux sécurisée">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="wiwiga">
-  <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="apple-mobile-web-app-title" content="WIWIGA">
+  <meta name="theme-color" content="#2DD4BF">
+  <meta name="msapplication-TileColor" content="#0F172A">
+  <!-- WIWIGA Q — favicon system (avec/sans cadre, dark/light) -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
   <title>WIWIGA - Jeux en ligne</title>
   <!-- Noto Sans: police de secours Unicode large (emoji, CJK, arabe, etc.) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +26,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #1a1a2e;
+      background: #0F172A;
       overflow: hidden;
     }
 
@@ -46,22 +54,29 @@
       src: local('Inter Bold'), local('Segoe UI Bold'), local('Helvetica Neue Bold'), local('Arial Bold');
     }
 
-    /* Loading indicator pendant le bootstrap Flutter */
+    /* Loading indicator pendant le bootstrap Flutter — Q CADRE GRAS */
     #loading-indicator {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: #00f0ff;
+      color: #2DD4BF;
       font-family: 'Orbitron', 'Segoe UI', sans-serif;
       font-size: 18px;
+      letter-spacing: 0.18em;
       text-align: center;
     }
+    #loading-indicator .q-logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      display: block;
+    }
     #loading-indicator .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(0, 240, 255, 0.2);
-      border-top-color: #00f0ff;
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(45, 212, 191, 0.18);
+      border-top-color: #2DD4BF;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 16px;
@@ -73,6 +88,10 @@
 </head>
 <body>
   <div id="loading-indicator">
+    <!-- Q sans cadre — W plein fin (contexte favicon/header 32) — stroke 6.2% -->
+    <svg class="q-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
     <div class="spinner"></div>
     WIWIGA
   </div>

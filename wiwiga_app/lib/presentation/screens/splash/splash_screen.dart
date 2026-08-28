@@ -140,11 +140,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo WIWIGA
+                    // Logo WIWIGA — Q sans cadre (contexte splash 100, W plein fin)
                     const WiwigaLogo(
                       variant: LogoVariant.icon,
                       size: 100,
                       animated: true,
+                      withFrame: false,
                     ),
                     const SizedBox(height: 16),
                     // Texte WIWIGA

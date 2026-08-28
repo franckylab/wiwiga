@@ -80,12 +80,13 @@ class _HeaderSection extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Logo
+              // Logo — Q sans cadre (contexte header 32, favicon-first)
               const Row(
                 children: [
                   WiwigaLogo(
                     variant: LogoVariant.icon,
                     size: 32,
+                    withFrame: false,
                   ),
                   SizedBox(width: 8),
                   Text(
