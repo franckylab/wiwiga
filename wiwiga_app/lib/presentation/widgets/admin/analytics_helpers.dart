@@ -28,11 +28,18 @@ const List<String> kAnalyticsPeriodLabels = ['24h', '7j', '30j', '90j'];
 class AnalyticsFormat {
   AnalyticsFormat._();
 
+  static double? _toNumDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   /// Formate un montant en FCFA avec suffixes K/M
   /// Ex: 1500 → "1.5K FCFA", 2500000 → "2.5M FCFA"
   static String amount(dynamic value, {String suffix = 'FCFA'}) {
     if (value == null) return '0 $suffix';
-    final n = (value as num).toDouble();
+    final n = _toNumDouble(value) ?? 0;
     final abs = n.abs();
     if (abs >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M $suffix';
     if (abs >= 1000) return '${(n / 1000).toStringAsFixed(1)}K $suffix';
@@ -42,7 +49,7 @@ class AnalyticsFormat {
   /// Formate un montant avec 2 décimales pour les millions
   static String amountPrecise(dynamic value, {String suffix = 'FCFA'}) {
     if (value == null) return '0 $suffix';
-    final n = (value as num).toDouble();
+    final n = _toNumDouble(value) ?? 0;
     final abs = n.abs();
     if (abs >= 1000000) return '${(n / 1000000).toStringAsFixed(2)}M $suffix';
     if (abs >= 1000) return '${(n / 1000).toStringAsFixed(1)}K $suffix';
@@ -52,7 +59,7 @@ class AnalyticsFormat {
   /// Formate un nombre sans unité (joueurs, parties, etc.)
   static String number(dynamic value) {
     if (value == null) return '0';
-    final n = (value as num).toDouble();
+    final n = _toNumDouble(value) ?? 0;
     if (n.abs() >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n.abs() >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return n.toStringAsFixed(0);
@@ -61,13 +68,13 @@ class AnalyticsFormat {
   /// Convertit une valeur dynamique en double (null-safe)
   static double? toDouble(dynamic value) {
     if (value == null) return null;
-    return (value as num).toDouble();
+    return _toNumDouble(value);
   }
 
   /// Pourcentage formaté
   static String percent(dynamic value, {int decimals = 1}) {
     if (value == null) return '0%';
-    final n = (value as num).toDouble();
+    final n = _toNumDouble(value) ?? 0;
     return '${n.toStringAsFixed(decimals)}%';
   }
 

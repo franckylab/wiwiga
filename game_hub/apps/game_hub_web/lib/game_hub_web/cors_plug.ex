@@ -51,7 +51,10 @@ defmodule GameHubWeb.CORSPlug do
         conn
         |> put_resp_header("access-control-allow-origin", allow_origin)
         |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
-        |> put_resp_header("access-control-allow-headers", "Content-Type, Authorization, X-Requested-With")
+                |> put_resp_header(
+          "access-control-allow-headers",
+          "Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID"
+        )
         |> put_resp_header("access-control-allow-credentials", "true")
         |> put_resp_header("access-control-max-age", "86400")
         |> handle_preflight()

@@ -167,8 +167,16 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
     final isDesktop = screenWidth > 900;
 
     // Écouter les changements de route pour auto-expand
+    // Mutation synchrone avant le rendu pour afficher la section active sans flash (collapse 1 frame)
     final currentPath = GoRouterState.of(context).uri.path;
-    _autoExpandForPath(currentPath);
+    for (final section in _navSections) {
+      for (final item in section.items) {
+        if (currentPath == item.path || (item.path != '/admin' && currentPath.startsWith(item.path))) {
+          _expandedSections.add(section.title);
+          break;
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: NeonColors.background,
@@ -494,39 +502,88 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: NeonColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Container(width: 40, height: 4, decoration: BoxDecoration(color: NeonColors.border, borderRadius: BorderRadius.circular(2))),
-              ),
-              const Text(
-                'Navigation Admin',
-                style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: _navSections.length,
-                  itemBuilder: (context, index) => _buildSection(_navSections[index], currentPath),
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) {
+          void toggleSection(String title) {
+            setModalState(() {
+              if (_expandedSections.contains(title)) {
+                _expandedSections.remove(title);
+              } else {
+                _expandedSections.add(title);
+              }
+            });
+            // Synchronise l'état du Shell pour persistance après fermeture du drawer
+            setState(() {});
+          }
+
+          Widget buildDrawerSection(_NavSection section) {
+            final isExpanded = _expandedSections.contains(section.title);
+            final hasActiveChild = section.items.any(
+              (item) => currentPath == item.path || (item.path != '/admin' && currentPath.startsWith(item.path)),
+            );
+            return Column(
+              children: [
+                _SectionHeader(
+                  title: section.title,
+                  icon: section.icon,
+                  isExpanded: isExpanded,
+                  hasActiveChild: hasActiveChild,
+                  onTap: () => toggleSection(section.title),
                 ),
+                AnimatedCrossFade(
+                  firstChild: const SizedBox.shrink(),
+                  secondChild: _SectionItems(
+                    items: section.items,
+                    currentPath: currentPath,
+                    onNavigate: () {
+                      if (Navigator.canPop(modalContext)) Navigator.pop(modalContext);
+                    },
+                  ),
+                  firstCurve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+                  secondCurve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+                  sizeCurve: Curves.easeOutCubic,
+                  crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  duration: const Duration(milliseconds: 250),
+                ),
+              ],
+            );
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (context, scrollController) => Container(
+              decoration: const BoxDecoration(
+                color: NeonColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-            ],
-          ),
-        ),
+              child: Column(
+                children: [
+                  // Handle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, bottom: 8),
+                    child: Container(width: 40, height: 4, decoration: BoxDecoration(color: NeonColors.border, borderRadius: BorderRadius.circular(2))),
+                  ),
+                  const Text(
+                    'Navigation Admin',
+                    style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: _navSections.length,
+                      itemBuilder: (context, index) => buildDrawerSection(_navSections[index]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

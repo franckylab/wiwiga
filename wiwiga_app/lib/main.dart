@@ -16,11 +16,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppConfig.initialize();
 
-  // Pré-charger Noto Sans (police de secours Unicode large)
-  // pour éviter le warning "Could not find a set of Noto fonts"
-  await GoogleFonts.pendingFonts([
-    GoogleFonts.notoSans(),
-  ]);
+  // Pré-charger Noto Sans sans bloquer le premier frame
+  // (await bloquant causait un spinner infini en debug web)
+  GoogleFonts.pendingFonts([GoogleFonts.notoSans()]).catchError((_) {});
   
   runApp(
     const ProviderScope(

@@ -245,6 +245,20 @@ class UserModel {
     return '??';
   }
 
+  static double _parseBalance(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble() / 100.0;
+    if (v is String) return (double.tryParse(v) ?? 0) / 100.0;
+    return 0;
+  }
+
+  static int _parseInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   /// Crée un UserModel depuis une réponse JSON API
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -256,12 +270,12 @@ class UserModel {
       role: UserRole.fromString(json['role']?.toString()),
       avatarType: AvatarType.fromString(json['avatar_type']?.toString()),
       avatarUrl: json['avatar_url']?.toString(),
-      balance: ((json['balance'] ?? 0) as num).toDouble() / 100.0,
-      tokenBalance: ((json['token_balance'] ?? 0) as num).toInt(),
+      balance: _parseBalance(json['balance']),
+      tokenBalance: _parseInt(json['token_balance']),
       isActive: json['is_active'] ?? true,
       hasVerifiedKyc: json['has_verified_kyc'] ?? false,
       selfExcluded: json['self_excluded'] ?? false,
-      loginCount: ((json['login_count'] ?? 0) as num).toInt(),
+      loginCount: _parseInt(json['login_count']),
       lastLoginAt: json['last_login_at'] != null ? DateTime.tryParse(json['last_login_at'].toString()) : null,
       createdAt: json['created_at'] != null
           ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
