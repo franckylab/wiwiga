@@ -182,74 +182,77 @@ class _AuthScreenNeonState extends ConsumerState<AuthScreenNeon>
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 40),
-                  
-                  // Logo
-                  const _LogoSection(),
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Titre
-                  Text(
-                    _isOtpSent ? 'VÉRIFICATION' : 'BIENVENUE',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: NeonColors.primary,
-                      fontFamily: 'Orbitron',
+      body: Container(
+        decoration: const BoxDecoration(gradient: NeonGradients.splash),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 40),
+                    
+                    // Logo — Q CADRE GRAS avec cadre, cohérent splash
+                    const _LogoSection(),
+                    
+                    const SizedBox(height: 48),
+                    
+                    // Titre
+                    Text(
+                      _isOtpSent ? 'VÉRIFICATION' : 'BIENVENUE',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: NeonColors.primary,
+                        fontFamily: 'Orbitron',
+                      ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  Text(
-                    _isOtpSent
-                        ? 'Entrez le code reçu par SMS'
-                        : 'Connectez-vous pour commencer à jouer',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: NeonColors.textSecondary,
-                      fontFamily: 'Inter',
+                    
+                    const SizedBox(height: 8),
+                    
+                    Text(
+                      _isOtpSent
+                          ? 'Entrez le code reçu par SMS'
+                          : 'Connectez-vous pour commencer à jouer',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: NeonColors.textSecondary,
+                        fontFamily: 'Inter',
+                      ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Formulaire
-                  if (!_isOtpSent) ...[
-                    _PhoneForm(
-                      controller: _phoneController,
-                      isLoading: isLoading,
-                      onSubmit: _sendOtp,
-                    ),
-                  ] else ...[
-                    _OtpForm(
-                      controller: _otpController,
-                      isLoading: isLoading,
-                      countdown: _countdown,
-                      onVerify: _verifyOtp,
-                      onResend: _sendOtp,
-                      onBack: () => setState(() => _isOtpSent = false),
-                    ),
+                    
+                    const SizedBox(height: 48),
+                    
+                    // Formulaire
+                    if (!_isOtpSent) ...[
+                      _PhoneForm(
+                        controller: _phoneController,
+                        isLoading: isLoading,
+                        onSubmit: _sendOtp,
+                      ),
+                    ] else ...[
+                      _OtpForm(
+                        controller: _otpController,
+                        isLoading: isLoading,
+                        countdown: _countdown,
+                        onVerify: _verifyOtp,
+                        onResend: _sendOtp,
+                        onBack: () => setState(() => _isOtpSent = false),
+                      ),
+                    ],
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Footer
+                    const _FooterSection(),
                   ],
-                  
-                  const SizedBox(height: 32),
-                  
-                  // Footer
-                  const _FooterSection(),
-                ],
+                ),
               ),
             ),
           ),
@@ -264,26 +267,41 @@ class _LogoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Q CADRE GRAS — avec cadre, cohérent splash 96 (avec cadre) — sobre, 1 couleur
     return Center(
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: NeonGradients.cta,
-          boxShadow: [
-            BoxShadow(
-              color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
-              blurRadius: NeonGlow.blurMedium,
-              spreadRadius: 4,
+      child: Column(
+        children: [
+          const WiwigaLogo(
+            variant: LogoVariant.icon,
+            size: 80,
+            withFrame: true,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'WIWIGA',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: NeonColors.primary,
+              fontFamily: 'Orbitron',
+              letterSpacing: 4,
+              shadows: [
+                Shadow(color: NeonColors.primary.withValues(alpha: 0.6), blurRadius: 16),
+                Shadow(color: NeonColors.tokenGold.withValues(alpha: 0.3), blurRadius: 32),
+              ],
             ),
-          ],
-        ),
-        child: const Icon(
-          Icons.gamepad,
-          size: 64,
-          color: NeonColors.background,
-        ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Joue. Gagne. Triomphe.',
+            style: TextStyle(
+              fontSize: 11,
+              color: NeonColors.textSecondary,
+              fontFamily: 'Inter',
+              letterSpacing: 2,
+            ),
+          ),
+        ],
       ),
     );
   }

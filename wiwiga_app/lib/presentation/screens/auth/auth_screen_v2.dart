@@ -12,10 +12,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/auth/avatar_picker.dart';
 import '../../widgets/auth/success_animation.dart';
+import '../../widgets/neon/wiwiga_logo.dart';
 import '../../providers/config_provider.dart';
 
 /// Écran d'authentification multi-méthodes
@@ -289,16 +291,18 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _buildCurrentFlow(authState),
+      body: Container(
+        decoration: const BoxDecoration(gradient: NeonGradients.splash),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _buildCurrentFlow(authState),
+                ),
               ),
             ),
           ),
@@ -337,31 +341,27 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 32),
-        // Logo
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF00FF88).withValues(alpha: 0.1),
-          ),
-          child: const Icon(Icons.casino, size: 64, color: Color(0xFF00FF88)),
-        ),
-        const SizedBox(height: 20),
+        // Logo — Q CADRE GRAS avec cadre, cohérent splash (WIWIGA 32 Orbitron primary, tagline Inter 11)
+        const WiwigaLogo(variant: LogoVariant.icon, size: 80, withFrame: true),
+        const SizedBox(height: 12),
         Text(
           'WIWIGA',
           style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF00FF88),
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: NeonColors.primary,
+            fontFamily: 'Orbitron',
+            letterSpacing: 4,
             shadows: [
-              Shadow(color: const Color(0xFF00FF88).withValues(alpha: 0.4), blurRadius: 24),
+              Shadow(color: NeonColors.primary, blurRadius: 16),
+              Shadow(color: NeonColors.tokenGold, blurRadius: 32),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
-          'Joue. Gagne. Partage.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
+          'Joue. Gagne. Triomphe.',
+          style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontFamily: 'Inter', letterSpacing: 2),
         ),
         const SizedBox(height: 48),
 
@@ -375,8 +375,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               setState(() => _currentFlow = _AuthFlow.login);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-              foregroundColor: const Color(0xFF0A0A1A),
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Se connecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -396,7 +396,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Les inscriptions sont temporairement désactivées'),
-                    backgroundColor: Colors.orange,
+                    backgroundColor: NeonColors.warning,
                   ),
                 );
                 return;
@@ -405,10 +405,10 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               setState(() => _currentFlow = _AuthFlow.registerIdentifier);
             },
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF00FF88), width: 1.5),
+              side: const BorderSide(color: NeonColors.primary, width: 1.5),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Créer un compte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00FF88))),
+            child: const Text('Créer un compte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: NeonColors.primary)),
           ),
         ),
       ],
@@ -424,11 +424,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 16),
-        const Icon(Icons.lock_open, size: 48, color: Color(0xFF00FF88)),
+        const Icon(Icons.lock_open, size: 48, color: NeonColors.primary),
         const SizedBox(height: 12),
         const Text(
           'Connexion',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
         ),
         const SizedBox(height: 24),
 
@@ -444,7 +444,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               // Identifiant
               TextFormField(
                 controller: _identifierController,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
                 keyboardType: _selectedMethod == _AuthMethod.phone
                     ? TextInputType.phone
                     : TextInputType.emailAddress,
@@ -464,13 +464,13 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               // Mot de passe
               TextFormField(
                 controller: _passwordController,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
                 obscureText: _obscurePassword,
                 decoration: _inputDecoration(
                   hint: 'Mot de passe',
                   icon: Icons.lock,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white38),
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: NeonColors.textMuted),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
@@ -489,7 +489,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
           ),
 
         // Bouton connexion
@@ -499,8 +499,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           child: ElevatedButton(
             onPressed: _isLoading ? null : _loginWithPassword,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-              foregroundColor: const Color(0xFF0A0A1A),
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isLoading
@@ -514,13 +514,13 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Pas de compte ?', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+            Text('Pas de compte ?', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5))),
             TextButton(
               onPressed: () {
                 _resetState();
                 setState(() => _currentFlow = _AuthFlow.registerIdentifier);
               },
-              child: const Text('S\'inscrire', style: TextStyle(color: Color(0xFF00FF88), fontWeight: FontWeight.bold)),
+              child: const Text('S\'inscrire', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -538,7 +538,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             _resetState();
             setState(() => _currentFlow = _AuthFlow.welcome);
           },
-          child: const Text('Retour', style: TextStyle(color: Colors.white38)),
+          child: const Text('Retour', style: TextStyle(color: NeonColors.textMuted)),
         ),
       ],
     );
@@ -571,9 +571,9 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A3E),
+        color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.3)),
+        border: Border.all(color: NeonColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -581,14 +581,14 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         children: [
           const Row(
             children: [
-              Icon(Icons.bug_report, size: 16, color: Color(0xFF00FF88)),
+              Icon(Icons.bug_report, size: 16, color: NeonColors.primary),
               SizedBox(width: 6),
               Text(
                 'DEV — Identifiants de test',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF00FF88),
+                  color: NeonColors.primary,
                 ),
               ),
             ],
@@ -608,15 +608,15 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
                   children: [
                     SizedBox(
                       width: 80,
-                      child: Text(c['label']!, style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w600)),
+                      child: Text(c['label']!, style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontWeight: FontWeight.w600)),
                     ),
                     Expanded(
                       child: Text(
                         _selectedMethod == _AuthMethod.email ? c['email'] as String : c['phone'] as String,
-                        style: const TextStyle(fontSize: 11, color: Colors.white54, fontFamily: 'monospace'),
+                        style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontFamily: 'monospace'),
                       ),
                     ),
-                    const Icon(Icons.touch_app, size: 14, color: Color(0xFF00FF88)),
+                    const Icon(Icons.touch_app, size: 14, color: NeonColors.primary),
                   ],
                 ),
               ),
@@ -624,7 +624,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           ),),
           Text(
             'Appuyez pour remplir automatiquement',
-            style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.3), fontStyle: FontStyle.italic),
+            style: TextStyle(fontSize: 10, color: NeonColors.textPrimary.withValues(alpha: 0.3), fontStyle: FontStyle.italic),
           ),
         ],
       ),
@@ -640,16 +640,16 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 16),
-        const Icon(Icons.person_add, size: 48, color: Color(0xFF00FF88)),
+        const Icon(Icons.person_add, size: 48, color: NeonColors.primary),
         const SizedBox(height: 12),
         const Text(
           'Créer un compte',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
         ),
         const SizedBox(height: 8),
         Text(
           'Inscris-toi avec ton téléphone ou email',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+          style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5), fontSize: 14),
         ),
         const SizedBox(height: 24),
 
@@ -660,7 +660,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           key: _formKey,
           child: TextFormField(
             controller: _identifierController,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
             keyboardType: _selectedMethod == _AuthMethod.phone
                 ? TextInputType.phone
                 : TextInputType.emailAddress,
@@ -681,7 +681,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
           ),
 
         SizedBox(
@@ -690,8 +690,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           child: ElevatedButton(
             onPressed: _isLoading ? null : _sendOtp,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-              foregroundColor: const Color(0xFF0A0A1A),
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isLoading
@@ -704,13 +704,13 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Déjà un compte ?', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+            Text('Déjà un compte ?', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5))),
             TextButton(
               onPressed: () {
                 _resetState();
                 setState(() => _currentFlow = _AuthFlow.login);
               },
-              child: const Text('Se connecter', style: TextStyle(color: Color(0xFF00FF88), fontWeight: FontWeight.bold)),
+              child: const Text('Se connecter', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -720,7 +720,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             _resetState();
             setState(() => _currentFlow = _AuthFlow.welcome);
           },
-          child: const Text('Retour', style: TextStyle(color: Colors.white38)),
+          child: const Text('Retour', style: TextStyle(color: NeonColors.textMuted)),
         ),
       ],
     );
@@ -734,47 +734,47 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       key: const ValueKey('otp'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.security, size: 48, color: Color(0xFF00FF88)),
+        const Icon(Icons.security, size: 48, color: NeonColors.primary),
         const SizedBox(height: 16),
         const Text(
           'Vérification',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
         ),
         const SizedBox(height: 8),
         Text(
           'Code envoyé à $_identifier',
-          style: const TextStyle(color: Colors.white54, fontSize: 14),
+          style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14),
         ),
         const SizedBox(height: 32),
 
         TextFormField(
           controller: _otpController,
-          style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
+          style: const TextStyle(color: NeonColors.textPrimary, fontSize: 24, letterSpacing: 8),
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             hintText: '------',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 24, letterSpacing: 8),
+            hintStyle: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.2), fontSize: 24, letterSpacing: 8),
             counterText: '',
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: NeonColors.textPrimary.withValues(alpha: 0.05),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00FF88), width: 2)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.primary, width: 2)),
           ),
         ),
         const SizedBox(height: 16),
 
         if (_countdown > 0)
-          Text('Renvoyer dans ${_countdown}s', style: TextStyle(color: Colors.white.withValues(alpha: 0.4)))
+          Text('Renvoyer dans ${_countdown}s', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.4)))
         else
-          TextButton(onPressed: _sendOtp, child: const Text('Renvoyer le code', style: TextStyle(color: Color(0xFF00FF88)))),
+          TextButton(onPressed: _sendOtp, child: const Text('Renvoyer le code', style: TextStyle(color: NeonColors.primary))),
 
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12, top: 8),
-            child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
           ),
         const SizedBox(height: 12),
 
@@ -784,8 +784,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           child: ElevatedButton(
             onPressed: _isLoading ? null : _verifyOtp,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-              foregroundColor: const Color(0xFF0A0A1A),
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isLoading
@@ -800,7 +800,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             _currentFlow = _AuthFlow.registerIdentifier;
             _error = null;
           }),
-          child: const Text('Retour', style: TextStyle(color: Colors.white54)),
+          child: const Text('Retour', style: TextStyle(color: NeonColors.textSecondary)),
         ),
       ],
     );
@@ -814,17 +814,17 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       key: const ValueKey('profile'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.emoji_events, size: 48, color: Color(0xFF00FF88)),
+        const Icon(Icons.emoji_events, size: 48, color: NeonColors.primary),
         const SizedBox(height: 16),
         const Text(
           'Complète ton profil',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
         ),
         const SizedBox(height: 32),
 
         TextFormField(
           controller: _usernameController,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
           decoration: _inputDecoration(hint: 'Ton pseudonyme', icon: Icons.alternate_email),
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]'))],
           maxLength: 30,
@@ -840,7 +840,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
           ),
 
         SizedBox(
@@ -849,8 +849,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           child: ElevatedButton(
             onPressed: _isLoading ? null : _completeProfile,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-              foregroundColor: const Color(0xFF0A0A1A),
+              backgroundColor: NeonColors.primary,
+              foregroundColor: NeonColors.background,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isLoading
@@ -890,7 +890,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         SuccessAnimation(
           message: 'Inscription réussie !',
           subtitle: 'Ton compte WIWIGA est prêt',
-          color: const Color(0xFF00FF88),
+          color: NeonColors.primary,
           onComplete: () {
             Future.delayed(const Duration(milliseconds: 500), _navigateToHome);
           },
@@ -907,7 +907,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         SuccessAnimation(
           message: 'Déconnecté',
           subtitle: 'À bientôt sur WIWIGA !',
-          color: const Color(0xFF00FF88),
+          color: NeonColors.primary,
           onComplete: () {
             Future.delayed(const Duration(milliseconds: 300), () {
               if (mounted) {
@@ -927,7 +927,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   Widget _buildMethodSelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: NeonColors.textPrimary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -956,13 +956,13 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-      prefixIcon: Icon(icon, color: const Color(0xFF00FF88)),
+      hintStyle: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.3)),
+      prefixIcon: Icon(icon, color: NeonColors.primary),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: NeonColors.textPrimary.withValues(alpha: 0.05),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00FF88), width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.primary, width: 2)),
     );
   }
 }
@@ -988,19 +988,19 @@ class _MethodTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF00FF88).withValues(alpha: 0.15) : Colors.transparent,
+            color: isSelected ? NeonColors.primary.withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
-            border: isSelected ? Border.all(color: const Color(0xFF00FF88), width: 1.5) : null,
+            border: isSelected ? Border.all(color: NeonColors.primary, width: 1.5) : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: isSelected ? const Color(0xFF00FF88) : Colors.white54, size: 20),
+              Icon(icon, color: isSelected ? NeonColors.primary : NeonColors.textSecondary, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? const Color(0xFF00FF88) : Colors.white54,
+                  color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
