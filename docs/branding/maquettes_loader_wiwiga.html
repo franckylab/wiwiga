@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIWIGA — Maquettes Loaders Q — Cadre + W animés</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0F172A;--card:#1A2538;--border:#334155;--primary:#2DD4BF;--accent:#00D9FF;--text:#F8FAFC;--muted:#94A3B8;--dim:#64748B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  a{color:var(--primary)}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  .hero{border:1px solid var(--border);background:linear-gradient(180deg,#1E293B 0%,#0F172A 100%);border-radius:20px;padding:28px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 70% 0%, rgba(45,212,191,0.08), transparent 60%);pointer-events:none}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--primary);margin-bottom:10px}
+  .hero h1{font-family:'Orbitron',sans-serif;font-size:clamp(26px,4vw,34px);font-weight:800;letter-spacing:0.04em;line-height:1.1}
+  .hero h1 em{font-style:normal;color:var(--primary);text-shadow:0 0 18px rgba(45,212,191,0.35)}
+  .hero p{color:var(--muted);max-width:820px;margin-top:12px;font-size:13.5px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .badge{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted)}
+  .badge.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .nav{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .nav a{font-size:12px;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--muted);text-decoration:none}
+  .nav a.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .section{margin-top:32px}
+  .section h2{font-family:'Orbitron',sans-serif;font-size:16px;letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .section h2 i{width:28px;height:1px;background:var(--primary);display:inline-block}
+  .section .sub{color:var(--muted);font-size:12.5px;margin-top:6px;max-width:860px}
+  /* research */
+  .research{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media(max-width:900px){.research{grid-template-columns:1fr 1fr}} @media(max-width:560px){.research{grid-template-columns:1fr}}
+  .rk{border:1px solid var(--border);background:var(--card);border-radius:14px;padding:14px}
+  .rk h3{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary);font-weight:700}
+  .rk p,.rk li{font-size:12px;color:#CBD5E1;margin-top:6px}
+  .rk ul{margin:6px 0 0 14px} .rk li{margin-top:3px}
+  .rk strong{color:var(--text)}
+  /* existing */
+  .existing{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  @media(max-width:900px){.existing{grid-template-columns:1fr 1fr}} @media(max-width:560px){.existing{grid-template-columns:1fr}}
+  .ex{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px;text-align:center}
+  .ex b{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);display:block;margin-top:6px}
+  .ex p{font-size:11px;color:var(--muted);margin-top:4px}
+  /* concepts */
+  .concepts{display:grid;grid-template-columns:1fr;gap:18px;margin-top:18px}
+  .c{border:1px solid var(--border);background:var(--card);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+  .c-head{padding:16px 18px 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+  .c-num{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--primary);border:1px solid rgba(45,212,191,0.25);padding:4px 8px;border-radius:999px;background:rgba(45,212,191,0.06)}
+  .c-tag{font-size:11px;color:var(--dim);border:1px solid var(--border);padding:4px 8px;border-radius:999px}
+  .c h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;margin-top:10px}
+  .c h3 span{color:var(--primary);font-weight:800}
+  .c .desc{font-size:12.5px;color:#CBD5E1;margin-top:6px;line-height:1.55}
+  .c .desc em{font-style:normal;color:var(--text);font-weight:600}
+  /* previews */
+  .previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 0}
+  @media(max-width:700px){.previews{grid-template-columns:1fr}}
+  .prev{border-radius:14px;border:1px solid var(--border);overflow:hidden;position:relative;min-height:176px;display:flex;flex-direction:column}
+  .prev.dark{background:var(--bg)} .prev.light{background:#F8FAFC;border-color:#E2E8F0}
+  .prev .plabel{position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);z-index:2}
+  .prev.light .plabel{color:#64748B;border-color:#E2E8F0;background:rgba(255,255,255,0.85)}
+  .prev .stage{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 12px 20px;gap:12px;flex-wrap:wrap}
+  .prev .stage .sep{width:1px;height:56px;background:var(--border);opacity:0.4}
+  .prev.light .stage .sep{background:#E2E8F0}
+  .ctx{padding:14px 14px 16px}
+  .scales{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .scale{border:1px solid var(--border);background:rgba(255,255,255,0.02);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:78px}
+  .scale b{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim)}
+  .scale .sz{font-size:11px;color:var(--muted)}
+  .spec{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .spec span{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:rgba(255,255,255,0.02)}
+  .spec span.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .plusminus{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .pm{font-size:11.5px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:#CBD5E1;flex:1 1 140px}
+  .pm strong{display:block;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px;color:var(--text)}
+  .pm.ok{border-color:rgba(45,212,191,0.25)} .pm.warn{border-color:rgba(245,158,11,0.25)}
+  .c-foot{padding:12px 14px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{flex:1;min-width:120px;text-align:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--text);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;cursor:pointer;transition:all .2s}
+  .btn:hover{border-color:rgba(45,212,191,0.4);background:rgba(45,212,191,0.08);color:var(--primary)}
+  .btn.primary{background:var(--primary);color:#0F172A;border-color:var(--primary);font-weight:800}
+  .btn.primary:hover{background:#22bfaa}
+  .btn.ghost{flex:0;min-width:auto;padding:8px 10px;font-size:10px}
+  /* matrix */
+  .matrix{margin-top:18px;border:1px solid var(--border);background:var(--card);border-radius:16px;overflow:hidden}
+  .matrix table{width:100%;border-collapse:collapse;font-size:12px}
+  .matrix th{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.11em;text-transform:uppercase;color:var(--muted);text-align:left;padding:11px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
+  .matrix td{padding:9px 10px;border-bottom:1px solid rgba(51,65,85,0.5);color:#CBD5E1;vertical-align:middle}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .dot.ok{background:#2DD4BF;box-shadow:0 0 6px rgba(45,212,191,0.5)} .dot.mid{background:#F59E0B} .dot.low{background:#64748B}
+  .kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:2px 6px;border-radius:6px;color:var(--text)}
+  .choice{margin-top:18px;border:1px dashed rgba(45,212,191,0.35);background:rgba(45,212,191,0.05);border-radius:16px;padding:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .note{border:1px solid rgba(45,212,191,0.22);background:rgba(45,212,191,0.06);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#CBD5E1}
+  .note strong{color:var(--primary)}
+  /* loader animations */
+  /* A TRACE */
+  .a-w{stroke-dasharray:320;stroke-dashoffset:320;animation:traceW 1.6s ease-in-out infinite}
+  .a-cadre{stroke-dasharray:360;stroke-dashoffset:360;animation:traceCadre 1.6s ease-in-out infinite 0.12s}
+  @keyframes traceW{0%{stroke-dashoffset:320} 45%{stroke-dashoffset:0} 85%{stroke-dashoffset:0} 100%{stroke-dashoffset:320}}
+  @keyframes traceCadre{0%{stroke-dashoffset:360} 45%{stroke-dashoffset:0} 85%{stroke-dashoffset:0} 100%{stroke-dashoffset:360}}
+  /* B PULSE */
+  .b-wrap{animation:bPulse 1.8s ease-in-out infinite}
+  .b-w{animation:bWPulse 1.8s ease-in-out infinite}
+  @keyframes bPulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.04)}}
+  @keyframes bWPulse{0%,100%{opacity:1} 50%{opacity:0.52}}
+  /* C ORBIT */
+  .c-orbit{transform-origin:50% 50%;animation:spin 0.95s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .c-orbit-w{opacity:0.98}
+  /* D FILL */
+  .d-cadre{stroke-dasharray:360;stroke-dashoffset:360;animation:dFill 2.2s linear infinite}
+  @keyframes dFill{0%{stroke-dashoffset:360} 70%{stroke-dashoffset:0} 100%{stroke-dashoffset:0}}
+  .d-w{opacity:0;animation:dFade 2.2s ease-in-out infinite}
+  @keyframes dFade{0%,40%{opacity:0} 55%,85%{opacity:1} 100%{opacity:0}}
+  /* E SHIMMER */
+  .shimmer{position:relative;overflow:hidden;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px}
+  .shimmer::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(45,212,191,0.18), transparent);transform:translateX(-100%);animation:shimmer 1.6s infinite}
+  @keyframes shimmer{100%{transform:translateX(100%)}}
+  .sk-line{height:10px;border-radius:6px;background:rgba(255,255,255,0.06);position:relative;overflow:hidden}
+  .sk-line::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(45,212,191,0.14), transparent);transform:translateX(-100%);animation:shimmer 1.6s infinite}
+  .sk-circle{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.06);position:relative;overflow:hidden}
+  .sk-circle::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(45,212,191,0.14), transparent);transform:translateX(-100%);animation:shimmer 1.6s infinite}
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .a-w,.a-cadre,.b-wrap,.b-w,.c-orbit,.d-cadre,.d-w,.shimmer::after,.sk-line::after{animation:none!important}
+  }
+  .paused *{animation-play-state:paused!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">WIWIGA — Loaders Q • Recherche 2025-2026 • 6 maquettes animées</div>
+    <h1>Loaders <em>Q</em> — cadre + W animés, sobres & contextuels</h1>
+    <p>6 loaders dérivés du logo <strong>Q CADRE GRAS</strong> (choix validé). Chaque loader anime le <strong>cadre hairline 1.2</strong> et le <strong>W plein</strong> — avec variantes <strong>fullscreen 100 / overlay 48 / inline 20 / bouton 16</strong> + dark/light + <code class="kbd">prefers-reduced-motion</code>.</p>
+    <div class="badges">
+      <span class="badge on">6 loaders Q animés</span>
+      <span class="badge">Cadre + W — 1 ADN</span>
+      <span class="badge">Fullscreen ↔ Inline</span>
+      <span class="badge">GPU only transform/opacity</span>
+      <span class="badge">Lottie-ready SVG</span>
+    </div>
+    <div class="nav">
+      <a href="maquettes_logo_wiwiga.html">V1 Logos A→F</a>
+      <a href="maquettes_logo_wiwiga_v3.html">V3 Q choisi</a>
+      <a class="on" href="maquettes_loader_wiwiga.html">Loaders Q</a>
+      <a href="verification_q.html">Vérif Q</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> Recherche — best practices 2025-2026 (synthèse)</h2>
+    <p class="sub">Sources croisées : LogRocket, UIXplor, Eleken, SVGator, MagicUI, NN/g, Beetlebeetle — + guidelines Flutter/Lottie.</p>
+    <div class="research">
+      <div class="rk"><h3>01 — Skeleton > Spinner pour contenu</h3><p>Skeleton <strong>mimic le layout final</strong> → perception +40% plus rapide. Spinner réservé aux <strong>tâches courtes sans structure</strong> (bouton, action).</p><ul><li>Garder <strong>layout identique</strong> au final, sinon confusion.</li><li>Shimmer subtil <code>transform: translateX</code> uniquement (GPU).</li></ul></div>
+      <div class="rk"><h3>02 — Logo loader = branding</h3><p>Splash &lt;2s : logo animé = <strong>premier contact marque</strong>, vu des centaines de fois → mémorisation ultra.</p><ul><li>Tracé <code>stroke-dasharray</code> + pulse sobre > rotation agressive.</li><li>SVG natif, pas de JS lourd, Lottie JSON optionnel.</li></ul></div>
+      <div class="rk"><h3>03 — Performance 2025</h3><p>N’animer que <code>transform</code> + <code>opacity</code> — GPU, pas de reflow.</p><ul><li><code>linear</code> pour spin (stable), <code>ease-in-out</code> pour pulse.</li><li><code>will-change: transform</code> avec parcimonie, <code>prefers-reduced-motion: reduce → none</code>.</li></ul></div>
+      <div class="rk"><h3>04 — Durée & easing</h3><p>Spin 0.8–1.0s linéaire (mécanique), pulse 1.6–1.8s ease-in-out (respiration), trace 1.4–1.6s ease-in-out.</p><ul><li>Trop rapide = stress, trop lent = lag perçu.</li><li>Boucle <strong>sans à-coup</strong> (seamless).</li></ul></div>
+      <div class="rk"><h3>05 — Contexte = choix du loader</h3><p>Pas 1 loader partout. Système responsive :</p><ul><li><strong>Splash 100</strong> : logo tracé + progress</li><li><strong>Overlay 48</strong> : logo pulse/orbit</li><li><strong>Inline 20</strong> : dot/pulse minimal</li><li><strong>Skeleton</strong> : grille/carte</li></ul></div>
+      <div class="rk"><h3>06 — Sobre = premium 2026</h3><p>Tendance “Minimalist & Lightweight” — trait fin, 1 couleur <code>#2DD4BF</code>, pas de gradient, pas de glow cheap.</p><ul><li>1 idée, 1 trait, 1 easing — “less but better” (Braun).</li><li>Accessibilité : contraste + <code>aria-busy</code>, pas d’animation bloquante.</li></ul></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> Existant WIWIGA — à refactoriser</h2>
+    <p class="sub">4 variantes actuelles — toutes basées sur ancien hex + jeton tournant. À remplacer par Q.</p>
+    <div class="existing">
+      <div class="ex"><div style="display:flex;justify-content:center"><svg width="48" height="48" viewBox="0 0 100 100"><path d="M50 12 L84.5 32 L84.5 68 L50 88 L15.5 68 L15.5 32 Z" fill="none" stroke="#2DD4BF" stroke-width="1.6"/><path d="M26 38 L36 66 L46 46 L54 46 L64 66 L74 38" stroke="#2DD4BF" stroke-width="2.8" stroke-linecap="round"/></svg></div><b>Splash 100 — hex + progress</b><p>Logo 80 hex + jeton 40 rotatif + bar 200. À remplacer par Q tracé + progress fin 1.6px</p></div>
+      <div class="ex"><div style="display:flex;justify-content:center"><svg width="36" height="36" viewBox="0 0 100 100"><circle cx="50" cy="50" r="22" fill="none" stroke="#2DD4BF" stroke-width="3"/><text x="50" y="56" text-anchor="middle" font-family="Orbitron" font-size="16" fill="#2DD4BF">◉</text></svg></div><b>Overlay 48 — jeton</b><p>Carte 24px + jeton 48 rotatif. À remplacer par Q pulse 48 avec cadre</p></div>
+      <div class="ex"><div style="display:flex;justify-content:center"><svg width="20" height="20" viewBox="0 0 100 100"><circle cx="50" cy="50" r="18" fill="none" stroke="#2DD4BF" stroke-width="6"/></svg></div><b>Inline 20 — jeton 20</b><p>Row jeton 20 + texte 12px. À remplacer par Q pulse 20 sans cadre</p></div>
+      <div class="ex"><div style="display:flex;justify-content:center"><div style="width:80px;height:4px;background:#1E293B;border-radius:2px;overflow:hidden"><div style="width:40%;height:100%;background:linear-gradient(90deg, transparent,#2DD4BF,#FFD700,transparent);animation:shimmer 1.6s infinite"></div></div></div><b>Progress bar 200×4</b><p>Shuttle 0.4 width, 2s loop. À garder mais affiner : 1 couleur, linear</p></div>
+    </div>
+    <div class="note"><strong>Objectif refactor :</strong> remplacer hex/jeton par <strong>Q</strong> (W plein + cadre hairline) — 1 ADN partout, 4 tailles, animations GPU-only, Lottie exportable.</div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> 6 loaders Q — cadre + W animés (avec variantes contexte)</h2>
+    <p class="sub">Chaque carte : animation principale + prévisualisations <strong>fullscreen 100 / overlay 48 / inline 20 / bouton 16</strong> sur fond sombre + clair. Boutons <em>Pause</em> et <em>Toggle cadre</em> pour tester. Tous respectent <code class="kbd">prefers-reduced-motion</code>.</p>
+
+    <div class="concepts">
+
+      <!-- A TRACE -->
+      <article class="c" data-variant="LA">
+        <div class="c-head">
+          <span class="c-num">LA — Q TRACE — W & cadre se dessinent</span>
+          <span class="c-tag">stroke-dasharray 1.4s</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>TRACE</span> — le plus premium / splash</h3>
+          <p class="desc"><em>Idée :</em> W plein se trace en <code>stroke-dashoffset</code> (320) puis cadre hairline (360) — séquentiel 0.12s. Effet “signature” luxe. Parfait <strong>splash 100</strong> (sous 1.6s, se fige 0.4s puis recommence).</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sombre — 100 / 48 / 20</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="84" height="84" viewBox="0 0 100 100" fill="none"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" stroke-linecap="round" fill="none"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">100 splash</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" stroke-linecap="round" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48</div></div>
+              <div style="text-align:center"><svg width="20" height="20" viewBox="0 0 100 100"><path class="a-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="7" stroke-linecap="round" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">20 sans cadre</div></div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Clair — 100 / 48</span>
+            <div class="stage">
+              <div style="text-align:center"><svg width="84" height="84" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.2" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="4.8" stroke-linecap="round" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">100</div></div>
+              <div class="sep"></div>
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.4" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="5.2" stroke-linecap="round" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="spec"><span class="on">W dash 320 → 0</span><span class="on">cadre dash 360 → 0</span><span>1.6s ease-in-out</span><span>delay 0.12s</span><span>GPU stroke only</span><span>Lottie OK</span></div>
+          <div class="scales">
+            <div class="scale"><b>Splash 100</b><svg width="32" height="32" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" fill="none"/></svg><span class="sz">avec cadre</span></div>
+            <div class="scale"><b>Overlay 48</b><svg width="24" height="24" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" fill="none"/></svg><span class="sz">avec cadre</span></div>
+            <div class="scale"><b>Inline 20</b><svg width="16" height="16" viewBox="0 0 100 100"><path class="a-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="11" fill="none"/></svg><span class="sz">sans cadre</span></div>
+            <div class="scale"><b>Bouton 16</b><svg width="16" height="16" viewBox="0 0 100 100"><path class="a-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="11" fill="none"/></svg><span class="sz">sans cadre</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Atouts</strong>Le plus luxe, storytelling “signature” — idéal splash &lt;2s, vu des centaines de fois.</div>
+            <div class="pm warn"><strong>— Limite</strong>Trop riche pour inline 16 (prévoir fallback B pulse à 16).</div>
+            <div class="pm ok"><strong>Implé Flutter</strong><code>CustomPainter</code> + <code>DashPathEffect</code> ou Lottie <code>stroke-dash</code> — 1 seule anim.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LA')">Choisir LA — TRACE</button><button class="btn ghost" onclick="togglePause(this)">Pause</button><button class="btn ghost" onclick="toggleFrame(this)">Sans cadre</button></div>
+      </article>
+
+      <!-- B PULSE -->
+      <article class="c" data-variant="LB">
+        <div class="c-head">
+          <span class="c-num">LB — Q PULSE — respiration (sobre max)</span>
+          <span class="c-tag">scale 1.04 + opacity 0.52</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>PULSE</span> — le plus sobre, partout</h3>
+          <p class="desc"><em>Idée :</em> cadre scale 1 → 1.04 (1.8s ease-in-out) + W opacity 1 → 0.52. Aucun trait qui tourne — juste respiration. Le plus <em>premium minimal</em>, fonctionne à <strong>toutes tailles</strong> (16→100).</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sombre — 100 / 48 / 20</span>
+            <div class="stage">
+              <div style="text-align:center"><div class="b-wrap"><svg width="84" height="84" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none"/><path class="b-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" stroke-linecap="round" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">100 avec</div></div>
+              <div class="sep"></div>
+              <div style="text-align:center"><div class="b-wrap"><svg width="48" height="48" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/><path class="b-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48</div></div>
+              <div style="text-align:center"><div class="b-wrap"><svg width="20" height="20" viewBox="0 0 100 100"><path class="b-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="7" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">20 sans</div></div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Clair — 48 / 16 bouton</span>
+            <div class="stage">
+              <div style="text-align:center"><div class="b-wrap"><svg width="48" height="48" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.4" fill="none"/><path class="b-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="5.2" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48</div></div>
+              <div class="sep"></div>
+              <div style="text-align:center"><div class="b-wrap"><svg width="20" height="20" viewBox="0 0 100 100"><path class="b-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#0F172A" stroke-width="11" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">16 bouton sans</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="spec"><span class="on">scale 1 → 1.04</span><span class="on">opacity 1 → 0.52</span><span>1.8s ease-in-out</span><span>GPU transform</span><span>Inline ★</span></div>
+          <div class="scales">
+            <div class="scale"><b>Splash 100</b><svg width="28" height="28" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" fill="none"/></svg><span class="sz">avec</span></div>
+            <div class="scale"><b>Overlay 48</b><svg width="24" height="24" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" fill="none"/></svg><span class="sz">avec</span></div>
+            <div class="scale"><b>Inline 20</b><svg width="16" height="16" viewBox="0 0 100 100"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="11" fill="none"/></svg><span class="sz">sans ★</span></div>
+            <div class="scale"><b>Bouton 16</b><svg width="16" height="16" viewBox="0 0 100 100"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="11" fill="none"/></svg><span class="sz">sans ★</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Atouts</strong>Le plus sobre & universel — marche à 16px bouton sans bruit, 0% risque de lag.</div>
+            <div class="pm ok"><strong>+ Accessibilité</strong>Respiration douce, pas de rotation → <code>prefers-reduced-motion</code> peu nécessaire.</div>
+            <div class="pm warn"><strong>— Limite</strong>Moins “événementiel” que TRACE pour splash — à combiner avec progress bar.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LB')">Choisir LB — PULSE</button><button class="btn ghost" onclick="togglePause(this)">Pause</button></div>
+      </article>
+
+      <!-- C ORBIT -->
+      <article class="c" data-variant="LC">
+        <div class="c-head">
+          <span class="c-num">LC — Q ORBIT — cadre tourne, W fixe</span>
+          <span class="c-tag">spin 0.95s linear</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>ORBIT</span> — gaming subtil</h3>
+          <p class="desc"><em>Idée :</em> W plein reste fixe, <strong>cadre squircle tourne 360° linéaire 0.95s</strong> (comme un anneau). Référence “manette en action” mais trait fin 1.2 — sobre, pas agressif. Parfait <strong>overlay 48</strong> et bouton.</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sombre — 100 / 48 / 20</span>
+            <div class="stage">
+              <div style="text-align:center"><svg width="84" height="84" viewBox="0 0 100 100"><g class="c-orbit"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none" stroke-dasharray="18 10" stroke-linecap="round"/></g><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" stroke-linecap="round" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">100 avec dash</div></div>
+              <div class="sep"></div>
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><g class="c-orbit"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/></g><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48 uni</div></div>
+              <div style="text-align:center"><svg width="20" height="20" viewBox="0 0 100 100"><g class="c-orbit"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="3" fill="none"/></g></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">20 cadre seul</div></div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Clair — 48 / 16</span>
+            <div class="stage">
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><g class="c-orbit"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.4" fill="none"/></g><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="5.2" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48</div></div>
+              <div class="sep"></div>
+              <div style="text-align:center"><svg width="20" height="20" viewBox="0 0 100 100"><g class="c-orbit"><circle cx="50" cy="50" r="36" fill="none" stroke="#0F172A" stroke-width="4" stroke-dasharray="14 10" stroke-linecap="round"/></g><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#0F172A" stroke-width="11" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">20 W+ring</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="spec"><span class="on">cadre rotate 360</span><span>W fixe</span><span>0.95s linear</span><span>GPU rotate</span><span>Overlay ★</span></div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Atouts</strong>Le plus “action” sans être cheap — cadre fin qui orbite, W ancré = confiance.</div>
+            <div class="pm warn"><strong>— Limite</strong>Rotation à 100 splash peut fatiguer — réserver à 48/32 et bouton 16.</div>
+            <div class="pm ok"><strong>Variante bouton</strong>À 16 : cadre seul tourne, W disparaît → spinner minimal 16 parfait.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LC')">Choisir LC — ORBIT</button><button class="btn ghost" onclick="togglePause(this)">Pause</button></div>
+      </article>
+
+      <!-- D FILL -->
+      <article class="c" data-variant="LD">
+        <div class="c-head">
+          <span class="c-num">LD — Q FILL — cadre se remplit (progress)</span>
+          <span class="c-tag">2.2s linear + fade W</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>FILL</span> — progress réel</h3>
+          <p class="desc"><em>Idée :</em> cadre hairline se remplit clockwise (dashoffset 360→0, 2.2s linear) comme <strong>progress déterminé</strong>, W fade in à 55%. Couplé à barre 200×4 existante. Parfait <strong>splash avec %</strong>.</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sombre — 100 + progress 200</span>
+            <div class="stage" style="flex-direction:column;gap:10px">
+              <div style="display:flex;gap:12px;align-items:center">
+                <svg width="84" height="84" viewBox="0 0 100 100"><rect class="d-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.8" fill="none"/><path class="d-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" stroke-linecap="round" fill="none"/></svg>
+                <div style="text-align:left"><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">42% → 100%</div><div style="width:120px;height:3px;background:#1E293B;border-radius:2px;overflow:hidden;margin-top:6px"><div style="width:42%;height:100%;background:#2DD4BF"></div></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">W apparaît à 55%</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Clair — 48 FILL</span>
+            <div class="stage">
+              <div style="text-align:center"><svg width="64" height="64" viewBox="0 0 100 100"><rect class="d-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.6" fill="none"/><path class="d-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="4.8" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:4px">48 avec cadre</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="spec"><span class="on">cadre 360→0</span><span>W fade 55%</span><span>2.2s linear</span><span>Déterminé + indéterminé</span></div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Atouts</strong>Seul loader qui montre une vraie progression — rassure en splash long (connexion serveur).</div>
+            <div class="pm warn"><strong>— Limite</strong>Non adapté inline 20 (trop petit pour voir le fill).</div>
+            <div class="pm ok"><strong>Flutter</strong>Peut être branché à <code>progress 0→1</code> réel (pas seulement loop).</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LD')">Choisir LD — FILL</button><button class="btn ghost" onclick="togglePause(this)">Pause</button></div>
+      </article>
+
+      <!-- E SKELETON -->
+      <article class="c" data-variant="LE">
+        <div class="c-head">
+          <span class="c-num">LE — SKELETON Q — shimmer cartes</span>
+          <span class="c-tag">skeleton + Q watermark</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>SHIMMER</span> — contenu, pas logo</h3>
+          <p class="desc"><em>Idée :</em> pas de logo qui tourne : <strong>skeleton qui mimic le layout final</strong> (grille jeux, carte, liste) + shimmer <code>translateX</code> 1.6s + watermark Q à 6% opacité. Le plus moderne pour <strong>grilles/listes</strong> (NN/g).</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sombre — grille 2× + shimmer</span>
+            <div class="stage" style="flex-direction:column;gap:8px;width:100%">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:220px">
+                <div class="shimmer" style="height:72px;border-radius:10px;display:flex;align-items:center;justify-content:center"><svg width="28" height="28" viewBox="0 0 100 100" opacity="0.07"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="6.2" fill="none"/></svg></div>
+                <div class="shimmer" style="height:72px;border-radius:10px;display:flex;align-items:center;justify-content:center"><svg width="28" height="28" viewBox="0 0 100 100" opacity="0.07"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="6.2" fill="none"/></svg></div>
+                <div class="sk-line" style="height:8px"></div><div class="sk-line" style="height:8px"></div>
+                <div class="sk-line" style="height:8px;width:60%"></div><div class="sk-line" style="height:8px;width:60%"></div>
+              </div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B">Grille jeux — skeleton</div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Clair — liste + shimmer</span>
+            <div class="stage" style="flex-direction:column;gap:8px;width:100%">
+              <div style="width:220px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;gap:10px;align-items:center"><div class="sk-circle"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="sk-line" style="height:8px;width:80%"></div><div class="sk-line" style="height:8px;width:50%"></div></div></div>
+                <div style="display:flex;gap:10px;align-items:center"><div class="sk-circle"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="sk-line" style="height:8px;width:80%"></div><div class="sk-line" style="height:8px;width:50%"></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="spec"><span class="on">shimmer 1.6s</span><span>translateX</span><span>GPU</span><span>Layout identique final</span><span>Q 6% watermark</span></div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Atouts</strong>Perception +40% plus rapide (LogRocket) — montre où le contenu arrive.</div>
+            <div class="pm warn"><strong>— Limite</strong>Pas un loader logo — à utiliser en + de LA/LB/LC, pas à la place.</div>
+            <div class="pm ok"><strong>Contexte</strong>Grilles jeux, listes amis, wallet — partout où il y a une structure.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LE')">Choisir LE — SHIMMER</button><button class="btn ghost" onclick="togglePause(this)">Pause</button></div>
+      </article>
+
+      <!-- F SYSTEM -->
+      <article class="c" data-variant="LF" style="border-color:rgba(45,212,191,0.35);box-shadow:0 0 0 1px rgba(45,212,191,0.15), 0 8px 24px rgba(45,212,191,0.08)">
+        <div class="c-head">
+          <span class="c-num" style="background:rgba(45,212,191,0.12)">LF — SYSTÈME — contextuel complet ★ Recommandé</span>
+          <span class="c-tag">1 ADN, 4 rendus</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>WIWIGA LOADER SYSTEM</span> — 1 logo, 4 loaders</h3>
+          <p class="desc"><em>Système ultime</em> : <strong>LA TRACE → splash 100</strong> • <strong>LD FILL → splash progress</strong> • <strong>LC ORBIT → overlay 48</strong> • <strong>LB PULSE → inline 20 & bouton 16</strong> • <strong>LE SHIMMER → grilles</strong>. Même Q, animation adaptée au temps perçu.</p></div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Système — sombre</span>
+            <div class="stage" style="gap:10px">
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.2" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">SPLASH 100<br>LA TRACE</div></div>
+              <div style="text-align:center"><svg width="40" height="40" viewBox="0 0 100 100"><g class="c-orbit"><rect x="11" y="11" width="78" height="78" rx="24" stroke="#2DD4BF" stroke-width="1.4" fill="none"/></g><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.2" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#2DD4BF;margin-top:4px">OVERLAY 48<br>LC ORBIT</div></div>
+              <div style="text-align:center"><div class="b-wrap"><svg width="28" height="28" viewBox="0 0 100 100"><path class="b-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="7" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">INLINE 20<br>LB PULSE</div></div>
+              <div style="text-align:center"><div style="width:48px;height:48px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);display:flex;align-items:center;justify-content:center" class="shimmer"></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">GRILLE<br>LE</div></div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Système — clair</span>
+            <div class="stage" style="gap:10px">
+              <div style="text-align:center"><svg width="48" height="48" viewBox="0 0 100 100"><rect class="a-cadre" x="11" y="11" width="78" height="78" rx="24" stroke="#0F172A" stroke-width="1.2" fill="none"/><path class="a-w" d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="4.8" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#0F172A;margin-top:4px">SPLASH</div></div>
+              <div style="text-align:center"><div class="b-wrap"><svg width="32" height="32" viewBox="0 0 100 100"><path class="b-w" d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#0F172A" stroke-width="7" fill="none"/></svg></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">INLINE</div></div>
+              <div style="text-align:center"><div class="sk-line" style="width:48px;height:48px;border-radius:8px"></div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">SKELETON</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales" style="justify-content:center">
+            <div class="scale"><b>Splash 100</b><span class="sz">LA TRACE 1.6s</span></div>
+            <div class="scale"><b>Overlay 48</b><span class="sz">LC ORBIT 0.95s</span></div>
+            <div class="scale"><b>Inline 20</b><span class="sz">LB PULSE 1.8s</span></div>
+            <div class="scale"><b>Skeleton</b><span class="sz">LE SHIMMER 1.6s</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Pourquoi LF est “sobre”</strong>1 ADN Q, 4 easing adaptés au temps perçu — pas de loader “gadget” différent partout.</div>
+            <div class="pm ok"><strong>+ Perf</strong>Tout en <code>transform/opacity</code> + <code>stroke-dash</code> — Lottie exportable, <code>prefers-reduced-motion</code> natif.</div>
+            <div class="pm ok"><strong>+ Implé</strong>1 seul widget <code>WiwigaLoader(variant: splash/overlay/inline/skeleton)</code> — prop <code>withFrame</code> auto.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('LF')">★ Choisir LF — SYSTÈME</button><button class="btn ghost" onclick="togglePause(this)">Pause</button></div>
+      </article>
+
+    </div>
+
+    <div class="matrix">
+      <table>
+        <thead><tr><th>Loader</th><th>Splash 100</th><th>Overlay 48</th><th>Inline 20</th><th>Bouton 16</th><th>Skeleton</th><th>Perf GPU</th></tr></thead>
+        <tbody>
+          <tr><td><strong>LA TRACE</strong></td><td><span class="dot ok"></span>★★★</td><td><span class="dot ok"></span>★★</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot ok"></span>stroke</td></tr>
+          <tr><td><strong>LB PULSE</strong></td><td><span class="dot mid"></span>★★</td><td><span class="dot ok"></span>★★★</td><td><span class="dot ok"></span>★★★ ★</td><td><span class="dot ok"></span>★★★ ★</td><td><span class="dot low"></span>—</td><td><span class="dot ok"></span>transform</td></tr>
+          <tr><td><strong>LC ORBIT</strong></td><td><span class="dot mid"></span>★★</td><td><span class="dot ok"></span>★★★ ★</td><td><span class="dot mid"></span>★★</td><td><span class="dot ok"></span>★★★</td><td><span class="dot low"></span>—</td><td><span class="dot ok"></span>rotate</td></tr>
+          <tr><td><strong>LD FILL</strong></td><td><span class="dot ok"></span>★★★ progress</td><td><span class="dot mid"></span>★★</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot ok"></span>stroke</td></tr>
+          <tr><td><strong>LE SHIMMER</strong></td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot low"></span>—</td><td><span class="dot ok"></span>★★★ ★</td><td><span class="dot ok"></span>translateX</td></tr>
+          <tr style="background:rgba(45,212,191,0.06)"><td><strong>LF SYSTÈME</strong></td><td><span class="dot ok"></span>LA+LD</td><td><span class="dot ok"></span>LC</td><td><span class="dot ok"></span>LB</td><td><span class="dot ok"></span>LB</td><td><span class="dot ok"></span>LE</td><td><span class="dot ok"></span>★★★</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> À toi de choisir — Loaders Q</h2>
+    <div class="choice" id="choiceBox">
+      <p><strong>Aucune sélection.</strong> Clique “Choisir …” — tu peux panacher : ex. <em>“LB pour inline + LC pour overlay + LE pour grilles”</em> ou simplement <em>“LF système complet”</em>.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="clearChoice()">Effacer</button>
+        <button class="btn primary" onclick="exportChoice()">Exporter mon choix →</button>
+      </div>
+    </div>
+    <div id="exportArea" style="margin-top:14px;display:none">
+      <div style="border:1px solid var(--border);background:var(--card);border-radius:14px;padding:14px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary);margin-bottom:8px">À copier dans ta réponse</div>
+        <pre id="exportText" style="white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#E2E8F0;background:rgba(0,0,0,0.2);padding:12px;border-radius:10px;border:1px solid var(--border)">—</pre>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:10px">Après ton choix, je génère : <code class="kbd">WiwigaLoader</code> Flutter (splash/overlay/inline/skeleton + withFrame auto) + Lottie JSON + CSS, et je refactorise <code class="kbd">wiwiga_loading.dart</code> + <code class="kbd">splash_screen.dart</code> en Q.</p>
+  </div>
+
+  <div style="margin-top:32px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:0.08em;text-transform:uppercase">WIWIGA • Loaders Q • Cadre + W • 6 maquettes animées • GPU transform/opacity • prefers-reduced-motion • Aucune implémentation avant validation</div>
+</div>
+
+<script>
+  let chosen=new Set();
+  const labels={LA:"LA — TRACE (W & cadre se dessinent, splash luxe)",LB:"LB — PULSE (respiration sobre, inline ★)",LC:"LC — ORBIT (cadre tourne, W fixe, overlay)",LD:"LD — FILL (cadre progress, splash %)",LE:"LE — SHIMMER (skeleton grilles)",LF:"LF — SYSTÈME (LA/LD splash + LC overlay + LB inline + LE skeleton) ★ recommandé"};
+  function selectVariant(v){
+    if(chosen.has(v)) chosen.delete(v); else chosen.add(v);
+    document.querySelectorAll('.c').forEach(el=>{
+      const vv=el.getAttribute('data-variant');
+      el.style.borderColor=chosen.has(vv)?'rgba(45,212,191,0.45)':'';
+      el.style.boxShadow=chosen.has(vv)?'0 0 0 1px rgba(45,212,191,0.25), 0 8px 24px rgba(45,212,191,0.08)':'';
+    });
+    renderChoice();
+  }
+  function renderChoice(){
+    const p=document.querySelector('#choiceBox p');
+    if(chosen.size===0){ p.innerHTML='<strong>Aucune sélection.</strong> Clique “Choisir …” — tu peux panacher : ex. <em>“LB pour inline + LC pour overlay + LE pour grilles”</em> ou simplement <em>“LF système complet”</em>.'; document.getElementById('exportArea').style.display='none'; return; }
+    const list=[...chosen].map(v=>'• '+labels[v]).join('<br>');
+    p.innerHTML='<strong style="color:var(--primary)">Sélection loaders : '+[...chosen].join(' + ')+'.</strong><br>'+list;
+  }
+  function clearChoice(){ chosen.clear(); document.querySelectorAll('.c').forEach(el=>{el.style.borderColor='';el.style.boxShadow='';}); renderChoice(); document.getElementById('exportArea').style.display='none'; }
+  function exportChoice(){
+    if(chosen.size===0){ alert('Choisis au moins un loader LA→LF'); return; }
+    const txt='Mon choix loaders WIWIGA Q : '+[...chosen].join(' + ')+'\n'+[...chosen].map(v=>'- '+labels[v]).join('\n')+'\n\nContexte prioritaire : [splash / overlay / inline / skeleton]\nAvec/sans cadre : [ex. avec cadre en splash, sans en inline]\n';
+    document.getElementById('exportText').textContent=txt;
+    document.getElementById('exportArea').style.display='block';
+    document.getElementById('exportArea').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  function togglePause(btn){
+    const card=btn.closest('.c');
+    const isPaused=card.classList.contains('paused');
+    if(isPaused){ card.classList.remove('paused'); btn.textContent='Pause'; }
+    else{ card.classList.add('paused'); btn.textContent='Reprendre'; }
+  }
+  function toggleFrame(btn){
+    alert('Toggle cadre : avec cadre (squircle + W) ↔ sans cadre (W seul) — sera paramétrable via withFrame:true/false dans WiwigaLoader.');
+  }
+</script>
+</body>
+</html>

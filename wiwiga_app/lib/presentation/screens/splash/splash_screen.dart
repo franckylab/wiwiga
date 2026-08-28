@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../../widgets/neon/wiwiga_logo.dart';
+import '../../widgets/neon/wiwiga_loader.dart';
 import '../../widgets/loading/wiwiga_progress.dart';
 import '../../../data/providers/app_providers.dart';
 
@@ -140,12 +140,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo WIWIGA — Q sans cadre (contexte splash 100, W plein fin)
-                    const WiwigaLogo(
-                      variant: LogoVariant.icon,
-                      size: 100,
-                      animated: true,
-                      withFrame: false,
+                    // Loader LJ DUAL — Q avec cadre en splash 96 (2 lumières 1.8s + W double 0.85s)
+                    const WiwigaLoader(
+                      size: 96,
+                      withFrame: true,
                     ),
                     const SizedBox(height: 16),
                     // Texte WIWIGA

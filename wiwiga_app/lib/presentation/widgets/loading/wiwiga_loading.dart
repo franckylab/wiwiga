@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../neon/token_icon.dart';
-import '../neon/wiwiga_logo.dart';
+import '../neon/wiwiga_loader.dart';
 
 /// Ecran de chargement WIWIGA avec animation de jeton tournant
 /// 
@@ -35,10 +35,11 @@ class WiwigaLoading extends StatelessWidget {
   }
 
   Widget _buildInline() {
+    // LJ sans cadre — W cœur battant seul (inline 20)
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SpinningToken(size: 20, color: color),
+        WiwigaLoader(size: 20, withFrame: false, color: color),
         if (message != null) ...[
           const SizedBox(width: 8),
           Text(
@@ -55,6 +56,7 @@ class WiwigaLoading extends StatelessWidget {
   }
 
   Widget _buildOverlay() {
+    // LJ avec cadre — overlay 48 (dual light + heart)
     return Container(
       color: Colors.black.withValues(alpha: 0.5),
       child: Center(
@@ -76,7 +78,7 @@ class WiwigaLoading extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _SpinningToken(size: 48, color: color),
+              WiwigaLoader(size: 48, withFrame: true, color: color),
               if (message != null) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -96,6 +98,7 @@ class WiwigaLoading extends StatelessWidget {
   }
 
   Widget _buildFullscreen() {
+    // LJ avec cadre — fullscreen 96 (dual light + heartDouble) + progress
     return Container(
       decoration: const BoxDecoration(
         gradient: NeonGradients.splash,
@@ -104,17 +107,9 @@ class WiwigaLoading extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo anime — Q sans cadre (contexte loading 80, W plein fin)
-            const WiwigaLogo(
-              variant: LogoVariant.icon,
-              size: 80,
-              animated: true,
-              withFrame: false,
-            ),
+            // Loader LJ avec cadre — splash/PWA
+            WiwigaLoader(size: 96, withFrame: true, color: color),
             const SizedBox(height: 32),
-            // Spinner
-            _SpinningToken(size: 40, color: color),
-            const SizedBox(height: 24),
             // Message
             Text(
               message ?? 'Chargement...',

@@ -6,4 +6,5 @@ export 'neon_effects.dart';
 export 'neon_business.dart';
 export 'token_icon.dart';
 export 'wiwiga_logo.dart';
+export 'wiwiga_loader.dart';
 export 'neon_loading_spinner.dart';
