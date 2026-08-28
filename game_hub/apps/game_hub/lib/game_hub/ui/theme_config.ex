@@ -31,8 +31,8 @@ defmodule GameHub.UI.ThemeConfig do
     field :animation_duration, :integer, default: 200
     field :font_family_body, :string, default: "Inter"
     field :font_family_display, :string, default: "Orbitron"
-    field :logo_url, :string
-    field :favicon_url, :string
+    field :logo_url, :string, default: "/assets/images/logo/wiwiga-q-glyph.svg"
+    field :favicon_url, :string, default: "/favicon.svg"
     
     belongs_to :updated_by, User
     

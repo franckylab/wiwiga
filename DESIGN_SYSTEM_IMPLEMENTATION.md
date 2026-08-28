@@ -191,7 +191,16 @@ Implémenter d'abord le backend pour la configuration dynamique :
 
 ---
 
-**Date** : 24 Juin 2026  
+### 4. Logo Q — CADRE GRAS (28/08/2026 — COMPLET)
+- ✅ Choix validé : **Q** — cadre hairline 1.2 + W plein fin (sobre, W = manette, avec/sans cadre)
+- ✅ `wiwiga_app/lib/presentation/widgets/neon/wiwiga_logo.dart` refond en `_QLogoPainter` (Q sans cadre 6.2% / avec cadre 1.2+4.8%, favicon-first 11% à 16px)
+- ✅ Web : `favicon.svg` adaptatif dark/light, PNG 16/32/48, ICO, `apple-touch 180`, `android 192/512` + maskable, `site.webmanifest`, `theme_color #2DD4BF`, loading Q 64px `#0F172A`
+- ✅ Flutter contextuel : splash 100 sans cadre, lobby header 32 sans cadre, navigation sidebar 32 sans cadre (dans cercle), loading 80 sans cadre, PWA avec cadre
+- ✅ Masters `assets/images/logo/wiwiga-q-glyph/cadre.svg` + `1024/512.png` + `launcher/` (mdpi→xxxhdpi, ios 1024, playstore 512)
+- ✅ Maquettes `docs/branding/maquettes_logo_wiwiga_v3.html` (Q) + vérif `docs/branding/verification_q.html`
+- ✅ Règle `.qoder/rules/rl_design-system.md` mise à jour (section Logo Q)
+
+**Date** : 24 Juin 2026 → maj 28 Août 2026  
 **Auteur** : Franck Arlos CHENDJOU  
-**Version** : 1.0  
-**Statut** : Règles complètes ✅, Implémentation en cours ⏳
+**Version** : 1.1 — Logo Q  
+**Statut** : Règles complètes ✅, Logo Q complet ✅, Composants néon en cours ⏳

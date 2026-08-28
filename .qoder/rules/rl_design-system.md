@@ -89,6 +89,22 @@ NeonInput(
 6. **Ombres** : glow uniquement (pas de `BoxShadow` noir classique)
 7. **Espacement** : multiples de 4px (4, 8, 12, 16, 20, 24, 32)
 
+## Logo Q — CADRE GRAS (28/08/2026)
+
+**Principe** : `W = manette`, trait fin, 1 couleur, sobre. 2 rendus contextuels (1 ADN).
+
+| Variante | Fichier | Usage | Taille |
+|----------|---------|-------|--------|
+| **Q sans cadre** (`withFrame:false`) | `W plein` `M20 36 L32 68 L44.5 44…` stroke 6.2% (11% à 16px) | favicon 16/32/48, header 32, splash 100, loading 80 | `WiwigaLogo(size: 32)` |
+| **Q avec cadre** (`withFrame:true`) | squircle `x11 y11 w78 h78 rx24` 1.2% + W `M22 36…` 4.8% | PWA 192/512, stores, app icon | `WiwigaLogo(size: 48, withFrame:true)` |
+
+- **Favicon** : `favicon.svg` adaptatif (`@media prefers-color-scheme` — `#0F172A` light / `#2DD4BF` dark) + PNG 16/32/48 + `favicon.ico` (16/32/48) + `apple-touch 180` opaque + `192/512` + `512 maskable` (safe zone 66%)
+- **Stroke favicon-first** : 11% à 16px, 6.2/4.8% à 48+ (testé tab clair/sombre)
+- **Web** : `wiwiga_app/web/favicon.svg`, `favicon-*.png`, `apple-touch-icon.png`, `android-chrome-*.png`, `site.webmanifest` (`theme_color #2DD4BF`)
+- **Flutter** : `lib/presentation/widgets/neon/wiwiga_logo.dart` — `_QLogoPainter` (sans/avec cadre, `withFrame` bool)
+- **Masters** : `assets/images/logo/wiwiga-q-glyph/cadre.svg` + `1024/512.png` + `launcher/` (mdpi→xxxhdpi, ios 1024)
+- **Interdit** : hexagone ancien, glow permanent, dégradé, multi-couleur dans glyph, texte dans favicon
+
 ## Assets Visuels
 
 - **Icônes** : `font_awesome_flutter` + SVG custom

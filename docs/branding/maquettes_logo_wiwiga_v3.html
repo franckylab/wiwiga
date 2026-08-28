@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIWIGA — V3 — B/C/D Évolutions Avancées — Avec/Sans Cadre</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0F172A;--card:#1A2538;--border:#334155;--primary:#2DD4BF;--accent:#00D9FF;--text:#F8FAFC;--muted:#94A3B8;--dim:#64748B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  .hero{border:1px solid var(--border);background:linear-gradient(180deg,#1E293B 0%,#0F172A 100%);border-radius:20px;padding:28px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 70% 0%, rgba(45,212,191,0.09), transparent 60%);pointer-events:none}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--primary);margin-bottom:10px}
+  .hero h1{font-family:'Orbitron',sans-serif;font-size:clamp(26px,4vw,34px);font-weight:800;letter-spacing:0.04em;line-height:1.1}
+  .hero h1 em{font-style:normal;color:var(--primary);text-shadow:0 0 18px rgba(45,212,191,0.35)}
+  .hero p{color:var(--muted);max-width:800px;margin-top:12px;font-size:13.5px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .badge{font-size:11px;letter-spacing:0.07em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted)}
+  .badge.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .nav{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .nav a{font-size:12px;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--muted);text-decoration:none}
+  .nav a.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .section{margin-top:32px}
+  .section h2{font-family:'Orbitron',sans-serif;font-size:16px;letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .section h2 i{width:28px;height:1px;background:var(--primary);display:inline-block}
+  .section .sub{color:var(--muted);font-size:12.5px;margin-top:6px;max-width:860px}
+  .concepts{display:grid;grid-template-columns:1fr;gap:18px;margin-top:18px}
+  .c{border:1px solid var(--border);background:var(--card);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+  .c-head{padding:16px 18px 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+  .c-num{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--primary);border:1px solid rgba(45,212,191,0.25);padding:4px 8px;border-radius:999px;background:rgba(45,212,191,0.06)}
+  .c-tag{font-size:11px;color:var(--dim);border:1px solid var(--border);padding:4px 8px;border-radius:999px}
+  .c h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;margin-top:10px}
+  .c h3 span{color:var(--primary);font-weight:800}
+  .c .desc{font-size:12.5px;color:#CBD5E1;margin-top:6px;line-height:1.55}
+  .c .desc em{font-style:normal;color:var(--text);font-weight:600}
+  .previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 0}
+  @media(max-width:700px){.previews{grid-template-columns:1fr}}
+  .prev{border-radius:14px;border:1px solid var(--border);overflow:hidden;position:relative;min-height:164px;display:flex;flex-direction:column}
+  .prev.dark{background:var(--bg)} .prev.light{background:#F8FAFC;border-color:#E2E8F0}
+  .prev .plabel{position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);z-index:2}
+  .prev.light .plabel{color:#64748B;border-color:#E2E8F0;background:rgba(255,255,255,0.85)}
+  .prev .stage{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 12px 20px;gap:18px}
+  .prev .stage .sep{width:1px;height:64px;background:var(--border);opacity:0.5}
+  .prev.light .stage .sep{background:#E2E8F0}
+  .ctx{padding:14px 14px 16px}
+  .scales{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .scale{border:1px solid var(--border);background:rgba(255,255,255,0.02);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:78px}
+  .scale b{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim)}
+  .scale .sz{font-size:11px;color:var(--muted)}
+  .plusminus{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .pm{font-size:11.5px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:#CBD5E1;flex:1 1 140px}
+  .pm strong{display:block;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px;color:var(--text)}
+  .pm.ok{border-color:rgba(45,212,191,0.25)} .pm.warn{border-color:rgba(245,158,11,0.25)}
+  .c-foot{padding:12px 14px 16px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{flex:1;min-width:140px;text-align:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--text);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;cursor:pointer;transition:all .2s}
+  .btn:hover{border-color:rgba(45,212,191,0.4);background:rgba(45,212,191,0.08);color:var(--primary)}
+  .btn.primary{background:var(--primary);color:#0F172A;border-color:var(--primary);font-weight:800}
+  .btn.primary:hover{background:#22bfaa}
+  .matrix{margin-top:18px;border:1px solid var(--border);background:var(--card);border-radius:16px;overflow:hidden}
+  .matrix table{width:100%;border-collapse:collapse;font-size:12px}
+  .matrix th{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.11em;text-transform:uppercase;color:var(--muted);text-align:left;padding:11px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
+  .matrix td{padding:9px 10px;border-bottom:1px solid rgba(51,65,85,0.5);color:#CBD5E1;vertical-align:middle}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .dot.ok{background:#2DD4BF;box-shadow:0 0 6px rgba(45,212,191,0.5)} .dot.mid{background:#F59E0B} .dot.low{background:#64748B}
+  .kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:2px 6px;border-radius:6px;color:var(--text)}
+  .choice{margin-top:18px;border:1px dashed rgba(45,212,191,0.35);background:rgba(45,212,191,0.05);border-radius:16px;padding:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media(max-width:800px){.compare{grid-template-columns:1fr}}
+  .cmp{border:1px solid var(--border);background:var(--card);border-radius:14px;padding:14px}
+  .cmp h4{font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text)}
+  .cmp p{font-size:12px;color:var(--muted);margin-top:6px}
+  .note{border:1px solid rgba(45,212,191,0.22);background:rgba(45,212,191,0.06);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#CBD5E1}
+  .note strong{color:var(--primary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">WIWIGA — V3 • Inspiré B/C/D • 28/08/2026</div>
+    <h1><em>B • C • D</em> — évolutions avancées, avec & sans cadre</h1>
+    <p>6 évolutions modernes, sobres, avancées — toutes dérivées de tes 3 préférés : <strong>B (W-CREUX négatif, best favicon)</strong>, <strong>C (contour = W)</strong>, <strong>D (capsule squircle)</strong>. Chaque direction est présentée <strong>avec cadre</strong> (squircle fin) et <strong>sans cadre</strong> (libre), sur fond sombre + clair, avec optimisation favicon dédiée (16px épaissi, 32/48 fin).</p>
+    <div class="badges">
+      <span class="badge on">6 évolutions B/C/D</span>
+      <span class="badge on">Avec cadre ↔ Sans cadre</span>
+      <span class="badge">Favicon optimisé 16→512</span>
+      <span class="badge">Hairline 1.6–1.8px</span>
+      <span class="badge">1 couleur • mono</span>
+    </div>
+    <div class="nav">
+      <a href="maquettes_logo_wiwiga.html">V1 — A→F</a>
+      <a href="maquettes_logo_wiwiga_v2.html">V2 — G→L</a>
+      <a class="on" href="maquettes_logo_wiwiga_v3.html">V3 — B/C/D avancé</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> Principes d’optimisation — V3</h2>
+    <div class="note">
+      <strong>Favicon-first :</strong> chaque proposition a un <em>glyph 16px</em> dédié (stroke +12–18% plus épais, détails supprimés) et un <em>icon 48px</em> fin. Cadre = <strong>optionnel</strong> : présent en <code class="kbd">512/192/32-cadre</code> (stores, PWA) et absent en <code class="kbd">header 48 sans-cadre</code>. Même ADN, 2 rendus contextuels — best practice 2025-2026.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.08em;text-transform:uppercase">B — Creux</div><div style="font-size:12px;color:#CBD5E1;margin-top:6px">Manette pleine + W blanc en réserve. Le plus lisible à 16px. V3 l’affine : silhouette affinée -12% largeur, W resserré, coins arrondis 4px.</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.08em;text-transform:uppercase">C — Contour</div><div style="font-size:12px;color:#CBD5E1;margin-top:6px">Silhouette manette = W. V3 passe en hairline 1.6px, continuité parfaite, sans sticks à 16px, sticks subtils seulement à 48px+.</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:700;color:var(--primary);letter-spacing:0.08em;text-transform:uppercase">D — Capsule</div><div style="font-size:12px;color:#CBD5E1;margin-top:6px">Squircle fin. V3 propose cadre flottant (padding 18%) vs cadre serré, et variante sans cadre pour header léger.</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> 6 évolutions — B/C/D — avec & sans cadre</h2>
+
+    <div class="concepts">
+
+      <!-- ========= M — B Épuré ========= -->
+      <article class="c" data-variant="M">
+        <div class="c-head">
+          <span class="c-num">M — B-ÉPURÉ — sans cadre (avancé)</span>
+          <span class="c-tag">B affiné • favicon ★</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>W-CREUX AFFINÉ</span> — B sans cadre, géométrie parfaite</h3>
+          <p class="desc"><em>Inspiré B</em> → silhouette resserrée (-10%), W recentré à 44% hauteur, extrémités arrondies 3.2px. Le plus <em>premium</em> en plein, sans cadre. <strong>Favicon 16px</strong> : W épaissi +15% pour rester chirurgical en tab.</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sans cadre — sombre</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.98"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center;opacity:0.92">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.4" opacity="0.9"/><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.2" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#2DD4BF;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Sans / Avec — clair</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#0F172A"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#0F172A" stroke-width="1.4"/><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#0F172A"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.2" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#0F172A;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales">
+            <div class="scale"><b>16px favicon</b><svg width="16" height="16" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="7" stroke-linecap="round"/></svg><span class="sz">sans cadre ★</span></div>
+            <div class="scale"><b>32px</b><svg width="32" height="32" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="4.4" stroke-linecap="round"/></svg><span class="sz">plein net</span></div>
+            <div class="scale"><b>48px header</b><svg width="48" height="48" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg><span class="sz">sans cadre</span></div>
+            <div class="scale"><b>512 PWA</b><svg width="48" height="48" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.4"/><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.2" stroke-linecap="round"/></svg><span class="sz">avec cadre</span></div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:160px"><svg width="100%" height="36" viewBox="0 0 220 56" fill="none" style="max-width:220px"><g transform="translate(4,8) scale(0.40)"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></g><text x="52" y="36" font-family="Orbitron,sans-serif" font-size="21" font-weight="800" letter-spacing="3.2" fill="#F8FAFC">WIWIGA</text></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;text-align:center">Lockup sans cadre — header</div></div>
+            <div style="flex:1;min-width:160px"><svg width="100%" height="36" viewBox="0 0 220 56" fill="none" style="max-width:220px"><g transform="translate(4,6) scale(0.34)"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.6"/><g transform="translate(0,2)"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.2" stroke-linecap="round"/></g></g><text x="52" y="36" font-family="Orbitron,sans-serif" font-size="21" font-weight="800" letter-spacing="3.2" fill="#F8FAFC">WIWIGA</text></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;text-align:center">Lockup avec cadre — PWA</div></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Optimisation favicon</strong>Sans cadre à 16px : forme pleine maximale → lisibilité ★★★. W blanc épaissi évite la bouillie.</div>
+            <div class="pm ok"><strong>+ Avec cadre</strong>Cadre squircle fin uniquement pour 192/512 stores — cohérence app icon.</div>
+            <div class="pm warn"><strong>Design avancé</strong>Proportions revues (ratio W/silhouette 0.62), arrondis constants 3.2px — plus haut de gamme que B original.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('M')">Choisir M — B-ÉPURÉ</button><button class="btn" onclick="toggleGlow(this)">Glow</button><button class="btn" onclick="toggleFrame(this)">Avec/Sans cadre</button></div>
+      </article>
+
+      <!-- ========= N — C Épuré ========= -->
+      <article class="c" data-variant="N">
+        <div class="c-head">
+          <span class="c-num">N — C-ÉPURÉ — sans cadre (hairline)</span>
+          <span class="c-tag">C affiné 1.6px</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>W-CONTOUR AFFINÉ</span> — C sans cadre, le plus premium</h3>
+          <p class="desc"><em>Inspiré C</em> → hairline 1.6px → 1.8px selon taille, jonctions parfaitement tangentes, sans sticks (ajout optionnel ≥48px). <strong>Avec cadre</strong> : même contour posé dans squircle flottant (padding 20%).</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sans cadre — sombre</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.3" opacity="0.9"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#2DD4BF;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Sans / Avec — clair</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#0F172A" stroke-width="1.7" fill="none"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#0F172A" stroke-width="1.3"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#0F172A" stroke-width="1.7" fill="none"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#0F172A;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales">
+            <div class="scale"><b>16px</b><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="6" fill="none"/></svg><span class="sz">sans cadre</span></div>
+            <div class="scale"><b>32px</b><svg width="32" height="32" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="3.6" fill="none"/></svg><span class="sz">hairline</span></div>
+            <div class="scale"><b>48px sticks?</b><svg width="48" height="48" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/><circle cx="36" cy="44" r="2.8" stroke="#2DD4BF" stroke-width="1" opacity="0.45" fill="none"/><circle cx="64" cy="44" r="2.8" stroke="#2DD4BF" stroke-width="1" opacity="0.45" fill="none"/></svg><span class="sz">48+ sticks</span></div>
+            <div class="scale"><b>512 cadre</b><svg width="48" height="48" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.3"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/></svg><span class="sz">avec cadre</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Favicon</strong>Sans cadre à 16px : contour épaissi à 6px → reste fin mais lisible. Pas de sticks (bruit).</div>
+            <div class="pm ok"><strong>+ Avec cadre</strong>Cadre uniquement en 512/192 → respecte safe zone 66%, ne surcharge pas le favicon.</div>
+            <div class="pm warn"><strong>Avancé</strong>Hairline réelle 1.6px — le plus luxueux de la série, effet Braun “less but better”.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('N')">Choisir N — C-ÉPURÉ</button><button class="btn" onclick="toggleGlow(this)">Glow</button></div>
+      </article>
+
+      <!-- ========= O — D Épuré ========= -->
+      <article class="c" data-variant="O">
+        <div class="c-head">
+          <span class="c-num">O — D-ÉPURÉ — avec cadre (flottant) / sans cadre</span>
+          <span class="c-tag">D affiné • cadre optionnel</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>W-CAPSULE FLOTTANTE</span> — D repensé, respiration</h3>
+          <p class="desc"><em>Inspiré D</em> → W-FIL 2.8px recentré, cadre squircle passé de 22px à <strong>24px</strong> + padding 18% (respiration). <strong>Sans cadre</strong> : même W-FIL seul pour header léger. Parfait pour alterner selon contexte.</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sans cadre ↔ Avec cadre — sombre</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M18 34 L30.5 70 L43.2 42.5 L56.8 42.5 L69.5 70 L82 34" stroke="#2DD4BF" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre — W-FIL</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="1.3" opacity="0.95"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="2.6" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#2DD4BF;margin-top:6px">Avec cadre — flottant</div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Sans / Avec — clair</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M18 34 L30.5 70 L43.2 42.5 L56.8 42.5 L69.5 70 L82 34" stroke="#0F172A" stroke-width="2.9" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#0F172A" stroke-width="1.3"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="2.6" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#0F172A;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales">
+            <div class="scale"><b>16px sans</b><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><path d="M18 34 L30.5 70 L43.2 42.5 L56.8 42.5 L69.5 70 L82 34" stroke="#2DD4BF" stroke-width="7"/></svg><span class="sz">W-FIL pur</span></div>
+            <div class="scale"><b>16px avec</b><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="5"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="5.5"/></svg><span class="sz">cadre serré</span></div>
+            <div class="scale"><b>48px sans</b><svg width="48" height="48" viewBox="0 0 100 100" fill="none"><path d="M18 34 L30.5 70 L43.2 42.5 L56.8 42.5 L69.5 70 L82 34" stroke="#2DD4BF" stroke-width="2.9"/></svg><span class="sz">header</span></div>
+            <div class="scale"><b>512 avec</b><svg width="48" height="48" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="1.3"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="2.6"/></svg><span class="sz">PWA</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Sans cadre</strong>Header 48px ultra léger — le plus sobre en navigation.</div>
+            <div class="pm ok"><strong>+ Avec cadre</strong>Cadre flottant 24px + padding 18% → ne domine pas le W à 16px (contrairement à D original 22px serré).</div>
+            <div class="pm warn"><strong>Optimisation</strong>À 16px avec cadre : W épaissi à 5.5px, cadre à 5px — équilibre testé tab clair/sombre.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('O')">Choisir O — D-ÉPURÉ</button><button class="btn" onclick="toggleGlow(this)">Glow</button></div>
+      </article>
+
+      <!-- ========= P — B/C Hybride Plein + Contour ========= -->
+      <article class="c" data-variant="P">
+        <div class="c-head">
+          <span class="c-num">P — B×C HYBRIDE — double lecture (avancé)</span>
+          <span class="c-tag">B plein + C contour • favicon ★★</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>W-DUAL</span> — plein à 16px, contour à 48px</h3>
+          <p class="desc"><em>Fusion B+C</em> → <strong>responsive intelligent</strong> : à 16px c’est un <strong>B plein (W blanc)</strong> ultra lisible, à 48px+ c’est un <strong>C contour hairline</strong> luxueux. Même silhouette, deux rendus auto. <strong>Avec/sans cadre</strong> : cadre uniquement en 512.</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">16px plein ↔ 48px contour — sombre</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#2DD4BF;margin-top:6px">16px — B plein ★</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.6" fill="none"/><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.2" opacity="0.55"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">48px — C contour + cadre</div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">16px ↔ 48px — clair</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#0F172A"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#0F172A;margin-top:6px">16px — plein</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#0F172A" stroke-width="1.6" fill="none"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">48px — contour seul</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales">
+            <div class="scale"><b>16px</b><svg width="16" height="16" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="7"/></svg><span class="sz">B plein</span></div>
+            <div class="scale"><b>32px</b><svg width="32" height="32" viewBox="0 0 100 100"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="3.2" fill="none"/></svg><span class="sz">C contour</span></div>
+            <div class="scale"><b>48px</b><svg width="48" height="48" viewBox="0 0 100 100"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.6" fill="none"/></svg><span class="sz">hairline</span></div>
+            <div class="scale"><b>Lockup</b><svg width="110" height="28" viewBox="0 0 200 56" fill="none"><g transform="translate(4,10) scale(0.36)"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6"/></g><text x="52" y="36" font-family="Orbitron,sans-serif" font-size="20" font-weight="800" letter-spacing="3" fill="#F8FAFC">WIWIGA</text></svg><span class="sz">16px plein</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Best of both</strong>Le seul qui est ★★★ à 16px ET ★★★ à 48px — répond à ta demande “optimisation favicon”.</div>
+            <div class="pm ok"><strong>+ Avec/sans cadre</strong>Sans cadre à 16/48, avec cadre fin uniquement en 512 stores — système le plus avancé.</div>
+            <div class="pm warn"><strong>Implémentation</strong>2 SVG (glyph plein + icon contour) — même silhouette, switch auto par taille.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('P')">Choisir P — DUAL B×C</button><button class="btn" onclick="toggleGlow(this)">Glow</button></div>
+      </article>
+
+      <!-- ========= Q — D Premium ========= -->
+      <article class="c" data-variant="Q">
+        <div class="c-head">
+          <span class="c-num">Q — D-PREMIUM — cadre fin + W gras (avancé)</span>
+          <span class="c-tag">D repensé • contraste</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>W-CADRE GRAS</span> — cadre hairline + W plein</h3>
+          <p class="desc"><em>Fusion B+D</em> → cadre squircle hairline 1.2px + <strong>W plein fin (pas fil)</strong> à l’intérieur (intermédiaire entre fil et creux). Plus de présence que O, plus sobre que M. <strong>Sans cadre</strong> : W plein seul.</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Sans cadre ↔ Avec cadre — sombre</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.98"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre — W plein fin</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="1.2" opacity="0.9"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#2DD4BF;margin-top:6px">Avec cadre — hairline + W</div>
+              </div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Sans / Avec — clair</span>
+            <div class="stage">
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#0F172A" stroke-width="6.2" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B;margin-top:6px">Sans cadre</div>
+              </div>
+              <div class="sep"></div>
+              <div style="text-align:center">
+                <svg width="98" height="98" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#0F172A" stroke-width="1.2"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#0F172A" stroke-width="4.8" stroke-linecap="round"/></svg>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#0F172A;margin-top:6px">Avec cadre</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales">
+            <div class="scale"><b>16px sans</b><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="11" stroke-linecap="round"/></svg><span class="sz">W plein</span></div>
+            <div class="scale"><b>16px avec</b><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="5"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="7.5"/></svg><span class="sz">cadre</span></div>
+            <div class="scale"><b>48px sans</b><svg width="48" height="48" viewBox="0 0 100 100" fill="none"><path d="M20 36 L32 68 L44.5 44 L55.5 44 L68 68 L80 36" stroke="#2DD4BF" stroke-width="6.2"/></svg><span class="sz">bold fin</span></div>
+            <div class="scale"><b>512 avec</b><svg width="48" height="48" viewBox="0 0 100 100"><rect x="11" y="11" width="78" height="78" rx="24" fill="none" stroke="#2DD4BF" stroke-width="1.2"/><path d="M22 36 L33 67 L44 44.5 L56 44.5 L67 67 L78 36" stroke="#2DD4BF" stroke-width="4.8"/></svg><span class="sz">premium</span></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Avancé</strong>Contraste maîtrisé : cadre 1.2px (souffle) + W 4.8px (présence) — lecture instantanée même en tab sombre.</div>
+            <div class="pm ok"><strong>+ Avec/sans</strong>Sans cadre en header, avec cadre en PWA — le plus équilibré pour “avec et sans cadre”.</div>
+            <div class="pm warn"><strong>Favicon</strong>W plein fin tient mieux à 16px que W fil (O) — moins de risque de disparition sur fond clair.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('Q')">Choisir Q — CADRE GRAS</button><button class="btn" onclick="toggleGlow(this)">Glow</button></div>
+      </article>
+
+      <!-- ========= R — SYSTÈME ========= -->
+      <article class="c" data-variant="R">
+        <div class="c-head">
+          <span class="c-num">R — SYSTÈME — le choix “design avancé” (recommandé)</span>
+          <span class="c-tag">B/C/D fusion • responsive</span>
+        </div>
+        <div style="padding:4px 18px 0"><h3><span>WIWIGA SYSTEM</span> — 1 ADN, 3 rendus contextuels</h3>
+          <p class="desc"><em>Système ultime B/C/D</em> → <strong>Même silhouette manette</strong>, 3 rendus auto : <strong>Glyph 16px = M (B plein sans cadre)</strong> • <strong>Icon 48px = N (C contour sans cadre)</strong> • <strong>App 512px = O/Q (avec cadre squircle)</strong>. Le plus moderne, sobre, et optimisé favicon.</p>
+        </div>
+        <div class="previews">
+          <div class="prev dark"><span class="plabel">Système — sombre (3 tailles)</span>
+            <div class="stage" style="gap:14px">
+              <div style="text-align:center"><svg width="56" height="56" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#2DD4BF;margin-top:4px">16px GLYPH<br>sans cadre</div></div>
+              <div style="font-size:16px;color:#334155">→</div>
+              <div style="text-align:center"><svg width="64" height="64" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#94A3B8;margin-top:4px">48px ICON<br>sans cadre</div></div>
+              <div style="font-size:16px;color:#334155">→</div>
+              <div style="text-align:center"><svg width="64" height="64" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.2"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.5" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">512 APP<br>avec cadre</div></div>
+            </div>
+          </div>
+          <div class="prev light"><span class="plabel">Système — clair</span>
+            <div class="stage" style="gap:14px">
+              <div style="text-align:center"><svg width="56" height="56" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#0F172A"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#0F172A;margin-top:4px">16px</div></div>
+              <div style="font-size:16px;color:#E2E8F0">→</div>
+              <div style="text-align:center"><svg width="64" height="64" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#0F172A" stroke-width="1.7" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">48px</div></div>
+              <div style="font-size:16px;color:#E2E8F0">→</div>
+              <div style="text-align:center"><svg width="64" height="64" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#0F172A" stroke-width="1.2"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#0F172A" stroke-width="1.5" fill="none"/></svg><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#64748B;margin-top:4px">512</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctx">
+          <div class="scales" style="justify-content:center">
+            <div class="scale" style="min-width:96px"><b>Favicon 16</b><svg width="16" height="16" viewBox="0 0 100 100"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="7"/></svg><span class="sz">M plein</span></div>
+            <div class="scale" style="min-width:96px"><b>Header 48</b><svg width="32" height="32" viewBox="0 0 100 100" fill="none"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/></svg><span class="sz">N contour</span></div>
+            <div class="scale" style="min-width:96px"><b>PWA 512</b><svg width="48" height="48" viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" rx="22" fill="none" stroke="#2DD4BF" stroke-width="1.2"/><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.5" fill="none"/></svg><span class="sz">N + cadre</span></div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:180px;text-align:center"><svg width="140" height="32" viewBox="0 0 220 56" fill="none"><g transform="translate(4,10) scale(0.36)"><path d="M24 33 H76 C81.2 33 83.4 37.8 81.8 42.8 L74.8 64.6 C73.6 68.4 69.2 70.6 66 67.4 L55.2 56.8 H44.8 L34 67.4 C30.8 70.6 26.4 68.4 25.2 64.6 L18.2 42.8 C16.6 37.8 18.8 33 24 33Z" fill="#2DD4BF"/><path d="M24.5 36.5 L34.2 63.5 L44.6 43.8 L55.4 43.8 L65.8 63.5 L75.5 36.5" stroke="white" stroke-width="3.6"/></g><text x="52" y="36" font-family="Orbitron,sans-serif" font-size="20" font-weight="800" letter-spacing="3" fill="#F8FAFC">WIWIGA</text></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B">Favicon lockup — M</div></div>
+            <div style="flex:1;min-width:180px;text-align:center"><svg width="140" height="32" viewBox="0 0 220 56" fill="none"><g transform="translate(4,10) scale(0.36)"><path d="M24 31.5 H76 C81.6 31.5 83.8 36.2 82.2 41 L75.0 62.2 C73.8 66 69.6 68 66.4 64.8 L55.6 54.4 H44.4 L33.6 64.8 C30.4 68 26.2 66 25 62.2 L17.8 41 C16.2 36.2 18.4 31.5 24 31.5Z" stroke="#2DD4BF" stroke-width="1.7" fill="none"/></g><text x="52" y="36" font-family="Orbitron,sans-serif" font-size="20" font-weight="800" letter-spacing="3" fill="#F8FAFC">WIWIGA</text></svg><div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#64748B">Header lockup — N</div></div>
+          </div>
+          <div class="plusminus">
+            <div class="pm ok"><strong>+ Pourquoi R est “avancé”</strong>1 seule silhouette → 3 rendus optimisés. C’est le vrai responsive logo 2026 : pas 1 logo partout, mais 1 ADN adapté.</div>
+            <div class="pm ok"><strong>+ Avec/sans cadre natif</strong>Sans cadre = 16/48 (léger), avec cadre = 512/192 (stores) — tu as les deux sans compromis.</div>
+            <div class="pm ok"><strong>+ Favicon ★★★</strong>B plein à 16px = le plus lisible testé ; contour fin à 48px = le plus luxueux. Aucun autre n’a les deux.</div>
+          </div>
+        </div>
+        <div class="c-foot"><button class="btn primary" onclick="selectVariant('R')">★ Choisir R — SYSTÈME (recommandé)</button><button class="btn" onclick="toggleGlow(this)">Glow</button></div>
+      </article>
+
+    </div>
+
+    <div class="matrix">
+      <table>
+        <thead><tr><th>Proposition</th><th>Sans cadre</th><th>Avec cadre</th><th>Favicon 16px</th><th>Header 48px</th><th>Style avancé</th></tr></thead>
+        <tbody>
+          <tr><td><strong>M — B-Épuré</strong></td><td><span class="dot ok"></span>Par défaut</td><td><span class="dot ok"></span>Option 512</td><td><span class="dot ok"></span>★★★ plein</td><td><span class="dot mid"></span>★★</td><td>Affiné, sobre</td></tr>
+          <tr><td><strong>N — C-Épuré</strong></td><td><span class="dot ok"></span>Par défaut ★</td><td><span class="dot ok"></span>Option 512</td><td><span class="dot mid"></span>★★</td><td><span class="dot ok"></span>★★★ hairline</td><td>Ultra luxe 1.6px</td></tr>
+          <tr><td><strong>O — D-Épuré</strong></td><td><span class="dot ok"></span>W-FIL seul</td><td><span class="dot ok"></span>Flottant 24px ★</td><td><span class="dot mid"></span>★★</td><td><span class="dot ok"></span>★★★ léger</td><td>Respiration</td></tr>
+          <tr><td><strong>P — DUAL B×C</strong></td><td><span class="dot ok"></span>48 contour</td><td><span class="dot ok"></span>512 cadre</td><td><span class="dot ok"></span>★★★ plein</td><td><span class="dot ok"></span>★★★</td><td>Responsive dual</td></tr>
+          <tr><td><strong>Q — Cadre Gras</strong></td><td><span class="dot ok"></span>W plein</td><td><span class="dot ok"></span>Hairline ★</td><td><span class="dot ok"></span>★★★</td><td><span class="dot mid"></span>★★</td><td>Contraste fin/gras</td></tr>
+          <tr><td><strong>R — SYSTÈME</strong></td><td><span class="dot ok"></span>16/48 ★</td><td><span class="dot ok"></span>512 ★</td><td><span class="dot ok"></span>★★★ M</td><td><span class="dot ok"></span>★★★ N</td><td>1 ADN, 3 rendus ★★★</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="compare">
+      <div class="cmp"><h4>→ Si tu veux “avec ET sans cadre”</h4><p><strong>R est fait pour ça</strong> : sans cadre en favicon/header, avec cadre en PWA/stores — automatiquement. Sinon choisis 1 parmi M→Q et précise “les deux”.</p></div>
+      <div class="cmp"><h4>→ Le plus sobre / luxe</h4><p><strong>N (C-Épuré)</strong> hairline 1.6px sans cadre — le plus Braun, le plus mode.</p></div>
+      <div class="cmp"><h4>→ Le plus favicon-proof</h4><p><strong>M (B-Épuré)</strong> plein sans cadre — imbattable à 16px en tab sombre/clair.</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> À toi de choisir — V3</h2>
+    <div class="choice" id="choiceBox">
+      <p><strong>Aucune sélection V3.</strong> Clique “Choisir …” — tu peux aussi indiquer <em>“avec cadre”</em> ou <em>“sans cadre”</em> ou <em>“les deux (système R)”</em>.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="clearChoice()">Effacer</button>
+        <button class="btn primary" onclick="exportChoice()">Exporter mon choix →</button>
+      </div>
+    </div>
+    <div id="exportArea" style="margin-top:14px;display:none">
+      <div style="border:1px solid var(--border);background:var(--card);border-radius:14px;padding:14px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary);margin-bottom:8px">À copier dans ta réponse</div>
+        <pre id="exportText" style="white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#E2E8F0;background:rgba(0,0,0,0.2);padding:12px;border-radius:10px;border:1px solid var(--border)">—</pre>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:10px">Tu peux aussi panacher : ex. <em>“R mais je veux O avec cadre flottant en PWA”</em> ou <em>“M sans cadre en favicon + N sans cadre en header”</em> — écris-le librement.</p>
+  </div>
+
+  <div style="margin-top:32px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:0.08em;text-transform:uppercase">WIWIGA • V3 • B/C/D évolutions avancées • Avec/Sans cadre • Favicon optimisé • Aucune implémentation avant validation</div>
+</div>
+
+<script>
+  let chosen=new Set();
+  const labels={M:"M — B-ÉPURÉ (B affiné, sans cadre / cadre 512)",N:"N — C-ÉPURÉ (C hairline 1.6px, sans cadre / cadre 512)",O:"O — D-ÉPURÉ (D flottant, avec/sans cadre)",P:"P — DUAL B×C (plein 16px → contour 48px)",Q:"Q — CADRE GRAS (hairline 1.2 + W plein)",R:"R — SYSTÈME (M 16px → N 48px → N+cadre 512) ★ recommandé"};
+  function selectVariant(v){
+    if(chosen.has(v)) chosen.delete(v); else chosen.add(v);
+    document.querySelectorAll('.c').forEach(el=>{
+      const vv=el.getAttribute('data-variant');
+      el.style.borderColor=chosen.has(vv)?'rgba(45,212,191,0.45)':'';
+      el.style.boxShadow=chosen.has(vv)?'0 0 0 1px rgba(45,212,191,0.25), 0 8px 24px rgba(45,212,191,0.08)':'';
+    });
+    renderChoice();
+  }
+  function renderChoice(){
+    const p=document.querySelector('#choiceBox p');
+    if(chosen.size===0){ p.innerHTML='<strong>Aucune sélection V3.</strong> Clique “Choisir …” — tu peux aussi indiquer <em>“avec cadre”</em> ou <em>“sans cadre”</em> ou <em>“les deux (système R)”</em>.'; document.getElementById('exportArea').style.display='none'; return; }
+    const list=[...chosen].map(v=>'• '+labels[v]).join('<br>');
+    p.innerHTML='<strong style="color:var(--primary)">Sélection V3 : '+[...chosen].join(' + ')+'.</strong><br>'+list+'<br><span style="color:var(--muted)">Précise “avec cadre / sans cadre / les deux”.</span>';
+  }
+  function clearChoice(){ chosen.clear(); document.querySelectorAll('.c').forEach(el=>{el.style.borderColor='';el.style.boxShadow='';}); renderChoice(); document.getElementById('exportArea').style.display='none'; }
+  function exportChoice(){
+    if(chosen.size===0){ alert('Choisis au moins une direction M→R'); return; }
+    const txt='Mon choix WIWIGA V3 (B/C/D avancé) : '+[...chosen].join(' + ')+'\n'+[...chosen].map(v=>'- '+labels[v]).join('\n')+'\n\nAvec cadre / Sans cadre : [ex. "les deux (R)", "sans cadre uniquement", "avec cadre uniquement"]\nAjustement : [ex. "R mais cadre 24px comme O"]\n';
+    document.getElementById('exportText').textContent=txt;
+    document.getElementById('exportArea').style.display='block';
+    document.getElementById('exportArea').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  function toggleGlow(btn){
+    const card=btn.closest('.c'); const svgs=card.querySelectorAll('.stage svg');
+    const on=btn.textContent.includes('ON');
+    svgs.forEach(s=>{ s.style.filter=on?'':'drop-shadow(0 0 8px rgba(45,212,191,0.45))'; s.style.transition='filter 0.2s'; });
+    btn.textContent=on?'Glow':'Glow ON ✓'; btn.style.borderColor=on?'':'rgba(45,212,191,0.45)'; btn.style.color=on?'':'#2DD4BF';
+  }
+</script>
+</body>
+</html>

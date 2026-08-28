@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIWIGA — Maquettes Logo & Favicon — W Manette (RESTAURÉ)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0F172A;--surface:#1E293B;--card:#1A2538;--border:#334155;--primary:#2DD4BF;--accent:#00D9FF;--text:#F8FAFC;--muted:#94A3B8;--dim:#64748B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  .hero{border:1px solid var(--border);background:linear-gradient(180deg,#1E293B 0%,#0F172A 100%);border-radius:20px;padding:32px 28px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 80% 0%, rgba(45,212,191,0.08), transparent 60%);pointer-events:none}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--primary);margin-bottom:10px}
+  .hero h1{font-family:'Orbitron',sans-serif;font-size:clamp(28px,4vw,38px);font-weight:800;letter-spacing:0.04em}
+  .hero h1 em{font-style:normal;color:var(--primary);text-shadow:0 0 18px rgba(45,212,191,0.35)}
+  .hero p{color:var(--muted);max-width:720px;margin-top:14px;font-size:14.5px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .badge{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted)}
+  .badge.on{border-color:rgba(45,212,191,0.35);color:var(--primary);background:rgba(45,212,191,0.07)}
+  .section{margin-top:36px}
+  .section h2{font-family:'Orbitron',sans-serif;font-size:18px;letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .section h2 i{width:28px;height:1px;background:var(--primary);display:inline-block}
+  .section .sub{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .concepts{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:20px}
+  @media(max-width:900px){.concepts{grid-template-columns:1fr}}
+  .c{border:1px solid var(--border);background:var(--card);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+  .c-head{padding:16px 18px 0;display:flex;justify-content:space-between;gap:12px}
+  .c-num{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--primary);border:1px solid rgba(45,212,191,0.25);padding:4px 8px;border-radius:999px;background:rgba(45,212,191,0.06)}
+  .c-tag{font-size:11px;color:var(--dim);border:1px solid var(--border);padding:4px 8px;border-radius:999px}
+  .c h3{font-family:'Orbitron',sans-serif;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;margin-top:10px}
+  .c h3 span{color:var(--primary);font-weight:800}
+  .c .desc{font-size:12.5px;color:#CBD5E1;margin-top:6px}
+  .previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 14px 0}
+  .prev{border-radius:14px;border:1px solid var(--border);overflow:hidden;position:relative;min-height:148px;display:flex;flex-direction:column}
+  .prev.dark{background:var(--bg)} .prev.light{background:#F8FAFC;border-color:#E2E8F0}
+  .prev .plabel{position:absolute;top:8px;left:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:rgba(15,23,42,0.7);z-index:2}
+  .prev.light .plabel{color:#64748B;border-color:#E2E8F0;background:rgba(255,255,255,0.8)}
+  .prev .stage{flex:1;display:flex;align-items:center;justify-content:center;padding:28px 12px 18px}
+  .ctx{padding:14px}
+  .scales{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .scale{border:1px solid var(--border);background:rgba(255,255,255,0.02);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:78px}
+  .scale b{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim)}
+  .scale .sz{font-size:11px;color:var(--muted)}
+  .plusminus{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .pm{font-size:11.5px;padding:6px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:#CBD5E1;flex:1 1 120px}
+  .pm strong{display:block;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px;color:var(--text)}
+  .pm.ok{border-color:rgba(45,212,191,0.25)} .pm.warn{border-color:rgba(245,158,11,0.25)}
+  .c-foot{padding:12px 14px 16px;display:flex;gap:8px}
+  .btn{flex:1;text-align:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.02);color:var(--text);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--primary);color:#0F172A;border-color:var(--primary);font-weight:800}
+  .matrix{margin-top:18px;border:1px solid var(--border);background:var(--card);border-radius:16px;overflow:hidden}
+  .matrix table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .matrix th{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:12px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
+  .matrix td{padding:10px 12px;border-bottom:1px solid rgba(51,65,85,0.5);color:#CBD5E1}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .dot.ok{background:#2DD4BF}.dot.mid{background:#F59E0B}.dot.low{background:#64748B}
+  .choice{margin-top:20px;border:1px dashed rgba(45,212,191,0.35);background:rgba(45,212,191,0.05);border-radius:16px;padding:18px;display:flex;gap:14px;flex-wrap:wrap}
+  .kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:2px 6px;border-radius:6px;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">WIWIGA — Hub de Jeux • Refonte Identité — RESTAURÉ</div>
+    <h1>Logo <em>W manette</em> — sobre, fin, moderne</h1>
+    <p>12 directions disponibles. Fichiers restaurés et vérifiés le 28/08/2026. Chemins complets ci-dessous — ouvre-les en <code>file://</code> ou via serveur local.</p>
+    <div class="badges">
+      <span class="badge on">12 maquettes A→L</span>
+      <span class="badge on">V1 restauré 28/08 09:08</span>
+      <span class="badge">Trait fin • mono</span>
+      <span class="badge">Favicon 16→512</span>
+    </div>
+    <div style="margin-top:16px;background:rgba(0,0,0,0.25);border:1px solid #334155;border-radius:12px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#94A3B8">
+      V1 — <span style="color:#2DD4BF">/home/franckylab/projets/wiwiga/maquettes_logo_wiwiga.html</span><br>
+      V2 — <span style="color:#2DD4BF">/home/franckylab/projets/wiwiga/maquettes_logo_wiwiga_v2.html</span><br>
+      <span style="color:#64748B"># aussi en /tmp/opencode/ — si file:// bloqué, lance :</span><br>
+      <span style="color:#F8FAFC">python3 -m http.server 8765 --directory /home/franckylab/projets/wiwiga</span> → <span style="color:#2DD4BF">http://localhost:8765/maquettes_logo_wiwiga.html</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> Accès direct — pourquoi “non accessible” avant ?</h2>
+    <p class="sub">Les fichiers sont bien sur disque (<code>ls -lh</code> vérifié). Si ton navigateur / VS Code dit “non accessible”, c’est que tu as tenté <code>http://localhost:8003/...</code> (serveur Flutter) au lieu de <code>file://</code> ou d’un serveur Python sur le bon dossier. Utilise l’une de ces 3 méthodes :</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--primary)">1 — file:// (le plus simple)</div>
+        <div style="font-size:12px;color:#CBD5E1;margin-top:6px">Dans ton explorateur de fichiers, double-clic sur<br><code class="kbd">maquettes_logo_wiwiga.html</code><br>ou dans VS Code : clic droit → Open Preview</div>
+      </div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--primary)">2 — Serveur Python</div>
+        <div style="font-size:12px;color:#CBD5E1;margin-top:6px"><code class="kbd">python3 -m http.server 8765 --directory /home/franckylab/projets/wiwiga</code><br>puis <code class="kbd">http://localhost:8765/maquettes_logo_wiwiga.html</code></div>
+      </div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:12px;padding:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--primary)">3 — /tmp/opencode</div>
+        <div style="font-size:12px;color:#CBD5E1;margin-top:6px">Copie de secours pré-approuvée :<br><code class="kbd">/tmp/opencode/maquettes_logo_wiwiga.html</code><br>toujours accessible</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> V1 — A→F — aperçu restauré</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 32 L28.5 71 L42.5 42 L57.5 42 L71.5 71 L86 32" stroke="#2DD4BF" stroke-width="3.6" stroke-linecap="round"/><path d="M16.5 33.5 Q50 27 83.5 33.5" stroke="#2DD4BF" stroke-width="1.6" opacity="0.32" stroke-linecap="round"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">A — W-FIL</div><div style="font-size:11px;color:#94A3B8">trait unique — sobriété max ★</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100"><path d="M22 34 H78 C83.5 34 85.6 39.2 83.8 44.6 L76.2 66.8 C74.9 71.2 69.8 73.6 66.2 69.8 L55.2 58.2 H44.8 L33.8 69.8 C30.2 73.6 25.1 71.2 23.8 66.8 L16.2 44.6 C14.4 39.2 16.5 34 22 34Z" fill="#2DD4BF"/><path d="M23 37 L33 65 L44 44 L56 44 L67 65 L77 37" stroke="white" stroke-width="4.2" stroke-linecap="round"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">B — W-CREUX</div><div style="font-size:11px;color:#94A3B8">best favicon 16px ★</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M22 33 H78 C83.2 33 85.8 38 84.2 43.2 L77.2 65 C76 68.6 71.8 70.8 68.6 67.6 L57.8 56.8 C56.4 55.4 55 55 53.2 55 H46.8 C45 55 43.6 55.4 42.2 56.8 L31.4 67.6 C28.2 70.8 24 68.6 22.8 65 L15.8 43.2 C14.2 38 16.8 33 22 33Z" stroke="#2DD4BF" stroke-width="2.6" fill="none"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">C — CONTOUR</div><div style="font-size:11px;color:#94A3B8">bas = W</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><rect x="12" y="12" width="76" height="76" rx="22" stroke="#2DD4BF" stroke-width="1.8"/><path d="M22 36 L33 68 L44 46 L56 46 L67 68 L78 36" stroke="#2DD4BF" stroke-width="3.2" stroke-linecap="round"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">D — CAPSULE</div><div style="font-size:11px;color:#94A3B8">app store</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 30 L29 70 L43 42 L57 42 L71 70 L86 30" stroke="#2DD4BF" stroke-width="1.9"/><path d="M18.5 34.5 L30.2 66.2 L43.1 45.2 L56.9 45.2 L69.8 66.2 L81.5 34.5" stroke="#2DD4BF" stroke-width="1.9" opacity="0.42"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">E — AIR</div><div style="font-size:11px;color:#94A3B8">double trait</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M50 12 L84.5 32 L84.5 68 L50 88 L15.5 68 L15.5 32 Z" stroke="#2DD4BF" stroke-width="1.6" fill="none"/><path d="M26 38 L36 66 L46 46 L54 46 L64 66 L74 38" stroke="#2DD4BF" stroke-width="2.8" stroke-linecap="round"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">F — HEX</div><div style="font-size:11px;color:#94A3B8">héritage</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2><i></i> V2 — G→L — aperçu restauré</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 31 L27.2 71.2 L41.5 42.8" stroke="#2DD4BF" stroke-width="3.4"/><path d="M86 31 L72.8 71.2 L58.5 42.8" stroke="#2DD4BF" stroke-width="3.4"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">G — DUO</div><div style="font-size:11px;color:#94A3B8">2 poignées → W</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M18 30 H82" stroke="#2DD4BF" stroke-width="2.6"/><rect x="20.5" y="26.2" width="10" height="4.4" rx="1.6" fill="none" stroke="#2DD4BF" stroke-width="1.4"/><rect x="69.5" y="26.2" width="10" height="4.4" rx="1.6" fill="none" stroke="#2DD4BF" stroke-width="1.4"/><path d="M18 31.5 L30.2 71 L44 43.5 L56 43.5 L69.8 71 L82 31.5" stroke="#2DD4BF" stroke-width="2.8"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">H — SHOULDER</div><div style="font-size:11px;color:#94A3B8">vue dessus</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 31 L28.2 72 L43.2 38.5 L56.8 38.5 L71.8 72 L86 31" stroke="#2DD4BF" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">I — EDGE</div><div style="font-size:11px;color:#94A3B8">45° tech</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 31 L27.8 71 L43.2 46.8" stroke="#2DD4BF" stroke-width="3"/><path d="M86 31 L72.2 71 L56.8 46.8" stroke="#2DD4BF" stroke-width="3"/><circle cx="50" cy="44.2" r="6.2" fill="none" stroke="#2DD4BF" stroke-width="1.7" stroke-dasharray="32 6"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">J — PULSE</div><div style="font-size:11px;color:#94A3B8">anneau central</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 100 100" fill="none"><path d="M14 32 L28.6 71.4 L42.8 42.5 L57.2 42.5 L71.4 71.4 L86 32" stroke="#2DD4BF" stroke-width="2.4"/><circle cx="14" cy="32" r="3.4" fill="none" stroke="#2DD4BF" stroke-width="1.7"/><circle cx="86" cy="32" r="3.4" fill="none" stroke="#2DD4BF" stroke-width="1.7"/></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">K — FLUX</div><div style="font-size:11px;color:#94A3B8">sticks bulbes</div></div>
+      <div style="border:1px solid #334155;background:#1A2538;border-radius:14px;padding:12px;text-align:center"><div style="padding:10px"><svg width="88" height="88" viewBox="0 0 220 56" fill="none"><path d="M6 14 L15.5 42 L24.2 20.5 L31.8 20.5 L40.5 42 L50 14" stroke="#2DD4BF" stroke-width="2.7"/><text x="58" y="36" font-family="Orbitron,sans-serif" font-size="26" font-weight="300" letter-spacing="4.2" fill="#F8FAFC">IWIGA</text></svg></div><div style="font-family:'Orbitron',sans-serif;font-size:11px;color:#2DD4BF">L — MARK</div><div style="font-size:11px;color:#94A3B8">wordmark luxe</div></div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;border:1px solid #334155;background:#1A2538;border-radius:12px;padding:14px;font-size:12px;color:#94A3B8">
+    <div style="color:#2DD4BF;font-weight:700;margin-bottom:6px">Vérification disque — 28/08/2026 09:08</div>
+    <div id="verify" style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:pre-wrap"></div>
+  </div>
+
+  <div style="margin-top:24px;text-align:center;color:#64748B;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">WIWIGA • Fichiers restaurés — Ouvre en file:// ou http://localhost:8765 — Aucune implémentation avant ton choix</div>
+</div>
+<script>
+  // Vérif affichage
+  const v=document.getElementById('verify');
+  v.textContent = 'Fichiers attendus :\n- /home/franckylab/projets/wiwiga/maquettes_logo_wiwiga.html\n- /home/franckylab/projets/wiwiga/maquettes_logo_wiwiga_v2.html\n- /tmp/opencode/ (copies secours)\n\nSi tu vois cette page, le fichier est bien chargé. Utilise file:// ou python -m http.server pour l’ouvrir.';
+</script>
+</body>
+</html>
