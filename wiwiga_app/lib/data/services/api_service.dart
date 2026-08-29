@@ -7,12 +7,14 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
+import '../../core/storage/app_storage.dart';
 
 /// Service centralisé pour les requêtes HTTP
 /// 
@@ -24,7 +26,7 @@ import '../../core/errors/api_exception.dart';
 /// - Notification quand la session est expirée (tokens effacés)
 class ApiService {
   final http.Client _client;
-  final FlutterSecureStorage _storage;
+  final AppStorage _storage;
   
   // Clés de stockage sécurisé
   static const _keyAccessToken = 'access_token';
@@ -43,47 +45,63 @@ class ApiService {
   /// Les listeners peuvent utiliser cela pour rediriger vers /auth
   Stream<bool> get onSessionExpired => _sessionExpiredController.stream;
   
-  ApiService({http.Client? client, FlutterSecureStorage? storage})
+  ApiService({http.Client? client, AppStorage? storage, FlutterSecureStorage? secureStorage})
       : _client = client ?? http.Client(),
-        _storage = storage ?? const FlutterSecureStorage();
+        _storage = storage ??
+            AppStorage(secure: secureStorage ?? const FlutterSecureStorage());
   
   // ========================================
   // TOKENS — Gestion secure storage
   // ========================================
   
-  /// Récupère l'access token
+  /// Récupère l'access token (résilient LAN insecure context)
   Future<String?> getAccessToken() async {
-    // D'abord vérifier la nouvelle clé
-    String? token = await _storage.read(key: _keyAccessToken);
-    
-    // Migration depuis l'ancien système (jwt_token)
-    if (token == null) {
-      token = await _storage.read(key: _keyLegacyToken);
-      if (token != null) {
-        await _storage.write(key: _keyAccessToken, value: token);
-        await _storage.delete(key: _keyLegacyToken);
+    try {
+      String? token = await _storage.read(key: _keyAccessToken);
+      if (token == null) {
+        token = await _storage.read(key: _keyLegacyToken);
+        if (token != null) {
+          try {
+            await _storage.write(key: _keyAccessToken, value: token);
+            await _storage.delete(key: _keyLegacyToken);
+          } catch (_) {}
+        }
       }
+      return token;
+    } catch (e) {
+      debugPrint('[ApiService] getAccessToken error (LAN fallback): $e');
+      return null;
     }
-    
-    return token;
   }
   
   /// Récupère le refresh token
   Future<String?> getRefreshToken() async {
-    return await _storage.read(key: _keyRefreshToken);
+    try {
+      return await _storage.read(key: _keyRefreshToken);
+    } catch (e) {
+      debugPrint('[ApiService] getRefreshToken error: $e');
+      return null;
+    }
   }
   
-  /// Sauvegarde les tokens après authentification
+  /// Sauvegarde les tokens après authentification (LAN-resilient)
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
-    await Future.wait([
-      _storage.write(key: _keyAccessToken, value: accessToken),
-      _storage.write(key: _keyRefreshToken, value: refreshToken),
-    ]);
-    // Nettoyer l'ancienne clé si elle existe
-    await _storage.delete(key: _keyLegacyToken);
+    try {
+      await Future.wait([
+        _storage.write(key: _keyAccessToken, value: accessToken),
+        _storage.write(key: _keyRefreshToken, value: refreshToken),
+      ]);
+      try {
+        await _storage.delete(key: _keyLegacyToken);
+      } catch (_) {}
+      if (kDebugMode) debugPrint('[ApiService] tokens saved OK (LAN fallback capable)');
+    } catch (e) {
+      debugPrint('[ApiService] saveTokens FAILED: $e');
+      rethrow;
+    }
   }
   
   /// Compatibilité: getToken() retourne l'access token
@@ -91,18 +109,29 @@ class ApiService {
   
   /// Compatibilité: saveToken() sauvegarde comme access token
   Future<void> saveToken(String token) async {
-    await _storage.write(key: _keyAccessToken, value: token);
+    try {
+      await _storage.write(key: _keyAccessToken, value: token);
+    } catch (e) {
+      debugPrint('[ApiService] saveToken failed: $e');
+      rethrow;
+    }
   }
   
   /// Supprime tous les tokens (logout)
   Future<void> clearTokens() async {
-    await Future.wait([
-      _storage.delete(key: _keyAccessToken),
-      _storage.delete(key: _keyRefreshToken),
-      _storage.delete(key: _keyLegacyToken),
-    ]);
+    try {
+      await Future.wait([
+        _storage.delete(key: _keyAccessToken),
+        _storage.delete(key: _keyRefreshToken),
+        _storage.delete(key: _keyLegacyToken),
+      ]);
+    } catch (e) {
+      debugPrint('[ApiService] clearTokens error (non-bloquant): $e');
+    }
     // Notifier les listeners que la session est expirée
-    _sessionExpiredController.add(true);
+    if (!_sessionExpiredController.isClosed) {
+      _sessionExpiredController.add(true);
+    }
   }
   
   /// Compatibilité: clearToken()
@@ -118,17 +147,27 @@ class ApiService {
   // DEVICE ID — Identification appareil
   // ========================================
   
-  /// Récupère ou génère le Device ID unique
+  /// Récupère ou génère le Device ID unique (LAN-resilient)
   Future<String> getDeviceId() async {
-    String? deviceId = await _storage.read(key: _keyDeviceId);
-    
-    if (deviceId == null) {
-      deviceId = const Uuid().v4();
-      await _storage.write(key: _keyDeviceId, value: deviceId);
+    try {
+      String? deviceId = await _storage.read(key: _keyDeviceId);
+      if (deviceId == null) {
+        deviceId = const Uuid().v4();
+        try {
+          await _storage.write(key: _keyDeviceId, value: deviceId);
+        } catch (e) {
+          debugPrint('[ApiService] getDeviceId write failed, returning ephemeral: $e');
+        }
+      }
+      return deviceId;
+    } catch (e) {
+      debugPrint('[ApiService] getDeviceId read failed, ephemeral: $e');
+      return const Uuid().v4();
     }
-    
-    return deviceId;
   }
+
+  /// Diagnostic stockage (pour debug LAN)
+  Future<Map<String, dynamic>> diagnoseStorage() => _storage.diagnose();
   
   // ========================================
   // HEADERS — Construction
@@ -164,15 +203,22 @@ class ApiService {
   
   /// Wraps a network request to catch transport errors (timeout, socket)
   /// and convert them to [ApiException.network].
+  /// Ajout diagnostic LAN: loggue baseUrl et origine pour debug CORS 192.168
   Future<T> _wrapNetwork<T>(Future<T> Function() request, {String? url}) async {
     try {
       return await request();
     } on TimeoutException catch (_) {
+      if (kDebugMode) debugPrint('[ApiService] Timeout for $url (baseUrl=${AppConfig.baseUrl})');
       throw ApiException.network('Délai d\'attente dépassé. Vérifiez votre connexion.', url: url);
-    } catch (e) {
+    } catch (e, st) {
       if (e is ApiException) rethrow;
-      // SocketException, HttpException, etc.
-      throw ApiException.network('Erreur de connexion. Vérifiez votre réseau.', url: url);
+      // SocketException, HttpException, CORS TypeError (Failed to fetch) sur Web
+      if (kDebugMode) {
+        debugPrint('[ApiService] Network error for $url -> $e');
+        debugPrint('[ApiService] baseUrl=${AppConfig.baseUrl} isWeb=$kIsWeb');
+        debugPrint('$st');
+      }
+      throw ApiException.network('Erreur de connexion. Vérifiez votre réseau. ($e)', url: url);
     }
   }
   

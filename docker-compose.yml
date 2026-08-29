@@ -51,6 +51,8 @@ services:
       REDIS_PORT: 6379
       SECRET_KEY_BASE: dev_secret_key_base_change_in_production
       PORT: 4001
+      ALLOWED_ORIGINS: "*"
+      ENABLE_RATE_LIMITING: "false"
     ports:
       - "8000:4001"
     volumes:
