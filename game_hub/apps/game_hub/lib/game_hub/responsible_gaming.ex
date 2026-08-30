@@ -20,6 +20,7 @@ defmodule GameHub.ResponsibleGaming do
   alias GameHub.Repo
   alias GameHub.ResponsibleGaming.ResponsibleGamingLimit
   alias GameHub.Admin.PlatformConfig
+  alias GameHub.Tokens.TokenTransaction
   import Ecto.Query
 
   # Table ETS pour le tracking de session en mémoire
@@ -84,14 +85,15 @@ defmodule GameHub.ResponsibleGaming do
       PlatformConfig.get_int("gaming", "default_session_time_minutes", 120)
     end
 
-    max_bet = PlatformConfig.get_int("gaming", "max_bet_per_round", 1_000_000)
+    # max_bet désormais stocké en jetons (pure jetons, migration 20260830000003)
+    max_bet = PlatformConfig.get_int("gaming", "max_bet_per_round", 10_000)
 
     cond do
       # Auto-exclusion active
       limits && is_self_excluded?(limits) ->
         {:error, :self_excluded}
 
-      # Mise max par round
+      # Mise max par round (bet_amount en jetons)
       bet_amount > max_bet ->
         {:error, :max_bet_exceeded}
       
@@ -209,16 +211,19 @@ defmodule GameHub.ResponsibleGaming do
     {:ok, today_start, _} = DateTime.from_iso8601(
       Date.to_iso8601(Date.utc_today()) <> "T00:00:00Z"
     )
-    
+
+    # Limite désormais en jetons (pure jetons)
+    daily_limit_jetons = daily_limit
+
     total_loss = Repo.one(
-      from t in GameHub.Wallet.WalletTransaction,
+      from t in TokenTransaction,
         where: t.user_id == ^user_id and
-               t.type in ["bet", "withdrawal"] and
+               t.type in ["bet", "exchange"] and
                t.inserted_at >= ^today_start,
-        select: fragment("SUM(ABS(?))", t.amount)
+        select: fragment("SUM(ABS(?))", t.token_amount)
     ) || 0
-    
-    total_loss >= daily_limit
+
+    total_loss >= daily_limit_jetons
   end
   
   defp session_time_exceeded?(user_id, limit_minutes) do

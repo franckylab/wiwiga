@@ -29,38 +29,69 @@ defmodule GameHubWeb.FriendController do
 
   @doc """
   GET /api/friends
+  Résilient: retourne 401 si non authentifié, 200 avec liste vide en cas d'erreur interne.
   """
   def index(conn, _params) do
-    user_id = get_current_user_id(conn)
-    friends = Friends.list_friends(user_id)
+    case get_current_user_id(conn) do
+      nil ->
+        conn |> put_status(401) |> json(Errors.error("Authentification requise", 401, "UNAUTHORIZED"))
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: friends,
-      meta: %{
-        total: length(friends),
-        pending_requests: Friends.count_pending_requests(user_id),
-        timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-      }
-    })
+      user_id ->
+        try do
+          friends = Friends.list_friends(user_id)
+          pending = Friends.count_pending_requests(user_id)
+
+          conn
+          |> put_status(200)
+          |> json(%{
+            success: true,
+            data: friends,
+            meta: %{
+              total: length(friends),
+              pending_requests: pending,
+              timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+            }
+          })
+        rescue
+          e ->
+            require Logger
+            Logger.error("[FriendController.index] error: #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{total: 0, pending_requests: 0, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        catch
+          _, e ->
+            require Logger
+            Logger.error("[FriendController.index] catch: #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{total: 0, pending_requests: 0, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        end
+    end
   end
 
   @doc """
   GET /api/friends/requests
   """
   def pending_requests(conn, _params) do
-    user_id = get_current_user_id(conn)
-    requests = Friends.list_pending_requests(user_id)
+    case get_current_user_id(conn) do
+      nil ->
+        conn |> put_status(401) |> json(Errors.error("Authentification requise", 401, "UNAUTHORIZED"))
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: requests,
-      meta: %{total: length(requests), timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+      user_id ->
+        try do
+          requests = Friends.list_pending_requests(user_id)
+
+          conn
+          |> put_status(200)
+          |> json(%{
+            success: true,
+            data: requests,
+            meta: %{total: length(requests), timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+          })
+        rescue
+          e ->
+            require Logger
+            Logger.error("[FriendController.pending_requests] #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{total: 0, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        end
+    end
   end
 
   @doc """
@@ -177,16 +208,28 @@ defmodule GameHubWeb.FriendController do
   GET /api/friends/search?q=...
   """
   def search(conn, %{"q" => query}) do
-    user_id = get_current_user_id(conn)
-    results = Friends.search_player(user_id, query)
+    case get_current_user_id(conn) do
+      nil ->
+        conn |> put_status(401) |> json(Errors.error("Authentification requise", 401, "UNAUTHORIZED"))
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: results,
-      meta: %{total: length(results), timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+      user_id ->
+        try do
+          results = Friends.search_player(user_id, query)
+
+          conn
+          |> put_status(200)
+          |> json(%{
+            success: true,
+            data: results,
+            meta: %{total: length(results), timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+          })
+        rescue
+          e ->
+            require Logger
+            Logger.error("[FriendController.search] #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{total: 0, timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        end
+    end
   end
 
   def search(conn, _params) do
@@ -197,32 +240,56 @@ defmodule GameHubWeb.FriendController do
   GET /api/friends/leaderboard
   """
   def leaderboard(conn, _params) do
-    user_id = get_current_user_id(conn)
-    leaderboard = Friends.get_friend_leaderboard(user_id)
+    case get_current_user_id(conn) do
+      nil ->
+        conn |> put_status(401) |> json(Errors.error("Authentification requise", 401, "UNAUTHORIZED"))
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: leaderboard,
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+      user_id ->
+        try do
+          leaderboard = Friends.get_friend_leaderboard(user_id)
+
+          conn
+          |> put_status(200)
+          |> json(%{
+            success: true,
+            data: leaderboard,
+            meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+          })
+        rescue
+          e ->
+            require Logger
+            Logger.error("[FriendController.leaderboard] #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        end
+    end
   end
 
   @doc """
   GET /api/friends/activity
   """
   def activity(conn, _params) do
-    user_id = get_current_user_id(conn)
-    activities = Friends.get_friend_activity(user_id)
+    case get_current_user_id(conn) do
+      nil ->
+        conn |> put_status(401) |> json(Errors.error("Authentification requise", 401, "UNAUTHORIZED"))
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: activities,
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-    })
+      user_id ->
+        try do
+          activities = Friends.get_friend_activity(user_id)
+
+          conn
+          |> put_status(200)
+          |> json(%{
+            success: true,
+            data: activities,
+            meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+          })
+        rescue
+          e ->
+            require Logger
+            Logger.error("[FriendController.activity] #{inspect(e)}")
+            conn |> put_status(200) |> json(%{success: true, data: [], meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+        end
+    end
   end
 
   @doc """

@@ -23,6 +23,7 @@ defmodule GameHub.Admin.Analytics do
   alias GameHub.Repo
   alias GameHub.Users.User
   alias GameHub.Wallet.WalletTransaction
+  alias GameHub.Tokens.TokenTransaction
   alias GameHub.GameStats.GameStat
   import Ecto.Query
 
@@ -80,9 +81,10 @@ defmodule GameHub.Admin.Analytics do
   defp compute_revenue_metrics(date_range) do
     deposits = aggregate_amount(date_range, "deposit")
     withdrawals = aggregate_amount(date_range, "withdrawal")
-    bets = aggregate_amount(date_range, "bet")
-    winnings = aggregate_amount(date_range, "winnings")
-    commissions = aggregate_amount(date_range, "commission")
+    # Gaming en jetons via token_transactions
+    bets = aggregate_token_amount(date_range, "bet")
+    winnings = aggregate_token_amount(date_range, "winnings")
+    commissions = aggregate_token_amount(date_range, "commission")
 
     ggr = bets.total - winnings.total
     ngr = ggr - commissions.total
@@ -472,12 +474,12 @@ defmodule GameHub.Admin.Analytics do
   def get_monetary_flow(period_or_range \\ "7d") do
     date_range = resolve_date_range(period_or_range)
 
-    # Aggregations par type
+    # Aggregations par type (dépôts/retraits = FCFA centimes wallet, gaming = jetons token)
     deposits = aggregate_amount(date_range, "deposit")
     withdrawals = aggregate_amount(date_range, "withdrawal")
-    bets = aggregate_amount(date_range, "bet")
-    winnings = aggregate_amount(date_range, "winnings")
-    commissions = aggregate_amount(date_range, "commission")
+    bets = aggregate_token_amount(date_range, "bet")
+    winnings = aggregate_token_amount(date_range, "winnings")
+    commissions = aggregate_token_amount(date_range, "commission")
     refunds = aggregate_amount(date_range, "refund")
 
     # Solde total plateforme (cast to integer for arithmetic)
@@ -487,9 +489,12 @@ defmodule GameHub.Admin.Analytics do
     # Flux net
     net_flow = deposits.total - withdrawals.total
 
-    # Vitesse de circulation = total transactions / solde moyen
-    total_volume = deposits.total + withdrawals.total + bets.total + winnings.total
-    avg_balance = max(total_player_balance, 1)
+    # Vitesse de circulation = total transactions (en jetons) / solde moyen jetons via taux dynamique
+    deposits_jetons = GameHub.Tokens.TokenConfig.monetary_to_tokens(deposits.total)
+    withdrawals_jetons = GameHub.Tokens.TokenConfig.monetary_to_tokens(withdrawals.total)
+    total_volume = deposits_jetons + withdrawals_jetons + bets.total + winnings.total
+    # Solde moyen en jetons (token_balance)
+    avg_balance = max(total_token_balance, 1)
     velocity = Float.round(total_volume / avg_balance, 2)
 
     # Timeseries flux net journalier
@@ -774,6 +779,22 @@ defmodule GameHub.Admin.Analytics do
           total: type(coalesce(sum(t.amount), 0), :integer),
           count: count(t.id),
           avg: coalesce(avg(t.amount), 0) |> type(:integer)
+        }
+    ) || %{total: 0, count: 0, avg: 0}
+
+    %{total: result.total, count: result.count, avg: result.avg}
+  end
+
+  defp aggregate_token_amount(date_range, type) do
+    result = Repo.one(
+      from t in TokenTransaction,
+        where: t.type == ^type and
+               t.inserted_at >= ^date_range.from and
+               t.inserted_at <= ^date_range.to,
+        select: %{
+          total: type(coalesce(sum(fragment("ABS(?)", t.token_amount)), 0), :integer),
+          count: count(t.id),
+          avg: coalesce(avg(fragment("ABS(?)", t.token_amount)), 0) |> type(:integer)
         }
     ) || %{total: 0, count: 0, avg: 0}
 

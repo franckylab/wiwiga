@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
-import '../neon/token_icon.dart';
+import '../neon/token_coin.dart';
 import '../neon/wiwiga_loader.dart';
 
-/// Ecran de chargement WIWIGA avec animation de jeton tournant
+/// Ecran de chargement WIWIGA avec animation de wiga tournant
 /// 
 /// Variantes :
 /// - [inline] : Petit spinner pour sections
@@ -132,7 +132,7 @@ class WiwigaLoading extends StatelessWidget {
 
 enum LoadingVariant { inline, overlay, fullscreen }
 
-/// Jeton en rotation pour les loaders
+/// Wiga en rotation pour les loaders
 class _SpinningToken extends StatefulWidget {
   final double size;
   final Color? color;
@@ -172,9 +172,12 @@ class _SpinningTokenState extends State<_SpinningToken>
           child: child,
         );
       },
-      child: TokenIcon(
+      child: TokenCoin(
         size: widget.size,
-        variant: widget.color != null ? TokenVariant.gold : TokenVariant.normal,
+        metal: widget.color != null ? TokenMetal.gold : TokenMetal.emerald,
+        lod: TokenCoin.autoLod(widget.size),
+        effect: TokenEffect.spin,
+        animated: true,
       ),
     );
   }

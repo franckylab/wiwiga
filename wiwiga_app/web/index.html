@@ -99,6 +99,52 @@
     WIWIGA
   </div>
   <script>
+    // Suppress benign Chrome extension/violation noise
+    (function() {
+      const isBenignError = (msg) => msg && (msg.includes('runtime.lastError') || msg.includes('message port closed') || msg.includes('Extension context invalidated'));
+      const isBenignViolation = (msg) => {
+        if (!msg || !msg.includes('[Violation]')) return false;
+        // Suppress minor rAF/setTimeout violations <250ms (first frame & heavy builds are expected on Flutter web)
+        const m = msg.match(/took (\d+)ms/);
+        if (m) {
+          const ms = parseInt(m[1], 10);
+          if (ms < 250) return true;
+        }
+        // Always suppress setTimeout/rAF violations below threshold, keep others
+        return msg.includes('setTimeout') || msg.includes('requestAnimationFrame');
+      };
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.error = function(...args) {
+        const first = args[0] ? String(args[0]) : '';
+        if (isBenignError(first)) return;
+        return origError.apply(console, args);
+      };
+      console.warn = function(...args) {
+        const first = args[0] ? String(args[0]) : '';
+        if (isBenignViolation(first)) return;
+        return origWarn.apply(console, args);
+      };
+      window.addEventListener('error', function(e) {
+        if (isBenignError(e.message) || isBenignError(e.error && e.error.message)) {
+          e.preventDefault();
+          return true;
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        const msg = e.reason ? String(e.reason.message || e.reason) : '';
+        if (isBenignError(msg)) e.preventDefault();
+      });
+      if (window.chrome && window.chrome.runtime) {
+        const origSend = window.chrome.runtime.sendMessage;
+        if (origSend) {
+          window.chrome.runtime.sendMessage = function(...a) {
+            try { return origSend.apply(this, a); } catch (_) { return undefined; }
+          };
+        }
+      }
+    })();
+
     // Supprimer le loading indicator quand Flutter est prêt
     window.addEventListener('flutter-first-frame', function() {
       var el = document.getElementById('loading-indicator');

@@ -119,7 +119,7 @@ class _HeaderSection extends ConsumerWidget {
           
           const SizedBox(height: 24),
           
-          // Solde Jetons
+          // Solde Wiga
           _TokenBalanceWidget(),
           
           const SizedBox(height: 16),
@@ -157,7 +157,6 @@ class _TokenBalanceWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokenState = ref.watch(tokenProvider);
     final tokens = tokenState.tokenBalance;
-    final fcfa = tokenState.monetaryValueFcfa;
 
     return GestureDetector(
       onTap: () {
@@ -168,7 +167,7 @@ class _TokenBalanceWidget extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const TokenIcon(size: 24, variant: TokenVariant.normal, animated: true),
+              TokenCoin(size: 26, metal: TokenMetal.emerald, lod: TokenCoin.autoLod(26), effect: TokenEffect.pulse, animated: true),
               const SizedBox(width: 8),
               Text(
                 tokens.toString().replaceAllMapped(
@@ -184,9 +183,9 @@ class _TokenBalanceWidget extends ConsumerWidget {
               ),
             ],
           ),
-          Text(
-            'JETONS  •  ≈ ${fcfa.toStringAsFixed(0)} FCFA',
-            style: const TextStyle(
+          const Text(
+            'WIGA',
+            style: TextStyle(
               fontSize: 12,
               color: NeonColors.textSecondary,
               fontFamily: 'Inter',
@@ -238,13 +237,13 @@ class _GameGrid extends ConsumerWidget {
   }
 }
 
-class _GameCardWidget extends StatelessWidget {
+class _GameCardWidget extends ConsumerWidget {
   final GameModel gameModel;
 
   const _GameCardWidget({required this.gameModel});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Icône selon le type de jeu
     final gameIcon = switch (gameModel.type) {
       'dice' => Icons.casino,
@@ -298,7 +297,7 @@ class _GameCardWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Min: ${gameModel.minBet.toInt()} jetons',
+                'Min: ${gameModel.minBet.toInt()} wiga',
                 style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
               ),
               Text(
@@ -342,7 +341,7 @@ class _QuickStatsSection extends StatelessWidget {
                 Expanded(
                   child: _StatItem(
                     icon: Icons.trending_up,
-                    label: 'Win Rate',
+                    label: 'Taux vict.',
                     value: '62%',
                     color: NeonColors.primary,
                   ),
@@ -471,7 +470,7 @@ class _FooterButton extends StatelessWidget {
         content: const Text(
           'Bienvenue dans l\'aide WIWIGA !\n\n'
           '• Pour jouer, créez ou rejoignez une partie\n'
-          '• Gérez vos jetons dans le Wallet\n'
+          '• Gérez vos wiga dans le Wallet\n'
           '• Invitez des amis et jouez ensemble\n'
           '• Consultez les règles de chaque jeu\n\n'
           'Contact: support@wiwiga.cm',
@@ -495,7 +494,7 @@ class _FooterButton extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('🎲 Dés', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
             SizedBox(height: 8),
-            Text('Lancez les dés, le plus haut score gagne !\nMisez des jetons et affrontez vos amis.', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+            Text('Lancez les dés, le plus haut score gagne !\nMisez des wiga et affrontez vos amis.', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
             SizedBox(height: 16),
             Text('♟️ Ludo', style: TextStyle(color: NeonColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
             SizedBox(height: 8),

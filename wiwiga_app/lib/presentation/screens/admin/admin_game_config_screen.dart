@@ -146,9 +146,9 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
             children: [
               Expanded(child: _buildConfigField('Commission', '${commissionRate.toStringAsFixed(1)}%', Icons.percent, color)),
               const SizedBox(width: 8),
-              Expanded(child: _buildConfigField('Mise Min', '$minBet FCFA', Icons.arrow_downward, NeonColors.success)),
+              Expanded(child: _buildConfigField('Mise Min', '$minBet wiga', Icons.arrow_downward, NeonColors.success)),
               const SizedBox(width: 8),
-              Expanded(child: _buildConfigField('Mise Max', '$maxBet FCFA', Icons.arrow_upward, NeonColors.secondary)),
+              Expanded(child: _buildConfigField('Mise Max', '$maxBet wiga', Icons.arrow_upward, NeonColors.secondary)),
               const SizedBox(width: 8),
               Expanded(child: _buildConfigField('Max Joueurs', '$maxPlayers', Icons.people, NeonColors.accent)),
             ],
@@ -248,9 +248,9 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
             children: [
               _buildTextField(commCtrl, 'Commission (%)', Icons.percent),
               const SizedBox(height: 12),
-              _buildTextField(minBetCtrl, 'Mise Min (FCFA)', Icons.arrow_downward),
+              _buildTextField(minBetCtrl, 'Mise Min (wiga)', Icons.arrow_downward),
               const SizedBox(height: 12),
-              _buildTextField(maxBetCtrl, 'Mise Max (FCFA)', Icons.arrow_upward),
+              _buildTextField(maxBetCtrl, 'Mise Max (wiga)', Icons.arrow_upward),
               const SizedBox(height: 12),
               _buildTextField(maxPlayersCtrl, 'Max Joueurs', Icons.people),
               const SizedBox(height: 16),
@@ -373,9 +373,9 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
               const SizedBox(height: 12),
               _buildTextField(commCtrl, 'Commission (%)', Icons.percent),
               const SizedBox(height: 12),
-              _buildTextField(minBetCtrl, 'Mise Min (FCFA)', Icons.arrow_downward),
+              _buildTextField(minBetCtrl, 'Mise Min (wiga)', Icons.arrow_downward),
               const SizedBox(height: 12),
-              _buildTextField(maxBetCtrl, 'Mise Max (FCFA)', Icons.arrow_upward),
+              _buildTextField(maxBetCtrl, 'Mise Max (wiga)', Icons.arrow_upward),
               const SizedBox(height: 12),
               _buildTextField(maxPlayersCtrl, 'Max Joueurs', Icons.people),
             ],
@@ -428,7 +428,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
     return TextField(
       controller: controller,
       style: const TextStyle(color: NeonColors.textPrimary),
-      keyboardType: label.contains('%') || label.contains('FCFA') || label.contains('Joueurs')
+      keyboardType: label.contains('%') || label.contains('wiga') || label.contains('Joueurs')
           ? TextInputType.number
           : TextInputType.text,
       decoration: InputDecoration(

@@ -234,11 +234,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.monetization_on,
-                    color: NeonColors.primary, size: 16,),
+                TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
                 const SizedBox(width: 4),
                 Text(
-                  '${widget.betAmount} jetons',
+                  '${widget.betAmount} wiga',
                   style: const TextStyle(
                     color: NeonColors.primary,
                     fontFamily: 'Orbitron',
@@ -596,11 +595,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             NeonCard(
               child: Column(
                 children: [
-                  const Icon(Icons.monetization_on,
-                      color: NeonColors.success, size: 32,),
+                  TokenCoin(size: 48, metal: TokenMetal.gold, lod: TokenLod.full, effect: TokenEffect.shimmer, animated: true),
                   const SizedBox(height: 8),
                   Text(
-                    '+${state.netWinnings} jetons',
+                    '+${state.netWinnings} wiga',
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,

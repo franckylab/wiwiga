@@ -26,7 +26,7 @@ defmodule GameHub.GameMatch do
   use GenServer
   require Logger
 
-  alias GameHub.GameRules
+  alias GameHub.{GameRules, GameMode}
 
   @table :game_matches
   @cleanup_interval_ms 5 * 60 * 1000
@@ -44,13 +44,17 @@ defmodule GameHub.GameMatch do
     - `config`: %{
         game_type: "dice",
         rule_type: "normal" | "cible",
-        mode: :free | :betting,
+        mode: :free | :staked (alias historique :betting → normalisé en :staked),
         sets_count: integer,
         dice_count: integer,
-        bet_amount: integer (0 si free),
+        bet_amount: integer (0 si Partie sans mise),
         max_players: integer,
         creator_id: string
       }
+
+  ## Modes
+    - `:free`   → Partie sans mise (gratuit)
+    - `:staked` → Partie avec mise (alias "betting" accepté)
 
   ## Returns
     - `{:ok, match_state}`
@@ -132,6 +136,9 @@ defmodule GameHub.GameMatch do
     rules = GameRules.get_rules_or_default(config.game_type, config.rule_type || "normal")
     rc = rules.config
 
+    # Normaliser le mode (betting → staked)
+    canonical_mode = GameMode.normalize(Map.get(config, :mode, :free))
+
     # Valeurs par défaut depuis les règles
     sets_count = Map.get(config, :sets_count, rc["default_sets"] || 1)
     dice_count = Map.get(config, :dice_count, rc["default_dice"] || 2)
@@ -141,7 +148,7 @@ defmodule GameHub.GameMatch do
       match_id: match_id,
       game_type: config.game_type,
       rule_type: config.rule_type || "normal",
-      mode: config.mode || :free,
+      mode: canonical_mode,
       status: :waiting_players,
       sets_count: sets_count,
       sets_to_win: div(sets_count, 2) + 1,

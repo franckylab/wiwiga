@@ -100,7 +100,7 @@ void main() {
         expect(winner.value, equals(2));
       });
 
-      test('calcule les gains en mode betting', () {
+      test('calcule les gains en Partie avec mise (staked, alias betting)', () {
         const betAmount = 500;
         const commissionRate = 0.05;
         const grossWin = betAmount * 2;

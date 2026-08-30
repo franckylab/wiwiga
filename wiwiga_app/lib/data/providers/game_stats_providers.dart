@@ -92,21 +92,21 @@ final gameTipsProvider =
 // ACTIVITÉ & SALLES EN ATTENTE (auto-refresh)
 // ============================================================
 
-/// Flux d'activité récent d'un jeu, rafraîchi toutes les 30 secondes
+/// Flux d'activité récent d'un jeu, rafraîchi toutes les 60 secondes (éco perf, évite Violation)
 final gameActivityProvider = FutureProvider.family<List<GameActivityEvent>,
     String>((ref, gameType) async {
-  // Auto-refresh périodique
-  final timer = Timer(const Duration(seconds: 30), () => ref.invalidateSelf());
+  // Auto-refresh périodique - léger
+  final timer = Timer(const Duration(seconds: 60), () => ref.invalidateSelf());
   ref.onDispose(timer.cancel);
 
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getActivity(gameType);
 });
 
-/// Salles en attente d'un jeu, rafraîchies toutes les 15 secondes
+/// Salles en attente d'un jeu, rafraîchies toutes les 30 secondes (au lieu de 15)
 final waitingRoomsProvider =
     FutureProvider.family<List<GameRoomModel>, String>((ref, gameType) async {
-  final timer = Timer(const Duration(seconds: 15), () => ref.invalidateSelf());
+  final timer = Timer(const Duration(seconds: 30), () => ref.invalidateSelf());
   ref.onDispose(timer.cancel);
 
   final repo = ref.watch(roomRepositoryProvider);

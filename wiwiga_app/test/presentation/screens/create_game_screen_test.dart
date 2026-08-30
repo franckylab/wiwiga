@@ -10,9 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('CreateGameScreen', () {
-    testWidgets('affiche les options de mode (Free/Betting)', (tester) async {
+    testWidgets('affiche les options de mode (Partie sans mise / Partie avec mise)', (tester) async {
       // Vérifier que les widgets de base de sélection de mode existent
-      // Ce test valide la structure de l'écran
+      // refacto 2026-08-30 : Free → Partie sans mise (gratuit), Betting → Partie avec mise (staked)
       expect(true, isTrue); // Placeholder - les tests widget nécessitent un environnement Flutter complet
     });
 
@@ -38,9 +38,9 @@ void main() {
       expect(minDice, lessThanOrEqualTo(maxDice));
     });
 
-    testWidgets('mise visible uniquement en mode Betting', (tester) async {
-      // En mode Free, la section mise ne doit pas être visible
-      // En mode Betting, les presets + custom doivent être affichés
+    testWidgets('mise visible uniquement en mode Partie avec mise (staked)', (tester) async {
+      // En mode Partie sans mise (free), la section mise ne doit pas être visible
+      // En mode Partie avec mise (staked, alias betting), les presets + custom doivent être affichés
       final presets = [100, 250, 500, 1000, 2500, 5000];
       expect(presets, isNotEmpty);
       expect(presets.first, equals(100));
@@ -48,15 +48,16 @@ void main() {
 
     testWidgets('récapitulatif affiché avant création', (tester) async {
       // Vérifier que le récapitulatif montre tous les paramètres
+      // refacto : mode canonique "staked" (alias historique "betting")
       final config = {
-        'mode': 'betting',
+        'mode': 'staked',
         'rule_type': 'normal',
         'sets_count': 3,
         'dice_count': 2,
         'bet_amount': 500,
         'max_players': 2,
       };
-      expect(config['mode'], equals('betting'));
+      expect(config['mode'], equals('staked'));
       expect(config['rule_type'], equals('normal'));
       expect(config['sets_count'], equals(3));
       expect(config['dice_count'], equals(2));
@@ -78,8 +79,8 @@ void main() {
       }, returnsNormally,);
     });
 
-    testWidgets('mode Free ne demande pas de mise', (tester) async {
-      // En mode Free, bet_amount = 0
+    testWidgets('mode Partie sans mise (free) ne demande pas de mise', (tester) async {
+      // En mode Partie sans mise (free), bet_amount = 0
       const mode = 'free';
       const betAmount = 0;
       expect(mode, equals('free'));

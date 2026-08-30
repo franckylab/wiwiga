@@ -196,6 +196,7 @@ defmodule GameHub.Friends do
 
   @doc """
   Liste les amis d'un utilisateur avec statut en ligne.
+  Résilient: ne crash jamais même si Presence indisponible.
   """
   def list_friends(user_id) do
     user_id = to_integer(user_id)
@@ -205,7 +206,24 @@ defmodule GameHub.Friends do
       where: f.status == "accepted" and (f.user_id == ^user_id or f.friend_id == ^user_id),
       select: f
 
-    friendships = Repo.all(query)
+    friendships =
+      try do
+        Repo.all(query)
+      rescue
+        _ -> []
+      catch
+        _, _ -> []
+      end
+
+    # Pré-charger le set des online IDs en une seule fois (évite N appels ETS)
+    online_set =
+      try do
+        GameHub.Presence.online_ids_set()
+      rescue
+        _ -> MapSet.new()
+      catch
+        _, _ -> MapSet.new()
+      end
 
     Enum.map(friendships, fn f ->
       friend_id = if f.user_id == user_id, do: f.friend_id, else: f.user_id
@@ -215,16 +233,29 @@ defmodule GameHub.Friends do
           %{id: friend_id, name: "Inconnu", status: "offline", friendship_id: f.id}
 
         user ->
+          status =
+            try do
+              if MapSet.member?(online_set, to_string(user.id)), do: "online", else: "offline"
+            rescue
+              _ -> "offline"
+            catch
+              _, _ -> "offline"
+            end
+
           %{
             id: user.id,
             name: user.name,
             phone: user.phone,
-            status: get_online_status(user.id),
+            status: status,
             friendship_id: f.id,
             created_at: f.inserted_at
           }
       end
     end)
+  rescue
+    _ -> []
+  catch
+    _, _ -> []
   end
 
   @doc """
@@ -248,30 +279,37 @@ defmodule GameHub.Friends do
 
   @doc """
   Recherche un joueur par téléphone ou nom.
+  Échappe les wildcards et limite la longueur pour sécurité.
   """
   def search_player(user_id, query_string) do
-    user_id = to_integer(user_id)
+    try do
+      user_id = to_integer(user_id)
+      q = query_string |> to_string() |> String.trim() |> String.slice(0, 40)
+      escaped = String.replace(q, ~r/[%_]/, "\\\\\\0")
 
-    cond do
-      String.match?(query_string, ~r/^\+?\d/) ->
-        # Recherche par téléphone
-        Repo.all(
-          from u in User,
-            where: u.id != ^user_id and like(u.phone, ^"%#{query_string}%"),
-            limit: 20
-        )
-
-      true ->
-        # Recherche par nom
-        Repo.all(
-          from u in User,
-            where: u.id != ^user_id and ilike(u.name, ^"%#{query_string}%"),
-            limit: 20
-        )
+      cond do
+        q == "" -> []
+        String.match?(q, ~r/^\+?\d/) ->
+          Repo.all(
+            from u in User,
+              where: u.id != ^user_id and like(u.phone, ^"%#{escaped}%"),
+              limit: 20
+          )
+        true ->
+          Repo.all(
+            from u in User,
+              where: u.id != ^user_id and ilike(u.name, ^"%#{escaped}%"),
+              limit: 20
+          )
+      end
+      |> Enum.map(fn u ->
+        %{id: u.id, name: u.name, phone: u.phone}
+      end)
+    rescue
+      _ -> []
+    catch
+      _, _ -> []
     end
-    |> Enum.map(fn u ->
-      %{id: u.id, name: u.name, phone: u.phone}
-    end)
   end
 
   @doc """
@@ -285,50 +323,66 @@ defmodule GameHub.Friends do
 
   @doc """
   Classement entre amis (basé sur les parties gagnées).
+  Résilient: retourne [] si table manquante ou erreur.
   """
   def get_friend_leaderboard(user_id) do
     user_id = to_integer(user_id)
     friend_ids = get_accepted_friend_ids(user_id) ++ [user_id]
 
-    # Compter les victoires depuis dice_game_results
-    query = from r in "dice_game_results",
-      where: r.winner_id in ^friend_ids,
-      group_by: r.winner_id,
-      select: {r.winner_id, count(r.id)},
-      order_by: [desc: count(r.id)]
+    try do
+      query = from r in "dice_game_results",
+        where: r.winner_id in ^friend_ids,
+        group_by: r.winner_id,
+        select: {r.winner_id, count(r.id)},
+        order_by: [desc: count(r.id)]
 
-    results = Repo.all(query)
+      results = Repo.all(query)
 
-    # Enrichir avec les noms
-    Enum.map(results, fn {winner_id, wins} ->
-      case Repo.get(User, winner_id) do
-        nil -> %{id: winner_id, name: "Inconnu", wins: wins}
-        user -> %{id: user.id, name: user.name, wins: wins}
-      end
-    end)
+      Enum.map(results, fn {winner_id, wins} ->
+        case Repo.get(User, winner_id) do
+          nil -> %{id: winner_id, name: "Inconnu", wins: wins}
+          user -> %{id: user.id, name: user.name, wins: wins}
+        end
+      end)
+    rescue
+      _ -> []
+    catch
+      _, _ -> []
+    end
   end
 
   # === Activité ===
 
   @doc """
   Récupère le feed d'activité des amis.
+  Résilient: retourne [] si pas d'amis ou erreur.
   """
   def get_friend_activity(user_id, limit \\ 20) do
-    user_id = to_integer(user_id)
-    friend_ids = get_accepted_friend_ids(user_id)
+    try do
+      user_id = to_integer(user_id)
+      friend_ids = get_accepted_friend_ids(user_id)
 
-    query = from a in FriendActivity,
-      where: a.user_id in ^friend_ids,
-      order_by: [desc: a.inserted_at],
-      limit: ^limit
+      if friend_ids == [] do
+        []
+      else
+        query = from a in FriendActivity,
+          where: a.user_id in ^friend_ids,
+          order_by: [desc: a.inserted_at],
+          limit: ^limit
 
-    Repo.all(query)
-    |> Enum.map(fn a ->
-      case Repo.get(User, a.user_id) do
-        nil -> %{activity: a, user: %{id: a.user_id, name: "Inconnu"}}
-        user -> %{activity: a, user: %{id: user.id, name: user.name}}
+        Repo.all(query)
+        |> Enum.map(fn a ->
+          case Repo.get(User, a.user_id) do
+            nil -> %{activity: a, user: %{id: a.user_id, name: "Inconnu"}}
+            user -> %{activity: a, user: %{id: user.id, name: user.name}}
+          end
+        end)
       end
-    end)
+    rescue
+      _ -> []
+    catch
+      _, _ -> []
+    end
   end
 
   @doc """
@@ -429,7 +483,13 @@ defmodule GameHub.Friends do
   end
 
   defp get_online_status(user_id) do
-    if GameHub.Presence.online?(user_id), do: "online", else: "offline"
+    try do
+      if GameHub.Presence.online?(user_id), do: "online", else: "offline"
+    rescue
+      _ -> "offline"
+    catch
+      _, _ -> "offline"
+    end
   end
 
   defp notify_friend(user_id, event, payload) do

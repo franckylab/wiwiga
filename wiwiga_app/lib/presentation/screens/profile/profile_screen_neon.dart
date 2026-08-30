@@ -445,7 +445,7 @@ class _SettingsSectionsState extends ConsumerState<_SettingsSections> {
         content: const Text(
           'Bienvenue dans l\'aide WIWIGA !\n\n'
           '• Pour jouer, créez ou rejoignez une partie\n'
-          '• Gérez vos jetons dans le Wallet\n'
+          '• Gérez vos wiga dans le Wallet\n'
           '• Invitez des amis et jouez ensemble\n'
           '• Consultez les règles de chaque jeu\n\n'
           'Contact: support@wiwiga.cm',

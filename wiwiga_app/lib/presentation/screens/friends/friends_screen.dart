@@ -11,8 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
 import '../../../data/providers/app_providers.dart';
-import '../../../data/providers/friend_provider.dart' hide apiServiceProvider;
-import '../../../data/repositories/friend_repository.dart';
+import '../../../data/providers/friend_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 /// Masque partiellement un numéro de téléphone pour la confidentialité.
@@ -135,7 +134,38 @@ class _FriendsListTab extends ConsumerWidget {
 
     return friendsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      error: (e, _) {
+        final msg = e.toString();
+        final isAuthError = msg.contains('401') || msg.contains('Session expirée') || msg.contains('Unauthorized') || msg.contains('Non autorisé');
+        if (isAuthError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, color: NeonColors.warning, size: 48),
+                const SizedBox(height: 12),
+                const Text('Session expirée', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Veuillez vous reconnecter', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 16),
+                NeonButton(text: 'SE CONNECTER', onPressed: () => context.go('/auth')),
+              ],
+            ),
+          );
+        }
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
+              const SizedBox(height: 12),
+              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendsProvider), variant: NeonButtonVariant.outline),
+            ],
+          ),
+        );
+      },
       data: (friends) {
         if (friends.isEmpty) {
           return const Center(
@@ -286,7 +316,22 @@ class _RequestsListTab extends ConsumerWidget {
 
     return requestsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      error: (e, _) {
+        final msg = e.toString();
+        if (msg.contains('401') || msg.contains('Unauthorized')) {
+          return const Center(child: Text('Connectez-vous pour voir vos demandes', style: TextStyle(color: NeonColors.textSecondary)));
+        }
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(pendingRequestsProvider), variant: NeonButtonVariant.outline),
+            ],
+          ),
+        );
+      },
       data: (requests) {
         if (requests.isEmpty) {
           return const Center(
@@ -401,7 +446,22 @@ class _ActivityTab extends ConsumerWidget {
 
     return activityAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      error: (e, _) {
+        final msg = e.toString();
+        if (msg.contains('401') || msg.contains('Unauthorized')) {
+          return const Center(child: Text('Connectez-vous pour voir l\'activité', style: TextStyle(color: NeonColors.textSecondary)));
+        }
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendActivityProvider), variant: NeonButtonVariant.outline),
+            ],
+          ),
+        );
+      },
       data: (activities) {
         if (activities.isEmpty) {
           return const Center(
@@ -498,7 +558,22 @@ class _LeaderboardTab extends ConsumerWidget {
 
     return leaderboardAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: NeonColors.error))),
+      error: (e, _) {
+        final msg = e.toString();
+        if (msg.contains('401') || msg.contains('Unauthorized')) {
+          return const Center(child: Text('Connectez-vous pour voir le classement', style: TextStyle(color: NeonColors.textSecondary)));
+        }
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendLeaderboardProvider), variant: NeonButtonVariant.outline),
+            ],
+          ),
+        );
+      },
       data: (entries) {
         if (entries.isEmpty) {
           return const Center(
@@ -691,26 +766,31 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
     setState(() => _isSearching = true);
 
     try {
-      final apiService = ref.read(apiServiceProvider);
-      final results = await FriendRepository(apiService).searchPlayer(query);
+      final repo = ref.read(friendRepositoryProvider);
+      final results = await repo.searchPlayer(query);
       setState(() { _results = results; _isSearching = false; });
-    } catch (_) {
+    } catch (e) {
       setState(() => _isSearching = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur recherche: $e'), backgroundColor: NeonColors.error),
+        );
+      }
     }
   }
 
   Future<void> _sendFriendRequest(PlayerSearchResult result) async {
     try {
-      final apiService = ref.read(apiServiceProvider);
-      await FriendRepository(apiService).sendRequest(userId: result.id);
+      final repo = ref.read(friendRepositoryProvider);
+      await repo.sendRequest(userId: result.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Demande envoyée à ${result.name}')),
+        SnackBar(content: Text('Demande envoyée à ${result.name}'), backgroundColor: NeonColors.success),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
       );
     }
   }

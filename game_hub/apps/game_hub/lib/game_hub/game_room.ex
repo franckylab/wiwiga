@@ -10,8 +10,8 @@ defmodule GameHub.GameRoom do
   GenServer gérant les salles de jeu en attente.
 
   ## Concepts
-  - **Room Free** : créée par un joueur, partageable par code ou invitation ami
-  - **Room Betting** : créée avec mise fixe, démarrage manuel si 2 joueurs
+  - **Partie sans mise (gratuit)** (`:free`) : créée par un joueur, partageable par code ou invitation ami, sans enjeu en jetons.
+  - **Partie avec mise** (`:staked`, alias historique `:betting`) : créée avec mise fixe, démarrage manuel si 2 joueurs, enjeu en jetons.
 
   ## State Machine Room
       :waiting → :starting → :in_progress → :ended
@@ -21,7 +21,7 @@ defmodule GameHub.GameRoom do
   use GenServer
   require Logger
 
-  alias GameHub.{GameMatch, GameRules}
+  alias GameHub.{GameMatch, GameRules, GameMode}
   alias GameHub.ResponsibleGaming
 
   @table :game_rooms
@@ -43,12 +43,16 @@ defmodule GameHub.GameRoom do
         creator_name: string,
         game_type: "dice",
         rule_type: "normal" | "cible",
-        mode: :free | :betting,
-        bet_amount: integer (0 si free),
+        mode: :free | :staked (alias historique :betting → normalisé en :staked),
+        bet_amount: integer (0 si :free / Partie sans mise),
         sets_count: integer,
         dice_count: integer,
         max_players: integer
       }
+
+  ## Modes
+    - `:free`   → Partie sans mise (gratuit)
+    - `:staked` → Partie avec mise (alias "betting" accepté)
 
   ## Returns
     - `{:ok, room}`
@@ -79,7 +83,7 @@ defmodule GameHub.GameRoom do
   end
 
   @doc """
-  Démarre le match dans la salle (créateur uniquement, mode betting).
+  Démarre le match dans la salle (créateur uniquement, mode Partie avec mise).
   """
   def start_match(room_id, player_id) do
     GenServer.call(__MODULE__, {:start_match, room_id, player_id})
@@ -132,11 +136,14 @@ defmodule GameHub.GameRoom do
     rules = GameRules.get_rules_or_default(params.game_type, rule_type)
     rc = rules.config
 
+    # Normaliser le mode (rétro-compatibilité betting → staked)
+    canonical_mode = GameMode.normalize(Map.get(params, :mode, :free))
+
     # Valeurs par défaut
     sets_count = Map.get(params, :sets_count, rc["default_sets"] || 1)
     dice_count = Map.get(params, :dice_count, rc["default_dice"] || 2)
     max_players = Map.get(params, :max_players, rc["max_players"] || 2)
-    bet_amount = if params.mode == :betting, do: Map.get(params, :bet_amount, 0), else: 0
+    bet_amount = if canonical_mode == :staked, do: Map.get(params, :bet_amount, 0), else: 0
 
     room = %{
       room_id: room_id,
@@ -144,7 +151,7 @@ defmodule GameHub.GameRoom do
       creator_id: params.creator_id,
       game_type: params.game_type,
       rule_type: rule_type,
-      mode: params.mode || :free,
+      mode: canonical_mode,
       status: :waiting,
       bet_amount: bet_amount,
       sets_count: sets_count,
@@ -352,6 +359,9 @@ defmodule GameHub.GameRoom do
 
   @impl true
   def handle_call({:list_waiting, game_type, mode}, _from, state) do
+    # Normaliser le filtre mode (alias betting → staked)
+    canonical_filter = if mode, do: GameMode.normalize(mode), else: nil
+
     rooms = :ets.tab2list(state.table)
     |> Enum.filter(fn
       {{:code, _}, _} -> false
@@ -366,8 +376,8 @@ defmodule GameHub.GameRoom do
       end
     end)
     |> then(fn rooms ->
-      if mode do
-        Enum.filter(rooms, fn r -> r.mode == mode end)
+      if canonical_filter do
+        Enum.filter(rooms, fn r -> GameMode.normalize(r.mode) == canonical_filter end)
       else
         rooms
       end
@@ -450,13 +460,16 @@ defmodule GameHub.GameRoom do
   end
 
   defp sanitize_room_for_broadcast(room) do
+    canonical = GameMode.normalize(room.mode)
     %{
       room_id: room.room_id,
       room_code: room.room_code,
       creator_id: room.creator_id,
       game_type: room.game_type,
       rule_type: room.rule_type,
-      mode: room.mode,
+      mode: GameMode.to_string(canonical),
+      mode_label: GameMode.display_label(canonical),
+      mode_short: GameMode.short_label(canonical),
       status: room.status,
       bet_amount: room.bet_amount,
       sets_count: room.sets_count,

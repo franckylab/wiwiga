@@ -88,7 +88,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
         'rule_type': _room.ruleType,
         'sets_count': _room.setsCount,
         'dice_count': _room.diceCount,
-        'bet_amount': _room.isBetting ? _room.betAmount : 0,
+        'bet_amount': _room.isStaked ? _room.betAmount : 0,
         'players': _room.players.map((p) => {'id': p.id, 'name': p.name}).toList(),
       },
     );
@@ -284,11 +284,11 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
         children: [
           const Text('Paramètres', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          _settingRow('Mode', _room.isFree ? 'Gratuit' : 'Pari'),
+          _settingRow('Mode', _room.modeLabel),
           _settingRow('Règles', _room.ruleType == 'normal' ? 'Normal' : 'Cible'),
           _settingRow('Sets', '${_room.setsCount}'),
           _settingRow('Dés', '${_room.diceCount}'),
-          if (_room.isBetting) _settingRow('Mise', '${_room.betAmount} jetons'),
+          if (_room.isStaked) _settingRow('Mise', '${_room.betAmount} wiga'),
         ],
       ),
     );
@@ -318,7 +318,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
           icon: Icons.person_add_outlined,
         ),
         const SizedBox(height: 12),
-        // Bouton Démarrer (visible si créateur + assez de joueurs + mode betting)
+        // Bouton Démarrer (visible si créateur + assez de joueurs)
         if (_isCreator && _room.playersCount >= 2)
           NeonButton(
             text: 'Démarrer la partie',

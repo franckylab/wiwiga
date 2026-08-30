@@ -80,7 +80,7 @@ class WalletRepository {
     };
   }
   
-  /// Récupère le résumé jetons (solde + valeur monétaire)
+  /// Récupère le résumé wiga (solde + valeur monétaire)
   /// Backend: GET /api/tokens/summary → {success: true, data: {token_balance, monetary_value_centimes, ...}}
   Future<Map<String, dynamic>> getTokenSummary() async {
     final response = await _apiService.get(

@@ -13,6 +13,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
+import '../../widgets/neon/token_coin.dart';
+import '../../widgets/neon/token_stack.dart';
 import '../../widgets/game/reality_check_overlay.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/friend_provider.dart';
@@ -106,16 +108,41 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
 
   @override
   Widget build(BuildContext context) {
+    final isBetting = widget.betAmount > 0;
     return RealityCheckOverlay(
       child: Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: Text('Set $_currentSet/${widget.setsCount}'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Set $_currentSet/${widget.setsCount}'),
+            if (isBetting) ...[
+              const SizedBox(width: 10),
+              TokenCoin(size: 18, metal: TokenMetal.gold, lod: TokenLod.flat, showShadow: false),
+              const SizedBox(width: 4),
+              Text('${widget.betAmount}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: NeonColors.tokenGold, fontFamily: 'Orbitron')),
+            ],
+          ],
+        ),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.primary,
         elevation: 0,
         actions: [
           _buildScoreBadge(),
+          if (isBetting)
+            Padding(
+              padding: const EdgeInsets.only(right: 10, left: 6),
+              child: Center(
+                child: TokenStack(
+                  count: (widget.betAmount / 50).clamp(1, 5).round(),
+                  size: 18,
+                  metal: TokenMetal.gold,
+                  altMetal: TokenMetal.emerald,
+                ),
+              ),
+            ),
         ],
       ),
       body: _buildBody(),
@@ -456,10 +483,19 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
     final isBetting = widget.betAmount > 0;
 
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.emoji_events, color: Colors.amber, size: 80),
+          // Pièce 3D victoire — or spin + shimmer
+          TokenCoin(
+            size: 120,
+            metal: TokenMetal.gold,
+            lod: TokenLod.full,
+            effect: TokenEffect.spin,
+            animated: true,
+          ),
           const SizedBox(height: 16),
           Text(
             '${winnerPlayer['name']} gagne !',
@@ -472,22 +508,42 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
           ),
           if (isBetting) ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: NeonColors.success.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  const Text('Gains', style: TextStyle(color: NeonColors.textSecondary)),
-                  const SizedBox(height: 4),
-                  Text(
-                    '+${widget.betAmount * 2} jetons',
-                    style: const TextStyle(color: NeonColors.success, fontSize: 28, fontWeight: FontWeight.bold),
+            // Pile gains 3D + montant
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TokenStack(count: 5, size: 32, metal: TokenMetal.gold, altMetal: TokenMetal.emerald),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: NeonColors.success.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: NeonColors.success.withValues(alpha: 0.34)),
+                    boxShadow: [
+                      BoxShadow(color: NeonColors.success.withValues(alpha: 0.18), blurRadius: 14),
+                    ],
                   ),
-                ],
-              ),
+                  child: Column(
+                    children: [
+                      const Text('Gains', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, letterSpacing: 1.1)),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TokenCoin(size: 22, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                          const SizedBox(width: 6),
+                          Text(
+                            '+${widget.betAmount * 2}',
+                            style: const TextStyle(color: NeonColors.success, fontSize: 26, fontWeight: FontWeight.w900, fontFamily: 'Orbitron'),
+                          ),
+                        ],
+                      ),
+                      const Text('wiga', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 32),
@@ -535,6 +591,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen> with TickerPr
             icon: Icons.person_add_outlined,
           ),
         ],
+      ),
       ),
     );
   }

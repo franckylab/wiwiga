@@ -60,6 +60,7 @@ defmodule GameHub.Tokens do
         
         {:ok, %{
           token_balance: balance,
+          wiga_balance: balance,
           monetary_value_centimes: monetary_centimes,
           monetary_value_fcfa: monetary_centimes / 100,
           exchange_rate: config.exchange_rate,
@@ -705,7 +706,7 @@ defmodule GameHub.Tokens do
       limit: ^limit,
       offset: ^offset
     
-    transactions = Repo.all(query)
+    transactions = Repo.all(query) |> Enum.map(&TokenTransaction.with_wiga/1)
     
     total_query = from t in TokenTransaction,
       where: t.user_id == ^user_id,

@@ -274,12 +274,11 @@ class GameCatalogCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!comingSoon) ...[
-                        const Icon(Icons.payments_outlined,
-                            size: 16, color: NeonColors.secondary,),
-                        const SizedBox(width: 6),
+                        TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
+                        const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            'Mise min. ${_amountFormat.format((game.minBet ~/ 100 * 10))} jetons',
+                            'Mise min. ${_amountFormat.format(game.minBet.toInt())} wiga',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

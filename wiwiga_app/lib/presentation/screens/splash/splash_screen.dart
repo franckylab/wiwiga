@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +25,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
   double _progress = 0;
-  Timer? _timer;
 
   @override
   void initState() {
@@ -64,8 +62,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _logoController.forward();
     _progressController.forward();
 
-    // Timer pour mise a jour progressive
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    // Liaison directe sans Timer: évite setTimeout 100ms qui bloquait le thread (Violation 173ms)
+    _progressController.addListener(() {
       if (mounted) {
         setState(() {
           _progress = (_progressController.value * 0.8).clamp(0.0, 1.0);
@@ -76,7 +74,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   void _navigate() {
     if (!mounted) return;
-    _timer?.cancel();
     setState(() => _progress = 1.0);
 
     // Restaurer la session avant de naviguer
@@ -106,7 +103,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
-    _timer?.cancel();
     _logoController.dispose();
     _progressController.dispose();
     super.dispose();

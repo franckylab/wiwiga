@@ -1,6 +1,6 @@
 // ============================================================
 // Fichier: token_provider.dart
-// Description: Provider Riverpod pour la gestion des jetons
+// Description: Provider Riverpod pour la gestion des wiga
 // Auteur: WIWIGA Team
 // Date: 2026-08-01
 // ============================================================
@@ -33,7 +33,7 @@ class TokenState {
     this.isLoading = false,
     this.tokenBalance = 0,
     this.monetaryValueFcfa = 0,
-    this.exchangeRate = 10.0,
+    this.exchangeRate = 1.0,
     this.minExchange = 100,
     this.maxExchange = 100000,
     this.transferEnabled = true,
@@ -85,7 +85,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
 
   TokenNotifier(this._repository) : super(const TokenState());
 
-  /// Charge le résumé des jetons
+  /// Charge le résumé des wiga
   Future<void> loadSummary() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -105,7 +105,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur chargement jetons');
+      state = state.copyWith(isLoading: false, error: 'Erreur chargement wiga');
     }
   }
 
@@ -129,7 +129,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
     }
   }
 
-  /// Achat de jetons
+  /// Achat de wiga
   Future<void> purchaseTokens(int amountFcfa) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -145,11 +145,11 @@ class TokenNotifier extends StateNotifier<TokenState> {
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, error: e.userMessage);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur achat jetons');
+      state = state.copyWith(isLoading: false, error: 'Erreur achat wiga');
     }
   }
 
-  /// Échange jetons → monnaie
+  /// Échange wiga → monnaie
   Future<void> exchangeTokens(int tokenAmount) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -169,7 +169,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
     }
   }
 
-  /// Transfert de jetons
+  /// Transfert de wiga
   Future<void> transferTokens(String recipientId, int tokenAmount) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -248,12 +248,12 @@ class TokenNotifier extends StateNotifier<TokenState> {
     }
   }
 
-  /// Calcule les jetons pour un montant FCFA
+  /// Calcule les wiga pour un montant FCFA
   int calculateTokensForAmount(double amountFcfa) {
     return (amountFcfa * state.exchangeRate).floor();
   }
 
-  /// Calcule la valeur monétaire pour un nombre de jetons
+  /// Calcule la valeur monétaire pour un nombre de wiga
   double calculateMonetaryForTokens(int tokens) {
     return tokens / state.exchangeRate;
   }

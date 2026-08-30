@@ -66,6 +66,10 @@ defmodule GameHub.Admin.XPRules do
           updated_at: xr.updated_at
         }
     )
+  rescue
+    _ -> []
+  catch
+    _, _ -> []
   end
 
   @doc """
@@ -147,7 +151,16 @@ defmodule GameHub.Admin.XPRules do
   """
   @spec upsert_xp_rules(String.t(), map(), integer()) :: {:ok, map()} | {:error, term()}
   def upsert_xp_rules(game_type, attrs, updated_by) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    game_type = to_string(game_type) |> String.trim() |> String.downcase()
+    if game_type == "" do
+      {:error, :game_type_required}
+    else
+      do_upsert_xp_rules(game_type, attrs, updated_by, now)
+    end
+  end
+
+  defp do_upsert_xp_rules(game_type, attrs, updated_by, now) do
 
     # Vérifier si les règles existent déjà
     existing = Repo.one(
@@ -210,6 +223,10 @@ defmodule GameHub.Admin.XPRules do
         {:ok, rules}
       error -> error
     end
+  rescue
+    e -> {:error, Exception.message(e)}
+  catch
+    _, reason -> {:error, reason}
   end
 
   @doc """

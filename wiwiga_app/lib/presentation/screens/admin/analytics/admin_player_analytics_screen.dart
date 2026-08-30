@@ -107,7 +107,7 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             ],
 
             // Retention Cohorts
-            const AnalyticsSectionTitle('Retention Cohortes'),
+            const AnalyticsSectionTitle('Rétention Cohortes'),
             const SizedBox(height: 8),
             cohortsState.when(
               data: (d) => _buildRetentionSection(d),
@@ -139,7 +139,7 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           icon: Icons.today,
           color: NeonColors.accent,
           deltaPercent: AnalyticsFormat.toDouble(deltas['dau_delta']),
-          subtitle: 'Daily Active Users',
+          subtitle: 'Utilisateurs actifs quotidiens',
         ),
         AdminMetricCard(
           title: 'WAU',
@@ -147,7 +147,7 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           icon: Icons.date_range,
           color: NeonColors.primary,
           deltaPercent: AnalyticsFormat.toDouble(deltas['wau_delta']),
-          subtitle: 'Weekly Active Users',
+          subtitle: 'Utilisateurs actifs hebdomadaires',
         ),
         AdminMetricCard(
           title: 'MAU',
@@ -155,10 +155,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           icon: Icons.calendar_month,
           color: NeonColors.info,
           deltaPercent: AnalyticsFormat.toDouble(deltas['mau_delta']),
-          subtitle: 'Monthly Active Users',
+          subtitle: 'Utilisateurs actifs mensuels',
         ),
         AdminMetricCard(
-          title: 'Stickiness',
+          title: 'Fidélité',
           value: AnalyticsFormat.percent(summary['stickiness']),
           icon: Icons.sticky_note_2,
           color: NeonColors.secondary,
@@ -169,7 +169,7 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           value: AnalyticsFormat.percent(summary['reg2dep_rate']),
           icon: Icons.how_to_reg,
           color: NeonColors.success,
-          subtitle: 'Inscrits -> Depot',
+          subtitle: 'Inscrits → Dépôt',
           deltaPercent: AnalyticsFormat.toDouble(deltas['reg2dep_delta']),
         ),
       ],

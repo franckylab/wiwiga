@@ -436,8 +436,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _metricRow('Solde total (FCFA)', _formatMoney(totalBalance), NeonColors.primary),
-        _metricRow('Jetons en circulation', AnalyticsFormat.number(totalTokenBalance), NeonColors.adminCyan),
+        _metricRow('Solde total (wiga)', _formatMoney(totalBalance), NeonColors.primary),
+        _metricRow('Wiga en circulation', AnalyticsFormat.number(totalTokenBalance), NeonColors.adminCyan),
       ],
     );
   }
@@ -476,7 +476,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           onTap: () => context.go('/admin/analytics/monetary-flow'),
         ),
         _QuickActionCard(
-          icon: Icons.card_giftcard, label: 'Bonus &\nPromos', color: NeonColors.info,
+          icon: Icons.card_giftcard, label: 'Bonus et\nPromos', color: NeonColors.info,
           onTap: () => context.go('/admin/bonuses'),
         ),
       ],
@@ -542,7 +542,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   String _formatMoney(dynamic value) {
     final amount = int.tryParse(value.toString()) ?? 0;
-    return '${(amount / 100).toStringAsFixed(0)} FCFA';
+    return '${(amount / 100).toStringAsFixed(0)} wiga';
   }
 
   Color _roleColor(UserRole role) {

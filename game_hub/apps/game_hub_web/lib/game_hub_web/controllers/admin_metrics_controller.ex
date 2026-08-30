@@ -218,9 +218,14 @@ defmodule GameHubWeb.AdminMetricsController do
   Résout une alerte.
   """
   def resolve_alert(conn, %{"id" => id}) do
-    admin_id = case conn.assigns[:current_admin] do
-      %{id: aid} -> aid
-      _ -> 0
+    admin_id = case conn.assigns[:current_user] do
+      %{id: aid} when is_integer(aid) -> aid
+      _ ->
+        case conn.assigns[:current_user_id] do
+          aid when is_integer(aid) -> aid
+          aid when is_binary(aid) -> case Integer.parse(aid) do {n,_} -> n; :error -> 0 end
+          _ -> case conn.assigns[:current_admin] do %{id: aid} -> aid; _ -> conn.private[:current_user_id] || 0 end |> then(fn v -> if is_binary(v) do case Integer.parse(v) do {n,_} -> n; :error -> 0 end else v end end)
+        end
     end
 
     case Alerts.resolve_alert(String.to_integer(id), admin_id) do

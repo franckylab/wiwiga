@@ -17,7 +17,7 @@ defmodule GameHub.UI.FeatureConfig do
   alias GameHub.Users.User
   
   @primary_key {:id, :id, autogenerate: true}
-  @derive {Jason.Encoder, except: [:__meta__, :maintenance_message]}
+  @derive {Jason.Encoder, except: [:__meta__, :maintenance_message, :updated_by]}
   
   schema "app_feature_configs" do
     # Mode maintenance

@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/game_mode.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
@@ -16,6 +17,9 @@ import '../../../data/providers/game_stats_providers.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
+import '../../widgets/neon/token_coin.dart';
+import '../../widgets/neon/token_chip.dart';
+import '../../widgets/neon/token_stack.dart';
 import '../../providers/config_provider.dart';
 
 /// Écran de création de partie (Free ou Betting)
@@ -29,13 +33,15 @@ class CreateGameScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
-  // État du formulaire
-  String _mode = 'free'; // 'free' | 'betting'
+  // État du formulaire — modes : Partie sans mise (free) / Partie avec mise (staked)
+  String _mode = GameMode.free.apiValue; // 'free' | 'staked' (alias historique 'betting' → 'staked')
   String _ruleType = 'normal'; // 'normal' | 'cible'
   int _setsCount = 3;
   int _diceCount = 2;
   int _betAmount = 50;
   int _maxPlayers = 2;
+
+  bool get _isStaked => GameMode.parse(_mode).isStaked;
 
   bool _isCreating = false;
   String? _error;
@@ -136,7 +142,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
             _buildDiceSlider(),
             const SizedBox(height: 20),
             _buildPlayersSlider(),
-            if (_mode == 'betting') ...[
+            if (_isStaked) ...[
               const SizedBox(height: 20),
               _buildBetSection(),
             ],
@@ -166,12 +172,28 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Mode de jeu', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('Choisissez le type de partie', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _modeButton('free', 'Gratuit', Icons.people_outline, 'Entre amis')),
+              Expanded(
+                child: _modeButton(
+                  GameMode.free.apiValue,
+                  GameMode.free.shortLabel, // Sans mise
+                  Icons.people_outline,
+                  GameMode.free.displayLabel, // Partie sans mise (gratuit)
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _modeButton('betting', 'Pari', Icons.monetization_on_outlined, 'Mise en ligne')),
+              Expanded(
+                child: _modeButton(
+                  GameMode.staked.apiValue,
+                  GameMode.staked.shortLabel, // Avec mise
+                  Icons.monetization_on_outlined,
+                  GameMode.staked.displayLabel, // Partie avec mise
+                ),
+              ),
             ],
           ),
         ],
@@ -367,36 +389,34 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Mise (jetons)', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          // Presets
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _betPresets.map((preset) {
-              final isSelected = _betAmount == preset;
-              return GestureDetector(
-                onTap: () => setState(() => _betAmount = preset),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: isSelected ? NeonColors.success : NeonColors.border),
-                  ),
-                  child: Text(
-                    '$preset jetons',
-                    style: TextStyle(color: isSelected ? NeonColors.success : NeonColors.textSecondary, fontSize: 13),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 12),
-          // Custom
           Row(
             children: [
-              const Text('Custom: ', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+              const Text('Mise (wiga)', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              // Aperçu pot 3D selon mise
+              TokenStack(
+                count: (_betAmount / (minBet > 0 ? minBet : 10)).clamp(1, 7).round(),
+                size: 28,
+                metal: TokenMetal.emerald,
+                altMetal: TokenMetal.gold,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Presets 3D — TokenChip
+          TokenChipGroup(
+            amounts: _betPresets,
+            selectedAmount: _betAmount,
+            onSelected: (v) => setState(() => _betAmount = v),
+            chipSize: 40,
+          ),
+          const SizedBox(height: 14),
+          // Custom slider
+          Row(
+            children: [
+              const TokenCoin(size: 20, metal: TokenMetal.emerald),
+              const SizedBox(width: 6),
+              const Text('Perso : ', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               Expanded(
                 child: Slider(
                   value: _betAmount.toDouble().clamp(minBet.toDouble(), maxBet.toDouble()),
@@ -406,7 +426,22 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
                   onChanged: (v) => setState(() => _betAmount = v.round()),
                 ),
               ),
-              Text('$_betAmount', style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: NeonColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: NeonColors.success.withValues(alpha: 0.32)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TokenCoin(size: 14, metal: _betAmount >= 5000 ? TokenMetal.gold : TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
+                    const SizedBox(width: 4),
+                    Text('$_betAmount', style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold, fontFamily: 'Orbitron', fontSize: 13)),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -415,18 +450,19 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   }
 
   Widget _buildSummary() {
+    final modeLabel = GameMode.parse(_mode).displayLabel;
     return NeonCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Récapitulatif', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          _summaryRow('Mode', _mode == 'free' ? 'Gratuit (amis)' : 'Pari en ligne'),
+          _summaryRow('Mode', modeLabel),
           _summaryRow('Règles', _ruleType == 'normal' ? 'Normal' : 'Cible'),
           _summaryRow('Sets', '$_setsCount (majorité: ${(_setsCount ~/ 2) + 1})'),
           _summaryRow('Dés', '$_diceCount dé${_diceCount > 1 ? 's' : ''}'),
           _summaryRow('Joueurs', '$_maxPlayers max'),
-          if (_mode == 'betting') _summaryRow('Mise', '$_betAmount jetons'),
+          if (_isStaked) _summaryRow('Mise', '$_betAmount wiga'),
         ],
       ),
     );
@@ -458,7 +494,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
         mode: _mode,
         setsCount: _setsCount,
         diceCount: _diceCount,
-        betAmount: _mode == 'betting' ? _betAmount : 0,
+        betAmount: _isStaked ? _betAmount : 0,
         maxPlayers: _maxPlayers,
       );
 

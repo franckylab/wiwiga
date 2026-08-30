@@ -16,7 +16,7 @@ defmodule GameHub.UI.GameConfig do
   alias GameHub.Repo
   alias GameHub.Users.User
   
-  @derive {Jason.Encoder, except: [:__meta__]}
+  @derive {Jason.Encoder, except: [:__meta__, :updated_by]}
   
   schema "game_specific_configs" do
     field :game_type, :string
@@ -108,7 +108,7 @@ defmodule GameHub.UI.PaymentConfig do
   alias GameHub.Repo
   alias GameHub.Users.User
   
-  @derive {Jason.Encoder, except: [:__meta__, :api_key, :api_secret]}
+  @derive {Jason.Encoder, except: [:__meta__, :api_key, :api_secret, :updated_by]}
   
   schema "payment_configs" do
     field :provider, :string

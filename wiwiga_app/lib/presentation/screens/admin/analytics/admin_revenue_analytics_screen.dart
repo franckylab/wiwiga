@@ -86,7 +86,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
 
             // Graphique GGR/NGR timeseries
             if (timeseries.isNotEmpty) ...[
-              const AnalyticsSectionTitle('Évolution Revenue'),
+              const AnalyticsSectionTitle('Évolution Revenu'),
               const SizedBox(height: 8),
               _buildRevenueChart(timeseries),
               const SizedBox(height: 20),
@@ -117,7 +117,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
           icon: Icons.account_balance_wallet,
           color: NeonColors.primary,
           deltaPercent: AnalyticsFormat.toDouble(deltas['ggr_delta']),
-          subtitle: 'Gross Gaming Revenue',
+          subtitle: 'Revenu brut des jeux',
         ),
         AdminMetricCard(
           title: 'NGR',
@@ -125,7 +125,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
           icon: Icons.savings,
           color: NeonColors.success,
           deltaPercent: AnalyticsFormat.toDouble(deltas['ngr_delta']),
-          subtitle: 'Net Gaming Revenue',
+          subtitle: 'Revenu net des jeux',
         ),
         AdminMetricCard(
           title: 'Commissions',
@@ -140,7 +140,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
           icon: Icons.people_alt,
           color: NeonColors.accent,
           deltaPercent: AnalyticsFormat.toDouble(deltas['arpu_delta']),
-          subtitle: 'Rev / utilisateur',
+          subtitle: 'Revenu / utilisateur',
         ),
         AdminMetricCard(
           title: 'ARPPU',
@@ -148,7 +148,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
           icon: Icons.workspace_premium,
           color: NeonColors.info,
           deltaPercent: AnalyticsFormat.toDouble(deltas['arppu_delta']),
-          subtitle: 'Rev / payant',
+          subtitle: 'Revenu / payant',
         ),
       ],
     );
@@ -198,7 +198,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
     return AdminBarChart(
       data: values.isEmpty ? [0] : values,
       barColor: NeonColors.secondary,
-      label: 'Commissions FCFA',
+      label: 'Commissions wiga',
       height: 180,
       labels: labels,
     );
@@ -218,7 +218,7 @@ class _AdminRevenueAnalyticsScreenState extends ConsumerState<AdminRevenueAnalyt
         children: [
           const Padding(
             padding: EdgeInsets.all(12),
-            child: Text('Top Joueurs par Revenue', style: TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+            child: Text('Top Joueurs par Revenu', style: TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
           ),
           Table(
             border: TableBorder.all(color: NeonColors.border.withValues(alpha: 0.5)),

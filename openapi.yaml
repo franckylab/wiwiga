@@ -766,8 +766,8 @@ paths:
               properties:
                 bet_amount:
                   type: integer
-                  description: Montant de la mise en centimes
-                  example: 5000
+                  description: Montant de la mise en jetons (1 jeton = 1 FCFA)
+                  example: 500
       responses:
         '200':
           description: Partie trouvée

@@ -17,8 +17,8 @@ enum TransactionType {
 class TransactionItem {
   final String id;
   final TransactionType type;
-  final int amount; // En jetons
-  final int balanceAfter; // En jetons
+  final int amount; // En wiga
+  final int balanceAfter; // En wiga
   final DateTime timestamp;
   final String reference;
   final String? gameName;
@@ -41,7 +41,7 @@ class TransactionItem {
   
   String get typeLabel {
     switch (type) {
-      case TransactionType.deposit: return 'Achat Jetons';
+      case TransactionType.deposit: return 'Achat Wiga';
       case TransactionType.withdraw: return 'Echange';
       case TransactionType.bet: return 'Mise';
       case TransactionType.win: return 'Gain';
@@ -218,7 +218,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
   Widget _buildFilterBar(WidgetRef ref, String current) {
     final filters = [
       {'key': 'all', 'label': 'Tout'},
-      {'key': 'tokens', 'label': 'Jetons'},
+      {'key': 'tokens', 'label': 'Wiga'},
       {'key': 'game', 'label': 'Jeu'},
       {'key': 'promo', 'label': 'Promo'},
     ];
@@ -419,7 +419,7 @@ class _TransactionTile extends StatelessWidget {
                 ),
               ),
               Text(
-                'Solde: ${_formatTokens(transaction.balanceAfter)} jetons',
+                'Solde: ${_formatTokens(transaction.balanceAfter)} wiga',
                 style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter'),
               ),
             ],

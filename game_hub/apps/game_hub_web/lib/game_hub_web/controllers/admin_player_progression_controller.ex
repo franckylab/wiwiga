@@ -23,7 +23,8 @@ defmodule GameHubWeb.AdminPlayerProgressionController do
   Crée une nouvelle configuration de niveau.
   """
   def create_level(conn, params) do
-    admin_id = conn.assigns[:current_admin_id] || 0
+    admin_id = conn.assigns[:current_user_id] || conn.assigns[:current_admin_id] || conn.private[:current_user_id] || 0
+    admin_id = if is_binary(admin_id) do case Integer.parse(admin_id) do {n,_} -> n; :error -> 0 end else admin_id end
 
     case PlayerProgression.create_level_config(params, admin_id) do
       {:ok, config} ->
@@ -40,7 +41,8 @@ defmodule GameHubWeb.AdminPlayerProgressionController do
   Supprime une configuration de niveau.
   """
   def delete_level(conn, %{"tier" => tier}) do
-    admin_id = conn.assigns[:current_admin_id] || 0
+    admin_id = conn.assigns[:current_user_id] || conn.assigns[:current_admin_id] || conn.private[:current_user_id] || 0
+    admin_id = if is_binary(admin_id) do case Integer.parse(admin_id) do {n,_} -> n; :error -> 0 end else admin_id end
 
     case PlayerProgression.delete_level_config(tier, admin_id) do
       {:ok, _} ->
@@ -57,7 +59,8 @@ defmodule GameHubWeb.AdminPlayerProgressionController do
   Met à jour la configuration d'un niveau.
   """
   def update_level(conn, %{"tier" => tier} = params) do
-    admin_id = conn.assigns[:current_admin_id] || 0
+    admin_id = conn.assigns[:current_user_id] || conn.assigns[:current_admin_id] || conn.private[:current_user_id] || 0
+    admin_id = if is_binary(admin_id) do case Integer.parse(admin_id) do {n,_} -> n; :error -> 0 end else admin_id end
     attrs = Map.drop(params, ["tier"])
 
     case PlayerProgression.update_level_config(tier, attrs, admin_id) do

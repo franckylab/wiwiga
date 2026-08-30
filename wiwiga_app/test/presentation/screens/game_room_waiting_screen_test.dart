@@ -38,21 +38,25 @@ void main() {
       expect(params['bet_amount'], equals(500));
     });
 
-    testWidgets('bouton démarrer visible si créateur + 2 joueurs + betting', (tester) async {
+    testWidgets('bouton démarrer visible si créateur + 2 joueurs + Partie avec mise', (tester) async {
       // Le bouton démarrer ne doit être visible que si:
       // - L'utilisateur est le créateur
       // - Il y a au moins 2 joueurs
-      // - Le mode est betting
+      // - Le mode est Partie avec mise (staked, alias betting)
       const isCreator = true;
       const playerCount = 2;
-      const mode = 'betting';
+      const mode = 'staked';
 
-      const canStart = isCreator && playerCount >= 2 && mode == 'betting';
+      const canStart = isCreator && playerCount >= 2 && mode == 'staked';
       expect(canStart, isTrue);
+      // Rétro-compat : betting → staked
+      const legacyMode = 'betting';
+      const canStartLegacy = isCreator && playerCount >= 2 && (legacyMode == 'staked' || legacyMode == 'betting');
+      expect(canStartLegacy, isTrue);
     });
 
-    testWidgets('bouton démarrer caché si mode free', (tester) async {
-      // En mode free, le démarrage est manuel par les 2 joueurs
+    testWidgets('bouton démarrer caché si Partie sans mise (free)', (tester) async {
+      // En mode Partie sans mise (free), le démarrage est manuel par les 2 joueurs
       const mode = 'free';
       const playerCount = 2;
 

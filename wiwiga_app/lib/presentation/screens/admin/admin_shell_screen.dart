@@ -44,9 +44,9 @@ const List<_NavSection> _navSections = [
     title: 'PILOTAGE',
     icon: Icons.speed,
     items: [
-      _NavItem(label: 'Dashboard', path: '/admin', icon: Icons.dashboard_outlined),
+      _NavItem(label: 'Tableau de bord', path: '/admin', icon: Icons.dashboard_outlined),
       _NavItem(label: 'Métriques', path: '/admin/metrics', icon: Icons.bar_chart),
-      _NavItem(label: 'Parties Live', path: '/admin/games-live', icon: Icons.videogame_asset),
+      _NavItem(label: 'Parties en direct', path: '/admin/games-live', icon: Icons.videogame_asset),
     ],
   ),
   _NavSection(
@@ -86,9 +86,9 @@ const List<_NavSection> _navSections = [
     title: 'OPÉRATIONS',
     icon: Icons.handyman,
     items: [
-      _NavItem(label: 'Monitoring', path: '/admin/monitoring', icon: Icons.monitor_heart),
+      _NavItem(label: 'Supervision', path: '/admin/monitoring', icon: Icons.monitor_heart),
       _NavItem(label: 'Réconciliation', path: '/admin/reconciliation', icon: Icons.account_balance),
-      _NavItem(label: 'Bonus & Promos', path: '/admin/bonuses', icon: Icons.card_giftcard),
+      _NavItem(label: 'Bonus et Promos', path: '/admin/bonuses', icon: Icons.card_giftcard),
       _NavItem(label: 'Audit', path: '/admin/audit', icon: Icons.history),
       _NavItem(label: 'Rapports', path: '/admin/reports', icon: Icons.assessment),
       _NavItem(label: 'Alertes', path: '/admin/alerts', icon: Icons.notifications_active),
@@ -450,9 +450,9 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> with Single
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _bottomNavItem(Icons.dashboard_outlined, 'Dashboard', '/admin', currentPath),
+            _bottomNavItem(Icons.dashboard_outlined, 'Tableau de bord', '/admin', currentPath),
             _bottomNavItem(Icons.bar_chart, 'Métriques', '/admin/metrics', currentPath),
-            _bottomNavItem(Icons.videogame_asset, 'Live', '/admin/games-live', currentPath),
+            _bottomNavItem(Icons.videogame_asset, 'En direct', '/admin/games-live', currentPath),
             _bottomNavItem(Icons.settings, 'Config', '/admin/config', currentPath),
             _bottomNavItem(Icons.more_horiz, 'Plus', '/admin/security', currentPath),
           ],

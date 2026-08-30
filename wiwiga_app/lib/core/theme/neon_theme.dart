@@ -52,12 +52,19 @@ class NeonColors {
   static const Color gameCancelled = Color(0xFFEF4444);
   static const Color gamePending = Color(0xFFF59E0B);
   
-  // Couleurs jetons WIWIGA
+  // Couleurs wiga WIWIGA — système 3D
   static const Color tokenPrimary = Color(0xFF2DD4BF);    // Emeraude neon
   static const Color tokenGold = Color(0xFFFFD700);       // Or premium
   static const Color tokenSilver = Color(0xFFC0C0C0);     // Argent
   static const Color tokenBronze = Color(0xFFCD7F32);     // Bronze
-  static const Color tokenGlow = Color(0xFF00FFD4);       // Lueur jeton
+  static const Color tokenGlow = Color(0xFF00FFD4);       // Lueur wiga
+  static const Color tokenDiamond = Color(0xFFB9F2FF);    // Diamant / holographic clair
+  static const Color tokenEdgeEmerald = Color(0xFF0B3D36); // Tranche émeraude
+  static const Color tokenEdgeGold = Color(0xFF6B5300);   // Tranche or
+  static const Color tokenEdgeSilver = Color(0xFF5A6470); // Tranche argent
+  static const Color tokenEdgeBronze = Color(0xFF5A2E12); // Tranche bronze
+  static const Color tokenHoloMid = Color(0xFF7C3AED);    // Holo mid (violet)
+  static const Color tokenHoloEnd = Color(0xFFFF2E93);    // Holo end (rose)
 
   // Couleurs admin / analytics
   static const Color adminCyan = Color(0xFF00FFFF);       // Cyan données
@@ -92,6 +99,64 @@ class NeonShadows {
   static const double largeBlur = 16.0;
   static const double offset = 2.0;
 }
+
+/// Métaux wiga — gradients & ombres 3D
+class TokenMetals {
+  static const Color emeraldBase = NeonColors.tokenPrimary;
+  static const Color emeraldMid = Color(0xFF00FFD4);
+  static const Color emeraldDark = Color(0xFF0A3D36);
+  static const Color goldBase = NeonColors.tokenGold;
+  static const Color goldMid = Color(0xFFFFF2A8);
+  static const Color goldDark = Color(0xFF8A6D00);
+  static const Color silverBase = NeonColors.tokenSilver;
+  static const Color silverMid = Color(0xFFF1F5F9);
+  static const Color silverDark = Color(0xFF6B7280);
+  static const Color bronzeBase = NeonColors.tokenBronze;
+  static const Color bronzeMid = Color(0xFFF5B07A);
+  static const Color bronzeDark = Color(0xFF6B3A16);
+  static const Color diamondBase = NeonColors.tokenDiamond;
+  static const Color diamondMid = Color(0xFFFFFFFF);
+  static const Color diamondDark = Color(0xFF3A6B7A);
+
+  static List<Color> colorsFor(TokenMetal metal) {
+    switch (metal) {
+      case TokenMetal.emerald: return const [emeraldBase, emeraldMid, emeraldDark];
+      case TokenMetal.gold: return const [goldBase, goldMid, goldDark];
+      case TokenMetal.silver: return const [silverBase, silverMid, silverDark];
+      case TokenMetal.bronze: return const [bronzeBase, bronzeMid, bronzeDark];
+      case TokenMetal.diamond: return const [diamondBase, diamondMid, diamondDark];
+      case TokenMetal.holographic: return const [NeonColors.accent, NeonColors.tokenHoloMid, NeonColors.tokenHoloEnd, NeonColors.tokenGold];
+    }
+  }
+
+  static Color edgeFor(TokenMetal metal) {
+    switch (metal) {
+      case TokenMetal.emerald: return NeonColors.tokenEdgeEmerald;
+      case TokenMetal.gold: return NeonColors.tokenEdgeGold;
+      case TokenMetal.silver: return NeonColors.tokenEdgeSilver;
+      case TokenMetal.bronze: return NeonColors.tokenEdgeBronze;
+      case TokenMetal.diamond: return const Color(0xFF2A4E5E);
+      case TokenMetal.holographic: return const Color(0xFF1E1A4A);
+    }
+  }
+
+  static Color glowFor(TokenMetal metal) {
+    switch (metal) {
+      case TokenMetal.emerald: return const Color(0x6B2DD4BF);
+      case TokenMetal.gold: return const Color(0x70FFD700);
+      case TokenMetal.silver: return const Color(0x5BC0C0C0);
+      case TokenMetal.bronze: return const Color(0x5BCD7F32);
+      case TokenMetal.diamond: return const Color(0x6BB9F2FF);
+      case TokenMetal.holographic: return const Color(0x6B00D9FF);
+    }
+  }
+}
+
+enum TokenMetal { emerald, gold, silver, bronze, diamond, holographic }
+
+enum TokenLod { flat, bevel, edge, full }
+
+enum TokenEffect { none, pulse, shimmer, spin, float, flip }
 
 /// Gradients prédéfinis
 class NeonGradients {
@@ -128,7 +193,7 @@ class NeonGradients {
     ],
   );
   
-  /// Gradient principal pour les jetons (emeraude -> dore)
+  /// Gradient principal pour les wiga (emeraude -> dore)
   static const LinearGradient token = LinearGradient(
     colors: [NeonColors.tokenPrimary, NeonColors.tokenGold],
     begin: Alignment.topLeft,

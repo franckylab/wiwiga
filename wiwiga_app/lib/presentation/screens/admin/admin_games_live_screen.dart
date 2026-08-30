@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/game_mode.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -154,6 +155,10 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
     final totalBet = game['total_bet'] ?? game['pot'] ?? 0;
     final status = game['status'] ?? 'active';
     final gameId = game['id']?.toString() ?? '';
+    // Mode : Partie sans mise / Partie avec mise (alias betting normalisé)
+    final rawMode = game['mode'] ?? game['game_mode'] ?? (totalBet is num && totalBet > 0 ? 'staked' : 'free');
+    final mode = GameMode.parse(rawMode.toString());
+    final modeColor = mode.isStaked ? NeonColors.success : NeonColors.primary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -194,6 +199,26 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
                       style: const TextStyle(color: NeonColors.gameInProgress, fontSize: 10),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: modeColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: modeColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(mode.isStaked ? Icons.monetization_on : Icons.people_outline, size: 10, color: modeColor),
+                        const SizedBox(width: 3),
+                        Text(
+                          mode.shortLabel,
+                          style: TextStyle(color: modeColor, fontSize: 10, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               Text(
@@ -206,9 +231,18 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${players is List ? players.length : 0} joueurs',
-                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+              Row(
+                children: [
+                  Text(
+                    '${players is List ? players.length : 0} joueurs',
+                    style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    mode.displayLabel,
+                    style: TextStyle(color: modeColor, fontSize: 10, fontStyle: FontStyle.italic),
+                  ),
+                ],
               ),
               if (gameId.isNotEmpty)
                 TextButton.icon(

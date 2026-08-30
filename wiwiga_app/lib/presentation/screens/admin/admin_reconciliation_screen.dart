@@ -116,7 +116,7 @@ class _DailyTab extends StatelessWidget {
         _metricCard('Commissions', data!['commissions'], NeonColors.primary, Icons.percent),
         const SizedBox(height: 16),
         _summaryRow('GGR', data!['ggr'], NeonColors.primary),
-        _summaryRow('Revenue net', data!['net_revenue'], NeonColors.success),
+        _summaryRow('Revenu net', data!['net_revenue'], NeonColors.success),
         _summaryRow('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? NeonColors.success : NeonColors.error),
       ],
     );
@@ -133,7 +133,7 @@ class _DailyTab extends StatelessWidget {
         leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.15), child: Icon(icon, color: color, size: 20)),
         title: Text(label, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
         subtitle: Text('$count transactions', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
-        trailing: Text('${(amount as num) / 100} FCFA', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        trailing: Text('${(amount as num) / 100} wiga', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -147,7 +147,7 @@ class _DailyTab extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
-          Text('${(value as num) / 100} FCFA', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text('${(value as num) / 100} wiga', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
         ],
       ),
     );
@@ -198,7 +198,7 @@ class _DiscrepanciesTab extends StatelessWidget {
             leading: Icon(isCritical ? Icons.error : Icons.warning, color: isCritical ? NeonColors.error : NeonColors.warning),
             title: Text(disc['type'] as String? ?? 'Écart', style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600)),
             subtitle: Text(disc['description'] as String? ?? '', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
-            trailing: Text('${((disc['difference'] as num?)?.toInt() ?? 0) / 100} FCFA',
+            trailing: Text('${((disc['difference'] as num?)?.toInt() ?? 0) / 100} wiga',
               style: TextStyle(color: isCritical ? NeonColors.error : NeonColors.warning, fontWeight: FontWeight.bold),),
           ),
         );
@@ -218,8 +218,8 @@ class _BalanceTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _balanceItem('Solde joueurs (FCFA)', data!['total_player_balance'], NeonColors.primary),
-        _balanceItem('Solde tokens', data!['total_token_balance'], NeonColors.adminPurple),
+        _balanceItem('Solde joueurs (wiga)', data!['total_player_balance'], NeonColors.primary),
+        _balanceItem('Solde wiga', data!['total_token_balance'], NeonColors.adminPurple),
         _balanceItem('Total dépôts', data!['total_deposits'], NeonColors.success),
         _balanceItem('Total retraits', data!['total_withdrawals'], NeonColors.warning),
         _balanceItem('Flux net', data!['net_flow'], (data!['net_flow'] as num) >= 0 ? NeonColors.success : NeonColors.error),
@@ -261,7 +261,7 @@ class _BalanceTab extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         title: Text(label, style: const TextStyle(color: NeonColors.textPrimary)),
-        trailing: Text('${((value as num?)?.toInt() ?? 0) / 100} FCFA',
+        trailing: Text('${((value as num?)?.toInt() ?? 0) / 100} wiga',
           style: TextStyle(color: color, fontWeight: FontWeight.bold),),
       ),
     );

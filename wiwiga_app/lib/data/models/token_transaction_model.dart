@@ -1,14 +1,14 @@
 // ============================================================
 // Fichier: token_transaction_model.dart
-// Description: Modèle de transaction de jetons virtuels WIWIGA
+// Description: Modèle de transaction de wiga virtuels WIWIGA
 // Auteur: WIWIGA Team
 // Date: 2026-08-01
 // ============================================================
 
-/// Types de transactions de jetons
+/// Types de transactions de wiga
 enum TokenTransactionType {
-  purchase,       // Achat jetons (monnaie → jetons)
-  exchange,       // Échange jetons (jetons → monnaie)
+  purchase,       // Achat wiga (monnaie → wiga)
+  exchange,       // Échange wiga (wiga → monnaie)
   bet,            // Mise de jeu
   winnings,       // Gains
   transferOut,    // Transfert sortant
@@ -28,7 +28,7 @@ enum TokenTransactionStatus {
   cancelled,
 }
 
-/// Modèle représentant une transaction de jetons
+/// Modèle représentant une transaction de wiga
 class TokenTransactionModel {
   final String id;
   final String userId;
@@ -65,9 +65,9 @@ class TokenTransactionModel {
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
       type: _parseType(json['type']),
-      tokenAmount: json['token_amount'] as int? ?? 0,
-      balanceBefore: json['balance_before'] as int? ?? 0,
-      balanceAfter: json['balance_after'] as int? ?? 0,
+      tokenAmount: json['wiga_amount'] as int? ?? json['token_amount'] as int? ?? 0,
+      balanceBefore: json['wiga_balance_before'] as int? ?? json['balance_before'] as int? ?? 0,
+      balanceAfter: json['wiga_balance_after'] as int? ?? json['balance_after'] as int? ?? 0,
       monetaryValue: json['monetary_value'] as int?,
       exchangeRate: (json['exchange_rate'] as num?)?.toDouble(),
       counterpartyId: json['counterparty_id']?.toString(),
@@ -142,7 +142,7 @@ class TokenTransactionModel {
   }
 }
 
-/// Modèle résumé du solde de jetons
+/// Modèle résumé du solde de wiga
 class TokenSummaryModel {
   final int tokenBalance;
   final int monetaryValueCentimes;
@@ -166,10 +166,10 @@ class TokenSummaryModel {
 
   factory TokenSummaryModel.fromJson(Map<String, dynamic> json) {
     return TokenSummaryModel(
-      tokenBalance: json['token_balance'] as int? ?? 0,
+      tokenBalance: json['wiga_balance'] as int? ?? json['token_balance'] as int? ?? 0,
       monetaryValueCentimes: json['monetary_value_centimes'] as int? ?? 0,
       monetaryValueFcfa: (json['monetary_value_fcfa'] as num?)?.toDouble() ?? 0,
-      exchangeRate: (json['exchange_rate'] as num?)?.toDouble() ?? 10.0,
+      exchangeRate: (json['exchange_rate'] as num?)?.toDouble() ?? 1.0,
       minExchange: json['min_exchange'] as int? ?? 100,
       maxExchange: json['max_exchange'] as int? ?? 100000,
       transferEnabled: json['transfer_enabled'] as bool? ?? true,
@@ -182,7 +182,7 @@ class TokenSummaryModel {
     return '${monetaryValueFcfa.toStringAsFixed(0)} FCFA';
   }
 
-  /// Solde jetons formaté
+  /// Solde wiga formaté
   String get tokenBalanceFormatted {
     return tokenBalance.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),

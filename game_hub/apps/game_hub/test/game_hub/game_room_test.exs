@@ -34,18 +34,32 @@ defmodule GameHub.GameRoomTest do
       assert length(room.players) == 1
     end
 
-    test "crée une room betting" do
+    test "crée une room Partie avec mise (staked)" do
       params = %{
         creator_id: "user_1",
         game_type: "dice",
-        mode: :betting,
+        mode: :staked,
         bet_amount: 5000,
         creator_name: "Testeur"
       }
 
       assert {:ok, room} = GameRoom.create_room(params)
-      assert room.mode == :betting
+      assert room.mode == :staked
       assert room.bet_amount == 5000
+    end
+
+    test "alias historique :betting normalisé en :staked" do
+      params = %{
+        creator_id: "user_1",
+        game_type: "dice",
+        mode: :betting,
+        bet_amount: 3000,
+        creator_name: "Testeur"
+      }
+
+      assert {:ok, room} = GameRoom.create_room(params)
+      assert room.mode == :staked
+      assert room.bet_amount == 3000
     end
   end
 
@@ -116,9 +130,9 @@ defmodule GameHub.GameRoomTest do
   end
 
   describe "list_waiting_rooms/2" do
-    test "liste les rooms en attente" do
+    test "liste les rooms en attente (Partie sans mise / Partie avec mise)" do
       GameRoom.create_room(%{creator_id: "u1", game_type: "dice", mode: :free, creator_name: "U1"})
-      GameRoom.create_room(%{creator_id: "u2", game_type: "dice", mode: :betting, bet_amount: 500, creator_name: "U2"})
+      GameRoom.create_room(%{creator_id: "u2", game_type: "dice", mode: :staked, bet_amount: 500, creator_name: "U2"})
 
       all = GameRoom.list_waiting_rooms()
       assert length(all) == 2
@@ -126,8 +140,12 @@ defmodule GameHub.GameRoomTest do
       free = GameRoom.list_waiting_rooms(nil, :free)
       assert length(free) == 1
 
-      betting = GameRoom.list_waiting_rooms(nil, :betting)
-      assert length(betting) == 1
+      staked = GameRoom.list_waiting_rooms(nil, :staked)
+      assert length(staked) == 1
+
+      # Alias historique :betting doit aussi filtrer les Parties avec mise
+      betting_alias = GameRoom.list_waiting_rooms(nil, :betting)
+      assert length(betting_alias) == 1
     end
   end
 

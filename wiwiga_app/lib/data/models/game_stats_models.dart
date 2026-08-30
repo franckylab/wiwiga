@@ -6,11 +6,12 @@
 // ============================================================
 
 /// Statistiques globales d'un jeu (GET /api/games/:type/stats)
+/// Valeurs monétaires du backend (centimes) converties en wiga côté UI (1 FCFA=1 wiga, taux 10)
 class GameGlobalStats {
   final int playersOnline;
   final int matchesToday;
-  final int totalDistributedToday; // centimes
-  final int biggestWinToday; // centimes
+  final int totalDistributedToday; // wiga (backend centimes converti)
+  final int biggestWinToday; // wiga (backend centimes converti)
   final int totalPlayers;
 
   const GameGlobalStats({
@@ -90,13 +91,14 @@ class GameLeaderboard {
 }
 
 /// Statistiques personnelles (GET /api/games/:type/my-stats)
+/// Montants en wiga (backend centimes convertis)
 class MyGameStats {
   final int matchesPlayed;
   final int wins;
   final int losses;
-  final int totalWagered; // centimes
-  final int totalWonNet; // centimes
-  final int biggestWin; // centimes
+  final int totalWagered; // wiga
+  final int totalWonNet; // wiga
+  final int biggestWin; // wiga
   final int currentStreak;
   final int bestStreak;
   final double winRate; // pourcentage 0-100
@@ -139,7 +141,7 @@ class GameActivityEvent {
   final int userId;
   final String name;
   final String eventType; // 'win'
-  final int amount; // centimes
+  final int amount; // wiga
   final DateTime? insertedAt;
 
   const GameActivityEvent({

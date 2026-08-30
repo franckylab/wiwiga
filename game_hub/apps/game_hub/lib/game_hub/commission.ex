@@ -51,10 +51,10 @@ defmodule GameHub.Commission do
   
   ## Parameters
     - `game_type`: Type jeu
-    - `winnings`: Montant gains (integer centimes)
+    - `winnings`: Montant gains en jetons
   
   ## Returns
-    - `{:ok, commission_amount}`: Commission calculée
+    - `{:ok, commission_amount}`: Commission en jetons
     - `{:error, :game_not_found}`: Jeu inexistant
   """
   @spec calculate_commission(String.t(), integer()) :: {:ok, integer()} | {:error, atom()}
@@ -123,12 +123,12 @@ defmodule GameHub.Commission do
   end
   
   @doc """
-  Enregistre transaction commission (monétaire + jetons).
+  Enregistre transaction commission (jetons).
   
   ## Parameters
     - `game_id`: ID partie
     - `user_id`: ID joueur
-    - `commission_amount`: Montant commission en centimes
+    - `commission_amount`: Montant commission en jetons
     - `idempotency_key`: Clé unique
   """
   @spec record_commission(String.t(), String.t(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
@@ -165,8 +165,8 @@ defmodule GameHub.Commission do
   """
   @spec record_token_commission(String.t(), String.t(), integer(), String.t()) :: :ok | {:error, atom()}
   def record_token_commission(game_id, user_id, monetary_amount, idempotency_key) do
-    config = TokenConfig.get_config()
-    commission_tokens = TokenConfig.monetary_to_tokens(monetary_amount, config)
+    # monetary_amount est désormais en jetons (1:1) — pas de conversion centimes→jetons
+    commission_tokens = monetary_amount
     
     if commission_tokens > 0 do
       case GameHub.Tokens.get_token_balance(user_id) do

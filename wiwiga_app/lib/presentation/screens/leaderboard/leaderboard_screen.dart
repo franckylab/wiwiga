@@ -148,7 +148,7 @@ class LeaderboardScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(m['key'] as IconData? ?? Icons.star, size: 14, color: isSelected ? NeonColors.secondary : NeonColors.textSecondary),
+                      Icon(m['icon'] as IconData? ?? Icons.star, size: 14, color: isSelected ? NeonColors.secondary : NeonColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         m['label'] as String,
@@ -219,19 +219,25 @@ class LeaderboardScreen extends ConsumerWidget {
   }
 
   Widget _buildPodium(List<GameLeaderboardEntry> top3) {
+    // Mapping rang → métal pour podium 3D
+    TokenMetal metalForRank(int r) {
+      if (r == 1) return TokenMetal.gold;
+      if (r == 2) return TokenMetal.silver;
+      if (r == 3) return TokenMetal.bronze;
+      if (r <= 5) return TokenMetal.diamond;
+      return TokenMetal.emerald;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // 2nd place
-          if (top3.length > 1) _PodiumCard(entry: top3[1], height: 100, color: NeonColors.rankSilver),
+          if (top3.length > 1) _PodiumCard(entry: top3[1], height: 100, color: NeonColors.rankSilver, metal: metalForRank(top3[1].rank)),
           const SizedBox(width: 8),
-          // 1st place (taller)
-          _PodiumCard(entry: top3[0], height: 130, color: NeonColors.rankGold),
+          _PodiumCard(entry: top3[0], height: 130, color: NeonColors.rankGold, metal: metalForRank(top3[0].rank)),
           const SizedBox(width: 8),
-          // 3rd place
-          if (top3.length > 2) _PodiumCard(entry: top3[2], height: 85, color: NeonColors.rankBronze),
+          if (top3.length > 2) _PodiumCard(entry: top3[2], height: 85, color: NeonColors.rankBronze, metal: metalForRank(top3[2].rank)),
         ],
       ),
     );
@@ -245,31 +251,46 @@ class LeaderboardScreen extends ConsumerWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
         final tierColor = _getRankColor(entry.rank);
+        final isTop3 = entry.rank <= 3;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           child: NeonCard(
             child: Row(
               children: [
-                // Rank
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: tierColor.withValues(alpha: 0.15),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${entry.rank}',
-                    style: TextStyle(
-                      color: tierColor,
-                      fontFamily: 'Orbitron',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                // Rank — 3D métal si top3, sinon flat
+                if (isTop3)
+                  TokenCoin(
+                    size: 36,
+                    metal: entry.rank == 1
+                        ? TokenMetal.gold
+                        : entry.rank == 2
+                            ? TokenMetal.silver
+                            : TokenMetal.bronze,
+                    lod: TokenLod.bevel,
+                    rankLabel: '${entry.rank}',
+                    withW: false,
+                    showShadow: false,
+                  )
+                else
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: tierColor.withValues(alpha: 0.15),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${entry.rank}',
+                      style: TextStyle(
+                        color: tierColor,
+                        fontFamily: 'Orbitron',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(width: 12),
                 // Name + value
                 Expanded(
@@ -426,45 +447,38 @@ class LeaderboardScreen extends ConsumerWidget {
   }
 }
 
-// === Podium Card ===
+// === Podium Card — 3D métal ===
 
 class _PodiumCard extends StatelessWidget {
   final GameLeaderboardEntry entry;
   final double height;
   final Color color;
+  final TokenMetal metal;
 
   const _PodiumCard({
     required this.entry,
     required this.height,
     required this.color,
+    this.metal = TokenMetal.gold,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = entry.rank == 1;
     return Expanded(
       child: NeonCard(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Rank badge
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.2),
-                border: Border.all(color: color, width: 2),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${entry.rank}',
-                style: TextStyle(
-                  color: color,
-                  fontFamily: 'Orbitron',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+            // Rank — pièce 3D métal
+            TokenCoin(
+              size: isFirst ? 48 : 40,
+              metal: metal,
+              lod: TokenLod.full,
+              effect: isFirst ? TokenEffect.shimmer : TokenEffect.none,
+              animated: isFirst,
+              rankLabel: '${entry.rank}',
+              withW: false,
             ),
             const SizedBox(height: 8),
             Text(

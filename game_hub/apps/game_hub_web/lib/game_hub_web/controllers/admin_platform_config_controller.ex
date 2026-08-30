@@ -36,7 +36,8 @@ defmodule GameHubWeb.AdminPlatformConfigController do
   Met à jour une valeur de configuration.
   """
   def update(conn, %{"category" => category, "key" => key, "value" => value}) do
-    admin_id = conn.assigns[:current_admin_id] || 0
+    admin_id = conn.assigns[:current_user_id] || conn.assigns[:current_admin_id] || conn.private[:current_user_id] || 0
+    admin_id = if is_binary(admin_id) do case Integer.parse(admin_id) do {n,_} -> n; :error -> 0 end else admin_id end
 
     case PlatformConfig.update(category, key, value, admin_id) do
       {:ok, config} ->
@@ -55,7 +56,8 @@ defmodule GameHubWeb.AdminPlatformConfigController do
   Met à jour plusieurs configurations d'une catégorie.
   """
   def batch_update(conn, %{"category" => category, "updates" => updates}) when is_list(updates) do
-    admin_id = conn.assigns[:current_admin_id] || 0
+    admin_id = conn.assigns[:current_user_id] || conn.assigns[:current_admin_id] || conn.private[:current_user_id] || 0
+    admin_id = if is_binary(admin_id) do case Integer.parse(admin_id) do {n,_} -> n; :error -> 0 end else admin_id end
 
     parsed_updates = Enum.map(updates, fn %{"key" => key, "value" => value} ->
       %{key: key, value: value}

@@ -22,6 +22,7 @@ defmodule GameHub.Wallet do
   alias GameHub.Wallet.WalletTransaction
   alias GameHub.AuditLog
   alias GameHub.Admin.PlatformConfig
+  alias GameHub.Tokens.TokenConfig
   
   @doc """
   Récupère le solde d'un utilisateur.
@@ -125,10 +126,10 @@ defmodule GameHub.Wallet do
           # Mettre à jour balance monétaire
           update_user_balance(user_id, balance_after)
           
-          # Créditer automatiquement les jetons
+          # Créditer automatiquement les jetons (transaction jetons bloquante pour cohérence double-ledger)
           case GameHub.Tokens.purchase_tokens(user_id, amount, "#{idempotency_key}_tokens") do
             {:ok, _token_tx} -> :ok
-            {:error, _} -> :ok # Non-bloquant si erreur tokens
+            {:error, reason} -> Repo.rollback(reason)
           end
           
           # Log audit
@@ -239,55 +240,24 @@ defmodule GameHub.Wallet do
   """
   @spec place_bet(integer(), integer(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def place_bet(user_id, bet_amount, game_id, idempotency_key) when bet_amount > 0 do
-    Repo.transaction(fn ->
-      case get_transaction_by_key(idempotency_key) do
-        nil ->
-          user = lock_user_for_update(user_id)
-          
-          if user.balance >= bet_amount do
-            balance_before = user.balance
-            balance_after = balance_before - bet_amount
-            
-            transaction = create_transaction(%{
-              user_id: user_id,
-              type: "bet",
-              amount: -bet_amount,
-              balance_before: balance_before,
-              balance_after: balance_after,
-              idempotency_key: idempotency_key,
-              metadata: %{game_id: game_id}
-            })
-            
-            update_user_balance(user_id, balance_after)
-            
-            # Débiriter aussi les jetons (mise en jetons)
-            case GameHub.Tokens.deduct_for_bet(user_id, bet_amount, game_id, "#{idempotency_key}_tokens") do
-              {:ok, _token_tx} -> :ok
-              {:error, _} -> :ok # Non-bloquant si erreur tokens (ex: solde jetons insuffisant)
-            end
-            
-            AuditLog.log(
-              "bet",
-              user_id,
-              "wallet",
-              "user_#{user_id}",
-              %{
-                amount: bet_amount,
-                game_id: game_id,
-                balance_before: balance_before,
-                balance_after: balance_after
-              }
-            )
-            
-            transaction
-          else
-            Repo.rollback(:insufficient_funds)
-          end
-          
-        _existing ->
-          Repo.rollback(:idempotency_key_used)
-      end
-    end)
+    # Single-ledger jetons pur: délégation à Tokens (plus de double écriture wallet)
+    # L'idempotence et le verrouillage sont gérés dans Tokens.deduct_for_bet
+    case GameHub.Tokens.deduct_for_bet(user_id, bet_amount, game_id, idempotency_key) do
+      {:ok, token_tx} ->
+        AuditLog.log(
+          "bet",
+          user_id,
+          "wallet",
+          "user_#{user_id}",
+          %{
+            amount: bet_amount,
+            game_id: game_id,
+            token_balance_after: token_tx.balance_after
+          }
+        )
+        {:ok, token_tx}
+      {:error, reason} -> {:error, reason}
+    end
   end
   
   def place_bet(_, bet_amount, _, _) when bet_amount <= 0 do
@@ -305,51 +275,23 @@ defmodule GameHub.Wallet do
   """
   @spec credit_winnings(integer(), integer(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def credit_winnings(user_id, win_amount, game_id, idempotency_key) when win_amount > 0 do
-    Repo.transaction(fn ->
-      case get_transaction_by_key(idempotency_key) do
-        nil ->
-          user = lock_user_for_update(user_id)
-          
-          balance_before = user.balance
-          balance_after = balance_before + win_amount
-          
-          transaction = create_transaction(%{
-            user_id: user_id,
-            type: "winnings",
+    # Single-ledger jetons pur: délégation à Tokens
+    case GameHub.Tokens.credit_winnings(user_id, win_amount, game_id, idempotency_key) do
+      {:ok, token_tx} ->
+        AuditLog.log(
+          "winnings",
+          user_id,
+          "wallet",
+          "user_#{user_id}",
+          %{
             amount: win_amount,
-            balance_before: balance_before,
-            balance_after: balance_after,
-            idempotency_key: idempotency_key,
-            metadata: %{game_id: game_id}
-          })
-          
-          update_user_balance(user_id, balance_after)
-          
-          # Créditer aussi les jetons (gains en jetons)
-          case GameHub.Tokens.credit_winnings(user_id, win_amount, game_id, "#{idempotency_key}_tokens") do
-            {:ok, _token_tx} -> :ok
-            {:error, _} -> :ok # Non-bloquant si erreur tokens
-          end
-          
-          AuditLog.log(
-            "winnings",
-            user_id,
-            "wallet",
-            "user_#{user_id}",
-            %{
-              amount: win_amount,
-              game_id: game_id,
-              balance_before: balance_before,
-              balance_after: balance_after
-            }
-          )
-          
-          transaction
-          
-        _existing ->
-          Repo.rollback(:idempotency_key_used)
-      end
-    end)
+            game_id: game_id,
+            token_balance_after: token_tx.balance_after
+          }
+        )
+        {:ok, token_tx}
+      {:error, reason} -> {:error, reason}
+    end
   end
   
   def credit_winnings(_, win_amount, _, _) when win_amount <= 0 do

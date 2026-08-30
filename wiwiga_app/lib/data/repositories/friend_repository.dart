@@ -16,17 +16,21 @@ class FriendRepository {
 
   FriendRepository(this._apiService);
 
-  /// Liste les amis
+  /// Liste les amis — tolérant si data null/vide (backend retourne 200 avec [])
   Future<List<FriendModel>> listFriends() async {
     final response = await _apiService.get(ApiEndpoints.friendsList);
-    final data = response['data'] as List<dynamic>;
+    final raw = response['data'];
+    if (raw == null) return [];
+    final data = raw as List<dynamic>;
     return data.map((f) => FriendModel.fromJson(f as Map<String, dynamic>)).toList();
   }
 
-  /// Liste les demandes en attente
+  /// Liste les demandes en attente — tolérant null
   Future<List<FriendRequestModel>> listPendingRequests() async {
     final response = await _apiService.get(ApiEndpoints.friendsRequests);
-    final data = response['data'] as List<dynamic>;
+    final raw = response['data'];
+    if (raw == null) return [];
+    final data = raw as List<dynamic>;
     return data.map((r) => FriendRequestModel.fromJson(r as Map<String, dynamic>)).toList();
   }
 
@@ -60,24 +64,32 @@ class FriendRepository {
     await _apiService.post('${ApiEndpoints.friendsList}/$userId/block');
   }
 
-  /// Recherche un joueur
+  /// Recherche un joueur — q requis, retourne [] si vide
   Future<List<PlayerSearchResult>> searchPlayer(String query) async {
-    final response = await _apiService.get(ApiEndpoints.friendsSearch, queryParams: {'q': query});
-    final data = response['data'] as List<dynamic>;
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+    final response = await _apiService.get(ApiEndpoints.friendsSearch, queryParams: {'q': trimmed});
+    final raw = response['data'];
+    if (raw == null) return [];
+    final data = raw as List<dynamic>;
     return data.map((r) => PlayerSearchResult.fromJson(r as Map<String, dynamic>)).toList();
   }
 
-  /// Leaderboard entre amis
+  /// Leaderboard entre amis — tolérant null
   Future<List<FriendLeaderboardEntry>> getLeaderboard() async {
     final response = await _apiService.get(ApiEndpoints.friendsLeaderboard);
-    final data = response['data'] as List<dynamic>;
+    final raw = response['data'];
+    if (raw == null) return [];
+    final data = raw as List<dynamic>;
     return data.map((e) => FriendLeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Feed d'activité
+  /// Feed d'activité — tolérant null
   Future<List<FriendActivityModel>> getActivity() async {
     final response = await _apiService.get(ApiEndpoints.friendsActivity);
-    final data = response['data'] as List<dynamic>;
+    final raw = response['data'];
+    if (raw == null) return [];
+    final data = raw as List<dynamic>;
     return data.map((a) => FriendActivityModel.fromJson(a as Map<String, dynamic>)).toList();
   }
 

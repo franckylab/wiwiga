@@ -7,11 +7,11 @@ import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../../data/providers/token_provider.dart';
-import '../../../data/providers/friend_provider.dart' hide apiServiceProvider;
+import '../../../data/providers/friend_provider.dart';
 import '../../../data/models/token_transaction_model.dart';
 import '../../providers/config_provider.dart';
 
-/// Écran Wallet redesigné avec système de jetons
+/// Écran Wallet redesigné avec système de wiga
 class WalletScreenNeon extends ConsumerStatefulWidget {
   const WalletScreenNeon({super.key});
 
@@ -49,7 +49,7 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'MES JETONS',
+          'MES WIGA',
           style: TextStyle(
             fontFamily: 'Orbitron',
             fontWeight: FontWeight.bold,
@@ -109,57 +109,49 @@ class _TokenBalanceHeader extends ConsumerWidget {
       decoration: const BoxDecoration(gradient: NeonGradients.cta),
       child: Column(
         children: [
-          // Solde jetons (principal)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const TokenIcon(size: 28, variant: TokenVariant.gold, animated: true),
-              const SizedBox(width: 8),
-              Text(
-                _formatTokens(tokenState.tokenBalance),
-                style: const TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  color: NeonColors.textPrimary,
-                  fontFamily: 'Orbitron',
-                ),
-              ),
-            ],
+          // Solde wiga — pièce 3D hero or + LOD full
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmall = constraints.maxWidth < 360;
+              final coinSize = isSmall ? 36.0 : 44.0;
+              final fontSize = isSmall ? 36.0 : 42.0;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TokenCoin(
+                    size: coinSize,
+                    metal: TokenMetal.gold,
+                    lod: TokenCoin.autoLod(coinSize),
+                    effect: TokenEffect.shimmer,
+                    animated: true,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _formatTokens(tokenState.tokenBalance),
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: NeonColors.textPrimary,
+                      fontFamily: 'Orbitron',
+                      shadows: [
+                        Shadow(
+                          color: NeonColors.tokenGold.withValues(alpha: 0.28),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const Text(
-            'JETONS',
+            'WIGA',
             style: TextStyle(
               fontSize: 12,
               color: NeonColors.textSecondary,
               fontFamily: 'Inter',
               letterSpacing: 3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Valeur monétaire (secondaire)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '≈ ${tokenState.monetaryValueFcfa.toStringAsFixed(0)} FCFA',
-              style: const TextStyle(
-                fontSize: 14,
-                color: NeonColors.secondary,
-                fontFamily: 'Orbitron',
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Taux informatif
-          Text(
-            '1 FCFA = ${tokenState.exchangeRate.toStringAsFixed(0)} jetons',
-            style: const TextStyle(
-              fontSize: 11,
-              color: NeonColors.textSecondary,
-              fontFamily: 'Inter',
             ),
           ),
           const SizedBox(height: 16),
@@ -356,14 +348,15 @@ class _TokenTransactionCard extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '${isCredit ? '+' : ''}${transaction.tokenAmount}',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color, fontFamily: 'Orbitron'),
                 ),
-                const Text('jetons', style: TextStyle(fontSize: 9, color: NeonColors.textSecondary)),
+                const SizedBox(width: 4),
+                TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
               ],
             ),
           ],
@@ -521,19 +514,34 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
             ),
           ),
           const SizedBox(height: 12),
-          // Aperçu jetons
+          // Aperçu wiga 3D — pile + montant
           if (tokensPreview > 0)
             NeonCard(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    TokenStack(
+                      count: (tokensPreview / 2000).clamp(1, 6).round(),
+                      size: 32,
+                      metal: TokenMetal.gold,
+                      altMetal: TokenMetal.emerald,
+                    ),
+                    const SizedBox(width: 14),
                     const Text('Vous recevrez:', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
+                    const Spacer(),
                     Column(
                       children: [
-                        Text('+${tokensPreview.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
-                        const Text('jetons', style: TextStyle(fontSize: 10, color: NeonColors.textSecondary)),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TokenCoin(size: 20, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                            const SizedBox(width: 6),
+                            Text('+${tokensPreview.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')}',
+                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
+                          ],
+                        ),
+                        const Text('wiga', style: TextStyle(fontSize: 10, color: NeonColors.textSecondary)),
                       ],
                     ),
                   ],
@@ -553,7 +561,7 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
               ),
             ),
           NeonButton(
-            text: 'ACHETER DES JETONS',
+            text: 'ACHETER DES WIGA',
             onPressed: () {
               if (isAmountValid) {
                 ref.read(tokenProvider.notifier).purchaseTokens(_selectedAmount);
@@ -617,7 +625,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Min. échange', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
-                      Text('${tokenState.minExchange} jetons', style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
+                      Text('${tokenState.minExchange} wiga', style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -625,7 +633,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Max. échange', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
-                      Text('${tokenState.maxExchange.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} jetons', style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
+                      Text('${tokenState.maxExchange.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} wiga', style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -633,7 +641,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Solde disponible', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
-                      Text('${tokenState.tokenBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} jetons', style: const TextStyle(color: NeonColors.success, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
+                      Text('${tokenState.tokenBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} wiga', style: const TextStyle(color: NeonColors.success, fontFamily: 'Orbitron', fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],
@@ -641,17 +649,17 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             ),
           ),
           const SizedBox(height: 12),
-          // Nombre de jetons
+          // Nombre de wiga
           NeonCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('JETONS À ÉCHANGER', style: AppTypography.heading4),
+                  Text('WIGA À ÉCHANGER', style: AppTypography.heading4),
                   const SizedBox(height: 12),
                   NeonInput(
-                    label: 'Nombre de jetons',
+                    label: 'Nombre de wiga',
                     hint: 'Entrez le nombre',
                     keyboardType: TextInputType.number,
                     icon: Icons.monetization_on,
@@ -676,18 +684,21 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             ),
           ),
           const SizedBox(height: 12),
-          // Aperçu valeur
+          // Aperçu valeur 3D
           if (monetaryPreview > 0)
             NeonCard(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    TokenCoin(size: 36, metal: TokenMetal.silver, effect: TokenEffect.float, animated: true),
+                    const SizedBox(width: 12),
                     const Text('Vous recevrez:', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
+                    const Spacer(),
                     Column(
                       children: [
-                        Text('${monetaryPreview.toStringAsFixed(0)} FCFA', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
+                        Text('${monetaryPreview.toStringAsFixed(0)} FCFA',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
                         const Text('monnaie', style: TextStyle(fontSize: 10, color: NeonColors.textSecondary)),
                       ],
                     ),
@@ -701,10 +712,10 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 _selectedTokens < tokenState.minExchange
-                    ? 'Minimum ${tokenState.minExchange} jetons'
+                    ? 'Minimum ${tokenState.minExchange} wiga'
                     : _selectedTokens > tokenState.tokenBalance
                         ? 'Solde insuffisant'
-                        : 'Maximum ${tokenState.maxExchange} jetons',
+                        : 'Maximum ${tokenState.maxExchange} wiga',
                 style: const TextStyle(color: NeonColors.danger, fontFamily: 'Inter', fontSize: 12),
                 textAlign: TextAlign.center,
               ),
@@ -824,10 +835,10 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MONTANT EN JETONS', style: AppTypography.heading4),
+                  Text('MONTANT EN WIGA', style: AppTypography.heading4),
                   const SizedBox(height: 12),
                   NeonInput(
-                    label: 'Nombre de jetons',
+                    label: 'Nombre de wiga',
                     hint: 'Entrez le nombre',
                     keyboardType: TextInputType.number,
                     icon: Icons.monetization_on,
@@ -836,7 +847,7 @@ class _TransferTabState extends ConsumerState<_TransferTab> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Solde: ${tokenState.tokenBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} jetons',
+                    'Solde: ${tokenState.tokenBalance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} wiga',
                     style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
                   ),
                 ],
@@ -1049,14 +1060,12 @@ class _PromoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: NeonGradients.cta,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.card_giftcard, color: Colors.white, size: 24),
+                TokenCoin(
+                  size: 48,
+                  metal: TokenMetal.gold,
+                  lod: TokenLod.full,
+                  effect: TokenEffect.shimmer,
+                  animated: true,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1073,7 +1082,7 @@ class _PromoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text('+${promo.tokenAmount}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
-                    const Text('jetons', style: TextStyle(fontSize: 9, color: NeonColors.textSecondary)),
+                    const Text('wiga', style: TextStyle(fontSize: 9, color: NeonColors.textSecondary)),
                   ],
                 ),
               ],
@@ -1224,22 +1233,16 @@ class _GuestWalletScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: NeonGradients.cta,
-                        ),
-                        child: const Icon(
-                          Icons.monetization_on,
-                          size: 40,
-                          color: NeonColors.background,
-                        ),
+                      TokenCoin(
+                        size: 80,
+                        metal: TokenMetal.gold,
+                        lod: TokenLod.full,
+                        effect: TokenEffect.float,
+                        animated: true,
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'Connectez-vous pour gérer vos jetons',
+                        'Connectez-vous pour gérer vos wiga',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -1250,7 +1253,7 @@ class _GuestWalletScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Achetez des jetons, échangez-les contre des gains\net suivez votre historique de transactions.',
+                        'Achetez des wiga, échangez-les contre des gains\net suivez votre historique de transactions.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,

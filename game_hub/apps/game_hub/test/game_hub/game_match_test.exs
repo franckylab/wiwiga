@@ -29,11 +29,11 @@ defmodule GameHub.GameMatchTest do
       assert match.dice_count == 2
     end
 
-    test "crée un match avec config custom" do
+    test "crée un match avec config custom (Partie avec mise)" do
       config = %{
         game_type: "dice",
         rule_type: "cible",
-        mode: :betting,
+        mode: :staked,
         sets_count: 5,
         dice_count: 3,
         bet_amount: 1000,
@@ -42,10 +42,24 @@ defmodule GameHub.GameMatchTest do
       }
 
       assert {:ok, match} = GameMatch.create_match(config)
+      assert match.mode == :staked
       assert match.sets_count == 5
       assert match.dice_count == 3
       assert match.bet_amount == 1000
       assert match.max_players == 4
+    end
+
+    test "alias :betting normalisé en :staked" do
+      config = %{
+        game_type: "dice",
+        rule_type: "normal",
+        mode: :betting,
+        bet_amount: 500,
+        creator_id: "player_1"
+      }
+
+      assert {:ok, match} = GameMatch.create_match(config)
+      assert match.mode == :staked
     end
   end
 

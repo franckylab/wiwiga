@@ -90,8 +90,8 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
             Tab(text: 'Jeux'),
             Tab(text: 'Paiements'),
             Tab(text: 'Thème'),
-            Tab(text: 'Features'),
-            Tab(text: 'Tokens'),
+            Tab(text: 'Fonctionnalités'),
+            Tab(text: 'Wiga'),
           ],
         ),
       ),
@@ -285,6 +285,7 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
   @override
   void initState() {
     super.initState();
+    // Backend désormais en wiga purs (migration 20260830000003)
     _minBet = widget.gameType.minBet;
     _maxBet = widget.gameType.maxBet;
     _commission = widget.gameType.commissionPercent;
@@ -334,14 +335,14 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
             ],
           ),
           const SizedBox(height: 8),
-          // Slider mise min
-          Text('Mise minimum: $_minBet FCFA', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _minBet.toDouble(), min: 10, max: 10000, divisions: 100,
+          // Slider mise min (wiga)
+          Text('Mise minimum: $_minBet wiga', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Slider(value: _minBet.toDouble(), min: 1, max: 100, divisions: 99,
             activeColor: const Color(0xFF00FF88),
             onChanged: (v) => setState(() => _minBet = v.round()),),
-          // Slider mise max
-          Text('Mise maximum: $_maxBet FCFA', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _maxBet.toDouble(), min: 1000, max: 500000, divisions: 100,
+          // Slider mise max (wiga)
+          Text('Mise maximum: $_maxBet wiga', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Slider(value: _maxBet.toDouble(), min: 10, max: 5000, divisions: 100,
             activeColor: const Color(0xFF00FF88),
             onChanged: (v) => setState(() => _maxBet = v.round()),),
           // Slider commission
@@ -614,9 +615,9 @@ class _ThemeConfigTab extends ConsumerWidget {
             title: 'Interface',
             subtitle: 'Paramètres d\'affichage',
             fields: [
-              _ConfigField(label: 'Border radius', value: '${config.borderRadius.toInt()}px', icon: Icons.rounded_corner),
-              _ConfigField(label: 'Glow intensity', value: '${(config.glowIntensity * 100).toInt()}%', icon: Icons.brightness_7),
-              _ConfigField(label: 'Animation duration', value: '${config.animationDuration}ms', icon: Icons.animation),
+              _ConfigField(label: 'Rayon bordure', value: '${config.borderRadius.toInt()}px', icon: Icons.rounded_corner),
+              _ConfigField(label: 'Intensité éclat', value: '${(config.glowIntensity * 100).toInt()}%', icon: Icons.brightness_7),
+              _ConfigField(label: 'Durée animation', value: '${config.animationDuration}ms', icon: Icons.animation),
               _ConfigField(label: 'Police body', value: config.fontFamilyBody, icon: Icons.text_fields),
               _ConfigField(label: 'Police display', value: config.fontFamilyDisplay, icon: Icons.text_fields),
             ],
@@ -624,7 +625,7 @@ class _ThemeConfigTab extends ConsumerWidget {
           const SizedBox(height: 12),
           // Slider border radius
           _SliderEditRow(
-            label: 'Border radius',
+            label: 'Rayon bordure',
             value: config.borderRadius,
             min: 0, max: 24, divisions: 24, suffix: 'px',
             onChanged: (v) {
@@ -633,7 +634,7 @@ class _ThemeConfigTab extends ConsumerWidget {
             },
           ),
           _SliderEditRow(
-            label: 'Glow intensity',
+            label: 'Intensité éclat',
             value: config.glowIntensity,
             min: 0, max: 1, divisions: 20, suffix: '%',
             displayMultiplier: 100,
@@ -643,7 +644,7 @@ class _ThemeConfigTab extends ConsumerWidget {
             },
           ),
           _SliderEditRow(
-            label: 'Animation duration',
+            label: 'Durée animation',
             value: config.animationDuration.toDouble(),
             min: 0, max: 1000, divisions: 20, suffix: 'ms',
             onChanged: (v) {
@@ -852,7 +853,7 @@ class _FeaturesConfigTab extends ConsumerWidget {
             },
           ),
           const _InteractiveFeatureToggle(
-            title: 'PvP Enabled',
+            title: 'PvP activé',
             description: 'Active les parties entre joueurs',
             isEnabled: true,
             color: Color(0xFF00FF88),
@@ -873,8 +874,8 @@ class _FeaturesConfigTab extends ConsumerWidget {
             onChanged: null,
           ),
           const _InteractiveFeatureToggle(
-            title: 'Transferts de jetons',
-            description: 'Permet aux joueurs de se transférer des jetons',
+            title: 'Transferts de wiga',
+            description: 'Permet aux joueurs de se transférer des wiga',
             isEnabled: true,
             color: Color(0xFFAA00FF),
             onChanged: null,
@@ -1099,13 +1100,13 @@ class _TokensConfigTab extends ConsumerWidget {
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _SectionHeader(title: 'Jetons virtuels', icon: Icons.monetization_on),
+          const _SectionHeader(title: 'Wiga virtuels', icon: Icons.monetization_on),
           const SizedBox(height: 16),
           _ConfigCard(
             title: 'Taux de change',
-            subtitle: 'Conversion FCFA ↔ Jetons',
+            subtitle: 'Conversion FCFA ↔ Wiga',
             fields: [
-              _ConfigField(label: 'Taux exchange', value: '${config.exchangeRate} tokens/FCFA', icon: Icons.swap_horiz),
+              _ConfigField(label: 'Taux exchange', value: '${config.exchangeRate} wiga/FCFA', icon: Icons.swap_horiz),
               _ConfigField(label: 'Frais exchange', value: '${config.exchangeFeePercent.toStringAsFixed(1)}%', icon: Icons.percent),
               _ConfigField(label: 'Frais fixe', value: '${config.exchangeFixedFee} FCFA', icon: Icons.money),
             ],
@@ -1113,7 +1114,7 @@ class _TokensConfigTab extends ConsumerWidget {
           const SizedBox(height: 12),
           // Taux de change éditable
           _EditableLimitField(
-            label: 'Taux tokens/FCFA', value: config.exchangeRate, suffix: ' tokens',
+            label: 'Taux wiga/FCFA', value: config.exchangeRate.toInt(), suffix: ' wiga',
             onSave: (v) {
               _confirmAndSave(context, ref, {'exchange_rate': v});
             },
@@ -1130,7 +1131,7 @@ class _TokensConfigTab extends ConsumerWidget {
             subtitle: 'Limites d\'achat et de transfert',
             fields: [
               _ConfigField(label: 'Achat journalier max', value: '${config.dailyPurchaseLimit} FCFA', icon: Icons.shopping_cart),
-              _ConfigField(label: 'Transfert journalier max', value: '${config.dailyTransferLimit} tokens', icon: Icons.send),
+              _ConfigField(label: 'Transfert journalier max', value: '${config.dailyTransferLimit} wiga', icon: Icons.send),
               _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.card_giftcard),
             ],
           ),
@@ -1140,30 +1141,30 @@ class _TokensConfigTab extends ConsumerWidget {
             onSave: (v) => _confirmAndSave(context, ref, {'daily_purchase_limit': v}),
           ),
           _EditableLimitField(
-            label: 'Transfert journalier max', value: config.dailyTransferLimit, suffix: ' tokens',
+            label: 'Transfert journalier max', value: config.dailyTransferLimit, suffix: ' wiga',
             onSave: (v) => _confirmAndSave(context, ref, {'daily_transfer_limit': v}),
           ),
           const SizedBox(height: 16),
           _ConfigCard(
-            title: 'Mise minimum jetons',
-            subtitle: 'Mises minimum en jetons par type de jeu',
+            title: 'Mise minimum wiga',
+            subtitle: 'Mises minimum en wiga par type de jeu',
             fields: [
-              _ConfigField(label: 'Dés', value: '${config.diceMinBet} tokens', icon: Icons.casino),
-              _ConfigField(label: 'Cartes', value: '${config.cardsMinBet} tokens', icon: Icons.style),
+              _ConfigField(label: 'Dés', value: '${config.diceMinBet} wiga', icon: Icons.casino),
+              _ConfigField(label: 'Cartes', value: '${config.cardsMinBet} wiga', icon: Icons.style),
             ],
           ),
           const SizedBox(height: 12),
           _EditableLimitField(
-            label: 'Dés min', value: config.diceMinBet, suffix: ' tokens',
+            label: 'Dés min', value: config.diceMinBet, suffix: ' wiga',
             onSave: (v) => _confirmAndSave(context, ref, {'dice_min_bet': v}),
           ),
           _EditableLimitField(
-            label: 'Cartes min', value: config.cardsMinBet, suffix: ' tokens',
+            label: 'Cartes min', value: config.cardsMinBet, suffix: ' wiga',
             onSave: (v) => _confirmAndSave(context, ref, {'cards_min_bet': v}),
           ),
           const SizedBox(height: 24),
           const _InfoBanner(
-            message: 'Les modifications de tokens prennent effet immédiatement.',
+            message: 'Les modifications des wiga prennent effet immédiatement.',
           ),
         ],
       ),
@@ -1185,7 +1186,7 @@ class _TokensConfigTab extends ConsumerWidget {
               Navigator.pop(ctx);
               ref.read(tokensConfigProvider.notifier).updateConfig(updates);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuration tokens mise à jour'), backgroundColor: Color(0xFF00FF88)),
+                const SnackBar(content: Text('Configuration wiga mise à jour'), backgroundColor: Color(0xFF00FF88)),
               );
             },
             child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),

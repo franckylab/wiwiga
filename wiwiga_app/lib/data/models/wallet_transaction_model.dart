@@ -36,7 +36,7 @@ class WalletTransactionModel {
   final String? idempotencyKey;
   final DateTime createdAt;
   
-  // Champs jetons (optionnels)
+  // Champs wiga (optionnels)
   final int? tokenAmount;
   final int? tokenBalanceBefore;
   final int? tokenBalanceAfter;

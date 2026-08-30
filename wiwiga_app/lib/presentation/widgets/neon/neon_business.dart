@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/neon_theme.dart';
-import 'token_icon.dart';
+import 'token_coin.dart';
 
-/// Affichage du solde en jetons avec animation compteur et glow
+/// Affichage du solde en wiga avec animation compteur et glow
 /// 
 /// Remplace l'ancien BalanceDisplay (centimes FCFA) par un affichage
-/// base sur les jetons WIWIGA.
+/// base sur les wiga WIWIGA.
 class TokenBalanceDisplay extends StatefulWidget {
   final int tokenBalance;
   final double fontSize;
@@ -105,9 +105,11 @@ class _TokenBalanceDisplayState extends State<TokenBalanceDisplay>
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  TokenIcon(
+                  TokenCoin(
                     size: widget.fontSize * 0.7,
-                    variant: TokenVariant.normal,
+                    metal: TokenMetal.emerald,
+                    lod: TokenCoin.autoLod(widget.fontSize * 0.7),
+                    effect: widget.animated ? TokenEffect.pulse : TokenEffect.none,
                     animated: widget.animated,
                   ),
                   const SizedBox(width: 6),
@@ -131,7 +133,7 @@ class _TokenBalanceDisplayState extends State<TokenBalanceDisplay>
               if (widget.showLabel) ...[
                 const SizedBox(height: 4),
                 const Text(
-                  'Jetons disponibles',
+                  'Wiga disponibles',
                   style: TextStyle(
                     fontSize: 14,
                     color: NeonColors.textSecondary,
@@ -147,7 +149,7 @@ class _TokenBalanceDisplayState extends State<TokenBalanceDisplay>
   }
 }
 
-/// Alias pour compatibilite - affiche le solde en jetons
+/// Alias pour compatibilite - affiche le solde en wiga
 /// @deprecated Utiliser [TokenBalanceDisplay] a la place
 class BalanceDisplay extends StatelessWidget {
   final int balanceCentimes;
@@ -167,8 +169,8 @@ class BalanceDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Convert centimes to approximate tokens (1 FCFA = 10 tokens, 1 FCFA = 100 centimes)
-    final tokens = (balanceCentimes / 100 * 10).round();
+    // Convert centimes to wiga (1 FCFA = 1 wiga, 1 FCFA = 100 centimes)
+    final tokens = (balanceCentimes / 100).round();
     return TokenBalanceDisplay(
       tokenBalance: tokens,
       fontSize: fontSize,
@@ -180,7 +182,7 @@ class BalanceDisplay extends StatelessWidget {
 }
 
 
-/// Badge de rang/niveau avec couleur spécifique
+/// Badge de rang/niveau avec pièce 3D métal
 class RankBadge extends StatelessWidget {
   final String rank;
   final double size;
@@ -191,55 +193,51 @@ class RankBadge extends StatelessWidget {
     this.size = 60,
   });
 
-  Color get _rankColor {
+  TokenMetal get _metal {
     switch (rank.toLowerCase()) {
       case 'bronze':
-        return const Color(0xFFCD7F32);
+        return TokenMetal.bronze;
       case 'argent':
-        return const Color(0xFFC0C0C0);
+        return TokenMetal.silver;
       case 'or':
-        return NeonColors.secondary;
+        return TokenMetal.gold;
       case 'platine':
-        return const Color(0xFFE5E4E2);
+        return TokenMetal.silver;
       case 'diamant':
-        return NeonColors.accent;
+        return TokenMetal.holographic;
       default:
-        return NeonColors.primary;
+        return TokenMetal.emerald;
+    }
+  }
+
+  String get _label {
+    switch (rank.toLowerCase()) {
+      case 'bronze':
+        return '3';
+      case 'argent':
+        return '2';
+      case 'or':
+        return '1';
+      case 'platine':
+        return 'P';
+      case 'diamant':
+        return 'D';
+      default:
+        return rank.isNotEmpty ? rank.substring(0, 1).toUpperCase() : '?';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            _rankColor,
-            _rankColor.withValues(alpha: 0.7),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _rankColor.withValues(alpha: NeonGlow.opacityMedium),
-            blurRadius: NeonGlow.blurMedium,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          rank.substring(0, 1).toUpperCase(),
-          style: TextStyle(
-            fontSize: size * 0.5,
-            fontWeight: FontWeight.bold,
-            color: NeonColors.background,
-            fontFamily: 'Orbitron',
-          ),
-        ),
-      ),
+    final isTopRank = ['or', 'argent', 'bronze'].contains(rank.toLowerCase());
+    return TokenCoin(
+      size: size,
+      metal: _metal,
+      lod: TokenCoin.autoLod(size),
+      effect: isTopRank ? TokenEffect.shimmer : TokenEffect.none,
+      animated: isTopRank,
+      rankLabel: _label,
+      withW: false,
     );
   }
 }

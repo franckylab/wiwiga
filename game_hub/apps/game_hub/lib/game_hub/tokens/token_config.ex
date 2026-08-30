@@ -11,7 +11,7 @@ defmodule GameHub.Tokens.TokenConfig do
   
   ## Règles
   - Une seule ligne en DB (singleton)
-  - Taux configurable: 10 jetons = 1 FCFA par défaut
+  - Taux configurable: 1 jeton = 1 FCFA par défaut (spec WIWIGA)
   - Limites échange configurables
   - Mises min par jeu configurables
   """
@@ -23,11 +23,11 @@ defmodule GameHub.Tokens.TokenConfig do
   alias GameHub.Repo
   alias GameHub.Users.User
   
-  @derive {Jason.Encoder, except: [:__meta__]}
+  @derive {Jason.Encoder, except: [:__meta__, :updated_by]}
   
   schema "token_configs" do
-    # Taux de conversion
-    field :exchange_rate, :float, default: 10.0
+    # Taux de conversion (1 jeton = 1 FCFA)
+    field :exchange_rate, :float, default: 1.0
     
     # Limites échange
     field :min_exchange_tokens, :integer, default: 100
@@ -79,7 +79,7 @@ defmodule GameHub.Tokens.TokenConfig do
   Convertit jetons → valeur monétaire (centimes).
   
   ## Exemple
-      tokens_to_monetary(100) → 1000 (10 FCFA en centimes)
+      tokens_to_monetary(100) → 10000 (100 FCFA en centimes) avec taux 1.0
   """
   def tokens_to_monetary(tokens, config \\ nil) do
     config = config || get_config()
@@ -92,7 +92,7 @@ defmodule GameHub.Tokens.TokenConfig do
   Convertit valeur monétaire (centimes) → jetons.
   
   ## Exemple
-      monetary_to_tokens(1000) → 100 (jetons)
+      monetary_to_tokens(10000) → 100 (jetons) avec taux 1.0
   """
   def monetary_to_tokens(monetary_centimes, config \\ nil) do
     config = config || get_config()
@@ -130,7 +130,7 @@ defmodule GameHub.Tokens.TokenConfig do
   defp create_default_config do
     %__MODULE__{}
     |> changeset(%{
-      exchange_rate: 10.0,
+      exchange_rate: 1.0,
       min_exchange_tokens: 100,
       max_exchange_tokens: 100_000,
       min_bet_tokens_dice: 10,

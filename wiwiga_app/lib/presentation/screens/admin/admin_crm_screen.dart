@@ -207,7 +207,7 @@ class _VipTab extends StatelessWidget {
               style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              'Mises: ${(wagered / 100).toStringAsFixed(0)} FCFA | Gains: ${(won / 100).toStringAsFixed(0)} FCFA',
+              'Mises: ${(wagered / 100).toStringAsFixed(0)} wiga | Gains: ${(won / 100).toStringAsFixed(0)} wiga',
               style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11),
             ),
             trailing: player['has_kyc'] == true
@@ -270,7 +270,7 @@ class _AtRiskTab extends StatelessWidget {
               ),
             ),
             trailing: Text(
-              '${((player['balance'] as num?)?.toInt() ?? 0) / 100} FCFA',
+              '${((player['balance'] as num?)?.toInt() ?? 0) / 100} wiga',
               style: TextStyle(
                 color: ((player['balance'] as num?)?.toInt() ?? 0) >= 0 ? NeonColors.success : NeonColors.error,
                 fontWeight: FontWeight.bold,

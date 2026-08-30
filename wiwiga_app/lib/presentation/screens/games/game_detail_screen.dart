@@ -21,7 +21,7 @@ import '../../widgets/neon/neon_widgets.dart';
 
 final _tokenFormat = NumberFormat('#,##0', 'fr_FR');
 
-/// Formate un montant en jetons
+/// Formate un montant en wiga
 String formatTokens(int tokens) => _tokenFormat.format(tokens);
 
 /// Écran Détail d'un jeu : héro + 4 onglets + CTA sticky
@@ -190,7 +190,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                     ),
                     GlowBadge(
                       text:
-                          'Mise ${_tokenFormat.format((game.minBet ~/ 100 * 10))} - ${_tokenFormat.format((game.maxBet ~/ 100 * 10))} jetons',
+                          'Mise ${_tokenFormat.format(game.minBet.toInt())} - ${_tokenFormat.format(game.maxBet.toInt())} wiga',
                       color: NeonColors.secondary,
                     ),
                     GlowBadge(
@@ -371,42 +371,20 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
             style: TextStyle(fontSize: 13, color: NeonColors.textSecondary),
           ),
           const SizedBox(height: 20),
-          const Text('Mise (jetons)',
-              style: TextStyle(
-                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold,),),
+          Row(
+            children: [
+              const Text('Mise (wiga)',
+                  style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              TokenStack(count: (_betAmount / 50).clamp(1, 5).round(), size: 20, metal: TokenMetal.emerald, altMetal: TokenMetal.gold),
+            ],
+          ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _betPresets.map((preset) {
-              final isSelected = _betAmount == preset;
-              return GestureDetector(
-                onTap: () => setState(() => _betAmount = preset),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? NeonColors.success.withValues(alpha: 0.2)
-                        : NeonColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: isSelected
-                            ? NeonColors.success
-                            : NeonColors.border,),
-                  ),
-                  child: Text(
-                    '$preset jetons',
-                    style: TextStyle(
-                      color: isSelected
-                          ? NeonColors.success
-                          : NeonColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          TokenChipGroup(
+            amounts: _betPresets,
+            selectedAmount: _betAmount,
+            onSelected: (v) => setState(() => _betAmount = v),
+            chipSize: 38,
           ),
           const SizedBox(height: 20),
           const Text('Règle',
@@ -549,6 +527,7 @@ class _OverviewTab extends ConsumerWidget {
   }
 
   Widget _buildStatsGrid(GameGlobalStats stats) {
+    // Backend désormais en wiga purs
     final items = [
       ('Joueurs en ligne', '${stats.playersOnline}', Icons.wifi_tethering),
       ('Parties du jour', '${stats.matchesToday}', Icons.sports_esports),
@@ -636,7 +615,7 @@ class _OverviewTab extends ConsumerWidget {
               children: [
                 _myStatItem('Parties', '${stats.matchesPlayed}'),
                 _myStatItem('Victoires', '${stats.wins}'),
-                _myStatItem('Win rate', '${stats.winRate.toStringAsFixed(0)}%'),
+                _myStatItem('Taux vict.', '${stats.winRate.toStringAsFixed(0)}%'),
                 _myStatItem('Série', '${stats.currentStreak}'),
               ],
             ),
@@ -695,13 +674,10 @@ class _OverviewTab extends ConsumerWidget {
             onTap: () => _joinRoom(context, ref, room),
             child: Row(
               children: [
-                Icon(
-                  room.isBetting
-                      ? Icons.monetization_on
-                      : Icons.people_outline,
-                  color:
-                      room.isBetting ? NeonColors.success : NeonColors.primary,
-                ),
+                if (room.isBetting)
+                  TokenCoin(size: 28, metal: TokenMetal.emerald, lod: TokenLod.bevel, showShadow: false)
+                else
+                  const Icon(Icons.people_outline, color: NeonColors.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -717,7 +693,7 @@ class _OverviewTab extends ConsumerWidget {
                       ),
                       Text(
                         room.isBetting
-                            ? 'Mise ${room.betAmount} jetons · ${room.playersCount}/${room.maxPlayers} joueurs'
+                            ? 'Mise ${room.betAmount} wiga · ${room.playersCount}/${room.maxPlayers} joueurs'
                             : 'Gratuit · ${room.playersCount}/${room.maxPlayers} joueurs',
                         style: const TextStyle(
                             fontSize: 12, color: NeonColors.textSecondary,),

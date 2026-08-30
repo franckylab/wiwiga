@@ -356,8 +356,8 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       children: [
         _InfoRow(icon: Icons.phone, label: 'Téléphone', value: _user!.phone ?? 'Non renseigné'),
         _InfoRow(icon: Icons.email, label: 'Email', value: _user!.email ?? 'Non renseigné'),
-        _InfoRow(icon: Icons.account_balance_wallet, label: 'Solde', value: '${_user!.balance.toStringAsFixed(2)} FCFA'),
-        _InfoRow(icon: Icons.monetization_on, label: 'Jetons', value: _user!.tokenBalance.toString()),
+        _InfoRow(icon: Icons.account_balance_wallet, label: 'Solde (FCFA)', value: '${_user!.balance.toStringAsFixed(2)} FCFA'),
+        _InfoRow(icon: Icons.monetization_on, label: 'Solde (wiga)', value: '${_user!.tokenBalance} wiga'),
         _InfoRow(icon: Icons.login, label: 'Connexions', value: '${_user!.loginCount}'),
         _InfoRow(
           icon: Icons.calendar_today,

@@ -22,7 +22,7 @@ defmodule GameHubWeb.RoomController do
 
   use GameHubWeb, :controller
 
-  alias GameHub.{GameRoom, Errors}
+  alias GameHub.{GameRoom, GameMode, Errors}
 
   @doc """
   POST /api/rooms
@@ -45,10 +45,10 @@ defmodule GameHubWeb.RoomController do
 
     # Validation basique
     cond do
-      room_params.mode == :betting and room_params.bet_amount <= 0 ->
+      GameMode.staked?(room_params.mode) and room_params.bet_amount <= 0 ->
         conn
         |> put_status(400)
-        |> json(Errors.error("Mise requise pour le mode betting", 400, "VALIDATION_ERROR"))
+        |> json(Errors.error("Mise requise pour le mode Partie avec mise", 400, "VALIDATION_ERROR"))
 
       room_params.game_type not in ~w(dice) ->
         conn
@@ -152,7 +152,7 @@ defmodule GameHubWeb.RoomController do
 
   @doc """
   POST /api/rooms/:room_id/start
-  Démarrer le match (créateur uniquement, mode betting).
+  Démarrer le match (créateur uniquement, Partie avec mise / Sans mise).
   """
   def start(conn, %{"room_id" => room_id}) do
     user_id = get_current_user_id(conn)
@@ -271,10 +271,8 @@ defmodule GameHubWeb.RoomController do
     GameHubWeb.AuthPlug.get_current_user_id(conn)
   end
 
-  defp parse_mode("betting"), do: :betting
-  defp parse_mode("free"), do: :free
-  defp parse_mode(mode) when is_atom(mode), do: mode
-  defp parse_mode(_), do: :free
+  # Délègue au référentiel centralisé GameMode (gère alias betting → staked).
+  defp parse_mode(mode), do: GameMode.parse(mode)
 
   defp parse_int(nil), do: nil
   defp parse_int(val) when is_integer(val), do: val
@@ -287,13 +285,16 @@ defmodule GameHubWeb.RoomController do
   defp parse_int(_), do: nil
 
   defp format_room(room) do
+    canonical_mode = GameMode.normalize(room.mode)
     %{
       room_id: room.room_id,
       room_code: room.room_code,
       creator_id: room.creator_id,
       game_type: room.game_type,
       rule_type: room.rule_type,
-      mode: to_string(room.mode),
+      mode: GameMode.to_string(canonical_mode),
+      mode_label: GameMode.display_label(canonical_mode),
+      mode_short: GameMode.short_label(canonical_mode),
       status: to_string(room.status),
       bet_amount: room.bet_amount,
       sets_count: room.sets_count,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
-/// Compteur anime pour les montants de jetons
+/// Compteur anime pour les montants de wiga
 /// 
 /// Effet de scroll numerique (type flipboard) avec transition fluide.
-/// Utilise pour afficher les gains/pertes de jetons en temps reel.
+/// Utilise pour afficher les gains/pertes de wiga en temps reel.
 class AnimatedTokenCounter extends StatefulWidget {
   final int value;
   final double fontSize;
@@ -106,7 +106,7 @@ class _AnimatedTokenCounterState extends State<AnimatedTokenCounter>
   }
 }
 
-/// Compteur de jetons avec animation de flip vertical
+/// Compteur de wiga avec animation de flip vertical
 class TokenFlipCounter extends StatefulWidget {
   final int value;
   final double digitHeight;

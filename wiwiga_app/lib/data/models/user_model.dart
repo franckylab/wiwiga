@@ -191,8 +191,10 @@ class UserModel {
   final UserRole role;
   final AvatarType avatarType;
   final String? avatarUrl;
+  @deprecated
+  /// Solde legacy en FCFA (centimes/100) — conserver pour compatibilité, UI doit utiliser tokenBalance
   final double balance;
-  final int tokenBalance;
+  final int tokenBalance; // wiga — source de vérité pour toutes transactions
   final bool isActive;
   final bool hasVerifiedKyc;
   final bool selfExcluded;
@@ -271,7 +273,7 @@ class UserModel {
       avatarType: AvatarType.fromString(json['avatar_type']?.toString()),
       avatarUrl: json['avatar_url']?.toString(),
       balance: _parseBalance(json['balance']),
-      tokenBalance: _parseInt(json['token_balance']),
+      tokenBalance: _parseInt(json['wiga_balance'] ?? json['token_balance']),
       isActive: json['is_active'] ?? true,
       hasVerifiedKyc: json['has_verified_kyc'] ?? false,
       selfExcluded: json['self_excluded'] ?? false,

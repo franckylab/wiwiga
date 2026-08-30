@@ -23,7 +23,7 @@ class AdminPlatformConfigScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
   String? _editingKey;
   final _editController = TextEditingController();
 
@@ -65,31 +65,26 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final state = ref.read(adminPlatformConfigProvider);
-    if (state.categories.isNotEmpty && _tabController.length != state.categories.length) {
-      _initTabController(state.categories.length);
-    }
-  }
-
-  void _initTabController(int length) {
-    _tabController = TabController(length: length, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        final state = ref.read(adminPlatformConfigProvider);
-        if (_tabController.index < state.categories.length) {
-          final cat = state.categories[_tabController.index];
-          ref.read(adminPlatformConfigProvider.notifier).loadCategory(cat);
+  void _ensureTabController(int length) {
+    if (length <= 0) return;
+    if (_tabController == null || _tabController!.length != length) {
+      _tabController?.dispose();
+      _tabController = TabController(length: length, vsync: this);
+      _tabController!.addListener(() {
+        if (!_tabController!.indexIsChanging) {
+          final state = ref.read(adminPlatformConfigProvider);
+          if (_tabController!.index < state.categories.length) {
+            final cat = state.categories[_tabController!.index];
+            ref.read(adminPlatformConfigProvider.notifier).loadCategory(cat);
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     _editController.dispose();
     super.dispose();
   }
@@ -127,13 +122,15 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
   }
 
   Widget _buildCategoryTabs(List<String> categories) {
-    if (_tabController.length != categories.length) {
-      _initTabController(categories.length);
+    _ensureTabController(categories.length);
+    final controller = _tabController;
+    if (controller == null) {
+      return const SizedBox.shrink();
     }
     return Container(
       color: NeonColors.surface,
       child: TabBar(
-        controller: _tabController,
+        controller: controller,
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         indicatorColor: NeonColors.primary,
@@ -156,10 +153,11 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
   }
 
   Widget _buildCategoryContent(AdminPlatformConfigState state) {
-    if (_tabController.index >= state.categories.length) {
+    final controller = _tabController;
+    if (controller == null || controller.index >= state.categories.length) {
       return const SizedBox.shrink();
     }
-    final category = state.categories[_tabController.index];
+    final category = state.categories[controller.index];
     final configs = state.configs[category] ?? [];
     final color = _categoryColors[category] ?? NeonColors.primary;
 

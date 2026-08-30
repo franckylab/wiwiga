@@ -58,6 +58,7 @@ import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transaction_history/transaction_history_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen_neon.dart';
+import '../../presentation/screens/debug/token_showcase_screen.dart';
 import '../theme/neon_theme.dart';
 
 /// Clé du navigateur racine (écrans plein écran hors shell)
@@ -319,6 +320,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/tokens',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const WalletScreenNeon(),
+      ),
+      GoRoute(
+        path: '/debug/tokens',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const TokenShowcaseScreen(),
       ),
 
       // --- Shell à 4 onglets ---

@@ -9,16 +9,35 @@ defmodule GameHubWeb.AdminXPRulesController do
 
   alias GameHub.Admin.XPRules
 
-  @doc "Liste toutes les règles XP"
+  @doc "Liste toutes les règles XP - résilient si table manquante"
   def index(conn, _params) do
-    rules = XPRules.list_xp_rules()
-    json(conn, %{data: rules, total: length(rules)})
+    try do
+      rules = XPRules.list_xp_rules()
+      json(conn, %{data: rules, total: length(rules)})
+    rescue
+      e ->
+        require Logger
+        Logger.error("[AdminXPRules.index] #{Exception.format(:error, e, __STACKTRACE__)}")
+        json(conn, %{data: [], total: 0, warning: "Table xp_rules non disponible, defaults utilisés"})
+    catch
+      _, reason ->
+        require Logger
+        Logger.error("[AdminXPRules.index] catch #{inspect(reason)}")
+        json(conn, %{data: [], total: 0})
+    end
   end
 
   @doc "Récupère les règles XP pour un type de jeu"
   def show(conn, %{"game_type" => game_type}) do
-    rules = XPRules.get_xp_rules(game_type)
-    json(conn, %{data: rules})
+    try do
+      rules = XPRules.get_xp_rules(game_type)
+      json(conn, %{data: rules})
+    rescue
+      e ->
+        require Logger
+        Logger.error("[AdminXPRules.show] #{Exception.format(:error, e, __STACKTRACE__)}")
+        json(conn, %{data: %{}, error: "Table non disponible"})
+    end
   end
 
   @doc "Crée ou met à jour les règles XP pour un type de jeu"

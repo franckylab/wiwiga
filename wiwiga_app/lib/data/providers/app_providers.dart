@@ -519,13 +519,13 @@ class WalletNotifier extends StateNotifier<WalletState> {
   
   WalletNotifier(this._repository) : super(const WalletState());
   
-  /// Charge le solde (monétaire + jetons)
+  /// Charge le solde (monétaire + wiga)
   Future<void> loadBalance() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final balanceCentimes = await _repository.getBalance();
       
-      // Charger aussi le solde jetons
+      // Charger aussi le solde wiga
       int tokenBalance = 0;
       double tokenMonetaryValue = 0;
       try {

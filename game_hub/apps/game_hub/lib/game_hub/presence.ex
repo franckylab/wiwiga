@@ -36,12 +36,19 @@ defmodule GameHub.Presence do
 
   @doc """
   Vérifie si un utilisateur est en ligne.
+  Résilient si le tracker ETS n'est pas encore démarré.
   """
   def online?(user_id) do
     user_id_str = to_string(user_id)
-    case list(@topic) do
-      %{^user_id_str => _} -> true
+    try do
+      case list(@topic) do
+        %{^user_id_str => _} -> true
+        _ -> false
+      end
+    rescue
       _ -> false
+    catch
+      _, _ -> false
     end
   end
 
@@ -49,7 +56,27 @@ defmodule GameHub.Presence do
   Récupère la liste des utilisateurs en ligne.
   """
   def list_online_users do
-    list(@topic)
-    |> Map.keys()
+    try do
+      list(@topic) |> Map.keys()
+    rescue
+      _ -> []
+    catch
+      _, _ -> []
+    end
+  end
+
+  @doc """
+  Retourne un MapSet des IDs en ligne (efficace pour batch).
+  """
+  def online_ids_set do
+    try do
+      list(@topic)
+      |> Map.keys()
+      |> MapSet.new()
+    rescue
+      _ -> MapSet.new()
+    catch
+      _, _ -> MapSet.new()
+    end
   end
 end

@@ -116,11 +116,12 @@ defmodule GameHubWeb.GameController do
         |> put_status(404)
         |> json(Errors.error("Jeu non trouvé", 404, "GAME_NOT_FOUND"))
       
+      # GameConfig désormais en jetons (pure jetons)
       bet_amount < game_config.min_bet ->
         conn
         |> put_status(400)
         |> json(Errors.error("Mise minimum: #{game_config.min_bet} jetons", 400, "BET_TOO_LOW"))
-      
+
       bet_amount > game_config.max_bet ->
         conn
         |> put_status(400)

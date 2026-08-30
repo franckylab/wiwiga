@@ -29,8 +29,8 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
   String? _error;
   bool _autoRefresh = true;
   Timer? _refreshTimer;
-  int _refreshInterval = 10; // secondes
-  final List<int> _intervalOptions = [5, 10, 30, 60];
+  int _refreshInterval = 30; // secondes (augmenté de 10→30 pour éviter Violation setTimeout 173ms)
+  final List<int> _intervalOptions = [10, 30, 60, 120];
 
   @override
   void initState() {

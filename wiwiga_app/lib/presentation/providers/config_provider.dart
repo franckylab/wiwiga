@@ -297,9 +297,9 @@ class PaymentsConfigModel {
   }
 }
 
-/// Configuration des tokens
+/// Configuration des tokens (taux wiga/FCFA, 1.0 = 1:1 par défaut)
 class TokensConfigModel {
-  final int exchangeRate;
+  final double exchangeRate;
   final double exchangeFeePercent;
   final int exchangeFixedFee;
   final int dailyPurchaseLimit;
@@ -321,7 +321,7 @@ class TokensConfigModel {
 
   factory TokensConfigModel.fromJson(Map<String, dynamic> json) {
     return TokensConfigModel(
-      exchangeRate: json['exchange_rate'] ?? 10,
+      exchangeRate: (json['exchange_rate'] ?? 1.0).toDouble(),
       exchangeFeePercent: (json['exchange_fee_percent'] ?? 2.0).toDouble(),
       exchangeFixedFee: json['exchange_fixed_fee'] ?? 0,
       dailyPurchaseLimit: json['daily_purchase_limit'] ?? 50000,

@@ -63,9 +63,9 @@ class ResponsibleGamingState {
     );
   }
 
-  /// Label lisible pour la limite de mise quotidienne
+  /// Label lisible pour la limite de mise quotidienne (en wiga)
   String get dailyLossLimitLabel =>
-      dailyLossLimit != null ? '$dailyLossLimit FCFA' : 'Pas de limite';
+      dailyLossLimit != null ? '$dailyLossLimit wiga' : 'Pas de limite';
 
   /// Label pour l'auto-exclusion
   String get selfExclusionLabel {
@@ -101,11 +101,13 @@ class ResponsibleGamingNotifier extends StateNotifier<ResponsibleGamingState> {
         exclusionUntil = DateTime.tryParse(data['self_exclusion_until'].toString());
       }
 
+      // Backend stocke en centimes → conversion wiga (1:1) pour affichage uniforme
+      int? toWiga(dynamic v) => v == null ? null : (v as int) ~/ 100;
       state = ResponsibleGamingState(
         isLoading: false,
-        dailyDepositLimit: data['daily_deposit_limit'] as int?,
-        dailyLossLimit: data['daily_loss_limit'] as int?,
-        dailyWagerLimit: data['daily_wager_limit'] as int?,
+        dailyDepositLimit: toWiga(data['daily_deposit_limit']),
+        dailyLossLimit: toWiga(data['daily_loss_limit']),
+        dailyWagerLimit: toWiga(data['daily_wager_limit']),
         sessionTimeLimitMinutes: data['session_time_limit_minutes'] as int?,
         realityCheckIntervalMinutes: data['reality_check_interval_minutes'] as int?,
         selfExclusionUntil: exclusionUntil,
@@ -117,14 +119,21 @@ class ResponsibleGamingNotifier extends StateNotifier<ResponsibleGamingState> {
     }
   }
 
-  /// Met à jour les limites
+  /// Met à jour les limites (conversion wiga → centimes pour backend)
   Future<bool> updateLimits(Map<String, dynamic> limits) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final apiService = _ref.read(apiServiceProvider);
+      // Convertir limites wiga → centimes (taux 1:1, 1 wiga = 1 FCFA = 100 centimes)
+      final converted = limits.map((k, v) {
+        if (v is int && k.contains('limit')) {
+          return MapEntry(k, v * 100);
+        }
+        return MapEntry(k, v);
+      });
       await apiService.put(
         ApiEndpoints.responsibleGamingLimits,
-        body: {'limits': limits},
+        body: {'limits': converted},
         requiresAuth: true,
       );
       await loadLimits();

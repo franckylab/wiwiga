@@ -170,7 +170,7 @@ class _AdminMonetaryFlowScreenState extends ConsumerState<AdminMonetaryFlowScree
 
             // 6. Solde plateforme
             _tip(
-              'Solde total FCFA et tokens de tous les joueurs. Net Flow = Dépôts − Retraits.',
+              'Solde total FCFA et wiga de tous les joueurs. Flux net = Dépôts − Retraits.',
               AnalyticsSectionTitle('Solde Plateforme', icon: Icons.account_balance)
             ),
             const SizedBox(height: 8),
@@ -223,11 +223,11 @@ class _AdminMonetaryFlowScreenState extends ConsumerState<AdminMonetaryFlowScree
           childAspectRatio: isWide ? 1.3 : 1.1,
           children: [
             _tip('Montant total déposé par les joueurs.', AdminMetricCard(
-              title: 'Dépôts', value: AnalyticsFormat.amountPrecise(deposits['total']), icon: Icons.arrow_downward, color: NeonColors.success,
+              title: 'Dépôts', value: AnalyticsFormat.amountPrecise(deposits['total'] is int ? deposits['total'] / 100 : 0), icon: Icons.arrow_downward, color: NeonColors.success,
               subtitle: '${deposits['count'] ?? 0} tx',
             )),
             _tip('Montant total retiré par les joueurs.', AdminMetricCard(
-              title: 'Retraits', value: AnalyticsFormat.amountPrecise(withdrawals['total']), icon: Icons.arrow_upward, color: NeonColors.error,
+              title: 'Retraits', value: AnalyticsFormat.amountPrecise(withdrawals['total'] is int ? withdrawals['total'] / 100 : 0), icon: Icons.arrow_upward, color: NeonColors.error,
               subtitle: '${withdrawals['count'] ?? 0} tx',
             )),
             _tip('Mises totales engagées dans les jeux.', AdminMetricCard(
@@ -265,10 +265,10 @@ class _AdminMonetaryFlowScreenState extends ConsumerState<AdminMonetaryFlowScree
           crossAxisSpacing: 12,
           childAspectRatio: isWide ? 1.3 : 1.1,
           children: [
-            _tip('Gross Gaming Revenue : Mises − Gains.', AdminMetricCard(
+            _tip('Revenu brut des jeux (GGR) : Mises − Gains.', AdminMetricCard(
               title: 'GGR', value: AnalyticsFormat.amountPrecise(ggr), icon: Icons.attach_money, color: NeonColors.success,
             )),
-            _tip('Net Gaming Revenue : GGR − Commissions.', AdminMetricCard(
+            _tip('Revenu net des jeux (NGR) : GGR − Commissions.', AdminMetricCard(
               title: 'NGR', value: AnalyticsFormat.amountPrecise(ngr), icon: Icons.money_off, color: ngr >= 0 ? NeonColors.success : NeonColors.error,
             )),
             _tip('Marge maison : GGR / Mises × 100.', AdminMetricCard(
@@ -278,7 +278,7 @@ class _AdminMonetaryFlowScreenState extends ConsumerState<AdminMonetaryFlowScree
               title: 'Redistribution', value: '${payoutRatio.toStringAsFixed(1)}%', icon: Icons.replay, color: NeonColors.accent,
             )),
             _tip('Position nette : Dépôts − Retraits.', AdminMetricCard(
-              title: 'Net Flow', value: AnalyticsFormat.amountPrecise(netFlow), icon: netFlow >= 0 ? Icons.north_east : Icons.south_east,
+              title: 'Flux net', value: AnalyticsFormat.amountPrecise(netFlow / 100), icon: netFlow >= 0 ? Icons.north_east : Icons.south_east,
               color: netFlow >= 0 ? NeonColors.success : NeonColors.error,
             )),
           ],
@@ -467,11 +467,11 @@ class _AdminMonetaryFlowScreenState extends ConsumerState<AdminMonetaryFlowScree
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _tip('Solde FCFA total de tous les joueurs.\nValeur exacte : ${fcfaBalance.toStringAsFixed(0)} FCFA', _balanceItem('Solde FCFA', fcfaBalance, NeonColors.success)),
+          _tip('Solde total (wiga) de tous les joueurs.\nValeur exacte : ${(fcfaBalance/100).toStringAsFixed(0)} wiga', _balanceItem('Solde Wiga', fcfaBalance/100, NeonColors.success)),
           Container(width: 1, height: 40, color: NeonColors.border),
-          _tip('Solde en jetons (tokens) de tous les joueurs.\nValeur exacte : ${tokenBalance.toStringAsFixed(0)} tokens', _balanceItem('Solde Tokens', tokenBalance, NeonColors.accent)),
+          _tip('Solde en wiga (tokens) de tous les joueurs.\nValeur exacte : ${tokenBalance.toStringAsFixed(0)} wiga', _balanceItem('Solde Wiga', tokenBalance, NeonColors.accent)),
           Container(width: 1, height: 40, color: NeonColors.border),
-          _tip('Position nette : Dépôts − Retraits.\nValeur exacte : ${netFlow.toStringAsFixed(0)} FCFA', _balanceItem('Net Flow', netFlow, netFlow >= 0 ? NeonColors.success : NeonColors.error)),
+          _tip('Position nette : Dépôts − Retraits.\nValeur exacte : ${(netFlow/100).toStringAsFixed(0)} wiga', _balanceItem('Flux net', netFlow/100, netFlow >= 0 ? NeonColors.success : NeonColors.error)),
         ],
       ),
     );

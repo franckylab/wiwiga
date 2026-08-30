@@ -214,11 +214,11 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       Future.microtask(() => ref.read(adminPlatformConfigProvider.notifier).loadCategory('gaming'));
     }
 
-    // Configs clés pour le jeu responsable
+    // Configs clés pour le jeu responsable (limites en wiga, 1:1)
     final rgKeys = {
-      'default_daily_loss_limit': {'label': 'Perte quotidienne max (FCFA)', 'icon': Icons.money_off, 'default': '500000'},
+      'default_daily_loss_limit': {'label': 'Perte quotidienne max (wiga)', 'icon': Icons.money_off, 'default': '5000'},
       'default_session_time_minutes': {'label': 'Durée session max (min)', 'icon': Icons.timer_off, 'default': '120'},
-      'max_bet_per_round': {'label': 'Mise max par round (FCFA)', 'icon': Icons.casino, 'default': '1000000'},
+      'max_bet_per_round': {'label': 'Mise max par round (wiga)', 'icon': Icons.casino, 'default': '10000'},
       'reality_check_interval_minutes': {'label': 'Intervalle rappel réalité (min)', 'icon': Icons.notifications_active, 'default': '30'},
       'fallback_timeout_seconds': {'label': 'Timeout matchmaking (s)', 'icon': Icons.hourglass_empty, 'default': '30'},
     };
@@ -357,7 +357,7 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                                 style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
                               ),
                               Text(
-                                'Pertes: ${indicator['total_losses'] ?? indicator['net_loss'] ?? 0} FCFA',
+                                'Pertes: ${indicator['total_losses'] ?? indicator['net_loss'] ?? 0} wiga',
                                 style: TextStyle(color: riskColor, fontSize: 12),
                               ),
                             ],

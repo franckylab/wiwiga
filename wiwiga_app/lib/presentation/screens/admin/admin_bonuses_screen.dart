@@ -40,7 +40,7 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Bonus & Promotions'),
+        title: const Text('Bonus et Promotions'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,
@@ -211,7 +211,7 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildStatItem('Valeur', '${value.toStringAsFixed(0)} FCFA', color),
+              _buildStatItem('Valeur', '${value.toStringAsFixed(0)} wiga', color),
               const SizedBox(width: 16),
               _buildStatItem('Mise', '${wageringReq.toStringAsFixed(0)}x', NeonColors.secondary),
               const SizedBox(width: 16),
@@ -306,13 +306,13 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 onChanged: (v) => typeCtrl.text = v ?? 'welcome',
               ),
               const SizedBox(height: 12),
-              _buildTextField(valueCtrl, 'Valeur (FCFA)', Icons.monetization_on),
+              _buildTextField(valueCtrl, 'Valeur (wiga)', Icons.monetization_on),
               const SizedBox(height: 12),
               _buildTextField(wageringCtrl, 'Condition de mise (x)', Icons.refresh),
               const SizedBox(height: 12),
               _buildTextField(minDepositCtrl, 'Dépôt Min (FCFA)', Icons.arrow_downward),
               const SizedBox(height: 12),
-              _buildTextField(maxBonusCtrl, 'Bonus Max (FCFA)', Icons.arrow_upward),
+              _buildTextField(maxBonusCtrl, 'Bonus Max (wiga)', Icons.arrow_upward),
             ],
           ),
         ),

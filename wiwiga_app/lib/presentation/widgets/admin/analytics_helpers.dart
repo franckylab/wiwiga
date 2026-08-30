@@ -35,9 +35,10 @@ class AnalyticsFormat {
     return null;
   }
 
-  /// Formate un montant en FCFA avec suffixes K/M
-  /// Ex: 1500 → "1.5K FCFA", 2500000 → "2.5M FCFA"
-  static String amount(dynamic value, {String suffix = 'FCFA'}) {
+  /// Formate un montant en wiga avec suffixes K/M (défaut wiga pour gaming)
+  /// Ex: 1500 → "1.5K wiga", 2500000 → "2.5M wiga"
+  /// Pour frontière paiement, passer explicitement suffix: 'FCFA'
+  static String amount(dynamic value, {String suffix = 'wiga'}) {
     if (value == null) return '0 $suffix';
     final n = _toNumDouble(value) ?? 0;
     final abs = n.abs();
@@ -47,7 +48,7 @@ class AnalyticsFormat {
   }
 
   /// Formate un montant avec 2 décimales pour les millions
-  static String amountPrecise(dynamic value, {String suffix = 'FCFA'}) {
+  static String amountPrecise(dynamic value, {String suffix = 'wiga'}) {
     if (value == null) return '0 $suffix';
     final n = _toNumDouble(value) ?? 0;
     final abs = n.abs();

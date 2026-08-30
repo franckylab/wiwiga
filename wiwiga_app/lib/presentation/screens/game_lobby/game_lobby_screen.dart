@@ -35,7 +35,7 @@ final lobbyRulesConfigProvider = FutureProvider.family<Map<String, dynamic>, Str
         );
         return {
           'min_bet': (rule.config['min_bet'] as num?)?.toInt() ?? 100,
-          'max_bet': (rule.config['max_bet'] as num?)?.toInt() ?? 500000,
+          'max_bet': (rule.config['max_bet'] as num?)?.toInt() ?? 5000,
           'min_players': (rule.config['min_players'] as num?)?.toInt() ?? 2,
           'max_players': (rule.config['max_players'] as num?)?.toInt() ?? 5,
           'default_dice': (rule.config['default_dice'] as num?)?.toInt() ?? 2,
@@ -49,7 +49,7 @@ final lobbyRulesConfigProvider = FutureProvider.family<Map<String, dynamic>, Str
 );
 
 Map<String, dynamic> _defaultLobbyConfig() => {
-  'min_bet': 100, 'max_bet': 500000,
+  'min_bet': 1, 'max_bet': 5000,
   'min_players': 2, 'max_players': 5,
   'default_dice': 2, 'commission_rate': 0.05,
 };
@@ -257,7 +257,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.monetization_on, color: NeonColors.primary),
+                    TokenCoin(size: 18, metal: TokenMetal.emerald, lod: TokenLod.bevel),
                     const SizedBox(width: 8),
                     Text('MISE PAR JOUEUR', style: AppTypography.subtitle),
                     const Spacer(),
@@ -300,7 +300,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
                               : null,
                         ),
                         child: Text(
-                          '${_formatTokens(amount)} jetons',
+                          '${_formatTokens(amount)} wiga',
                           style: TextStyle(
                             color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
                             fontFamily: 'Orbitron',
@@ -416,7 +416,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
             child: Column(
               children: [
                 _SummaryRow(
-                    label: 'Mise', value: '${_formatTokens(betAmount)} jetons',),
+                    label: 'Mise', value: '${_formatTokens(betAmount)} wiga',),
                 _SummaryRow(
                     label: 'Joueurs max', value: '$maxPlayers',),
                 _SummaryRow(
@@ -716,7 +716,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Mise: ${_formatTokens(ref.watch(betAmountProvider))} jetons',
+            'Mise: ${_formatTokens(ref.watch(betAmountProvider))} wiga',
             style: const TextStyle(
               color: NeonColors.textSecondary,
               fontFamily: 'Orbitron',
@@ -800,7 +800,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Partie rejointe ! Mise: ${room.betAmount} jetons'),
+            content: Text('Partie rejointe ! Mise: ${room.betAmount} wiga'),
             backgroundColor: NeonColors.primary,
           ),
         );
@@ -992,17 +992,30 @@ class _RoomCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.monetization_on,
-                          color: NeonColors.primary, size: 14,),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${room.betAmount} jetons',
-                        style: const TextStyle(
-                          color: NeonColors.primary,
-                          fontFamily: 'Orbitron',
-                          fontSize: 12,
+                      if (room.isStaked) ...[
+                        TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${room.betAmount} wiga',
+                          style: const TextStyle(
+                            color: NeonColors.primary,
+                            fontFamily: 'Orbitron',
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        const Icon(Icons.people_outline, color: NeonColors.success, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          room.modeShortLabel,
+                          style: const TextStyle(
+                            color: NeonColors.success,
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 12),
                       const Icon(Icons.people,
                           color: NeonColors.textSecondary, size: 14,),

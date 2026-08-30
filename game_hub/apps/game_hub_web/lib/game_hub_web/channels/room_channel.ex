@@ -33,7 +33,7 @@ defmodule GameHubWeb.RoomChannel do
   use Phoenix.Channel
   require Logger
 
-  alias GameHub.GameRoom
+  alias GameHub.{GameRoom, GameMode}
 
   @impl true
   def join("room:" <> room_id, _params, socket) do
@@ -128,13 +128,16 @@ defmodule GameHubWeb.RoomChannel do
   # === Privé ===
 
   defp format_room(room) do
+    canonical = GameMode.normalize(room.mode)
     %{
       room_id: room.room_id,
       room_code: room.room_code,
       creator_id: room.creator_id,
       game_type: room.game_type,
       rule_type: room.rule_type,
-      mode: to_string(room.mode),
+      mode: GameMode.to_string(canonical),
+      mode_label: GameMode.display_label(canonical),
+      mode_short: GameMode.short_label(canonical),
       status: to_string(room.status),
       bet_amount: room.bet_amount,
       sets_count: room.sets_count,

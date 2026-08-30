@@ -195,7 +195,7 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'Edge: ${houseEdge.toStringAsFixed(1)}%',
+                      'Avantage : ${houseEdge.toStringAsFixed(1)}%',
                       style: TextStyle(color: houseEdge >= 0 ? NeonColors.success : NeonColors.error, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -276,9 +276,9 @@ class _AdminGameAnalyticsScreenState extends ConsumerState<AdminGameAnalyticsScr
                 decoration: BoxDecoration(color: NeonColors.background),
                 children: [
                   Padding(padding: EdgeInsets.all(8), child: Text('Jeu', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('House Edge', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
+                  Padding(padding: EdgeInsets.all(8), child: Text('Avantage maison', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
                   Padding(padding: EdgeInsets.all(8), child: Text('Plus gros gain', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
-                  Padding(padding: EdgeInsets.all(8), child: Text('Ratio M/J', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
+                  Padding(padding: EdgeInsets.all(8), child: Text('Ratio M/G', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600))),
                 ],
               ),
               ...games.map((g) {

@@ -550,7 +550,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Définissez un montant maximum de perte par jour (en FCFA).',
+              'Définissez un montant maximum de perte par jour (en wiga).',
               style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -559,7 +559,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               keyboardType: TextInputType.number,
               style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
               decoration: InputDecoration(
-                labelText: 'Montant en FCFA',
+                labelText: 'Montant en wiga',
                 labelStyle: const TextStyle(color: NeonColors.textSecondary),
                 prefixIcon: const Icon(Icons.monetization_on, color: NeonColors.warning),
                 enabledBorder: OutlineInputBorder(

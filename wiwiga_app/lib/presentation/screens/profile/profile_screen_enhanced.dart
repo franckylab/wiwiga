@@ -220,9 +220,6 @@ class _ProfileHeader extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.monetization_on,
-                  color: NeonColors.success, size: 18,),
-              const SizedBox(width: 6),
               Text(
                 _formatTokens(balance),
                 style: const TextStyle(
@@ -232,15 +229,8 @@ class _ProfileHeader extends ConsumerWidget {
                   fontFamily: 'Orbitron',
                 ),
               ),
-              const SizedBox(width: 4),
-              const Text(
-                'jetons',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: NeonColors.textSecondary,
-                  fontFamily: 'Inter',
-                ),
-              ),
+              const SizedBox(width: 6),
+              TokenCoin(size: 18, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
             ],
           ),
         ],
@@ -282,7 +272,7 @@ class _QuickStats extends StatelessWidget {
             _Divider(),
             _StatMini(
               value: '${winRate.toStringAsFixed(0)}%',
-              label: 'Win Rate',
+              label: 'Taux vict.',
               color: winRate >= 50 ? NeonColors.success : NeonColors.error,
             ),
             _Divider(),
@@ -613,7 +603,7 @@ class _ProfileActions extends ConsumerWidget {
                 _ActionDivider(),
                 _ActionTile(
                   icon: Icons.monetization_on_outlined,
-                  title: 'Mes jetons',
+                  title: 'Mes wiga',
                   subtitle: 'Solde et transactions',
                   color: NeonColors.success,
                   onTap: () => context.push('/tokens'),

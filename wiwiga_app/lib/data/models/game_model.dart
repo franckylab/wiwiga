@@ -13,6 +13,7 @@ class GameModel {
   final String name;
   final String description;
   final String type; // 'dice', etc.
+  /// Mises en wiga (backend envoie centimes, conversion ~/100 côté UI, taux 1:1)
   final double minBet;
   final double maxBet;
   final double houseEdge;

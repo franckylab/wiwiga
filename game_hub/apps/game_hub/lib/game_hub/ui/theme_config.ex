@@ -18,7 +18,7 @@ defmodule GameHub.UI.ThemeConfig do
   alias GameHub.Users.User
   
   @primary_key {:id, :id, autogenerate: true}
-  @derive {Jason.Encoder, except: [:__meta__]}
+  @derive {Jason.Encoder, except: [:__meta__, :updated_by]}
   
   schema "ui_theme_configs" do
     field :primary_color, :string, default: "#2DD4BF"

@@ -9,7 +9,7 @@ defmodule GameHub.GameStats.ActivityEvent do
   @moduledoc """
   Événement public du flux d'activité d'un jeu.
 
-  Seules les victoires en mode betting sont enregistrées (event_type "win").
+  Seules les victoires en Partie avec mise (`:staked`, alias historique `:betting`) sont enregistrées (event_type "win").
   Rétention applicative courte (purge des événements > 90 jours).
   """
 

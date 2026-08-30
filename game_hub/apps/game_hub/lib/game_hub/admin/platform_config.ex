@@ -233,19 +233,19 @@ defmodule GameHub.Admin.PlatformConfig do
     kyc_required and amount >= threshold
   end
 
-  @doc "Vérifie si un montant de dépôt est dans les limites."
+  @doc "Vérifie si un montant de dépôt est dans les limites (amount en centimes, seuils en FCFA)."
   @spec valid_deposit?(integer()) :: boolean()
   def valid_deposit?(amount) do
-    min = get_int("payment", "min_deposit", 500)
-    max = get_int("payment", "max_deposit", 5_000_000)
+    min = get_int("payment", "min_deposit", 500) * 100
+    max = get_int("payment", "max_deposit", 5_000_000) * 100
     amount >= min and amount <= max
   end
 
-  @doc "Vérifie si un montant de retrait est dans les limites."
+  @doc "Vérifie si un montant de retrait est dans les limites (amount en centimes, seuils en FCFA)."
   @spec valid_withdrawal?(integer()) :: boolean()
   def valid_withdrawal?(amount) do
-    min = get_int("payment", "min_withdrawal", 2000)
-    max_daily = get_int("payment", "max_withdrawal", 2_000_000)
+    min = get_int("payment", "min_withdrawal", 2000) * 100
+    max_daily = get_int("payment", "max_withdrawal", 2_000_000) * 100
     amount >= min and amount <= max_daily
   end
 

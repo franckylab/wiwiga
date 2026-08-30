@@ -25,6 +25,9 @@ defmodule GameHub.Application do
       
       # PubSub pour WebSocket
       {Phoenix.PubSub, name: GameHub.PubSub, pool_size: 4},
+
+      # Presence pour statut en ligne (requis par Friends.list_friends)
+      GameHub.Presence,
       
       # Registry plugins jeux
       {Registry, keys: :unique, name: GameHub.GameRegistry},

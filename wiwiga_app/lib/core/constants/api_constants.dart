@@ -34,7 +34,7 @@ class ApiEndpoints {
   static const String withdraw = '/api/wallet/withdraw';
   static const String transactions = '/api/wallet/transactions';
   
-  // Jetons virtuels
+  // Wiga virtuels
   static const String tokenBalance = '/api/tokens/balance';
   static const String tokenSummary = '/api/tokens/summary';
   static const String tokenPurchase = '/api/tokens/purchase';

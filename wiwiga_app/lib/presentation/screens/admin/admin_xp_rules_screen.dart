@@ -90,9 +90,11 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: state.rules.length,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
         itemBuilder: (context, index) {
           final rule = state.rules[index] as Map<String, dynamic>;
-          return _buildRuleCard(rule);
+          return RepaintBoundary(child: _buildRuleCard(rule));
         },
       ),
     );

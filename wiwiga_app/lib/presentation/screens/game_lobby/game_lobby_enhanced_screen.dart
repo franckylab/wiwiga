@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/game_mode.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../data/models/game_room_model.dart';
@@ -38,7 +39,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
   List<GameRoomModel> _rooms = [];
   bool _isLoading = true;
   String? _error;
-  String _filterMode = 'all'; // 'all' | 'free' | 'betting'
+  String _filterMode = 'all'; // 'all' | 'free' (Partie sans mise) | 'staked' (Partie avec mise, alias 'betting')
 
   @override
   void initState() {
@@ -71,7 +72,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Lobby'),
+        title: const Text('Salon'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.primary,
         elevation: 0,
@@ -132,7 +133,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
               ),
               if (gameConfig != null) ...[                const SizedBox(height: 2),
                 Text(
-                  'Mise: ${gameConfig.minBet} - ${gameConfig.maxBet} jetons | Commission: ${gameConfig.commissionPercent.toInt()}%',
+                  'Mise: ${gameConfig.minBet} - ${gameConfig.maxBet} wiga | Commission: ${gameConfig.commissionPercent.toInt()}%',
                   style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11),
                 ),
               ],
@@ -225,9 +226,9 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       children: [
         _filterChip('all', 'Toutes'),
         const SizedBox(width: 8),
-        _filterChip('free', 'Gratuit'),
+        _filterChip(GameMode.free.apiValue, GameMode.free.shortLabel), // Sans mise
         const SizedBox(width: 8),
-        _filterChip('betting', 'Pari'),
+        _filterChip(GameMode.staked.apiValue, GameMode.staked.shortLabel), // Avec mise
       ],
     );
   }
@@ -314,12 +315,12 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: room.isBetting ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.primary.withValues(alpha: 0.2),
+                  color: room.isStaked ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.primary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  room.isBetting ? Icons.monetization_on : Icons.people_outline,
-                  color: room.isBetting ? NeonColors.success : NeonColors.primary,
+                  room.isStaked ? Icons.monetization_on : Icons.people_outline,
+                  color: room.isStaked ? NeonColors.success : NeonColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -355,11 +356,17 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
                           '${room.playersCount}/${room.maxPlayers} joueurs',
                           style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
                         ),
-                        if (room.isBetting) ...[
+                        if (room.isStaked) ...[
                           const SizedBox(width: 8),
                           Text(
-                            '${room.betAmount} jetons',
+                            '${room.betAmount} wiga',
                             style: const TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ] else ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            room.modeShortLabel,
+                            style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontStyle: FontStyle.italic),
                           ),
                         ],
                       ],

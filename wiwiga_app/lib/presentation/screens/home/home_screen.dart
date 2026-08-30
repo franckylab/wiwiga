@@ -276,11 +276,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '${game.playersOnline} joueurs en ligne · '
-                  'Mise dès ${_homeAmountFormat.format(game.minBet ~/ 100 * 10)} jetons',
-                  style: const TextStyle(
-                      fontSize: 12, color: NeonColors.textSecondary,),
+                Row(
+                  children: [
+                    Text(
+                      '${game.playersOnline} joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
+                      style: const TextStyle(fontSize: 12, color: NeonColors.textSecondary),
+                    ),
+                    const SizedBox(width: 3),
+                    TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 AuthGate(
@@ -407,7 +411,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 _statItem('Parties', '${stats.matchesPlayed}'),
                 _statItem('Victoires', '${stats.wins}'),
-                _statItem('Win rate', '${stats.winRate.toStringAsFixed(0)}%'),
+                _statItem('Taux vict.', '${stats.winRate.toStringAsFixed(0)}%'),
                 _statItem('Série', '${stats.currentStreak} 🔥'),
               ],
             ),
@@ -475,17 +479,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 7),
             child: Row(
               children: [
-                const Icon(Icons.emoji_events,
-                    size: 16, color: NeonColors.secondary,),
+                TokenCoin(size: 18, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    '${event.name} a gagné '
-                    '${_homeAmountFormat.format((event.amount ~/ 100 * 10))} jetons',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 13, color: NeonColors.textPrimary,),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${event.name} a gagné ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, color: NeonColors.textPrimary),
+                        ),
+                      ),
+                      Text(
+                        _homeAmountFormat.format(event.amount),
+                        style: const TextStyle(fontSize: 13, color: NeonColors.tokenGold, fontFamily: 'Orbitron', fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(width: 3),
+                      TokenCoin(size: 12, metal: TokenMetal.gold, lod: TokenLod.flat, showShadow: false),
+                    ],
                   ),
                 ),
               ],
@@ -501,30 +514,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return _mutedText('Aucun vainqueur cette semaine — à vous de jouer !');
     }
 
-    final colors = [NeonColors.rankGold, NeonColors.rankSilver, NeonColors.rankBronze];
+    TokenMetal metalForRank(int r) {
+      if (r == 1) return TokenMetal.gold;
+      if (r == 2) return TokenMetal.silver;
+      if (r == 3) return TokenMetal.bronze;
+      return TokenMetal.emerald;
+    }
 
     return NeonCard(
       onTap: () => context.go('/games/dice'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         children: board.entries.take(3).toList().asMap().entries.map((item) {
-          final index = item.key;
           final entry = item.value;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
-                Icon(Icons.emoji_events, size: 20, color: colors[index]),
-                const SizedBox(width: 10),
-                Text(
-                  '#${entry.rank}',
-                  style: TextStyle(
-                    color: colors[index],
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Orbitron',
-                  ),
+                TokenCoin(
+                  size: 28,
+                  metal: metalForRank(entry.rank),
+                  lod: TokenLod.bevel,
+                  rankLabel: '${entry.rank}',
+                  withW: false,
+                  showShadow: false,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     entry.name,
@@ -535,10 +550,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 Text(
                   '${entry.value} victoires',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: NeonColors.textSecondary,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: NeonColors.textSecondary),
                 ),
               ],
             ),

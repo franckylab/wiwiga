@@ -1,9 +1,13 @@
 // ============================================================
 // Fichier: game_room_model.dart
 // Description: Modèle de salle de jeu WIWIGA
+//              Modes: Partie sans mise (gratuit) = free, Partie avec mise = staked
+//              Alias historique "betting" → normalisé en "staked"
 // Auteur: Franck Arlos CHENDJOU
-// Date: 2026-07-29
+// Date: 2026-07-29 (refactor 2026-08-30)
 // ============================================================
+
+import '../../core/constants/game_mode.dart';
 
 /// Modèle représentant une salle de jeu (Room)
 class GameRoomModel {
@@ -12,7 +16,7 @@ class GameRoomModel {
   final String creatorId;
   final String gameType;
   final String ruleType;
-  final String mode; // 'free' | 'betting'
+  final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — alias historique 'betting' → 'staked'
   final String status; // 'waiting' | 'starting' | 'in_progress' | 'ended' | 'cancelled'
   final int betAmount;
   final int setsCount;
@@ -42,13 +46,18 @@ class GameRoomModel {
   });
 
   factory GameRoomModel.fromJson(Map<String, dynamic> json) {
+    // Normalisation rétro-compatible : betting → staked
+    final rawMode = json['mode'] as String? ?? 'free';
+    final canonicalMode = GameMode.parse(rawMode).apiValue;
     return GameRoomModel(
       roomId: json['room_id'] ?? '',
       roomCode: json['room_code'] ?? '',
       creatorId: json['creator_id'] ?? '',
       gameType: json['game_type'] ?? 'dice',
       ruleType: json['rule_type'] ?? 'normal',
-      mode: json['mode'] ?? 'free',
+      mode: json['mode_label'] != null
+          ? canonicalMode // si backend fournit mode_label, on force canonique
+          : canonicalMode,
       status: json['status'] ?? 'waiting',
       betAmount: json['bet_amount'] ?? 0,
       setsCount: json['sets_count'] ?? 1,
@@ -64,8 +73,21 @@ class GameRoomModel {
     );
   }
 
-  bool get isFree => mode == 'free';
-  bool get isBetting => mode == 'betting';
+  /// Mode canonique typé
+  GameMode get gameMode => GameMode.parse(mode);
+
+  /// Affichages centralisés
+  String get modeLabel => gameMode.displayLabel;
+  String get modeShortLabel => gameMode.shortLabel;
+  String get modeSubtitle => gameMode.subtitle;
+
+  bool get isFree => gameMode.isFree;
+  bool get isStaked => gameMode.isStaked;
+
+  /// Alias déprécié — conservé pour compatibilité (betting = staked)
+  @Deprecated('Utiliser isStaked (betting est alias de staked)')
+  bool get isBetting => isStaked;
+
   bool get isWaiting => status == 'waiting';
   bool get isInProgress => status == 'in_progress';
   bool get isFull => playersCount >= maxPlayers;
@@ -92,7 +114,7 @@ class RoomPlayer {
 class CreateGameConfig {
   final String gameType;
   final String ruleType;
-  final String mode;
+  final String mode; // 'free' | 'staked' (backend normalise 'betting' → 'staked')
   final int setsCount;
   final int diceCount;
   final int betAmount;
@@ -108,11 +130,34 @@ class CreateGameConfig {
     this.maxPlayers = 2,
   });
 
+  /// Constructeur typé depuis enum
+  factory CreateGameConfig.withMode({
+    String gameType = 'dice',
+    String ruleType = 'normal',
+    GameMode mode = GameMode.free,
+    int setsCount = 1,
+    int diceCount = 2,
+    int betAmount = 0,
+    int maxPlayers = 2,
+  }) {
+    return CreateGameConfig(
+      gameType: gameType,
+      ruleType: ruleType,
+      mode: mode.apiValue,
+      setsCount: setsCount,
+      diceCount: diceCount,
+      betAmount: betAmount,
+      maxPlayers: maxPlayers,
+    );
+  }
+
   Map<String, dynamic> toJson() {
+    // Toujours envoyer la valeur canonique (free/staked)
+    final canonical = GameMode.parse(mode).apiValue;
     return {
       'game_type': gameType,
       'rule_type': ruleType,
-      'mode': mode,
+      'mode': canonical,
       'sets_count': setsCount,
       'dice_count': diceCount,
       'bet_amount': betAmount,

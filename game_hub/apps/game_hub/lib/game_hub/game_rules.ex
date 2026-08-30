@@ -158,7 +158,7 @@ defmodule GameHub.GameRules do
       errors
     end
 
-    # Valider mise (si betting)
+    # Valider mise (si Partie avec mise / staked)
     bet_amount = Map.get(match_config, :bet_amount, 0)
 
     errors = if bet_amount > 0 do

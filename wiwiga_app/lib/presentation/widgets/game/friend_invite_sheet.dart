@@ -11,9 +11,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
-import '../../../data/repositories/friend_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/friend_provider.dart';
 
 /// Bottom sheet pour inviter un ami à rejoindre une salle
 ///
@@ -96,8 +96,8 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
 
   Future<void> _loadFriends() async {
     try {
-      final apiService = ref.read(apiServiceProvider);
-      final friends = await FriendRepository(apiService).listFriends();
+      final repo = ref.read(friendRepositoryProvider);
+      final friends = await repo.listFriends();
       if (mounted) {
         setState(() {
           _friends = friends;
@@ -115,8 +115,8 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
 
     setState(() => _isSearching = true);
     try {
-      final apiService = ref.read(apiServiceProvider);
-      final results = await FriendRepository(apiService).searchPlayer(query);
+      final repo = ref.read(friendRepositoryProvider);
+      final results = await repo.searchPlayer(query);
       setState(() {
         _searchResults = results;
         _isSearching = false;
@@ -341,8 +341,8 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             text: 'Ajouter',
             onPressed: () async {
               try {
-                final apiService = ref.read(apiServiceProvider);
-                await FriendRepository(apiService).sendRequest(userId: result.id);
+                final repo = ref.read(friendRepositoryProvider);
+                await repo.sendRequest(userId: result.id);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Demande envoyée à ${result.name}')),
