@@ -39,6 +39,11 @@ defmodule GameHubWeb.RoomChannel do
   def join("room:" <> room_id, _params, socket) do
     case GameRoom.get_room(room_id) do
       {:ok, _room} ->
+        try do
+          Phoenix.PubSub.subscribe(GameHub.PubSub, "room:#{room_id}")
+        rescue
+          _ -> :ok
+        end
         socket = assign(socket, :room_id, room_id)
         send(self(), :after_join)
         {:ok, socket}
@@ -46,6 +51,12 @@ defmodule GameHubWeb.RoomChannel do
       {:error, _} ->
         {:error, %{reason: "room_not_found"}}
     end
+  end
+
+  @impl true
+  def handle_info(%{event: event} = payload, socket) when event in ["room_updated", "match_started", "player_joined", "player_left", "room_cancelled"] do
+    push(socket, event, payload)
+    {:noreply, socket}
   end
 
   @impl true

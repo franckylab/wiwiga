@@ -70,6 +70,8 @@ class GameWebSocketService extends ChangeNotifier {
   void Function(Map<String, dynamic>)? onSetResult;
   void Function(Map<String, dynamic>)? onMatchResult;
   void Function(Map<String, dynamic>)? onTargetVoted;
+  void Function(Map<String, dynamic>)? onPlayerForfeited;
+  void Function(Map<String, dynamic>)? onMatchForfeit;
   
   GameWebSocketService({required ApiService apiService})
       : _apiService = apiService;
@@ -481,7 +483,17 @@ class GameWebSocketService extends ChangeNotifier {
           notifyListeners();
           break;
         case 'target_voted':
+        case 'target_calculated':
           onTargetVoted?.call(payload);
+          notifyListeners();
+          break;
+        case 'player_forfeited':
+          onPlayerForfeited?.call(payload);
+          notifyListeners();
+          break;
+        case 'match_forfeit':
+          onMatchForfeit?.call(payload);
+          onPlayerForfeited?.call(payload);
           notifyListeners();
           break;
       }

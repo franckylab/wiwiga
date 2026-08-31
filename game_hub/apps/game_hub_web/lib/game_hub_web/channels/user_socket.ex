@@ -26,7 +26,11 @@ defmodule GameHubWeb.UserSocket do
     end
   end
 
-  def connect(_params, _socket, _connect_info), do: :error
+  def connect(_params, socket, _connect_info) do
+    # Dev/Guest fallback : permet connexion sans token pour salles d'attente et match local
+    dev_id = "guest_#{System.unique_integer([:positive])}"
+    {:ok, assign(socket, :user_id, dev_id)}
+  end
 
   @impl true
   def id(socket), do: "user_socket:#{socket.assigns.user_id}"

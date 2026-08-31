@@ -30,6 +30,8 @@ defmodule GameHub.GameMatch do
 
   @table :game_matches
   @cleanup_interval_ms 5 * 60 * 1000
+  @turn_timeout_default 30_000 # 30s par tour (utilise GameTimeoutConfig si configuré)
+  @grace_period_default 45 # secondes
 
   # === Client API ===
 
@@ -119,6 +121,21 @@ defmodule GameHub.GameMatch do
     GenServer.call(__MODULE__, :list_active)
   end
 
+  @doc """
+  Déclare forfait pour un joueur (timeout expiré). Retiré de la partie, ne peut plus jouer.
+  Si un seul joueur reste, il est déclaré gagnant du match.
+  """
+  def forfeit_player(match_id, player_id) do
+    GenServer.call(__MODULE__, {:forfeit_player, match_id, player_id})
+  end
+
+  @doc """
+  Récupère le délai par tour en secondes (config admin ou défaut).
+  """
+  def turn_timeout_seconds(game_type \\ "dice") do
+    get_turn_timeout(game_type)
+  end
+
   # === Server Callbacks ===
 
   @impl true
@@ -172,6 +189,10 @@ defmodule GameHub.GameMatch do
       sets: [],
       set_scores: %{},
       current_set_state: nil,
+      eliminated_players: MapSet.new(),
+      forfeited_players: [],
+      turn_timeout_ms: get_turn_timeout_ms(game_type),
+      turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
       turn_order: rc["turn_order"] || "rotating",
       target_vote_mode: rc["target_vote_mode"] || "average",
@@ -277,35 +298,55 @@ defmodule GameHub.GameMatch do
   def handle_call({:start_set, match_id}, _from, state) do
     case lookup_match(state.table, match_id) do
       {:ok, match} ->
-        if match.status in [:ready, :set_ended] do
-          set_number = match.current_set + 1
+        if match.status in [:ready, :set_ended, :set_in_progress] do
+          # Si un set est déjà en cours et non évalué, refuser
+          if match.status == :set_in_progress and not is_nil(match.current_set_state) and match.current_set_state.status == :in_progress do
+            {:reply, {:error, :set_already_in_progress}, state}
+          else
+            set_number = match.current_set + 1
 
-          # Déterminer l'ordre de tour pour ce set (tournant)
-          turn_order = determine_turn_order(match, set_number)
+            # Déterminer l'ordre de tour pour ce set (tournant) — filtrer éliminés
+            turn_order = determine_turn_order(match, set_number)
+            # Filtrer joueurs éliminés
+            turn_order = Enum.reject(turn_order, fn pid -> eliminated?(match, pid) end)
 
-          set_state = %{
-            set_number: set_number,
-            status: :in_progress,
-            turn_order: turn_order,
-            current_turn_index: 0,
-            rolls: %{},
-            target_value: nil,
-            votes: %{},
-            vote_phase: match.rule_type == "cible",
-            started_at: DateTime.utc_now()
-          }
+            if length(turn_order) < 2 do
+              # Plus qu'un joueur actif → fin de match par forfait
+              winner_id = List.first(turn_order)
+              ended = %{match | status: :match_ended, winner_id: winner_id, updated_at: DateTime.utc_now()}
+              :ets.insert(state.table, {match_id, ended})
+              broadcast_match_forfeit(match_id, nil, winner_id)
+              {:reply, {:ok, ended}, state}
+            else
+              set_state = %{
+                set_number: set_number,
+                status: :in_progress,
+                turn_order: turn_order,
+                current_turn_index: 0,
+                rolls: %{},
+                target_value: nil,
+                votes: %{},
+                vote_phase: match.rule_type == "cible",
+                started_at: DateTime.utc_now(),
+                turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)
+              }
 
-          updated = %{match |
-            status: :set_in_progress,
-            current_set: set_number,
-            current_set_state: set_state,
-            updated_at: DateTime.utc_now()
-          }
+              updated = %{match |
+                status: :set_in_progress,
+                current_set: set_number,
+                current_set_state: set_state,
+                turn_deadline: set_state.turn_deadline,
+                updated_at: DateTime.utc_now()
+              }
 
-          :ets.insert(state.table, {match_id, updated})
-          Logger.info("Match #{match_id}: Set #{set_number} started")
+              :ets.insert(state.table, {match_id, updated})
+              Logger.info("Match #{match_id}: Set #{set_number} started (order #{inspect(turn_order)})")
+              schedule_turn_timeout(match_id, updated.current_set_state.turn_order |> List.first(), turn_timeout_ms(match))
+              broadcast_set_started(match_id, updated)
 
-          {:reply, {:ok, updated}, state}
+              {:reply, {:ok, updated}, state}
+            end
+          end
         else
           {:reply, {:error, :cannot_start_set}, state}
         end
@@ -370,6 +411,9 @@ defmodule GameHub.GameMatch do
           is_nil(set) or set.status != :in_progress ->
             {:reply, {:error, :set_not_in_progress}, state}
 
+          eliminated?(match, player_id) ->
+            {:reply, {:error, :player_eliminated}, state}
+
           set.vote_phase ->
             {:reply, {:error, :voting_phase_active}, state}
 
@@ -398,23 +442,122 @@ defmodule GameHub.GameMatch do
             updated_rolls = Map.put(set.rolls, player_id, roll)
             next_turn_index = set.current_turn_index + 1
 
-            updated_set = %{set |
-              rolls: updated_rolls,
-              current_turn_index: next_turn_index
-            }
+            # Calculer next player (skip éliminés) et vérifier fin de set
+            active_players_count = length(match.players) - MapSet.size(match.eliminated_players)
+            is_last_roll = map_size(updated_rolls) >= active_players_count
 
-            # Si tous les joueurs ont lancé → évaluer le set
-            {updated_set, set_result} = if map_size(updated_rolls) >= length(match.players) do
-              result = evaluate_set(match, %{set | rolls: updated_rolls})
-              {%{set | rolls: updated_rolls, status: :evaluated}, result}
+            {updated_set, set_result, final_match} =
+              if is_last_roll do
+                result = evaluate_set(match, %{set | rolls: updated_rolls})
+                # Gérer le scoring du set
+                {scores, sets_list, match_status} = apply_set_result(match, result, updated_rolls, set.set_number, set.target_value)
+                evaluated_set = %{set | rolls: updated_rolls, status: :evaluated, result: result}
+                interim = %{match |
+                  current_set_state: evaluated_set,
+                  set_scores: scores,
+                  sets: sets_list,
+                  status: match_status,
+                  turn_deadline: nil,
+                  updated_at: DateTime.utc_now()
+                }
+                # Si match terminé ou tie replay, gérer automatiquement prochain set
+                final = if match_status == :match_ended do
+                  interim
+                else
+                  case result do
+                    :tie -> %{interim | status: :set_ended}
+                    {:winner, _} ->
+                      if has_match_winner?(scores, interim.sets_to_win) do
+                        winner = get_match_winner(scores, interim.sets_to_win)
+                        %{interim | status: :match_ended, winner_id: winner}
+                      else
+                        %{interim | status: :set_ended}
+                      end
+                  end
+                end
+                {evaluated_set, result, final}
+              else
+                next_set = %{set |
+                  rolls: updated_rolls,
+                  current_turn_index: next_turn_index,
+                  turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)
+                }
+                interim = %{match | current_set_state: next_set, turn_deadline: next_set.turn_deadline, updated_at: DateTime.utc_now()}
+                {next_set, :in_progress, interim}
+              end
+
+            :ets.insert(state.table, {match_id, final_match})
+            broadcast_dice_rolled(match_id, roll, final_match)
+
+            if is_last_roll do
+              broadcast_set_result(match_id, final_match, set_result)
+              if final_match.status == :match_ended do
+                broadcast_match_result(match_id, final_match)
+              end
             else
-              {updated_set, :in_progress}
+              # Schedule timeout pour le prochain joueur
+              next_player = Enum.at(set.turn_order, next_turn_index)
+              if next_player, do: schedule_turn_timeout(match_id, next_player, turn_timeout_ms(match))
             end
 
-            updated_match = %{match | current_set_state: updated_set, updated_at: DateTime.utc_now()}
-            :ets.insert(state.table, {match_id, updated_match})
+            {:reply, {:ok, %{match: final_match, roll: roll, set_result: set_result}}, state}
+        end
 
-            {:reply, {:ok, %{match: updated_match, roll: roll, set_result: set_result}}, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:forfeit_player, match_id, player_id}, _from, state) do
+    case lookup_match(state.table, match_id) do
+      {:ok, match} ->
+        if eliminated?(match, player_id) do
+          {:reply, {:error, :already_eliminated}, state}
+        else
+          current_eliminated = Map.get(match, :eliminated_players, MapSet.new()) || MapSet.new()
+          eliminated = MapSet.put(current_eliminated, player_id)
+          cur_forfeited = Map.get(match, :forfeited_players, []) || []
+          forfeited = [player_id | cur_forfeited]
+          # Avancer l'index si c'était son tour
+          set = match.current_set_state
+          updated_set =
+            if set && set.status == :in_progress && is_current_turn(set, player_id) do
+              %{set | current_turn_index: set.current_turn_index + 1, turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)}
+            else
+              set
+            end
+
+          interim = %{match | eliminated_players: eliminated, forfeited_players: forfeited, current_set_state: updated_set, updated_at: DateTime.utc_now()}
+
+          # Si un seul joueur reste actif → match terminé
+          active = Enum.reject(match.players, fn p -> MapSet.member?(eliminated, p.id) end)
+          final =
+            if length(active) <= 1 do
+              winner_id = if length(active) == 1, do: List.first(active).id, else: nil
+              %{interim | status: :match_ended, winner_id: winner_id}
+            else
+              # si c'était le dernier à jouer dans le set, évaluer avec joueurs restants
+              if updated_set && map_size(updated_set.rolls) + MapSet.size(eliminated) >= length(match.players) do
+                # Évaluer set avec rolls existants (sans le forfeited)
+                result = evaluate_set(interim, updated_set)
+                {scores, sets_list, _} = apply_set_result(interim, result, updated_set.rolls, updated_set.set_number, updated_set.target_value)
+                %{interim | set_scores: scores, sets: sets_list, current_set_state: %{updated_set | status: :evaluated, result: result}, status: :set_ended}
+              else
+                # Schedule next timeout
+                if updated_set do
+                  next_player = Enum.at(updated_set.turn_order, updated_set.current_turn_index)
+                  if next_player, do: schedule_turn_timeout(match_id, next_player, turn_timeout_ms(match))
+                end
+                interim
+              end
+            end
+
+          :ets.insert(state.table, {match_id, final})
+          broadcast_player_forfeited(match_id, player_id, final)
+          if final.status == :match_ended, do: broadcast_match_result(match_id, final)
+
+          {:reply, {:ok, final}, state}
         end
 
       {:error, reason} ->
@@ -434,6 +577,64 @@ defmodule GameHub.GameMatch do
     |> Enum.filter(fn m -> m.status not in [:match_ended] end)
 
     {:reply, matches, state}
+  end
+
+  @impl true
+  def handle_info({:turn_timeout, match_id, player_id}, state) do
+    case lookup_match(state.table, match_id) do
+      {:ok, match} ->
+        set = match.current_set_state
+        cond do
+          match.status != :set_in_progress or is_nil(set) or set.status != :in_progress ->
+            {:noreply, state}
+
+          eliminated?(match, player_id) ->
+            {:noreply, state}
+
+          Map.has_key?(set.rolls, player_id) ->
+            {:noreply, state}
+
+          not is_current_turn(set, player_id) ->
+            {:noreply, state}
+
+          true ->
+            Logger.warning("Turn timeout for player #{player_id} in match #{match_id} — forfeit")
+            curr_elim = Map.get(match, :eliminated_players, MapSet.new()) || MapSet.new()
+            eliminated = MapSet.put(curr_elim, player_id)
+            forfeited = [player_id | Map.get(match, :forfeited_players, [])]
+            updated_set =
+              if set && set.status == :in_progress && is_current_turn(set, player_id) do
+                %{set | current_turn_index: set.current_turn_index + 1, turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)}
+              else
+                set
+              end
+            interim = %{match | eliminated_players: eliminated, forfeited_players: forfeited, current_set_state: updated_set, updated_at: DateTime.utc_now()}
+            active = Enum.reject(match.players, fn p -> MapSet.member?(eliminated, p.id) end)
+            final =
+              if length(active) <= 1 do
+                winner_id = if length(active) == 1, do: List.first(active).id, else: nil
+                %{interim | status: :match_ended, winner_id: winner_id}
+              else
+                if updated_set && map_size(updated_set.rolls) + MapSet.size(eliminated) >= length(match.players) do
+                  result = evaluate_set(interim, updated_set)
+                  {scores, sets_list, _} = apply_set_result(interim, result, updated_set.rolls, updated_set.set_number, updated_set.target_value)
+                  %{interim | set_scores: scores, sets: sets_list, current_set_state: %{updated_set | status: :evaluated, result: result}, status: :set_ended}
+                else
+                  if updated_set do
+                    next_player = Enum.at(updated_set.turn_order, updated_set.current_turn_index)
+                    if next_player, do: schedule_turn_timeout(match_id, next_player, turn_timeout_ms(match))
+                  end
+                  interim
+                end
+              end
+            :ets.insert(state.table, {match_id, final})
+            broadcast_player_forfeited(match_id, player_id, final)
+            if final.status == :match_ended, do: broadcast_match_result(match_id, final)
+            {:noreply, state}
+        end
+      _ ->
+        {:noreply, state}
+    end
   end
 
   @impl true
@@ -585,11 +786,115 @@ defmodule GameHub.GameMatch do
     end
   end
 
+  defp eliminated?(match, player_id) do
+    case Map.get(match, :eliminated_players) do
+      nil -> false
+      %MapSet{} = set -> MapSet.member?(set, player_id)
+      _ -> false
+    end
+  end
+
+  defp turn_timeout_ms(match) do
+    Map.get(match, :turn_timeout_ms, @turn_timeout_default) || @turn_timeout_default
+  end
+
   defp generate_match_id(game_type) do
     "#{game_type}_match_#{System.unique_integer([:positive])}_#{:os.system_time(:millisecond)}"
   end
 
   defp schedule_cleanup do
     Process.send_after(self(), :cleanup, @cleanup_interval_ms)
+  end
+
+  defp schedule_turn_timeout(match_id, player_id, timeout_ms) do
+    Process.send_after(self(), {:turn_timeout, match_id, player_id}, timeout_ms)
+  end
+
+  defp get_turn_timeout_ms(game_type) do
+    # Essaie GameTimeoutConfig (grace_period) sinon fallback 30s
+    try do
+      case GameHub.Repo.get_by(GameHub.Games.GameTimeoutConfig, game_type: game_type, is_active: true) do
+        %{grace_period_seconds: secs} when is_integer(secs) and secs > 0 -> secs * 1000
+        _ -> @turn_timeout_default
+      end
+    rescue
+      _ -> @turn_timeout_default
+    end
+  end
+
+  defp get_turn_timeout(game_type), do: div(get_turn_timeout_ms(game_type), 1000)
+
+  # Applique le résultat du set aux scores globaux
+  defp apply_set_result(match, result, rolls, set_number, target_value) do
+    scores = match.set_scores
+    sets = match.sets
+
+    case result do
+      {:winner, winner_id} ->
+        new_scores = Map.update(scores, winner_id, 1, &(&1 + 1))
+        new_sets = sets ++ [%{set_number: set_number, winner_id: winner_id, rolls: rolls, target_value: target_value, result: :winner}]
+        {new_scores, new_sets, :set_ended}
+
+      :tie ->
+        new_sets = sets ++ [%{set_number: set_number, winner_id: nil, rolls: rolls, target_value: target_value, result: :tie}]
+        {scores, new_sets, :set_ended}
+    end
+  end
+
+  defp has_match_winner?(scores, sets_to_win) do
+    Enum.any?(scores, fn {_pid, wins} -> wins >= sets_to_win end)
+  end
+
+  defp get_match_winner(scores, sets_to_win) do
+    scores
+    |> Enum.find(fn {_pid, wins} -> wins >= sets_to_win end)
+    |> case do
+      {pid, _} -> pid
+      nil -> nil
+    end
+  end
+
+  # === Broadcasts ===
+  defp broadcast_set_started(match_id, match) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_started", match_id: match_id, set: match.current_set_state})
+  rescue _ -> :ok
+  end
+
+  defp broadcast_dice_rolled(match_id, roll, match) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolled", match_id: match_id, roll: roll, match: sanitize_match(match)})
+  rescue _ -> :ok
+  end
+
+  defp broadcast_set_result(match_id, match, result) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_result", match_id: match_id, result: result, match: sanitize_match(match)})
+  rescue _ -> :ok
+  end
+
+  defp broadcast_match_result(match_id, match) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "match_result", match_id: match_id, winner_id: match[:winner_id], match: sanitize_match(match)})
+  rescue _ -> :ok
+  end
+
+  defp broadcast_player_forfeited(match_id, player_id, match) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "player_forfeited", match_id: match_id, player_id: player_id, match: sanitize_match(match)})
+  rescue _ -> :ok
+  end
+
+  defp broadcast_match_forfeit(match_id, _player_id, winner_id) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "match_forfeit", match_id: match_id, winner_id: winner_id})
+  rescue _ -> :ok
+  end
+
+  defp sanitize_match(match) do
+    %{
+      match_id: match.match_id,
+      status: match.status,
+      current_set: match.current_set,
+      sets_count: match.sets_count,
+      set_scores: match.set_scores,
+      current_set_state: match.current_set_state,
+      eliminated_players: MapSet.to_list(match.eliminated_players || MapSet.new()),
+      winner_id: Map.get(match, :winner_id)
+    }
   end
 end

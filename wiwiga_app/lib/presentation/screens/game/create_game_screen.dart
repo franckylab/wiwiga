@@ -485,6 +485,39 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   Future<void> _createRoom() async {
     setState(() { _isCreating = true; _error = null; });
 
+    // Vérifier d'abord si le joueur a déjà un salon en attente / en cours → redirection immédiate
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final roomRepo = RoomRepository(apiService);
+      final userId = ref.read(authProvider).user?.id ?? '';
+      if (userId.isNotEmpty) {
+        final waiting = await roomRepo.listWaitingRooms(gameType: widget.gameType);
+        final myExisting = waiting.where((r) => r.creatorId == userId && r.status == 'waiting').toList();
+        if (myExisting.isNotEmpty) {
+          final existing = myExisting.first;
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Vous avez déjà un salon (${existing.roomCode}) — redirection'), backgroundColor: NeonColors.warning, duration: const Duration(seconds: 2)),
+          );
+          context.pushReplacement('/games/${widget.gameType}/room/${existing.roomId}', extra: existing);
+          return;
+        }
+        // Vérifier aussi les salles en cours où le joueur est participant
+        final myActive = waiting.where((r) => r.players.any((p) => p.id == userId)).toList();
+        if (myActive.isNotEmpty) {
+          final existing = myActive.first;
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vous êtes déjà dans une salle — redirection'), backgroundColor: NeonColors.info),
+          );
+          context.pushReplacement('/games/${widget.gameType}/room/${existing.roomId}', extra: existing);
+          return;
+        }
+      }
+    } catch (_) {
+      // Non bloquant — poursuivre la création
+    }
+
     try {
       final apiService = ref.read(apiServiceProvider);
       final roomRepo = RoomRepository(apiService);
@@ -503,10 +536,35 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
 
       if (!mounted) return;
 
+      // Si le backend a retourné une salle existante (redirection), informer l'utilisateur
+      final isRedirect = room.playersCount > 1 || (DateTime.now().difference(room.createdAt ?? DateTime.now()).inSeconds > 5);
+      if (isRedirect) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Redirection vers votre salon existant ${room.roomCode}'), backgroundColor: NeonColors.info),
+        );
+      }
+
       context.pushReplacement('/games/${widget.gameType}/room/${room.roomId}', extra: room);
     } catch (e, st) {
       ErrorHandler.logError(e, st, context: 'CreateGame.createRoom');
-      setState(() { _isCreating = false; _error = ErrorHandler.userMessage(e); });
+      // Gestion spécifique des erreurs de salon déjà existant renvoyées par le backend (409 ou message)
+      final msg = ErrorHandler.userMessage(e);
+      final lower = msg.toLowerCase();
+      if (lower.contains('déjà') || lower.contains('already') || lower.contains('existant') || lower.contains('waiting_room') || lower.contains('active_match')) {
+        try {
+          final apiService = ref.read(apiServiceProvider);
+          final roomRepo = RoomRepository(apiService);
+          final waiting = await roomRepo.listWaitingRooms(gameType: widget.gameType);
+          final userId = ref.read(authProvider).user?.id ?? '';
+          final myExisting = waiting.where((r) => r.players.any((p) => p.id == userId)).toList();
+          if (myExisting.isNotEmpty && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: NeonColors.warning));
+            context.pushReplacement('/games/${widget.gameType}/room/${myExisting.first.roomId}', extra: myExisting.first);
+            return;
+          }
+        } catch (_) {}
+      }
+      if (mounted) setState(() { _isCreating = false; _error = msg; });
     }
   }
 }

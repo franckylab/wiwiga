@@ -34,6 +34,13 @@ defmodule GameHubWeb.GameChannel do
   """
   @impl true
   def join("game:" <> game_id, _params, socket) do
+    # S'abonner aux broadcasts PubSub du match (GameMatch)
+    try do
+      Phoenix.PubSub.subscribe(GameHub.PubSub, "game:#{game_id}")
+    rescue
+      _ -> :ok
+    end
+
     user_id = get_user_id(socket)
     
     if user_id do
@@ -147,6 +154,84 @@ defmodule GameHubWeb.GameChannel do
     end
   end
   
+  # === GameMatch (multi-sets) — roll & vote ===
+
+  @impl true
+  def handle_in("dice_rolled", _params, socket) do
+    user_id = socket.assigns.user_id
+    game_id = socket.assigns.game_id
+
+    # Détecter si c'est un match GameMatch (id contient "match")
+    if String.contains?(game_id, "match") do
+      case GameHub.GameMatch.roll_dice(game_id, to_string(user_id)) do
+        {:ok, %{roll: roll, match: match}} ->
+          broadcast!(socket, "dice_rolled", %{
+            roll: %{player_id: roll.player_id, dice: roll.dice, sum: roll.sum},
+            match: sanitize_match(match)
+          })
+          # Si le set est terminé, broadcaster set_result / match_result déjà géré par GameMatch PubSub,
+          # mais on push aussi ici pour le channel direct
+          if match.status == :set_ended or match.status == :match_ended do
+            # Le match a déjà broadcast via PubSub, on forward aussi
+            :ok
+          end
+          {:reply, {:ok, %{status: "rolled", roll: roll}}, socket}
+
+        {:error, :not_your_turn} ->
+          {:reply, {:error, %{reason: "not_your_turn"}}, socket}
+
+        {:error, :player_eliminated} ->
+          {:reply, {:error, %{reason: "player_eliminated"}}, socket}
+
+        {:error, reason} ->
+          {:reply, {:error, %{reason: to_string(reason)}}, socket}
+      end
+    else
+      # Fallback legacy Engine
+      case Engine.execute_turn(game_id) do
+        {:ok, result} ->
+          broadcast!(socket, "turn_executed", %{
+            dice_results: result.dice_results,
+            total_sum: result.total_sum
+          })
+          {:reply, {:ok, result}, socket}
+        {:error, reason} ->
+          {:reply, {:error, %{reason: to_string(reason)}}, socket}
+      end
+    end
+  end
+
+  @impl true
+  def handle_in("vote_target", %{"target_value" => target_value}, socket) do
+    user_id = socket.assigns.user_id
+    game_id = socket.assigns.game_id
+
+    case GameHub.GameMatch.vote_target(game_id, to_string(user_id), target_value) do
+      {:ok, match} ->
+        broadcast!(socket, "target_voted", %{
+          player_id: user_id,
+          target_value: target_value,
+          match: sanitize_match(match)
+        })
+        # Si tous ont voté, la cible est calculée → notifier
+        set = match.current_set_state
+        if set && !set.vote_phase && set.target_value do
+          broadcast!(socket, "target_calculated", %{
+            target_value: set.target_value,
+            match: sanitize_match(match)
+          })
+        end
+        {:reply, {:ok, %{status: "voted", target: target_value}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
+  def handle_in("vote_target", _params, socket) do
+    {:reply, {:error, %{reason: "missing_target_value"}}, socket}
+  end
+
   # Handle leave_game event.
   @impl true
   def handle_in("leave_game", _params, socket) do
@@ -158,6 +243,31 @@ defmodule GameHubWeb.GameChannel do
     })
     
     {:noreply, socket}
+  end
+
+  # Forward GameMatch PubSub events to channel clients
+  @impl true
+  def handle_info(%{event: event} = payload, socket) when event in ["dice_rolled", "set_result", "match_result", "player_forfeited", "match_forfeit", "set_started", "target_calculated"] do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp sanitize_match(match) do
+    %{
+      match_id: match.match_id,
+      status: to_string(match.status),
+      current_set: match.current_set,
+      sets_count: match.sets_count,
+      set_scores: match.set_scores,
+      current_set_state: match.current_set_state,
+      eliminated_players: match.eliminated_players |> MapSet.to_list(),
+      winner_id: Map.get(match, :winner_id)
+    }
+  rescue
+    _ -> %{match_id: match.match_id, status: to_string(match.status)}
   end
   
   @doc """

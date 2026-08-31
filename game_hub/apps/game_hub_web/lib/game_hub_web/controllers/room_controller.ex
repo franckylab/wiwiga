@@ -80,6 +80,26 @@ defmodule GameHubWeb.RoomController do
                 |> put_status(400)
                 |> json(Errors.error("Mode invalide: betting supprimé — utiliser staked", 400, "INVALID_MODE"))
 
+              {:error, :already_has_waiting_room, existing} ->
+                conn
+                |> put_status(200)
+                |> json(%{
+                  success: true,
+                  data: format_room(existing),
+                  meta: %{redirect: true, reason: "already_has_waiting_room", timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
+                  error: "Vous avez déjà une salle en attente — redirection vers la salle existante"
+                })
+
+              {:error, :already_in_active_match, existing} ->
+                conn
+                |> put_status(200)
+                |> json(%{
+                  success: true,
+                  data: format_room(existing),
+                  meta: %{redirect: true, reason: "already_in_active_match", timestamp: DateTime.utc_now() |> DateTime.to_iso8601()},
+                  error: "Vous êtes déjà en partie — redirection vers la salle en cours"
+                })
+
               {:error, reason} ->
                 conn
                 |> put_status(400)
@@ -137,6 +157,16 @@ defmodule GameHubWeb.RoomController do
 
       {:error, :already_in_room} ->
         conn |> put_status(409) |> json(Errors.error("Déjà dans la salle", 409, "ALREADY_IN_ROOM"))
+
+      {:error, :already_in_active_match, existing} ->
+        conn
+        |> put_status(409)
+        |> json(%{
+          success: false,
+          data: format_room(existing),
+          error: "Vous êtes déjà dans une autre salle active",
+          code: "ALREADY_IN_ACTIVE_MATCH"
+        })
 
       {:error, :room_not_found} ->
         conn |> put_status(404) |> json(Errors.error("Salle non trouvée", 404, "ROOM_NOT_FOUND"))

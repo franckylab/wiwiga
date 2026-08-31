@@ -56,9 +56,25 @@ defmodule GameHub.GameRoom do
 
   ## Returns
     - `{:ok, room}` | `{:error, :invalid_mode}` si mode hors free/staked
+    - `{:error, :already_has_waiting_room, existing_room}` si un salon en attente existe déjà
+    - `{:error, :already_in_active_match, existing_room}` si déjà en partie en cours
   """
   def create_room(params) do
     GenServer.call(__MODULE__, {:create_room, params})
+  end
+
+  @doc """
+  Récupère la salle en attente du joueur (si une seule autorisée).
+  """
+  def get_waiting_room_for_player(player_id) do
+    GenServer.call(__MODULE__, {:get_waiting_for_player, player_id})
+  end
+
+  @doc """
+  Récupère la salle active (waiting ou in_progress) du joueur.
+  """
+  def get_active_room_for_player(player_id) do
+    GenServer.call(__MODULE__, {:get_active_for_player, player_id})
   end
 
   @doc """
@@ -128,114 +144,152 @@ defmodule GameHub.GameRoom do
 
   @impl true
   def handle_call({:create_room, params}, _from, state) do
-    room_id = generate_room_id()
-    room_code = generate_room_code()
-
-    # Charger les règles pour valider la config (robuste aux clés manquantes)
-    rule_type = Map.get(params, :rule_type, "normal") || "normal"
-    game_type = Map.get(params, :game_type, "dice") || "dice"
-    rules = GameRules.get_rules_or_default(game_type, rule_type)
-    rc = rules.config
-
-    # Migration brutale 2026-08-30: seuls :free (Partie sans mise) et :staked (Partie avec mise) valides — "betting" supprimé
-    raw_mode = Map.get(params, :mode, :free)
-    canonical_mode = case GameMode.parse_strict(to_string(raw_mode)) do
-      {:ok, m} -> m
-      {:error, _} -> nil
-    end
-
-    if is_nil(canonical_mode) do
-      {:reply, {:error, :invalid_mode}, state}
-    else
-
-    # Valeurs par défaut
-    sets_count = Map.get(params, :sets_count, rc["default_sets"] || 1)
-    dice_count = Map.get(params, :dice_count, rc["default_dice"] || 2)
-    max_players = Map.get(params, :max_players, rc["max_players"] || 2)
-    bet_amount = if canonical_mode == :staked, do: Map.get(params, :bet_amount, 0), else: 0
-
     creator_id = Map.get(params, :creator_id)
-    creator_name = Map.get(params, :creator_name, "Créateur") || "Créateur"
 
-    room = %{
-      room_id: room_id,
-      room_code: room_code,
-      creator_id: creator_id,
-      game_type: game_type,
-      rule_type: rule_type,
-      mode: canonical_mode,
-      status: :waiting,
-      bet_amount: bet_amount,
-      sets_count: sets_count,
-      dice_count: dice_count,
-      max_players: max_players,
-      players: [
-        %{
-          id: creator_id,
-          name: creator_name,
-          joined_at: DateTime.utc_now()
+    # Vérifier qu'un joueur n'a qu'un seul salon en attente / actif
+    case find_active_room_for_player(state.table, creator_id) do
+      {:ok, existing} when existing.status == :waiting ->
+        {:reply, {:error, :already_has_waiting_room, existing}, state}
+
+      {:ok, existing} when existing.status in [:in_progress, :starting] ->
+        {:reply, {:error, :already_in_active_match, existing}, state}
+
+      _ ->
+        room_id = generate_room_id()
+        room_code = generate_room_code()
+
+        # Charger les règles pour valider la config (robuste aux clés manquantes)
+        rule_type = Map.get(params, :rule_type, "normal") || "normal"
+        game_type = Map.get(params, :game_type, "dice") || "dice"
+        rules = GameRules.get_rules_or_default(game_type, rule_type)
+        rc = rules.config
+
+        # Migration brutale 2026-08-30: seuls :free (Partie sans mise) et :staked (Partie avec mise) valides — "betting" supprimé
+        raw_mode = Map.get(params, :mode, :free)
+        canonical_mode = case GameMode.parse_strict(to_string(raw_mode)) do
+          {:ok, m} -> m
+          {:error, _} -> nil
+        end
+
+        if is_nil(canonical_mode) do
+          {:reply, {:error, :invalid_mode}, state}
+        else
+
+        # Valeurs par défaut
+        sets_count = Map.get(params, :sets_count, rc["default_sets"] || 1)
+        dice_count = Map.get(params, :dice_count, rc["default_dice"] || 2)
+        max_players = Map.get(params, :max_players, rc["max_players"] || 2)
+        bet_amount = if canonical_mode == :staked, do: Map.get(params, :bet_amount, 0), else: 0
+
+        creator_name = Map.get(params, :creator_name, "Créateur") || "Créateur"
+
+        room = %{
+          room_id: room_id,
+          room_code: room_code,
+          creator_id: creator_id,
+          game_type: game_type,
+          rule_type: rule_type,
+          mode: canonical_mode,
+          status: :waiting,
+          bet_amount: bet_amount,
+          sets_count: sets_count,
+          dice_count: dice_count,
+          max_players: max_players,
+          players: [
+            %{
+              id: creator_id,
+              name: creator_name,
+              joined_at: DateTime.utc_now()
+            }
+          ],
+          match_id: nil,
+          created_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now(),
+          expires_at: DateTime.add(DateTime.utc_now(), @room_ttl_seconds)
         }
-      ],
-      match_id: nil,
-      created_at: DateTime.utc_now(),
-      updated_at: DateTime.utc_now(),
-      expires_at: DateTime.add(DateTime.utc_now(), @room_ttl_seconds)
-    }
 
-    :ets.insert(state.table, {room_id, room})
-    # Index par code pour recherche rapide
-    :ets.insert(state.table, {{:code, room_code}, room_id})
+        :ets.insert(state.table, {room_id, room})
+        # Index par code pour recherche rapide
+        :ets.insert(state.table, {{:code, room_code}, room_id})
 
-    Logger.info("Room #{room_id} created by #{creator_id} (code: #{room_code}, mode: #{room.mode})")
+        Logger.info("Room #{room_id} created by #{creator_id} (code: #{room_code}, mode: #{room.mode})")
 
-    {:reply, {:ok, room}, state}
+        {:reply, {:ok, room}, state}
+        end
     end
   end
 
   @impl true
+  def handle_call({:get_waiting_for_player, player_id}, _from, state) do
+    {:reply, find_waiting_room_for_player(state.table, player_id), state}
+  end
+
+  @impl true
+  def handle_call({:get_active_for_player, player_id}, _from, state) do
+    {:reply, find_active_room_for_player(state.table, player_id), state}
+  end
+
+  @impl true
   def handle_call({:join_room, room_id, player_id, player_name}, _from, state) do
-    case lookup_room(state.table, room_id) do
-      {:ok, room} ->
-        cond do
-          room.status != :waiting ->
-            {:reply, {:error, :room_not_waiting}, state}
+    # Empêche un joueur déjà dans un salon actif de rejoindre un autre salon
+    case find_active_room_for_player(state.table, player_id) do
+      {:ok, existing} when existing.room_id != room_id and existing.status in [:waiting, :in_progress, :starting] ->
+        {:reply, {:error, :already_in_active_match, existing}, state}
 
-          length(room.players) >= room.max_players ->
-            {:reply, {:error, :room_full}, state}
+      _ ->
+        case lookup_room(state.table, room_id) do
+          {:ok, room} ->
+            cond do
+              room.status != :waiting ->
+                {:reply, {:error, :room_not_waiting}, state}
 
-          Enum.any?(room.players, fn p -> p.id == player_id end) ->
-            {:reply, {:error, :already_in_room}, state}
+              length(room.players) >= room.max_players ->
+                {:reply, {:error, :room_full}, state}
 
-          true ->
-            player = %{
-              id: player_id,
-              name: player_name || "Joueur_#{String.slice(to_string(player_id), 0..3)}",
-              joined_at: DateTime.utc_now()
-            }
+              Enum.any?(room.players, fn p -> p.id == player_id end) ->
+                {:reply, {:error, :already_in_room}, state}
 
-            updated = %{room |
-              players: room.players ++ [player],
-              updated_at: DateTime.utc_now()
-            }
+              true ->
+                player = %{
+                  id: player_id,
+                  name: player_name || "Joueur_#{String.slice(to_string(player_id), 0..3)}",
+                  joined_at: DateTime.utc_now()
+                }
 
-            :ets.insert(state.table, {room_id, updated})
-            Logger.info("Player #{player_id} joined room #{room_id}")
+                updated = %{room |
+                  players: room.players ++ [player],
+                  updated_at: DateTime.utc_now()
+                }
 
-            # Tracker session de jeu pour Responsible Gaming
-            try do
-              if is_integer(player_id), do: ResponsibleGaming.start_session(player_id)
-            rescue
-              _ -> :ok
+                :ets.insert(state.table, {room_id, updated})
+                Logger.info("Player #{player_id} joined room #{room_id}")
+
+                # Tracker session de jeu pour Responsible Gaming
+                try do
+                  if is_integer(player_id), do: ResponsibleGaming.start_session(player_id)
+                rescue
+                  _ -> :ok
+                end
+
+                # Notifier via PubSub
+                broadcast_room_update(room_id, updated)
+
+                # Auto-start si la room est pleine — tous les joueurs présents → démarrage immédiat
+                if length(updated.players) >= updated.max_players do
+                  case do_auto_start_match(state.table, updated) do
+                    {:ok, auto_room} ->
+                      {:reply, {:ok, auto_room}, state}
+                    {:error, _reason} ->
+                      {:reply, {:ok, updated}, state}
+                  end
+                else
+                  {:reply, {:ok, updated}, state}
+                end
             end
 
-            # Notifier via PubSub
-            broadcast_room_update(room_id, updated)
-
-            {:reply, {:ok, updated}, state}
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
         end
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
     end
   end
 
@@ -462,6 +516,90 @@ defmodule GameHub.GameRoom do
       [{^room_id, room}] -> {:ok, room}
       [] -> {:error, :room_not_found}
     end
+  end
+
+  # Trouve une salle en attente pour un joueur (une seule autorisée)
+  defp find_waiting_room_for_player(table, player_id) do
+    :ets.tab2list(table)
+    |> Enum.find_value(fn
+      {{:code, _}, _} -> nil
+      {_id, room} when room.status == :waiting ->
+        if Enum.any?(room.players, fn p -> p.id == player_id end), do: {:ok, room}, else: nil
+      _ -> nil
+    end) || {:error, :not_found}
+  end
+
+  defp find_active_room_for_player(table, player_id) do
+    :ets.tab2list(table)
+    |> Enum.find_value(fn
+      {{:code, _}, _} -> nil
+      {_id, room} when room.status in [:waiting, :starting, :in_progress] ->
+        if Enum.any?(room.players, fn p -> p.id == player_id end), do: {:ok, room}, else: nil
+      _ -> nil
+    end) || {:error, :not_found}
+  end
+
+  # Auto-start interne (sans vérification créateur) — utilisé quand full
+  defp do_auto_start_match(table, room) do
+    if room.status != :waiting or length(room.players) < 2 do
+      {:error, :not_enough_players}
+    else
+      match_config = %{
+        game_type: room.game_type,
+        rule_type: room.rule_type,
+        mode: room.mode,
+        sets_count: room.sets_count,
+        dice_count: room.dice_count,
+        bet_amount: room.bet_amount,
+        max_players: room.max_players,
+        creator_id: room.creator_id
+      }
+
+      case GameMatch.create_match(match_config) do
+        {:ok, match} ->
+          Enum.reduce(room.players, match, fn player, acc ->
+            {:ok, updated_match} = GameMatch.add_player(acc.match_id, player.id, player.name)
+            updated_match
+          end)
+          # Démarre le match (ready)
+          case GameMatch.start_match(match.match_id) do
+            {:ok, _} -> :ok
+            _ -> :ok
+          end
+          # Démarre le premier set
+          case GameMatch.start_set(match.match_id) do
+            {:ok, _} -> :ok
+            _ -> :ok
+          end
+
+          updated = %{room |
+            status: :in_progress,
+            match_id: match.match_id,
+            updated_at: DateTime.utc_now()
+          }
+
+          :ets.insert(table, {room.room_id, updated})
+          Logger.info("Room #{room.room_id}: auto-started match #{match.match_id} (full #{length(room.players)}/#{room.max_players})")
+          broadcast_room_update(room.room_id, updated)
+          # Broadcast match_started explicite pour le salon
+          broadcast_match_started(room.room_id, match.match_id)
+          {:ok, updated}
+
+        {:error, reason} ->
+          Logger.error("Auto-start failed for room #{room.room_id}: #{inspect(reason)}")
+          {:error, {:match_creation_failed, reason}}
+      end
+    end
+  end
+
+  defp broadcast_match_started(room_id, match_id) do
+    Phoenix.PubSub.broadcast(
+      GameHub.PubSub,
+      "room:#{room_id}",
+      %{event: "match_started", room_id: room_id, match_id: match_id}
+    )
+  rescue
+    _ -> :ok
   end
 
   defp generate_room_id do
