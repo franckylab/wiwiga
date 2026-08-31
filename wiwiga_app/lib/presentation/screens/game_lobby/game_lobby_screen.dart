@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/models/game_room_model.dart';
@@ -447,22 +449,7 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
       loading: () => const Center(
         child: CircularProgressIndicator(color: NeonColors.primary),
       ),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-            const SizedBox(height: 12),
-            Text(e.toString(), style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            NeonButton(
-              text: 'RÉESSAYER',
-              onPressed: () => ref.invalidate(waitingRoomsProvider(widget.gameType)),
-              variant: NeonButtonVariant.outline,
-            ),
-          ],
-        ),
-      ),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(waitingRoomsProvider(widget.gameType))),
     );
   }
 
@@ -774,14 +761,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           }
         };
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameLobby');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: NeonColors.danger,
-          ),
-        );
+        WiwigaSnack.showError(context, e);
       }
     }
   }
@@ -817,14 +800,10 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameLobby');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: NeonColors.danger,
-          ),
-        );
+        WiwigaSnack.showError(context, e);
       }
     }
   }
@@ -862,15 +841,11 @@ class _GameLobbyScreenState extends ConsumerState<GameLobbyScreen>
           );
         }
       };
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameLobby');
       if (mounted) {
         ref.read(isSearchingProvider.notifier).state = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur matchmaking: $e'),
-            backgroundColor: NeonColors.danger,
-          ),
-        );
+        WiwigaSnack.showError(context, e);
       }
     }
   }

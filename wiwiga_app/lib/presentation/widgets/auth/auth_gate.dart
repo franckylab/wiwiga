@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 
@@ -249,10 +250,11 @@ class _AuthBottomSheetState extends ConsumerState<_AuthBottomSheet> {
         _isLoading = false;
         _isOtpSent = true;
       });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthGate._sendOtp');
       setState(() {
         _isLoading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }
@@ -284,10 +286,11 @@ class _AuthBottomSheetState extends ConsumerState<_AuthBottomSheet> {
           _error = authState.error ?? 'Erreur d\'authentification';
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthGate._verifyOtp');
       setState(() {
         _isLoading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }

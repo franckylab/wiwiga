@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../../data/providers/app_providers.dart';
 
 // ========================================
@@ -62,8 +63,9 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
     try {
       final segments = await ref.read(adminRepositoryProvider).getCrmSegments();
       state = state.copyWith(isLoading: false, segments: segments);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur chargement segments: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.loadSegments');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -71,8 +73,9 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
     try {
       final players = await ref.read(adminRepositoryProvider).getVipPlayers();
       state = state.copyWith(vipPlayers: players);
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur chargement VIP: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.loadVipPlayers');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -80,8 +83,9 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
     try {
       final players = await ref.read(adminRepositoryProvider).getAtRiskPlayers();
       state = state.copyWith(atRiskPlayers: players);
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur chargement à risque: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.loadAtRiskPlayers');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -90,16 +94,18 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
     try {
       final summary = await ref.read(adminRepositoryProvider).getPlayerSummary(userId);
       state = state.copyWith(isLoading: false, selectedPlayerSummary: summary);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur chargement résumé: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.loadPlayerSummary');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
   Future<void> addNote(String userId, String note, {String category = 'general'}) async {
     try {
       await ref.read(adminRepositoryProvider).addPlayerNote(userId, note, category: category);
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur ajout note: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.addNote');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -108,8 +114,9 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
       await ref.read(adminRepositoryProvider).setVipTier(userId, tier);
       // Recharger les VIP
       await loadVipPlayers();
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur set VIP tier: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.setVipTier');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -127,8 +134,9 @@ class AdminCrmNotifier extends StateNotifier<AdminCrmState> {
         vipPlayers: results[1],
         atRiskPlayers: results[2],
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur chargement CRM: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminCrm.loadAll');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 }

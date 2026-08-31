@@ -4,6 +4,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../repositories/preferences_repository.dart';
 import 'app_providers.dart';
 
@@ -90,10 +91,11 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
         theme: prefs['theme'] as String? ?? 'neon',
         fontSize: prefs['font_size'] as String? ?? 'medium',
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Preferences.loadPreferences');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement préférences: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -118,10 +120,11 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     // Sync serveur
     try {
       await _repository.updatePreferences({key: value});
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Preferences.updateBool');
       // Rollback en cas d'erreur
       state = previousState;
-      state = state.copyWith(error: 'Erreur sauvegarde: $e');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -145,10 +148,11 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
     // Sync serveur
     try {
       await _repository.updatePreferences({key: value});
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Preferences.updateString');
       // Rollback
       state = previousState;
-      state = state.copyWith(error: 'Erreur sauvegarde: $e');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 

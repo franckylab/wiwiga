@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -59,10 +60,11 @@ class _AdminAuditScreenState extends ConsumerState<AdminAuditScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminAudit._loadLogs');
       if (mounted) {
         setState(() {
-          _error = 'Erreur de chargement: $e';
+          _error = ErrorHandler.userMessage(e);
           _isLoading = false;
         });
       }
@@ -310,7 +312,7 @@ class _AuditLogTile extends StatelessWidget {
     if (action.contains('login') || action.contains('otp') || action.contains('register')) return const Color(0xFF00FFFF);
     if (action.contains('admin') || action.contains('role')) return const Color(0xFFFF6600);
     if (action.contains('fail') || action.contains('error')) return NeonColors.error;
-    if (action.contains('deposit') || action.contains('withdraw') || action.contains('transfer')) return NeonColors.primary;
+    if (action.contains('deposit') || action.contains('withdraw') || action.contains('gift')) return NeonColors.primary;
     return const Color(0xFFAA00FF);
   }
 
@@ -322,7 +324,7 @@ class _AuditLogTile extends StatelessWidget {
     if (action.contains('role')) return Icons.shield;
     if (action.contains('deposit')) return Icons.account_balance_wallet;
     if (action.contains('withdraw')) return Icons.money_off;
-    if (action.contains('transfer')) return Icons.swap_horiz;
+    if (action.contains('gift')) return Icons.card_giftcard;
     if (action.contains('fail') || action.contains('error')) return Icons.error;
     return Icons.info;
   }

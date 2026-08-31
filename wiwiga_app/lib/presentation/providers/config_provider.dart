@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/providers/app_providers.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/errors/error_handler.dart';
+import '../../data/providers/app_providers.dart';
 
 // ========================================
 // Modèles de Configuration
@@ -297,35 +298,35 @@ class PaymentsConfigModel {
   }
 }
 
-/// Configuration des tokens (taux wiga/FCFA, 1.0 = 1:1 par défaut)
+/// Configuration des tokens — seuls achat, cadeau ami, promos
+/// Taux 1.0 = 1 wiga = 1 FCFA ; échange supprimé
 class TokensConfigModel {
   final double exchangeRate;
-  final double exchangeFeePercent;
-  final int exchangeFixedFee;
   final int dailyPurchaseLimit;
-  final int dailyTransferLimit;
+  final int dailyGiftLimit;
   final double giftFeePercent;
   final int diceMinBet;
   final int cardsMinBet;
 
   TokensConfigModel({
     required this.exchangeRate,
-    required this.exchangeFeePercent,
-    required this.exchangeFixedFee,
     required this.dailyPurchaseLimit,
-    required this.dailyTransferLimit,
+    required this.dailyGiftLimit,
     required this.giftFeePercent,
     required this.diceMinBet,
     required this.cardsMinBet,
   });
 
+  // Compat : dailyTransferLimit → dailyGiftLimit
+  int get dailyTransferLimit => dailyGiftLimit;
+
   factory TokensConfigModel.fromJson(Map<String, dynamic> json) {
     return TokensConfigModel(
       exchangeRate: (json['exchange_rate'] ?? 1.0).toDouble(),
-      exchangeFeePercent: (json['exchange_fee_percent'] ?? 2.0).toDouble(),
-      exchangeFixedFee: json['exchange_fixed_fee'] ?? 0,
       dailyPurchaseLimit: json['daily_purchase_limit'] ?? 50000,
-      dailyTransferLimit: json['daily_transfer_limit'] ?? 10000,
+      dailyGiftLimit: json['daily_gift_limit'] as int? ??
+          json['daily_transfer_limit'] as int? ??
+          10000,
       giftFeePercent: (json['gift_fee_percent'] ?? 5.0).toDouble(),
       diceMinBet: json['dice_min_bet'] ?? 10,
       cardsMinBet: json['cards_min_bet'] ?? 20,
@@ -334,10 +335,9 @@ class TokensConfigModel {
 
   Map<String, dynamic> toJson() => {
     'exchange_rate': exchangeRate,
-    'exchange_fee_percent': exchangeFeePercent,
-    'exchange_fixed_fee': exchangeFixedFee,
     'daily_purchase_limit': dailyPurchaseLimit,
-    'daily_transfer_limit': dailyTransferLimit,
+    'daily_gift_limit': dailyGiftLimit,
+    'daily_transfer_limit': dailyGiftLimit, // compat legacy
     'gift_fee_percent': giftFeePercent,
     'dice_min_bet': diceMinBet,
     'cards_min_bet': cardsMinBet,
@@ -363,47 +363,27 @@ class ThemeConfigNotifier extends StateNotifier<AsyncValue<ThemeConfigModel>> {
 
   Future<void> _loadConfig() async {
     state = const AsyncValue.loading();
-    
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.adminConfigTheme,
-        requiresAuth: true,
-      );
-      
+      final response = await apiService.get(ApiEndpoints.adminConfigTheme, requiresAuth: true);
       final data = response['data']?['theme_config'] as Map<String, dynamic>? ?? {};
       final config = ThemeConfigModel.fromJson(data);
       state = AsyncValue.data(config);
-    } catch (e) {
-      // Fallback sur les valeurs par défaut si l'API échoue
-      final config = ThemeConfigModel(
-        primaryColor: '#2DD4BF',
-        secondaryColor: '#F59E0B',
-        accentColor: '#00D9FF',
-        backgroundColor: '#1E293B',
-        surfaceColor: '#0F172A',
-        borderRadius: 12.0,
-        glowIntensity: 0.5,
-        animationDuration: 200,
-        fontFamilyBody: 'Inter',
-        fontFamilyDisplay: 'Orbitron',
-      );
-      state = AsyncValue.data(config);
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ThemeConfig._loadConfig');
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> updateConfig(Map<String, dynamic> updates) async {
     try {
       final apiService = _ref.read(apiServiceProvider);
-      await apiService.put(
-        ApiEndpoints.adminConfigTheme,
-        body: {'theme_config': updates},
-        requiresAuth: true,
-      );
+      await apiService.put(ApiEndpoints.adminConfigTheme, body: {'theme_config': updates}, requiresAuth: true);
       await _loadConfig();
-    } catch (e) {
-      // Recharger la config actuelle en cas d'erreur
-      await _loadConfig();
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ThemeConfig.updateConfig', extra: updates);
+      state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 
@@ -428,53 +408,27 @@ class FeatureConfigNotifier extends StateNotifier<AsyncValue<FeatureConfigModel>
 
   Future<void> _loadConfig() async {
     state = const AsyncValue.loading();
-    
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.adminConfigFeatures,
-        requiresAuth: true,
-      );
-      
+      final response = await apiService.get(ApiEndpoints.adminConfigFeatures, requiresAuth: true);
       final data = response['data']?['feature_config'] as Map<String, dynamic>? ?? {};
       final config = FeatureConfigModel.fromJson(data);
       state = AsyncValue.data(config);
-    } catch (e) {
-      // Fallback sur les valeurs par défaut si l'API échoue
-      final config = FeatureConfigModel(
-        maintenanceMode: false,
-        maintenanceMessage: 'WIWIGA est en maintenance',
-        registrationEnabled: true,
-        minDepositAmount: 500,
-        maxDepositAmount: 1000000,
-        minWithdrawalAmount: 1000,
-        maxWithdrawalAmount: 5000000,
-        kycRequiredThreshold: 100000,
-        maxGamesPerUser: 10,
-        websocketTimeoutMs: 30000,
-        sessionTimeoutMs: 1800000,
-        realityCheckIntervalMs: 1800000,
-        selfExclusionOptions: [24, 168, 720],
-        supportEmail: 'support@wiwiga.cm',
-        supportPhone: '+237 600 000 000',
-        termsUrl: 'https://wiwiga.cm/terms',
-        privacyUrl: 'https://wiwiga.cm/privacy',
-      );
-      state = AsyncValue.data(config);
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'FeatureConfig._loadConfig');
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> updateConfig(Map<String, dynamic> updates) async {
     try {
       final apiService = _ref.read(apiServiceProvider);
-      await apiService.put(
-        ApiEndpoints.adminConfigFeatures,
-        body: {'feature_config': updates},
-        requiresAuth: true,
-      );
+      await apiService.put(ApiEndpoints.adminConfigFeatures, body: {'feature_config': updates}, requiresAuth: true);
       await _loadConfig();
-    } catch (e) {
-      await _loadConfig();
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'FeatureConfig.updateConfig', extra: updates);
+      state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 
@@ -527,28 +481,24 @@ class GamesConfigNotifier extends StateNotifier<AsyncValue<GamesConfigModel>> {
     state = const AsyncValue.loading();
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.adminConfigGames,
-        requiresAuth: true,
-      );
+      final response = await apiService.get(ApiEndpoints.adminConfigGames, requiresAuth: true);
       final data = response['data']?['game_config'] as Map<String, dynamic>? ?? response['data'] as Map<String, dynamic>? ?? {};
       state = AsyncValue.data(GamesConfigModel.fromJson(data));
-    } catch (e) {
-      state = AsyncValue.data(GamesConfigModel.fromJson({}));
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GamesConfig._loadConfig');
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> updateGameType(String gameType, Map<String, dynamic> updates) async {
     try {
       final apiService = _ref.read(apiServiceProvider);
-      await apiService.put(
-        ApiEndpoints.adminConfigGames,
-        body: {'type': gameType, 'game_config': updates},
-        requiresAuth: true,
-      );
+      await apiService.put(ApiEndpoints.adminConfigGames, body: {'type': gameType, 'game_config': updates}, requiresAuth: true);
       await _loadConfig();
-    } catch (e) {
-      await _loadConfig();
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GamesConfig.updateGameType', extra: {'type': gameType, ...updates});
+      state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 }
@@ -569,28 +519,24 @@ class PaymentsConfigNotifier extends StateNotifier<AsyncValue<PaymentsConfigMode
     state = const AsyncValue.loading();
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.adminConfigPayments,
-        requiresAuth: true,
-      );
+      final response = await apiService.get(ApiEndpoints.adminConfigPayments, requiresAuth: true);
       final data = response['data']?['payment_config'] as Map<String, dynamic>? ?? response['data'] as Map<String, dynamic>? ?? {};
       state = AsyncValue.data(PaymentsConfigModel.fromJson(data));
-    } catch (e) {
-      state = AsyncValue.data(PaymentsConfigModel.fromJson({}));
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'PaymentsConfig._loadConfig');
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> updateProvider(String provider, Map<String, dynamic> updates) async {
     try {
       final apiService = _ref.read(apiServiceProvider);
-      await apiService.put(
-        ApiEndpoints.adminConfigPayments,
-        body: {'provider': provider, 'payment_config': updates},
-        requiresAuth: true,
-      );
+      await apiService.put(ApiEndpoints.adminConfigPayments, body: {'provider': provider, 'payment_config': updates}, requiresAuth: true);
       await _loadConfig();
-    } catch (e) {
-      await _loadConfig();
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'PaymentsConfig.updateProvider', extra: {'provider': provider, ...updates});
+      state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 }
@@ -611,28 +557,37 @@ class TokensConfigNotifier extends StateNotifier<AsyncValue<TokensConfigModel>> 
     state = const AsyncValue.loading();
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final response = await apiService.get(
-        ApiEndpoints.adminConfigTokens,
-        requiresAuth: true,
-      );
+      final response = await apiService.get(ApiEndpoints.adminConfigTokens, requiresAuth: true);
       final data = response['data']?['token_config'] as Map<String, dynamic>? ?? response['data'] as Map<String, dynamic>? ?? {};
+      // Merge platform daily_gift_limit si disponible (source de vérité)
+      try {
+        final platResp = await apiService.get('${ApiEndpoints.adminPlatformConfig}/payment', requiresAuth: true);
+        final List platList = platResp['data'] as List? ?? [];
+        for (final entry in platList) {
+          if (entry is Map<String, dynamic>) {
+            final k = entry['key']?.toString();
+            final v = entry['value']?.toString();
+            if (k == 'daily_gift_limit' && v != null) data['daily_gift_limit'] = int.tryParse(v) ?? data['daily_gift_limit'];
+            if (k == 'daily_transfer_limit' && v != null && data['daily_gift_limit'] == null) data['daily_gift_limit'] = int.tryParse(v) ?? data['daily_gift_limit'];
+          }
+        }
+      } catch (_) {}
       state = AsyncValue.data(TokensConfigModel.fromJson(data));
-    } catch (e) {
-      state = AsyncValue.data(TokensConfigModel.fromJson({}));
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'TokensConfig._loadConfig');
+      state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> updateConfig(Map<String, dynamic> updates) async {
     try {
       final apiService = _ref.read(apiServiceProvider);
-      await apiService.put(
-        ApiEndpoints.adminConfigTokens,
-        body: {'token_config': updates},
-        requiresAuth: true,
-      );
+      await apiService.put(ApiEndpoints.adminConfigTokens, body: {'token_config': updates}, requiresAuth: true);
       await _loadConfig();
-    } catch (e) {
-      await _loadConfig();
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'TokensConfig.updateConfig', extra: updates);
+      state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 }

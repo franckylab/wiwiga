@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
@@ -385,10 +386,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (context.mounted) {
                           _showSnackbar(context, 'Mot de passe modifié !');
                         }
-                      } catch (e) {
+                      } catch (e, st) {
+                        ErrorHandler.logError(e, st, context: 'Settings.changePassword');
                         setDialogState(() {
                           isLoading = false;
-                          error = 'Erreur: $e';
+                          error = ErrorHandler.userMessage(e);
                         });
                       }
                     },

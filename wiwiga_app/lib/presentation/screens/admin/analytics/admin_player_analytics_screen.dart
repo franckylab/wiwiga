@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/error_handler.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../../providers/admin_analytics_provider.dart';
 import '../../../widgets/admin/metric_card.dart';
@@ -112,7 +113,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             cohortsState.when(
               data: (d) => _buildRetentionSection(d),
               loading: () => const SizedBox(height: 100, child: NeonLoadingSpinner.center()),
-              error: (e, _) => Text('Erreur retention: $e', style: const TextStyle(color: NeonColors.error)),
+              error: (e, st) {
+                ErrorHandler.logError(e, st, context: 'AdminPlayerAnalytics.retention');
+                return Text(ErrorHandler.userMessage(e), style: const TextStyle(color: NeonColors.error));
+              },
             ),
             const SizedBox(height: 20),
 
@@ -122,7 +126,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             funnelState.when(
               data: (d) => _buildFunnelSection(d),
               loading: () => const SizedBox(height: 100, child: NeonLoadingSpinner.center()),
-              error: (e, _) => Text('Erreur funnel: $e', style: const TextStyle(color: NeonColors.error)),
+              error: (e, st) {
+                ErrorHandler.logError(e, st, context: 'AdminPlayerAnalytics.funnel');
+                return Text(ErrorHandler.userMessage(e), style: const TextStyle(color: NeonColors.error));
+              },
             ),
           ],
         ),

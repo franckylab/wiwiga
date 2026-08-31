@@ -4,6 +4,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../repositories/profile_repository.dart';
 import 'app_providers.dart';
 
@@ -51,10 +52,11 @@ class SessionsNotifier extends StateNotifier<SessionsState> {
     try {
       final sessions = await _repository.getSessions();
       state = state.copyWith(isLoading: false, sessions: sessions);
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Sessions.loadSessions');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement sessions: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -70,8 +72,9 @@ class SessionsNotifier extends StateNotifier<SessionsState> {
             .toList(),
       );
       return true;
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur révocation: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Sessions.revokeSession');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return false;
     }
   }

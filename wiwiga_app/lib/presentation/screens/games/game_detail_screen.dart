@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_model.dart';
 import '../../../data/models/game_room_model.dart';
@@ -328,11 +329,12 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
         );
         context.go('/games/${widget.gameType}/lobby');
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameDetail._startQuickMatch');
       if (!mounted) return;
       setState(() {
         _isSearching = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }
@@ -674,7 +676,7 @@ class _OverviewTab extends ConsumerWidget {
             onTap: () => _joinRoom(context, ref, room),
             child: Row(
               children: [
-                if (room.isBetting)
+                if (room.isStaked)
                   TokenCoin(size: 28, metal: TokenMetal.emerald, lod: TokenLod.bevel, showShadow: false)
                 else
                   const Icon(Icons.people_outline, color: NeonColors.primary),
@@ -692,9 +694,9 @@ class _OverviewTab extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        room.isBetting
-                            ? 'Mise ${room.betAmount} wiga · ${room.playersCount}/${room.maxPlayers} joueurs'
-                            : 'Gratuit · ${room.playersCount}/${room.maxPlayers} joueurs',
+                        room.isStaked
+                            ? '${room.betAmount} wiga · ${room.playersCount}/${room.maxPlayers} joueurs · ${room.modeShortLabel}'
+                            : '${room.modeShortLabel} · ${room.playersCount}/${room.maxPlayers} joueurs',
                         style: const TextStyle(
                             fontSize: 12, color: NeonColors.textSecondary,),
                       ),

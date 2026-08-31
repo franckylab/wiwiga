@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/constants/game_mode.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
@@ -33,8 +34,8 @@ class CreateGameScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
-  // État du formulaire — modes : Partie sans mise (free) / Partie avec mise (staked)
-  String _mode = GameMode.free.apiValue; // 'free' | 'staked' (alias historique 'betting' → 'staked')
+  // État du formulaire — migration brutale 2026-08-30: free/staked seuls (betting supprimé)
+  String _mode = GameMode.free.apiValue; // 'free' | 'staked'
   String _ruleType = 'normal'; // 'normal' | 'cible'
   int _setsCount = 3;
   int _diceCount = 2;
@@ -503,8 +504,9 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       if (!mounted) return;
 
       context.pushReplacement('/games/${widget.gameType}/room/${room.roomId}', extra: room);
-    } catch (e) {
-      setState(() { _isCreating = false; _error = e.toString().replaceFirst('Exception: ', ''); });
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'CreateGame.createRoom');
+      setState(() { _isCreating = false; _error = ErrorHandler.userMessage(e); });
     }
   }
 }

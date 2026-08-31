@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -65,10 +66,11 @@ class _AdminMonitoringScreenState extends ConsumerState<AdminMonitoringScreen> {
           _error = null;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMonitoring._loadHealth');
       if (mounted) {
         setState(() {
-          _error = 'Erreur: $e';
+          _error = ErrorHandler.userMessage(e);
           _isLoading = false;
         });
       }

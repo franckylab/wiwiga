@@ -25,7 +25,7 @@ GameRules (Cache ETS)
 
 GameRoom (GenServer)
 ├── Codes : WIWIGA-XXXX (4 chars alphanum)
-├── Modes : :free (Partie sans mise - gratuit) | :staked (Partie avec mise) — alias historique :betting → :staked
+├── Modes : :free (Partie sans mise - gratuit) | :staked (Partie avec mise) — betting supprimé 2026-08-30
 ├── Joueurs : 2-5 par room
 └── TTL : 30 min inactivité → cleanup
 ```

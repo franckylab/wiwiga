@@ -5,11 +5,11 @@
 // Date: 2026-08-01
 // ============================================================
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/errors/api_exception.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
@@ -35,18 +35,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint('[ADMIN_DETAIL] init userId=${widget.userId} BUILD v2026-08-26-fix17');
-    // Reporter aussi dans console JS visible en profile
-    // ignore: avoid_print
-    print('[ADMIN_DETAIL] init userId=${widget.userId}');
     _loadUser();
   }
 
   Future<void> _loadUser() async {
     if (!mounted) return;
-    debugPrint('[ADMIN_DETAIL] _loadUser start userId=${widget.userId} auth=${ref.read(authProvider).user?.role.value ?? 'null'}');
-    // ignore: avoid_print
-    print('[ADMIN_DETAIL] _loadUser userId=${widget.userId}');
     // Ne pas charger si pas admin (évite 401 inutile)
     final auth = ref.read(authProvider);
     if (auth.user == null || !auth.user!.isAdmin) {
@@ -65,28 +58,17 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
 
     try {
       final adminRepo = ref.read(adminRepositoryProvider);
-      debugPrint('[ADMIN_DETAIL] calling adminRepo.getUser(${widget.userId})');
-      // ignore: avoid_print
-      print('[ADMIN_REPO] getUser(${widget.userId})');
       final user = await adminRepo.getUser(widget.userId);
-      debugPrint('[ADMIN_DETAIL] getUser success id=${user.id} username=${user.username}');
-      // ignore: avoid_print
-      print('[ADMIN_DETAIL] success id=${user.id}');
       if (!mounted) return;
       setState(() {
         _user = user;
         _isLoading = false;
       });
     } catch (e, st) {
-      debugPrint('[ADMIN_DETAIL] getUser ERROR: $e');
-      debugPrint('[ADMIN_DETAIL] stack: $st');
-      // ignore: avoid_print
-      print('[ADMIN_DETAIL] ERROR: $e');
-      print(st);
+      ErrorHandler.logError(e, st, context: 'AdminUserDetail._loadUser', extra: {'userId': widget.userId});
       if (!mounted) return;
-      final message = e is ApiException ? e.userMessage : e.toString();
       setState(() {
-        _error = message;
+        _error = ErrorHandler.userMessage(e);
         _isLoading = false;
       });
     }
@@ -110,13 +92,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           backgroundColor: NeonColors.primary,
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminUserDetail._changeRole');
       if (!mounted) return;
       setState(() => _isSaving = false);
-      final message = e is ApiException ? e.userMessage : e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: NeonColors.error),
-      );
+      WiwigaSnack.showError(context, e);
     }
   }
 
@@ -139,13 +119,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           backgroundColor: activate ? NeonColors.primary : Colors.orange,
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminUserDetail._toggleActive');
       if (!mounted) return;
       setState(() => _isSaving = false);
-      final message = e is ApiException ? e.userMessage : e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: NeonColors.error),
-      );
+      WiwigaSnack.showError(context, e);
     }
   }
 
@@ -190,30 +168,12 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         body: _isLoading
             ? const NeonLoadingSpinner.center()
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-                        const SizedBox(height: 12),
-                        Text(_error!, style: const TextStyle(color: NeonColors.textMuted)),
-                        const SizedBox(height: 8),
-                        Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                        const Text('BUILD v2026-08-26-fix18', style: TextStyle(color: Colors.orange, fontSize: 10)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  )
+                ? WiwigaErrorView(error: _error!, onRetry: _loadUser, title: 'Chargement impossible')
                 : _user == null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('Utilisateur introuvable', style: TextStyle(color: NeonColors.textMuted)),
-                            Text('userId: ${widget.userId} BUILD v2026-08-26-fix18', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                          ],
-                        ),
+                    ? WiwigaErrorView(
+                        error: 'Utilisateur introuvable',
+                        title: 'Introuvable',
+                        onRetry: _loadUser,
                       )
                     : Builder(
                         builder: (context) {
@@ -245,58 +205,17 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                               ],
                             );
                           } catch (e, st) {
-                            debugPrint('[ADMIN_DETAIL] BUILD ERROR: $e');
-                            debugPrint('[ADMIN_DETAIL] stack: $st');
-                            // ignore: avoid_print
-                            print('[ADMIN_DETAIL] BUILD ERROR: $e');
-                            print(st);
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                                    const SizedBox(height: 12),
-                                    Text('Erreur affichage: $e', style: const TextStyle(color: Colors.white)),
-                                    const SizedBox(height: 8),
-                                    Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                                    const SizedBox(height: 8),
-                                    Text('$st', style: const TextStyle(color: Colors.white54, fontSize: 8)),
-                                    const SizedBox(height: 16),
-                                    ElevatedButton(onPressed: _loadUser, child: const Text('Réessayer')),
-                                  ],
-                                ),
-                              ),
-                            );
+                            ErrorHandler.logError(e, st, context: 'AdminUserDetail build inner');
+                            return WiwigaErrorView(error: e, stackTrace: st, onRetry: _loadUser, title: 'Affichage indisponible');
                           }
                         },
                       ),
       );
     } catch (e, st) {
-      debugPrint('[ADMIN_DETAIL] BUILD OUTER ERROR: $e');
-      debugPrint('[ADMIN_DETAIL] stack: $st');
-      // ignore: avoid_print
-      print('[ADMIN_DETAIL] OUTER ERROR: $e');
-      print(st);
+      ErrorHandler.logError(e, st, context: 'AdminUserDetail build outer');
       return Scaffold(
         backgroundColor: NeonColors.background,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                const SizedBox(height: 12),
-                Text('Erreur: $e', style: const TextStyle(color: Colors.white)),
-                Text('userId: ${widget.userId}', style: const TextStyle(color: Colors.orange, fontSize: 10)),
-                const SizedBox(height: 8),
-                Text('$st', style: const TextStyle(color: Colors.white54, fontSize: 8)),
-              ],
-            ),
-          ),
-        ),
+        body: WiwigaErrorView(error: e, stackTrace: st, title: 'Erreur inattendue'),
       );
     }
   }

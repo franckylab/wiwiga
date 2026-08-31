@@ -55,8 +55,12 @@ class ApiException implements Exception {
       ApiException(statusCode: 400, message: message, errorCode: errorCode, details: details, requestUrl: url);
 
   /// 401 — Unauthorized (token expiré ou invalide)
-  factory ApiException.unauthorized({String? url}) =>
-      ApiException(statusCode: 401, message: 'Session expirée. Veuillez vous reconnecter.', errorCode: 'UNAUTHORIZED', requestUrl: url);
+  factory ApiException.unauthorized({String? message, String? url, String? errorCode}) => ApiException(
+        statusCode: 401,
+        message: message ?? 'Session expirée. Veuillez vous reconnecter.',
+        errorCode: errorCode ?? 'UNAUTHORIZED',
+        requestUrl: url,
+      );
 
   /// 403 — Forbidden (permissions insuffisantes)
   factory ApiException.forbidden(String message, {String? url}) =>
@@ -75,12 +79,22 @@ class ApiException implements Exception {
       ApiException(statusCode: 422, message: message, errorCode: 'VALIDATION_ERROR', details: details, requestUrl: url);
 
   /// 429 — Too Many Requests (rate limit)
-  factory ApiException.rateLimited({String? url}) =>
-      ApiException(statusCode: 429, message: 'Trop de tentatives. Veuillez patienter.', errorCode: 'RATE_LIMITED', requestUrl: url);
+  factory ApiException.rateLimited({String? message, String? url, String? errorCode, Map<String, dynamic>? details}) => ApiException(
+        statusCode: 429,
+        message: message ?? 'Trop de tentatives. Veuillez patienter.',
+        errorCode: errorCode ?? 'RATE_LIMITED',
+        details: details,
+        requestUrl: url,
+      );
 
   /// 500 — Internal Server Error
-  factory ApiException.serverError({String? url}) =>
-      ApiException(statusCode: 500, message: 'Erreur serveur. Veuillez réessayer.', errorCode: 'SERVER_ERROR', requestUrl: url);
+  factory ApiException.serverError({String? message, String? url, String? errorCode, Map<String, dynamic>? details}) => ApiException(
+        statusCode: 500,
+        message: message ?? 'Erreur serveur. Veuillez réessayer.',
+        errorCode: errorCode ?? 'SERVER_ERROR',
+        details: details,
+        requestUrl: url,
+      );
 
   /// 502/503 — Service Unavailable
   factory ApiException.serviceUnavailable({String? url}) =>
@@ -126,20 +140,34 @@ class ApiException implements Exception {
   // ========================================
 
   /// Message utilisateur court, sans détails techniques
+  /// Jamais d'URL, jamais de stack, jamais de SocketException brut
   String get userMessage {
     switch (statusCode) {
       case 0:
-        return 'Problème de connexion. Vérifiez votre réseau.';
+        return 'Pas de connexion. Vérifiez votre réseau.';
+      case 400:
+        // 400 a déjà un message métier précis
+        return message.isNotEmpty ? message : 'Vérifiez les informations saisies.';
       case 401:
         return 'Session expirée. Reconnectez-vous.';
+      case 403:
+        return message.isNotEmpty ? message : 'Accès non autorisé.';
+      case 404:
+        return message.isNotEmpty ? message : 'Introuvable. Vérifiez et réessayez.';
       case 409:
-        return message; // Message spécifique au conflit
+        // Conflit = message métier déjà humain (ROOM_FULL etc)
+        return message.isNotEmpty ? message : 'Conflit. Action déjà effectuée.';
+      case 422:
+        return message.isNotEmpty ? message : 'Données invalides. Corrigez le formulaire.';
       case 429:
-        return 'Trop de tentatives. Patientez quelques instants.';
+        return 'Trop de requêtes. Patientez quelques instants.';
+      case 500:
+      case 502:
+      case 503:
       case >= 500:
         return 'Service temporairement indisponible. Réessayez.';
       default:
-        return message;
+        return message.isNotEmpty ? message : 'Un problème est survenu. Réessayez.';
     }
   }
 

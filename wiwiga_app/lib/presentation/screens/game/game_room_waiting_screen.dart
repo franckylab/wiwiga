@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
@@ -356,8 +357,9 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> {
       } else {
         setState(() => _isStarting = false);
       }
-    } catch (e) {
-      setState(() { _isStarting = false; _error = e.toString().replaceFirst('Exception: ', ''); });
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameRoomWaiting.startMatch');
+      setState(() { _isStarting = false; _error = ErrorHandler.userMessage(e); });
     }
   }
 

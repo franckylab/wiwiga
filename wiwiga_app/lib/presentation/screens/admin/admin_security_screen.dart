@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
@@ -107,7 +108,10 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
     return securityAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminSecurityOverviewProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminSecurity.overview');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminSecurityOverviewProvider));
+      },
       data: (data) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -208,7 +212,10 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
     return whitelistAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminIpWhitelistProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminSecurity.ipWhitelist');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminIpWhitelistProvider));
+      },
       data: (ips) => Column(
         children: [
           Padding(
@@ -257,7 +264,10 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
     return failedAuthsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminFailedAuthsProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminSecurity.failedAuths');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminFailedAuthsProvider));
+      },
       data: (data) {
         final logs = data['logs'] as List? ?? [];
         return logs.isEmpty
@@ -287,7 +297,10 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
     return securityAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminSecurityOverviewProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminSecurity.bans');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminSecurityOverviewProvider));
+      },
       data: (data) {
         final activeBans = data['active_bans'] as int? ?? 0;
         final bansList = data['bans_list'] as List? ?? [];

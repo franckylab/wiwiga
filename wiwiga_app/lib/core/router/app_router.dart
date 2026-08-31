@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/game_room_model.dart';
 import '../../data/providers/app_providers.dart';
 import '../../data/providers/game_stats_providers.dart';
+import '../widgets/wiwiga_error_view.dart';
 import '../../presentation/screens/auth/auth_screen_v2.dart';
 import '../../presentation/screens/admin/admin_dashboard_screen.dart';
 import '../../presentation/screens/admin/admin_users_screen.dart';
@@ -64,8 +65,22 @@ import '../theme/neon_theme.dart';
 /// Clé du navigateur racine (écrans plein écran hors shell)
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
-/// Routes qui nécessitent une authentification
-const _protectedRoutes = {'/profile', '/settings', '/transactions'};
+/// Routes qui nécessitent une authentification (préfixe)
+const _protectedRoutes = {
+  '/profile',
+  '/settings',
+  '/transactions',
+  '/tokens',
+  '/wallet',
+  '/friends',
+  '/games', // inclut /games/:type/create, /games/:type/lobby, /games/:type/room/* etc.
+};
+
+bool _isProtectedRoute(String path) {
+  if (_protectedRoutes.contains(path)) return true;
+  // préfixe: /games, /friends, /tokens, etc.
+  return _protectedRoutes.any((r) => path == r || path.startsWith('$r/'));
+}
 
 /// Routes qui nécessitent un rôle admin (exactes)
 const _adminRoutes = {
@@ -109,9 +124,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return null;
       }
       
-      // Si l'utilisateur est guest et accède à une route protégée,
-      // on le redirige vers /auth avec l'intent de retour
-      if (authState.isGuest && _protectedRoutes.contains(path)) {
+      // Si l'utilisateur est guest et accède à une route protégée (exacte ou préfixe)
+      if (authState.isGuest && _isProtectedRoute(path)) {
         ref.read(authProvider.notifier).setRedirectTo(path);
         return '/auth';
       }
@@ -452,26 +466,14 @@ class _RoomRouteLoader extends ConsumerWidget {
           return GameRoomWaitingScreen(room: snapshot.data!);
         }
         if (snapshot.hasError) {
+          final err = snapshot.error!;
+          final isSession = err.toString().contains('401') || err.toString().contains('Session');
           return Scaffold(
-            backgroundColor: NeonColors.surface,
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline,
-                      color: NeonColors.error, size: 48,),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Salle introuvable',
-                    style: TextStyle(color: NeonColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => context.go('/games'),
-                    child: const Text('Retour aux jeux'),
-                  ),
-                ],
-              ),
+            backgroundColor: NeonColors.background,
+            body: WiwigaErrorView(
+              error: err,
+              title: isSession ? 'Session expirée' : 'Salle indisponible',
+              onRetry: () => context.go('/games'),
             ),
           );
         }

@@ -37,22 +37,21 @@ void main() {
   });
 
   group('TokensConfigModel', () {
-    test('fromJson parse les valeurs admin', () {
+    test('fromJson parse les valeurs admin (sans échange)', () {
       final config = TokensConfigModel.fromJson({
-        'exchange_rate': 10,
-        'exchange_fee_percent': 2.5,
-        'exchange_fixed_fee': 5,
+        'exchange_rate': 1.0,
         'daily_purchase_limit': 50000,
-        'daily_transfer_limit': 10000,
+        'daily_gift_limit': 10000,
+        'daily_transfer_limit': 10000, // compat legacy
         'gift_fee_percent': 5.0,
         'dice_min_bet': 10,
         'cards_min_bet': 20,
       });
 
-      expect(config.exchangeRate, 10);
-      expect(config.exchangeFeePercent, 2.5);
+      expect(config.exchangeRate, 1.0);
       expect(config.dailyPurchaseLimit, 50000);
-      expect(config.dailyTransferLimit, 10000);
+      expect(config.dailyGiftLimit, 10000);
+      expect(config.dailyTransferLimit, 10000); // getter compat
       expect(config.diceMinBet, 10);
     });
   });

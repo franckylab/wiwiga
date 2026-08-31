@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
@@ -68,10 +69,11 @@ class _AvatarPickerSheetState extends ConsumerState<AvatarPickerSheet> {
           _error = 'Erreur lors de l\'upload';
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AvatarPicker._pickAndUploadImage');
       setState(() {
         _isUploading = false;
-        _error = 'Erreur: $e';
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }

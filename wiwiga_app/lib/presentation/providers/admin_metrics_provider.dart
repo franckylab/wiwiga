@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../../data/providers/app_providers.dart';
 
 // ========================================
@@ -147,8 +148,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getDashboardMetrics();
       state = state.copyWith(isLoading: false, dashboard: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadDashboard');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -159,8 +161,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getFinancialMetrics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, financial: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadFinancialMetrics');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -171,8 +174,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getGameMetrics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, games: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadGameMetrics');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -183,8 +187,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getUserMetrics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, users: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadUserMetrics');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -195,8 +200,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getPaymentMetrics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, payments: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadPaymentMetrics');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -207,8 +213,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getSecurityMetrics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, security: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadSecurityMetrics');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -222,8 +229,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
         period: period ?? state.selectedPeriod,
       );
       state = state.copyWith(isLoading: false, timeseries: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadTimeseries');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -255,8 +263,9 @@ class AdminMetricsNotifier extends StateNotifier<AdminMetricsState> {
         payments: results[4],
         security: results[5],
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMetrics.loadAll');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 }
@@ -278,8 +287,9 @@ class AdminAlertsNotifier extends StateNotifier<AdminAlertsState> {
         alerts: data['notifications'] as List? ?? [],
         total: data['total'] as int? ?? 0,
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminAlerts.loadNotifications');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -301,8 +311,9 @@ class AdminAlertsNotifier extends StateNotifier<AdminAlertsState> {
       await repo.markNotificationRead(notificationId);
       // Recharger
       await loadUnreadCount();
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminAlerts.markRead');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 }
@@ -323,8 +334,9 @@ class AdminGamesLiveNotifier extends StateNotifier<AdminGamesLiveState> {
         isLoading: false,
         activeGames: data['active_games'] as List? ?? [],
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGamesLive.loadActiveGames');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -346,8 +358,9 @@ class AdminGamesLiveNotifier extends StateNotifier<AdminGamesLiveState> {
       await repo.forceCloseGame(gameId, reason: reason);
       await loadActiveGames();
       return true;
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGamesLive.forceCloseGame');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return false;
     }
   }

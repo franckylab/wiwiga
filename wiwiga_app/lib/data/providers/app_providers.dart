@@ -7,6 +7,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../services/api_service.dart';
 import '../services/game_websocket_service.dart';
 import '../repositories/auth_repository.dart';
@@ -170,7 +171,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.restoreSession');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
@@ -192,11 +194,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _repository.sendOtp(phoneNumber);
       state = state.copyWith(isLoading: false);
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.sendOtp');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Erreur lors de l\'envoi du code: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -214,11 +217,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _repository.sendOtpByEmail(email);
       state = state.copyWith(isLoading: false);
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.sendOtpByEmail');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Erreur lors de l\'envoi du code: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -271,14 +275,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           redirectTo: null,
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.loginWithPassword');
       if (kDebugMode) {
         debugPrint('[AUTH] Login failed for $identifier: $e');
       }
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Identifiants incorrects',
+        error: ErrorHandler.userMessage(e, fallback: 'Identifiants incorrects'),
       );
     }
   }
@@ -307,11 +312,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         user: result['user'] as UserModel?,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.register');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Erreur lors de l\'inscription: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -338,11 +344,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         redirectTo: null,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.verifyOtp');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Code OTP invalide: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -369,11 +376,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: result['user'] as UserModel,
         redirectTo: null,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.verifyOtpByEmail');
       state = state.copyWith(
         status: AuthStatus.guest,
         isLoading: false,
-        error: 'Code OTP invalide: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -395,10 +403,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: user,
         needsProfileCompletion: false,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.completeProfile');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur complétion profil: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -414,12 +423,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _repository.logout();
       state = const AuthState(status: AuthStatus.guest);
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.logout');
       state = state.copyWith(
         isLoading: false,
         status: AuthStatus.guest,
         user: null,
-        error: 'Erreur lors de la déconnexion: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -429,8 +439,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repository.getMe();
       state = state.copyWith(user: user);
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur chargement profil: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.refreshProfile');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
   
@@ -438,7 +449,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<Map<String, dynamic>> getAuthSettings() async {
     try {
       return await _repository.getAuthSettings();
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.getAuthSettings');
       return {'otp_required_on_login': false};
     }
   }
@@ -448,7 +460,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _repository.updateAuthSettings(otpRequiredOnLogin: enabled);
       return true;
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Auth.updateOtpRequired');
       return false;
     }
   }
@@ -542,10 +555,11 @@ class WalletNotifier extends StateNotifier<WalletState> {
         tokenBalance: tokenBalance,
         tokenMonetaryValue: tokenMonetaryValue,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Wallet.loadBalance');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement solde: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -562,10 +576,11 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
         transactions: txList,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Wallet.loadTransactions');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement transactions: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -587,10 +602,11 @@ class WalletNotifier extends StateNotifier<WalletState> {
         balance: newBalance,
         transactions: [tx, ...state.transactions],
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Wallet.deposit');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur dépôt: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -612,10 +628,11 @@ class WalletNotifier extends StateNotifier<WalletState> {
         balance: newBalance,
         transactions: [tx, ...state.transactions],
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Wallet.withdraw');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur retrait: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -677,10 +694,11 @@ class GameNotifier extends StateNotifier<GameState> {
         isLoading: false,
         games: games,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Game.loadGames');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement jeux: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -698,10 +716,11 @@ class GameNotifier extends StateNotifier<GameState> {
         isLoading: false,
         currentSession: session,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Game.joinQueue');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur matchmaking: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -724,10 +743,11 @@ class GameNotifier extends StateNotifier<GameState> {
         isLoading: false,
         lastResult: result,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Game.placeBet');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur mise: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }

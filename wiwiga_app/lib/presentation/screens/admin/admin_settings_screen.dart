@@ -7,7 +7,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../widgets/admin/empty_state.dart';
@@ -53,8 +55,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> with 
     try {
       final settings = await ref.read(adminRepositoryProvider).getAllSettings();
       setState(() { _settings = settings; _isLoading = false; });
-    } catch (e) {
-      setState(() { _isLoading = false; _error = 'Erreur: $e'; });
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminSettings._loadSettings');
+      setState(() { _isLoading = false; _error = ErrorHandler.userMessage(e); });
     }
   }
 
@@ -128,9 +131,10 @@ class _CategoryTabState extends ConsumerState<_CategoryTab> {
       if (mounted) {
         context.showSuccess('$key mis à jour');
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminSettings._updateSetting');
       if (mounted) {
-        context.showError('Erreur: $e');
+        WiwigaSnack.showError(context, e);
       }
     }
   }

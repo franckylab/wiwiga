@@ -1,10 +1,10 @@
 // ============================================================
 // Fichier: game_room_model.dart
-// Description: Modèle de salle de jeu WIWIGA
-//              Modes: Partie sans mise (gratuit) = free, Partie avec mise = staked
-//              Alias historique "betting" → normalisé en "staked"
+// Description: Modèle de salle de jeu WIWIGA — migration brutale 2026-08-30
+//              Modes: free = Partie sans mise (gratuit), staked = Partie avec mise
+//              "betting"/"mise en ligne"/"pari" SUPPRIMÉS
 // Auteur: Franck Arlos CHENDJOU
-// Date: 2026-07-29 (refactor 2026-08-30)
+// Date: 2026-07-29 (refactor brutal 2026-08-30)
 // ============================================================
 
 import '../../core/constants/game_mode.dart';
@@ -16,7 +16,7 @@ class GameRoomModel {
   final String creatorId;
   final String gameType;
   final String ruleType;
-  final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — alias historique 'betting' → 'staked'
+  final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
   final String status; // 'waiting' | 'starting' | 'in_progress' | 'ended' | 'cancelled'
   final int betAmount;
   final int setsCount;
@@ -46,7 +46,7 @@ class GameRoomModel {
   });
 
   factory GameRoomModel.fromJson(Map<String, dynamic> json) {
-    // Normalisation rétro-compatible : betting → staked
+    // Migration brutale: seuls free/staked acceptés — betting lève
     final rawMode = json['mode'] as String? ?? 'free';
     final canonicalMode = GameMode.parse(rawMode).apiValue;
     return GameRoomModel(
@@ -55,9 +55,7 @@ class GameRoomModel {
       creatorId: json['creator_id'] ?? '',
       gameType: json['game_type'] ?? 'dice',
       ruleType: json['rule_type'] ?? 'normal',
-      mode: json['mode_label'] != null
-          ? canonicalMode // si backend fournit mode_label, on force canonique
-          : canonicalMode,
+      mode: canonicalMode,
       status: json['status'] ?? 'waiting',
       betAmount: json['bet_amount'] ?? 0,
       setsCount: json['sets_count'] ?? 1,
@@ -84,10 +82,6 @@ class GameRoomModel {
   bool get isFree => gameMode.isFree;
   bool get isStaked => gameMode.isStaked;
 
-  /// Alias déprécié — conservé pour compatibilité (betting = staked)
-  @Deprecated('Utiliser isStaked (betting est alias de staked)')
-  bool get isBetting => isStaked;
-
   bool get isWaiting => status == 'waiting';
   bool get isInProgress => status == 'in_progress';
   bool get isFull => playersCount >= maxPlayers;
@@ -110,11 +104,11 @@ class RoomPlayer {
   }
 }
 
-/// Configuration de création de partie
+/// Configuration de création de partie — migration brutale
 class CreateGameConfig {
   final String gameType;
   final String ruleType;
-  final String mode; // 'free' | 'staked' (backend normalise 'betting' → 'staked')
+  final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
   final int setsCount;
   final int diceCount;
   final int betAmount;

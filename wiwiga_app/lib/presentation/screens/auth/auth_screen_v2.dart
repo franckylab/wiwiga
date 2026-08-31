@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
@@ -190,10 +191,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         _isLoading = false;
       });
       _startCountdown();
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthScreenV2._sendOtp');
       setState(() {
         _isLoading = false;
-        _error = e.toString();
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }
@@ -268,10 +270,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         _currentFlow = _AuthFlow.registerSuccess;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthScreenV2._completeProfile');
       setState(() {
         _isLoading = false;
-        _error = e.toString();
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }

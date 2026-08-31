@@ -31,45 +31,60 @@ defmodule GameHubWeb.RoomController do
   def create(conn, params) do
     user_id = get_current_user_id(conn)
 
-    room_params = %{
-      creator_id: user_id,
-      creator_name: Map.get(params, "creator_name", "Joueur"),
-      game_type: Map.get(params, "game_type", "dice"),
-      rule_type: Map.get(params, "rule_type", "normal"),
-      mode: parse_mode(Map.get(params, "mode", "free")),
-      bet_amount: parse_int(Map.get(params, "bet_amount", 0)),
-      sets_count: parse_int(Map.get(params, "sets_count")),
-      dice_count: parse_int(Map.get(params, "dice_count")),
-      max_players: parse_int(Map.get(params, "max_players"))
-    }
+    raw_mode = Map.get(params, "mode", "free")
 
-    # Validation basique
-    cond do
-      GameMode.staked?(room_params.mode) and room_params.bet_amount <= 0 ->
+    # Migration brutale: betting supprimé — parse strict sans fallback
+    case GameMode.parse_strict(to_string(raw_mode)) do
+      {:error, :invalid_mode} ->
         conn
         |> put_status(400)
-        |> json(Errors.error("Mise requise pour le mode Partie avec mise", 400, "VALIDATION_ERROR"))
+        |> json(Errors.error("Mode invalide: attendu free (Partie sans mise) ou staked (Partie avec mise) — betting supprimé", 400, "INVALID_MODE"))
 
-      room_params.game_type not in ~w(dice) ->
-        conn
-        |> put_status(400)
-        |> json(Errors.error("Type de jeu non supporté", 400, "INVALID_GAME_TYPE"))
+      {:ok, canonical_mode} ->
+        room_params = %{
+          creator_id: user_id,
+          creator_name: Map.get(params, "creator_name", "Joueur"),
+          game_type: Map.get(params, "game_type", "dice"),
+          rule_type: Map.get(params, "rule_type", "normal"),
+          mode: canonical_mode,
+          bet_amount: parse_int(Map.get(params, "bet_amount", 0)),
+          sets_count: parse_int(Map.get(params, "sets_count")),
+          dice_count: parse_int(Map.get(params, "dice_count")),
+          max_players: parse_int(Map.get(params, "max_players"))
+        }
 
-      true ->
-        case GameRoom.create_room(room_params) do
-          {:ok, room} ->
-            conn
-            |> put_status(201)
-            |> json(%{
-              success: true,
-              data: format_room(room),
-              meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-            })
-
-          {:error, reason} ->
+        cond do
+          GameMode.staked?(room_params.mode) and room_params.bet_amount <= 0 ->
             conn
             |> put_status(400)
-            |> json(Errors.error("Création échouée: #{inspect(reason)}", 400, "ROOM_CREATE_ERROR"))
+            |> json(Errors.error("Mise requise pour le mode Partie avec mise", 400, "VALIDATION_ERROR"))
+
+          room_params.game_type not in ~w(dice) ->
+            conn
+            |> put_status(400)
+            |> json(Errors.error("Type de jeu non supporté", 400, "INVALID_GAME_TYPE"))
+
+          true ->
+            case GameRoom.create_room(room_params) do
+              {:ok, room} ->
+                conn
+                |> put_status(201)
+                |> json(%{
+                  success: true,
+                  data: format_room(room),
+                  meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+                })
+
+              {:error, :invalid_mode} ->
+                conn
+                |> put_status(400)
+                |> json(Errors.error("Mode invalide: betting supprimé — utiliser staked", 400, "INVALID_MODE"))
+
+              {:error, reason} ->
+                conn
+                |> put_status(400)
+                |> json(Errors.error("Création échouée: #{inspect(reason)}", 400, "ROOM_CREATE_ERROR"))
+            end
         end
     end
   end
@@ -213,20 +228,38 @@ defmodule GameHubWeb.RoomController do
   """
   def waiting(conn, params) do
     game_type = Map.get(params, "game_type")
-    mode = if Map.has_key?(params, "mode"), do: parse_mode(params["mode"]), else: nil
 
-    rooms = GameRoom.list_waiting_rooms(game_type, mode)
+    # Migration brutale: mode betting rejeté
+    mode_result =
+      if Map.has_key?(params, "mode") do
+        case GameMode.parse_strict(to_string(params["mode"])) do
+          {:ok, m} -> {:ok, m}
+          {:error, _} -> {:error, :invalid_mode}
+        end
+      else
+        {:ok, nil}
+      end
 
-    conn
-    |> put_status(200)
-    |> json(%{
-      success: true,
-      data: Enum.map(rooms, &format_room/1),
-      meta: %{
-        total: length(rooms),
-        timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-      }
-    })
+    case mode_result do
+      {:error, :invalid_mode} ->
+        conn
+        |> put_status(400)
+        |> json(Errors.error("Mode invalide: betting supprimé — utiliser free | staked", 400, "INVALID_MODE"))
+
+      {:ok, mode} ->
+        rooms = GameRoom.list_waiting_rooms(game_type, mode)
+
+        conn
+        |> put_status(200)
+        |> json(%{
+          success: true,
+          data: Enum.map(rooms, &format_room/1),
+          meta: %{
+            total: length(rooms),
+            timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+        })
+    end
   end
 
   @doc """
@@ -270,9 +303,6 @@ defmodule GameHubWeb.RoomController do
   defp get_current_user_id(conn) do
     GameHubWeb.AuthPlug.get_current_user_id(conn)
   end
-
-  # Délègue au référentiel centralisé GameMode (gère alias betting → staked).
-  defp parse_mode(mode), do: GameMode.parse(mode)
 
   defp parse_int(nil), do: nil
   defp parse_int(val) when is_integer(val), do: val

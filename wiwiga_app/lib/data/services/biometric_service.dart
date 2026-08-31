@@ -1,6 +1,7 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
+import '../../core/errors/error_handler.dart';
 
 /// Service d'authentification biométrique
 ///
@@ -138,10 +139,11 @@ class BiometricService {
           error: 'Authentification échouée',
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'BiometricService.authenticateWithResult');
       return BiometricAuthResult(
         success: false,
-        error: 'Erreur: ${e.toString()}',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }

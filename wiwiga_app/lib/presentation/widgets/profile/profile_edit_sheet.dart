@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/user_profile_provider.dart';
@@ -136,10 +137,11 @@ class _ProfileEditSheetState extends ConsumerState<ProfileEditSheet> {
           _error = 'Ce nom est déjà pris ou erreur serveur';
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ProfileEditSheet._save');
       setState(() {
         _isSaving = false;
-        _error = 'Erreur: $e';
+        _error = ErrorHandler.userMessage(e);
       });
     }
   }

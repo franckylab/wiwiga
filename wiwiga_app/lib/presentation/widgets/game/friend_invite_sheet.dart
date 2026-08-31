@@ -9,6 +9,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
 import '../../widgets/neon/neon_button.dart';
@@ -347,9 +349,10 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Demande envoyée à ${result.name}')),
                 );
-              } catch (e) {
+              } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'FriendInviteSheet');
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                WiwigaSnack.showError(context, e);
               }
             },
             height: 32,

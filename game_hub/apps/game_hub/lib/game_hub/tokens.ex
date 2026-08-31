@@ -8,29 +8,33 @@
 defmodule GameHub.Tokens do
   @moduledoc """
   Gestion complète du système de jetons virtuels.
-  
+
   ## Opérations
   - **Achat** : Monnaie → Jetons (via paiement Mobile Money)
-  - **Échange** : Jetons → Monnaie (retrait)
   - **Mise** : Débit jetons pour jouer
   - **Gains** : Crédit jetons après victoire
-  - **Transfert** : Jetons entre joueurs
-  - **Cadeau** : Envoi gratuit de jetons
+  - **Cadeau** : Envoi de jetons entre amis uniquement
   - **Promo** : Jetons promotionnels avec conditions
   - **Commission** : Prélèvement commission en jetons
-  
+
+  Seuls l'achat, les cadeaux entre amis et les promos permettent d'obtenir des wiga.
+  Transfert libre et échange wiga→monnaie ont été supprimés.
+
   ## Règles Critiques
   - TOUJOURS transaction ACID
   - TOUJOURS verrouillage pessimiste FOR UPDATE
   - TOUJOURS clé idempotence
   - TOUJOURS log d'audit
+  - Cadeau : uniquement entre amis (Friendship accepted)
   """
   
   import Ecto.Query
   alias GameHub.Repo
   alias GameHub.Users.User
   alias GameHub.Tokens.{TokenTransaction, TokenConfig, PromoToken, UserPromoToken}
+  alias GameHub.Friends.Friendship
   alias GameHub.AuditLog
+  alias GameHub.Admin.PlatformConfig
   
   # ========================================
   # SOLDE
@@ -57,16 +61,13 @@ defmodule GameHub.Tokens do
       {:ok, balance} ->
         config = TokenConfig.get_config()
         monetary_centimes = TokenConfig.tokens_to_monetary(balance, config)
-        
+
         {:ok, %{
           token_balance: balance,
           wiga_balance: balance,
           monetary_value_centimes: monetary_centimes,
           monetary_value_fcfa: monetary_centimes / 100,
           exchange_rate: config.exchange_rate,
-          min_exchange: config.min_exchange_tokens,
-          max_exchange: config.max_exchange_tokens,
-          transfer_enabled: config.transfer_enabled,
           gift_enabled: config.gift_enabled
         }}
     end
@@ -140,88 +141,8 @@ defmodule GameHub.Tokens do
     {:error, :invalid_amount}
   end
   
-  # ========================================
-  # ÉCHANGE JETONS → MONNAIE
-  # ========================================
-  
-  @doc """
-  Échange jetons contre monnaie (retrait).
-  
-  ## Parameters
-    - `user_id`: ID utilisateur
-    - `token_amount`: Nombre de jetons à échanger
-    - `idempotency_key`: Clé unique
-    
-  ## Validations
-    - Min/Max échange
-    - Solde suffisant
-    - Frais d'échange
-  """
-  @spec exchange_tokens(integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
-  def exchange_tokens(user_id, token_amount, idempotency_key) when token_amount > 0 do
-    Repo.transaction(fn ->
-      case get_token_transaction_by_key(idempotency_key) do
-        nil ->
-          user = lock_user_for_update(user_id)
-          config = TokenConfig.get_config()
-          
-          # Vérifier limites
-          cond do
-            token_amount < config.min_exchange_tokens ->
-              Repo.rollback(:below_min_exchange)
-            
-            token_amount > config.max_exchange_tokens ->
-              Repo.rollback(:above_max_exchange)
-            
-            user.token_balance < token_amount ->
-              Repo.rollback(:insufficient_tokens)
-            
-            true ->
-              # Calcul frais
-              fee = TokenConfig.calculate_exchange_fee(token_amount, config)
-              net_tokens = token_amount - fee
-              monetary_value = TokenConfig.tokens_to_monetary(net_tokens, config)
-              
-              balance_before = user.token_balance
-              balance_after = balance_before - token_amount
-              
-              transaction = create_token_transaction(%{
-                user_id: user_id,
-                type: "exchange",
-                token_amount: -token_amount,
-                balance_before: balance_before,
-                balance_after: balance_after,
-                monetary_value: monetary_value,
-                exchange_rate: config.exchange_rate,
-                idempotency_key: idempotency_key,
-                metadata: %{fee: fee, net_tokens: net_tokens}
-              })
-              
-              update_user_token_balance(user_id, balance_after)
-              
-              # Débiter aussi le solde monétaire
-              deduct_monetary_balance(user_id, monetary_value)
-              
-              AuditLog.log(
-                "token_exchange",
-                user_id,
-                "tokens",
-                "user_#{user_id}",
-                %{tokens_exchanged: token_amount, monetary_value: monetary_value, fee: fee}
-              )
-              
-              transaction
-          end
-          
-        _existing ->
-          Repo.rollback(:idempotency_key_used)
-      end
-    end)
-  end
-  
-  def exchange_tokens(_, amount, _) when amount <= 0 do
-    {:error, :invalid_amount}
-  end
+  # Échange et transfert supprimés — seuls achat, cadeau ami et promos restent.
+  # Voir git history pour l'ancienne implémentation exchange_tokens/3.
   
   # ========================================
   # MISE DE JEU
@@ -341,119 +262,32 @@ defmodule GameHub.Tokens do
     {:error, :invalid_amount}
   end
   
-  # ========================================
-  # TRANSFERT ENTRE JOUEURS
-  # ========================================
-  
-  @doc """
-  Transfère des jetons entre joueurs.
-  
-  ## Parameters
-    - `from_user_id`: ID expéditeur
-    - `to_user_id`: ID destinataire
-    - `token_amount`: Nombre de jetons
-    - `idempotency_key`: Clé unique
-  """
-  @spec transfer_tokens(integer(), integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
-  def transfer_tokens(from_user_id, to_user_id, token_amount, idempotency_key)
-      when token_amount > 0 and from_user_id != to_user_id do
-    config = TokenConfig.get_config()
-    
-    unless config.transfer_enabled do
-      {:error, :transfers_disabled}
-    else
-      Repo.transaction(fn ->
-        case get_token_transaction_by_key(idempotency_key) do
-          nil ->
-            # Vérifier destinataire existe
-            unless Repo.get(User, to_user_id) do
-              Repo.rollback(:recipient_not_found)
-            end
-            
-            # Verrouiller les deux users
-            from_user = lock_user_for_update(from_user_id)
-            _to_user = lock_user_for_update(to_user_id)
-            
-            if from_user.token_balance < token_amount do
-              Repo.rollback(:insufficient_tokens)
-            else
-              # Débit expéditeur
-              from_balance_before = from_user.token_balance
-              from_balance_after = from_balance_before - token_amount
-              
-              # Crédit destinataire
-              to_user = Repo.get!(User, to_user_id)
-              to_balance_before = to_user.token_balance
-              to_balance_after = to_balance_before + token_amount
-              
-              # Transaction sortante
-              create_token_transaction(%{
-                user_id: from_user_id,
-                type: "transfer_out",
-                token_amount: -token_amount,
-                balance_before: from_balance_before,
-                balance_after: from_balance_after,
-                idempotency_key: idempotency_key,
-                counterparty_id: to_user_id,
-                metadata: %{recipient_id: to_user_id}
-              })
-              
-              # Transaction entrante (copie pour destinataire)
-              create_token_transaction(%{
-                user_id: to_user_id,
-                type: "transfer_in",
-                token_amount: token_amount,
-                balance_before: to_balance_before,
-                balance_after: to_balance_after,
-                idempotency_key: "#{idempotency_key}_recv",
-                counterparty_id: from_user_id,
-                metadata: %{sender_id: from_user_id}
-              })
-              
-              update_user_token_balance(from_user_id, from_balance_after)
-              update_user_token_balance(to_user_id, to_balance_after)
-              
-              AuditLog.log(
-                "token_transfer",
-                from_user_id,
-                "tokens",
-                "user_#{from_user_id}",
-                %{amount: token_amount, to: to_user_id}
-              )
-              
-              %{from_balance: from_balance_after, to_balance: to_balance_after, amount: token_amount}
-            end
-            
-          _existing ->
-            Repo.rollback(:idempotency_key_used)
-        end
-      end)
-    end
-  end
-  
-  def transfer_tokens(_, _, amount, _) when amount <= 0 do
-    {:error, :invalid_amount}
-  end
-  
-  def transfer_tokens(same, same, _, _) do
-    {:error, :cannot_transfer_to_self}
-  end
+  # Transfert supprimé — voir historique git. Seul le cadeau entre amis reste.
   
   # ========================================
   # CADEAU
   # ========================================
   
   @doc """
-  Envoie des jetons en cadeau (transfert gratuit).
-  Même logique que transfer mais avec type gift.
+  Envoie des jetons en cadeau — uniquement entre amis.
+
+  ## Règles
+  - `gift_enabled` doit être vrai
+  - `from != to` (sinon :invalid_amount / :cannot_gift_to_self)
+  - Destinataire existe
+  - Amitié `accepted` obligatoire (sinon :not_friends)
+  - Solde suffisant
+  - Limite journalière `daily_gift_limit` (PlatformConfig `payment.daily_gift_limit`, défaut 10 000)
+
+  Message optionnel ≤ 140 caractères, trimé côté controller.
   """
   @spec send_gift(integer(), integer(), integer(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def send_gift(from_user_id, to_user_id, token_amount, idempotency_key, message \\ "")
-  
+
   def send_gift(from_user_id, to_user_id, token_amount, idempotency_key, message)
       when token_amount > 0 and from_user_id != to_user_id do
     config = TokenConfig.get_config()
-    
+
     unless config.gift_enabled do
       {:error, :gifts_disabled}
     else
@@ -463,10 +297,23 @@ defmodule GameHub.Tokens do
             unless Repo.get(User, to_user_id) do
               Repo.rollback(:recipient_not_found)
             end
-            
+
+            unless friendship_accepted?(from_user_id, to_user_id) do
+              Repo.rollback(:not_friends)
+            end
+
+            # Limite journalière cadeau
+            daily_limit = PlatformConfig.get_int("payment", "daily_gift_limit", 10_000)
+            if daily_limit > 0 do
+              sent_today = daily_gift_sent_today(from_user_id)
+              if sent_today + token_amount > daily_limit do
+                Repo.rollback(:daily_gift_limit_exceeded)
+              end
+            end
+
             from_user = lock_user_for_update(from_user_id)
             _to_user = lock_user_for_update(to_user_id)
-            
+
             if from_user.token_balance < token_amount do
               Repo.rollback(:insufficient_tokens)
             else
@@ -751,14 +598,38 @@ defmodule GameHub.Tokens do
     |> Repo.update_all(set: [token_balance: new_balance])
   end
   
-  defp deduct_monetary_balance(user_id, amount_centimes) do
-    user = Repo.get!(User, user_id)
-    new_balance = max(0, user.balance - amount_centimes)
-    
-    from(u in User, where: u.id == ^user_id)
-    |> Repo.update_all(set: [balance: new_balance])
+  defp friendship_accepted?(a, b) do
+    a = to_int(a)
+    b = to_int(b)
+
+    Repo.exists?(
+      from f in Friendship,
+        where: f.status == "accepted" and
+               ((f.user_id == ^a and f.friend_id == ^b) or
+                (f.user_id == ^b and f.friend_id == ^a))
+    )
   end
-  
+
+  defp daily_gift_sent_today(user_id) do
+    {:ok, today_start, _} =
+      DateTime.from_iso8601(Date.to_iso8601(Date.utc_today()) <> "T00:00:00Z")
+
+    Repo.one(
+      from t in TokenTransaction,
+        where: t.user_id == ^user_id and t.type == "gift_sent" and t.inserted_at >= ^today_start,
+        select: coalesce(sum(fragment("ABS(?)", t.token_amount)), 0)
+    ) || 0
+  end
+
+  defp to_int(v) when is_integer(v), do: v
+  defp to_int(v) when is_binary(v) do
+    case Integer.parse(v) do
+      {n, _} -> n
+      :error -> -1
+    end
+  end
+  defp to_int(_), do: -1
+
   defp extract_game_type(game_id) do
     case game_id do
       "dice_" <> _ -> "dice"

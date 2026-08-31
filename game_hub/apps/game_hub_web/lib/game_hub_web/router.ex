@@ -153,12 +153,10 @@ defmodule GameHubWeb.Router do
     post "/wallet/withdraw", WalletController, :withdraw
     get "/wallet/transactions", WalletController, :list_transactions
     
-    # Jetons virtuels
+    # Jetons virtuels — seuls achat, cadeau ami et promos
     get "/tokens/balance", TokenController, :balance
     get "/tokens/summary", TokenController, :summary
     post "/tokens/purchase", TokenController, :purchase
-    post "/tokens/exchange", TokenController, :exchange
-    post "/tokens/transfer", TokenController, :transfer
     post "/tokens/gift", TokenController, :gift
     get "/tokens/transactions", TokenController, :transactions
     post "/tokens/promos/:id/redeem", TokenController, :redeem_promo

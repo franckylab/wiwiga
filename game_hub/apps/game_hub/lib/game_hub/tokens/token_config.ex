@@ -26,25 +26,16 @@ defmodule GameHub.Tokens.TokenConfig do
   @derive {Jason.Encoder, except: [:__meta__, :updated_by]}
   
   schema "token_configs" do
-    # Taux de conversion (1 jeton = 1 FCFA)
+    # Taux de conversion (1 jeton = 1 FCFA) — utilisé pour achat uniquement
     field :exchange_rate, :float, default: 1.0
-    
-    # Limites échange
-    field :min_exchange_tokens, :integer, default: 100
-    field :max_exchange_tokens, :integer, default: 100_000
-    
+
     # Mises min par jeu
     field :min_bet_tokens_dice, :integer, default: 10
     field :min_bet_tokens_card, :integer, default: 10
-    
-    # Fonctionnalités
-    field :transfer_enabled, :boolean, default: true
+
+    # Fonctionnalités — seul le cadeau entre amis reste (transfert & échange supprimés)
     field :gift_enabled, :boolean, default: true
-    
-    # Frais
-    field :exchange_fee_percentage, :float, default: 0.0
-    field :exchange_fee_fixed, :integer, default: 0
-    
+
     # Settings flexibles
     field :settings, :map, default: %{}
     
@@ -101,18 +92,6 @@ defmodule GameHub.Tokens.TokenConfig do
   end
   
   @doc """
-  Calcule les frais d'échange pour un montant de jetons.
-  """
-  def calculate_exchange_fee(token_amount, config \\ nil) do
-    config = config || get_config()
-    
-    fee_percentage = round(token_amount * config.exchange_fee_percentage)
-    fee_fixed = config.exchange_fee_fixed
-    
-    fee_percentage + fee_fixed
-  end
-  
-  @doc """
   Récupère la mise minimum en jetons pour un type de jeu.
   """
   def get_min_bet_tokens(game_type, config \\ nil) do
@@ -131,31 +110,22 @@ defmodule GameHub.Tokens.TokenConfig do
     %__MODULE__{}
     |> changeset(%{
       exchange_rate: 1.0,
-      min_exchange_tokens: 100,
-      max_exchange_tokens: 100_000,
       min_bet_tokens_dice: 10,
       min_bet_tokens_card: 10,
-      transfer_enabled: true,
-      gift_enabled: true,
-      exchange_fee_percentage: 0.0,
-      exchange_fee_fixed: 0
+      gift_enabled: true
     })
     |> Repo.insert!()
   end
-  
+
   defp changeset(config, attrs) do
     config
     |> cast(attrs, [
-      :exchange_rate, :min_exchange_tokens, :max_exchange_tokens,
+      :exchange_rate,
       :min_bet_tokens_dice, :min_bet_tokens_card,
-      :transfer_enabled, :gift_enabled,
-      :exchange_fee_percentage, :exchange_fee_fixed,
+      :gift_enabled,
       :settings, :updated_by_id
     ])
     |> validate_number(:exchange_rate, greater_than: 0)
-    |> validate_number(:min_exchange_tokens, greater_than: 0)
-    |> validate_number(:max_exchange_tokens, greater_than: 0)
-    |> validate_number(:exchange_fee_percentage, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
     |> validate_number(:min_bet_tokens_dice, greater_than: 0)
     |> validate_number(:min_bet_tokens_card, greater_than: 0)
   end

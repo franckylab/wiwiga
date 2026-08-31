@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
@@ -58,9 +59,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         _stats = stats;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminDashboard._loadStats');
       setState(() {
-        _error = 'Erreur de chargement: $e';
+        _error = ErrorHandler.userMessage(e);
         _isLoading = false;
       });
     }

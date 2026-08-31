@@ -48,7 +48,7 @@ defmodule GameHub.GameRoomTest do
       assert room.bet_amount == 5000
     end
 
-    test "alias historique :betting normalisé en :staked" do
+    test "mode betting supprimé — retourne erreur" do
       params = %{
         creator_id: "user_1",
         game_type: "dice",
@@ -57,9 +57,19 @@ defmodule GameHub.GameRoomTest do
         creator_name: "Testeur"
       }
 
-      assert {:ok, room} = GameRoom.create_room(params)
-      assert room.mode == :staked
-      assert room.bet_amount == 3000
+      assert {:error, :invalid_mode} = GameRoom.create_room(params)
+    end
+
+    test "mode string betting supprimé — erreur" do
+      params = %{
+        creator_id: "user_1",
+        game_type: "dice",
+        mode: "betting",
+        bet_amount: 3000,
+        creator_name: "Testeur"
+      }
+
+      assert {:error, :invalid_mode} = GameRoom.create_room(params)
     end
   end
 
@@ -143,9 +153,12 @@ defmodule GameHub.GameRoomTest do
       staked = GameRoom.list_waiting_rooms(nil, :staked)
       assert length(staked) == 1
 
-      # Alias historique :betting doit aussi filtrer les Parties avec mise
-      betting_alias = GameRoom.list_waiting_rooms(nil, :betting)
-      assert length(betting_alias) == 1
+      # Migration brutale: betting rejeté → liste vide (controller renverrait 400)
+      betting_invalid = GameRoom.list_waiting_rooms(nil, :betting)
+      assert betting_invalid == []
+
+      betting_str = GameRoom.list_waiting_rooms(nil, "betting")
+      assert betting_str == []
     end
   end
 

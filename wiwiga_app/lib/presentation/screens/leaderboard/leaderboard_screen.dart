@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/models/game_stats_models.dart';
@@ -79,7 +80,7 @@ class LeaderboardScreen extends ConsumerWidget {
                   ],
                 ),
                 loading: () => const NeonLoadingSpinner.center(),
-                error: (e, _) => _buildError(e.toString()),
+                error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(gameLeaderboardProvider((gameType: gameType, metric: metric, period: apiPeriod)))),
               ),
             ),
           ],
@@ -416,19 +417,6 @@ class LeaderboardScreen extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-          const SizedBox(height: 12),
-          Text(error, style: const TextStyle(color: NeonColors.textSecondary), textAlign: TextAlign.center),
-        ],
-      ),
     );
   }
 

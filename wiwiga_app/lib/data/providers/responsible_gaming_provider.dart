@@ -7,6 +7,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../core/errors/error_handler.dart';
 import '../providers/app_providers.dart';
 
 /// État des limites de jeu responsable
@@ -114,8 +115,9 @@ class ResponsibleGamingNotifier extends StateNotifier<ResponsibleGamingState> {
         selfExclusionReason: data['self_exclusion_reason'] as String?,
         isSelfExcluded: data['is_self_excluded'] as bool? ?? false,
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ResponsibleGaming.loadLimits');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -138,8 +140,9 @@ class ResponsibleGamingNotifier extends StateNotifier<ResponsibleGamingState> {
       );
       await loadLimits();
       return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ResponsibleGaming.updateLimits');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -156,8 +159,9 @@ class ResponsibleGamingNotifier extends StateNotifier<ResponsibleGamingState> {
       );
       await loadLimits();
       return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'ResponsibleGaming.selfExclude');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }

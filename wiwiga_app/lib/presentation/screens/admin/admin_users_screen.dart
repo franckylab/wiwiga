@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
-import '../../../core/errors/api_exception.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
@@ -84,11 +84,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
         _total = result['total'] as int;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminUsers._loadUsers');
       if (!mounted) return;
-      final message = e is ApiException ? e.userMessage : e.toString();
       setState(() {
-        _error = message;
+        _error = ErrorHandler.userMessage(e);
         _isLoading = false;
       });
     }
@@ -462,11 +462,11 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       backgroundColor: Color(0xFF00FF88),
                     ),
                   );
-                } catch (e) {
+                } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'AdminUsers.createUser');
                   if (!mounted) return;
-                  final message = e is ApiException ? e.userMessage : e.toString();
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+                    SnackBar(content: Text(ErrorHandler.userMessage(e)), backgroundColor: Colors.redAccent),
                   );
                 }
               },

@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../../data/providers/app_providers.dart';
 
 // ========================================
@@ -174,8 +175,9 @@ class AdminRevenueAnalyticsNotifier extends StateNotifier<AdminRevenueAnalyticsS
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getRevenueAnalytics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, data: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminRevenueAnalyticsNotifier.load');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -196,8 +198,9 @@ class AdminPlayerAnalyticsNotifier extends StateNotifier<AdminPlayerAnalyticsSta
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getPlayerAnalytics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, data: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminPlayerAnalyticsNotifier.load');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -218,8 +221,9 @@ class AdminGameAnalyticsNotifier extends StateNotifier<AdminGameAnalyticsState> 
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getGameAnalytics(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, data: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameAnalyticsNotifier.load');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -240,8 +244,9 @@ class AdminMonetaryFlowNotifier extends StateNotifier<AdminMonetaryFlowState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getMonetaryFlow(period: period ?? state.selectedPeriod);
       state = state.copyWith(isLoading: false, data: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminMonetaryFlowNotifier.load');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -262,8 +267,9 @@ class AdminWealthNotifier extends StateNotifier<AdminWealthState> {
       final repo = _ref.read(adminRepositoryProvider);
       final data = await repo.getWealthDistribution();
       state = state.copyWith(isLoading: false, data: data);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminWealthNotifier.load');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 }

@@ -11,7 +11,8 @@ import '../../widgets/neon/neon_widgets.dart';
 
 enum TransactionType {
   deposit, withdraw, bet, win, commission, refund,
-  tokenPurchase, tokenExchange, tokenTransfer, tokenGift, promoCredit,
+  tokenPurchase, tokenGift, promoCredit,
+  // tokenExchange / tokenTransfer supprimés (legacy map -> tokenPurchase/tokenGift)
 }
 
 class TransactionItem {
@@ -38,18 +39,16 @@ class TransactionItem {
   });
 
   bool get isCredit => type == TransactionType.deposit || type == TransactionType.win || type == TransactionType.refund || type == TransactionType.tokenPurchase || type == TransactionType.tokenGift || type == TransactionType.promoCredit;
-  
+
   String get typeLabel {
     switch (type) {
       case TransactionType.deposit: return 'Achat Wiga';
-      case TransactionType.withdraw: return 'Echange';
+      case TransactionType.withdraw: return 'Retrait';
       case TransactionType.bet: return 'Mise';
       case TransactionType.win: return 'Gain';
       case TransactionType.commission: return 'Commission';
       case TransactionType.refund: return 'Remboursement';
       case TransactionType.tokenPurchase: return 'Achat';
-      case TransactionType.tokenExchange: return 'Echange';
-      case TransactionType.tokenTransfer: return 'Transfert';
       case TransactionType.tokenGift: return 'Cadeau';
       case TransactionType.promoCredit: return 'Promo';
     }
@@ -58,14 +57,12 @@ class TransactionItem {
   IconData get typeIcon {
     switch (type) {
       case TransactionType.deposit: return Icons.shopping_cart;
-      case TransactionType.withdraw: return Icons.swap_horiz;
+      case TransactionType.withdraw: return Icons.payments_outlined;
       case TransactionType.bet: return Icons.casino;
       case TransactionType.win: return Icons.emoji_events;
       case TransactionType.commission: return Icons.percent;
       case TransactionType.refund: return Icons.replay;
       case TransactionType.tokenPurchase: return Icons.shopping_cart;
-      case TransactionType.tokenExchange: return Icons.swap_horiz;
-      case TransactionType.tokenTransfer: return Icons.send;
       case TransactionType.tokenGift: return Icons.card_giftcard;
       case TransactionType.promoCredit: return Icons.campaign;
     }
@@ -80,8 +77,6 @@ class TransactionItem {
       case TransactionType.commission: return NeonColors.textSecondary;
       case TransactionType.refund: return NeonColors.info;
       case TransactionType.tokenPurchase: return NeonColors.success;
-      case TransactionType.tokenExchange: return NeonColors.accent;
-      case TransactionType.tokenTransfer: return NeonColors.info;
       case TransactionType.tokenGift: return NeonColors.secondary;
       case TransactionType.promoCredit: return NeonColors.tokenGold;
     }
@@ -131,9 +126,10 @@ TransactionType _mapTransactionType(String type) {
     case 'commission': return TransactionType.commission;
     case 'refund': return TransactionType.refund;
     case 'token_purchase': case 'purchase': return TransactionType.tokenPurchase;
-    case 'token_exchange': case 'exchange': return TransactionType.tokenExchange;
-    case 'token_transfer': case 'transfer': return TransactionType.tokenTransfer;
-    case 'gift': case 'token_gift': return TransactionType.tokenGift;
+    // legacy: exchange/transfer -> map vers gift/purchase pour historique
+    case 'token_exchange': case 'exchange': return TransactionType.tokenPurchase;
+    case 'token_transfer': case 'transfer': case 'transfer_out': case 'transfer_in': return TransactionType.tokenGift;
+    case 'gift': case 'token_gift': case 'gift_sent': case 'gift_received': return TransactionType.tokenGift;
     case 'promo': case 'promo_credit': return TransactionType.promoCredit;
     default: return TransactionType.commission;
   }
@@ -331,7 +327,7 @@ class TransactionHistoryScreen extends ConsumerWidget {
 
   bool _matchesFilter(TransactionItem t, String filter) {
     switch (filter) {
-      case 'tokens': return t.type == TransactionType.tokenPurchase || t.type == TransactionType.tokenExchange || t.type == TransactionType.tokenTransfer || t.type == TransactionType.tokenGift;
+      case 'tokens': return t.type == TransactionType.tokenPurchase || t.type == TransactionType.tokenGift;
       case 'game': return t.type == TransactionType.bet || t.type == TransactionType.win || t.type == TransactionType.commission;
       case 'promo': return t.type == TransactionType.promoCredit;
       default: return true;

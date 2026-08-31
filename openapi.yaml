@@ -34,7 +34,7 @@ tags:
   - name: Wallet
     description: Gestion du compte utilisateur (dépôt, retrait, historique monétaire)
   - name: Tokens
-    description: Jetons virtuels (achat, échange, transfert, promos)
+    description: Jetons virtuels (achat, cadeau ami, promos) — échange et transfert supprimés
   - name: Games
     description: Jeux et matchmaking
   - name: Webhooks
@@ -521,72 +521,12 @@ paths:
                       exchange_rate:
                         type: number
 
-  /api/tokens/exchange:
-    post:
-      tags:
-        - Tokens
-      summary: Échange jetons contre monnaie
-      description: Convertit des jetons en valeur monétaire (retrait)
-      operationId: exchangeTokens
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token_amount, idempotency_key]
-              properties:
-                token_amount:
-                  type: integer
-                  description: Nombre de jetons à échanger
-                  example: 1000
-                idempotency_key:
-                  type: string
-      responses:
-        '201':
-          description: Échange réussi
-        '400':
-          description: Limites non respectées ou solde insuffisant
-
-  /api/tokens/transfer:
-    post:
-      tags:
-        - Tokens
-      summary: Transfert de jetons
-      description: Transfère des jetons vers un autre joueur
-      operationId: transferTokens
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [recipient_id, token_amount, idempotency_key]
-              properties:
-                recipient_id:
-                  type: integer
-                token_amount:
-                  type: integer
-                idempotency_key:
-                  type: string
-      responses:
-        '200':
-          description: Transfert réussi
-        '400':
-          description: Solde insuffisant ou transfert vers soi-même
-        '404':
-          description: Destinataire non trouvé
-
   /api/tokens/gift:
     post:
       tags:
         - Tokens
-      summary: Envoi cadeau
-      description: Envoie des jetons en cadeau à un autre joueur
+      summary: Envoi cadeau (amis uniquement)
+      description: Envoie des jetons en cadeau à un ami — vérifie Friendship accepted + limite journalière + cadeaux activés
       operationId: sendGift
       security:
         - bearerAuth: []
@@ -1047,16 +987,7 @@ components:
         exchange_rate:
           type: number
           format: float
-          example: 10.0
-        min_exchange:
-          type: integer
-          example: 100
-        max_exchange:
-          type: integer
-          example: 100000
-        transfer_enabled:
-          type: boolean
-          example: true
+          example: 1.0
         gift_enabled:
           type: boolean
           example: true
@@ -1070,7 +1001,7 @@ components:
           type: integer
         type:
           type: string
-          enum: [purchase, exchange, bet, winnings, transfer_out, transfer_in, gift_received, gift_sent, promo_credit, promo_debit, commission]
+          enum: [purchase, bet, winnings, gift_received, gift_sent, promo_credit, promo_debit, commission]
         token_amount:
           type: integer
         balance_before:

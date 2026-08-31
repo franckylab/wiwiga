@@ -8,6 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/config_provider.dart';
 
@@ -183,7 +186,8 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
         return logs.cast<Map<String, dynamic>>();
       }
       return [];
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminConfig._loadHistory');
       return [];
     }
   }
@@ -199,7 +203,7 @@ class _GamesConfigTab extends ConsumerWidget {
 
     return gamesConfig.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(gamesConfigProvider)),
       data: (config) {
         final gameTypes = config.gameTypes;
         return ListView(
@@ -398,7 +402,7 @@ class _PaymentsConfigTab extends ConsumerWidget {
 
     return paymentsConfig.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(paymentsConfigProvider)),
       data: (config) {
         final providers = config.providers;
         return ListView(
@@ -567,7 +571,7 @@ class _ThemeConfigTab extends ConsumerWidget {
 
     return themeConfig.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(themeConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -826,7 +830,7 @@ class _FeaturesConfigTab extends ConsumerWidget {
 
     return featureConfig.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(featureConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1096,7 +1100,7 @@ class _TokensConfigTab extends ConsumerWidget {
 
     return tokensConfig.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => Center(child: Text('Erreur: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(tokensConfigProvider)),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1104,11 +1108,10 @@ class _TokensConfigTab extends ConsumerWidget {
           const SizedBox(height: 16),
           _ConfigCard(
             title: 'Taux de change',
-            subtitle: 'Conversion FCFA ↔ Wiga',
+            subtitle: 'Conversion FCFA ↔ Wiga (achat)',
             fields: [
-              _ConfigField(label: 'Taux exchange', value: '${config.exchangeRate} wiga/FCFA', icon: Icons.swap_horiz),
-              _ConfigField(label: 'Frais exchange', value: '${config.exchangeFeePercent.toStringAsFixed(1)}%', icon: Icons.percent),
-              _ConfigField(label: 'Frais fixe', value: '${config.exchangeFixedFee} FCFA', icon: Icons.money),
+              _ConfigField(label: 'Taux achat', value: '${config.exchangeRate} wiga/FCFA', icon: Icons.swap_horiz),
+              _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.card_giftcard),
             ],
           ),
           const SizedBox(height: 12),
@@ -1119,20 +1122,14 @@ class _TokensConfigTab extends ConsumerWidget {
               _confirmAndSave(context, ref, {'exchange_rate': v});
             },
           ),
-          _EditableLimitField(
-            label: 'Frais fixe exchange', value: config.exchangeFixedFee, suffix: ' FCFA',
-            onSave: (v) {
-              _confirmAndSave(context, ref, {'exchange_fixed_fee': v});
-            },
-          ),
           const SizedBox(height: 16),
           _ConfigCard(
-            title: 'Limites',
-            subtitle: 'Limites d\'achat et de transfert',
+            title: 'Limites & Cadeaux',
+            subtitle: 'Limites d\'achat et de cadeau entre amis',
             fields: [
               _ConfigField(label: 'Achat journalier max', value: '${config.dailyPurchaseLimit} FCFA', icon: Icons.shopping_cart),
-              _ConfigField(label: 'Transfert journalier max', value: '${config.dailyTransferLimit} wiga', icon: Icons.send),
-              _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.card_giftcard),
+              _ConfigField(label: 'Cadeau journalier max', value: '${config.dailyGiftLimit} wiga', icon: Icons.card_giftcard),
+              _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.percent),
             ],
           ),
           const SizedBox(height: 12),
@@ -1141,8 +1138,29 @@ class _TokensConfigTab extends ConsumerWidget {
             onSave: (v) => _confirmAndSave(context, ref, {'daily_purchase_limit': v}),
           ),
           _EditableLimitField(
-            label: 'Transfert journalier max', value: config.dailyTransferLimit, suffix: ' wiga',
-            onSave: (v) => _confirmAndSave(context, ref, {'daily_transfer_limit': v}),
+            label: 'Cadeau journalier max', value: config.dailyGiftLimit, suffix: ' wiga',
+            onSave: (v) async {
+              // Stockage effectif en PlatformConfig payment.daily_gift_limit
+              try {
+                final api = ref.read(apiServiceProvider);
+                await api.put('${ApiEndpoints.adminPlatformConfig}/payment/daily_gift_limit',
+                    body: {'value': v.toString()}, requiresAuth: true);
+                // Compat tokensConfigProvider pour affichage local
+                await ref.read(tokensConfigProvider.notifier).updateConfig({'daily_gift_limit': v, 'daily_transfer_limit': v});
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Limite cadeau mise à jour à $v wiga'), backgroundColor: const Color(0xFF00FF88)),
+                  );
+                }
+              } catch (e, st) {
+                ErrorHandler.logError(e, st, context: 'AdminConfig.dailyGiftLimit');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+            },
           ),
           const SizedBox(height: 16),
           _ConfigCard(

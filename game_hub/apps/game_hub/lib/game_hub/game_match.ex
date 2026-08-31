@@ -38,13 +38,13 @@ defmodule GameHub.GameMatch do
   end
 
   @doc """
-  Crée un nouveau match.
+  Crée un nouveau match — migration brutale (betting supprimé).
 
   ## Parameters
     - `config`: %{
         game_type: "dice",
         rule_type: "normal" | "cible",
-        mode: :free | :staked (alias historique :betting → normalisé en :staked),
+        mode: :free | :staked,
         sets_count: integer,
         dice_count: integer,
         bet_amount: integer (0 si Partie sans mise),
@@ -54,10 +54,10 @@ defmodule GameHub.GameMatch do
 
   ## Modes
     - `:free`   → Partie sans mise (gratuit)
-    - `:staked` → Partie avec mise (alias "betting" accepté)
+    - `:staked` → Partie avec mise
 
   ## Returns
-    - `{:ok, match_state}`
+    - `{:ok, match_state}` | `{:error, :invalid_mode}`
   """
   def create_match(config) do
     GenServer.call(__MODULE__, {:create_match, config})
@@ -130,14 +130,24 @@ defmodule GameHub.GameMatch do
 
   @impl true
   def handle_call({:create_match, config}, _from, state) do
-    match_id = generate_match_id(config.game_type)
+    game_type = Map.get(config, :game_type, "dice") || "dice"
+    rule_type = Map.get(config, :rule_type, "normal") || "normal"
+    match_id = generate_match_id(game_type)
 
     # Charger les règles
-    rules = GameRules.get_rules_or_default(config.game_type, config.rule_type || "normal")
+    rules = GameRules.get_rules_or_default(game_type, rule_type)
     rc = rules.config
 
-    # Normaliser le mode (betting → staked)
-    canonical_mode = GameMode.normalize(Map.get(config, :mode, :free))
+    # Migration brutale: seuls :free et :staked — betting supprimé
+    raw_mode = Map.get(config, :mode, :free)
+    canonical_mode = case GameMode.parse_strict(to_string(raw_mode)) do
+      {:ok, m} -> m
+      {:error, _} -> nil
+    end
+
+    if is_nil(canonical_mode) do
+      {:reply, {:error, :invalid_mode}, state}
+    else
 
     # Valeurs par défaut depuis les règles
     sets_count = Map.get(config, :sets_count, rc["default_sets"] || 1)
@@ -146,8 +156,8 @@ defmodule GameHub.GameMatch do
 
     match = %{
       match_id: match_id,
-      game_type: config.game_type,
-      rule_type: config.rule_type || "normal",
+      game_type: game_type,
+      rule_type: rule_type,
       mode: canonical_mode,
       status: :waiting_players,
       sets_count: sets_count,
@@ -156,7 +166,7 @@ defmodule GameHub.GameMatch do
       dice_faces: rc["dice_faces"] || 6,
       bet_amount: Map.get(config, :bet_amount, 0),
       max_players: max_players,
-      creator_id: config.creator_id,
+      creator_id: Map.get(config, :creator_id),
       players: [],
       current_set: 0,
       sets: [],
@@ -170,9 +180,10 @@ defmodule GameHub.GameMatch do
     }
 
     :ets.insert(state.table, {match_id, match})
-    Logger.info("Match #{match_id} created (#{config.game_type}/#{match.rule_type}, #{sets_count} sets)")
+    Logger.info("Match #{match_id} created (#{game_type}/#{rule_type}, #{sets_count} sets)")
 
     {:reply, {:ok, match}, state}
+    end
   end
 
   @impl true

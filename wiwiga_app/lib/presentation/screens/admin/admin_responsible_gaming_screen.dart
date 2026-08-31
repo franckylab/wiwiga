@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
 import '../../providers/admin_metrics_provider.dart';
@@ -107,7 +108,10 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
 
     return overviewAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminResponsibleGaming.overview');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminResponsibleGamingProvider));
+      },
       data: (data) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -153,7 +157,10 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
 
     return exclusionsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminResponsibleGaming.selfExclusions');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminResponsibleGamingProvider));
+      },
       data: (data) {
         final exclusions = data['self_exclusions'] as List? ?? [];
 
@@ -315,7 +322,10 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
 
     return riskAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
-      error: (e, _) => AdminErrorState(error: 'Erreur: $e', onRetry: () => ref.invalidate(adminResponsibleGamingProvider)),
+      error: (e, st) {
+        ErrorHandler.logError(e, st, context: 'AdminResponsibleGaming.riskIndicators');
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminResponsibleGamingProvider));
+      },
       data: (data) {
         final indicators = data['risk_indicators'] as List? ?? data['high_losers'] as List? ?? [];
 

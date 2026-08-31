@@ -5,19 +5,17 @@
 // Date: 2026-08-01
 // ============================================================
 
-/// Types de transactions de wiga
+/// Types de transactions de wiga — seuls achat, cadeau ami, jeu, promos
 enum TokenTransactionType {
   purchase,       // Achat wiga (monnaie → wiga)
-  exchange,       // Échange wiga (wiga → monnaie)
   bet,            // Mise de jeu
   winnings,       // Gains
-  transferOut,    // Transfert sortant
-  transferIn,     // Transfert entrant
-  giftSent,       // Cadeau envoyé
+  giftSent,       // Cadeau envoyé (ami uniquement)
   giftReceived,   // Cadeau reçu
   promoCredit,    // Crédit promotionnel
   promoDebit,     // Débit promotionnel
   commission,     // Commission
+  // legacy: exchange, transferOut/In conservés en DB historique mais plus émis
 }
 
 /// Statuts de transaction
@@ -83,16 +81,18 @@ class TokenTransactionModel {
   static TokenTransactionType _parseType(String? type) {
     switch (type) {
       case 'purchase': return TokenTransactionType.purchase;
-      case 'exchange': return TokenTransactionType.exchange;
       case 'bet': return TokenTransactionType.bet;
       case 'winnings': return TokenTransactionType.winnings;
-      case 'transfer_out': return TokenTransactionType.transferOut;
-      case 'transfer_in': return TokenTransactionType.transferIn;
       case 'gift_sent': return TokenTransactionType.giftSent;
       case 'gift_received': return TokenTransactionType.giftReceived;
       case 'promo_credit': return TokenTransactionType.promoCredit;
       case 'promo_debit': return TokenTransactionType.promoDebit;
       case 'commission': return TokenTransactionType.commission;
+      // legacy masqué : exchange/transfer -> map vers purchase pour ne pas crasher l'UI
+      case 'exchange':
+      case 'transfer_out':
+      case 'transfer_in':
+        return TokenTransactionType.purchase;
       default: return TokenTransactionType.purchase;
     }
   }
@@ -107,15 +107,12 @@ class TokenTransactionModel {
     }
   }
 
-  /// Label lisible du type
+  /// Label lisible du type — transfert/échange retirés
   String get typeLabel {
     switch (type) {
       case TokenTransactionType.purchase: return 'Achat';
-      case TokenTransactionType.exchange: return 'Échange';
       case TokenTransactionType.bet: return 'Mise';
       case TokenTransactionType.winnings: return 'Gain';
-      case TokenTransactionType.transferOut: return 'Transfert envoyé';
-      case TokenTransactionType.transferIn: return 'Transfert reçu';
       case TokenTransactionType.giftSent: return 'Cadeau envoyé';
       case TokenTransactionType.giftReceived: return 'Cadeau reçu';
       case TokenTransactionType.promoCredit: return 'Bonus promo';
@@ -128,11 +125,8 @@ class TokenTransactionModel {
   String get typeIcon {
     switch (type) {
       case TokenTransactionType.purchase: return 'shopping_cart';
-      case TokenTransactionType.exchange: return 'swap_horiz';
       case TokenTransactionType.bet: return 'casino';
       case TokenTransactionType.winnings: return 'emoji_events';
-      case TokenTransactionType.transferOut: return 'send';
-      case TokenTransactionType.transferIn: return 'call_received';
       case TokenTransactionType.giftSent: return 'card_giftcard';
       case TokenTransactionType.giftReceived: return 'redeem';
       case TokenTransactionType.promoCredit: return 'campaign';
@@ -142,15 +136,12 @@ class TokenTransactionModel {
   }
 }
 
-/// Modèle résumé du solde de wiga
+/// Modèle résumé du solde de wiga — sans échange/transfert
 class TokenSummaryModel {
   final int tokenBalance;
   final int monetaryValueCentimes;
   final double monetaryValueFcfa;
   final double exchangeRate;
-  final int minExchange;
-  final int maxExchange;
-  final bool transferEnabled;
   final bool giftEnabled;
 
   const TokenSummaryModel({
@@ -158,9 +149,6 @@ class TokenSummaryModel {
     required this.monetaryValueCentimes,
     required this.monetaryValueFcfa,
     required this.exchangeRate,
-    required this.minExchange,
-    required this.maxExchange,
-    required this.transferEnabled,
     required this.giftEnabled,
   });
 
@@ -170,9 +158,6 @@ class TokenSummaryModel {
       monetaryValueCentimes: json['monetary_value_centimes'] as int? ?? 0,
       monetaryValueFcfa: (json['monetary_value_fcfa'] as num?)?.toDouble() ?? 0,
       exchangeRate: (json['exchange_rate'] as num?)?.toDouble() ?? 1.0,
-      minExchange: json['min_exchange'] as int? ?? 100,
-      maxExchange: json['max_exchange'] as int? ?? 100000,
-      transferEnabled: json['transfer_enabled'] as bool? ?? true,
       giftEnabled: json['gift_enabled'] as bool? ?? true,
     );
   }

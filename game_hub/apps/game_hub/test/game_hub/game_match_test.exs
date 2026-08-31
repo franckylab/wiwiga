@@ -49,7 +49,7 @@ defmodule GameHub.GameMatchTest do
       assert match.max_players == 4
     end
 
-    test "alias :betting normalisé en :staked" do
+    test "mode betting supprimé — erreur" do
       config = %{
         game_type: "dice",
         rule_type: "normal",
@@ -58,8 +58,19 @@ defmodule GameHub.GameMatchTest do
         creator_id: "player_1"
       }
 
-      assert {:ok, match} = GameMatch.create_match(config)
-      assert match.mode == :staked
+      assert {:error, :invalid_mode} = GameMatch.create_match(config)
+    end
+
+    test "mode string betting supprimé — erreur" do
+      config = %{
+        game_type: "dice",
+        rule_type: "normal",
+        mode: "betting",
+        bet_amount: 500,
+        creator_id: "player_1"
+      }
+
+      assert {:error, :invalid_mode} = GameMatch.create_match(config)
     end
   end
 

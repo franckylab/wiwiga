@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -92,8 +93,9 @@ class _AuthScreenNeonState extends ConsumerState<AuthScreenNeon>
       });
       
       _startCountdown();
-    } catch (e) {
-      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthScreenNeon._sendOtp');
+      _showError(ErrorHandler.userMessage(e));
     }
   }
 
@@ -117,8 +119,9 @@ class _AuthScreenNeonState extends ConsumerState<AuthScreenNeon>
       } else if (authState.error != null) {
         _showError(authState.error!);
       }
-    } catch (e) {
-      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AuthScreenNeon._verifyOtp');
+      _showError(ErrorHandler.userMessage(e));
     }
   }
 

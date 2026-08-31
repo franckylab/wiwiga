@@ -10,8 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/game_mode.dart';
-import '../../../core/theme/neon_theme.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/config_provider.dart';
@@ -39,7 +40,7 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
   List<GameRoomModel> _rooms = [];
   bool _isLoading = true;
   String? _error;
-  String _filterMode = 'all'; // 'all' | 'free' (Partie sans mise) | 'staked' (Partie avec mise, alias 'betting')
+  String _filterMode = 'all'; // 'all' | 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
 
   @override
   void initState() {
@@ -62,8 +63,9 @@ class _GameLobbyEnhancedScreenState extends ConsumerState<GameLobbyEnhancedScree
       final mode = _filterMode == 'all' ? null : _filterMode;
       final rooms = await roomRepo.listWaitingRooms(gameType: widget.gameType, mode: mode);
       if (mounted) setState(() { _rooms = rooms; _isLoading = false; _error = null; });
-    } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = e.toString(); });
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'GameLobbyEnhanced._loadRooms');
+      if (mounted) setState(() { _isLoading = false; _error = ErrorHandler.userMessage(e); });
     }
   }
 

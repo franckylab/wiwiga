@@ -138,10 +138,10 @@ class _HeaderSection extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: NeonButton(
-                  text: 'ÉCHANGER',
-                  onPressed: () => context.push('/tokens'),
-                  variant: NeonButtonVariant.outline,
-                  icon: Icons.swap_horiz,
+                  text: 'CADEAU',
+                  onPressed: () => context.push('/friends'),
+                  variant: NeonButtonVariant.secondary,
+                  icon: Icons.card_giftcard,
                 ),
               ),
             ],

@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../widgets/admin/empty_state.dart';
@@ -56,8 +57,9 @@ class _AdminReconciliationScreenState extends ConsumerState<AdminReconciliationS
         _balance = results[2];
         _isLoading = false;
       });
-    } catch (e) {
-      setState(() { _isLoading = false; _error = 'Erreur: $e'; });
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminReconciliation._loadData');
+      setState(() { _isLoading = false; _error = ErrorHandler.userMessage(e); });
     }
   }
 

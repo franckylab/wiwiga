@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../../data/providers/app_providers.dart';
 
 // ========================================
@@ -118,8 +119,9 @@ class AdminGameConfigNotifier extends StateNotifier<AdminGameConfigState> {
       final repo = _ref.read(adminRepositoryProvider);
       final configs = await repo.getGameConfigs();
       state = state.copyWith(isLoading: false, configs: configs);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameConfigNotifier.loadConfigs');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -131,8 +133,9 @@ class AdminGameConfigNotifier extends StateNotifier<AdminGameConfigState> {
       await loadConfigs();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameConfigNotifier.updateConfig');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -145,8 +148,9 @@ class AdminGameConfigNotifier extends StateNotifier<AdminGameConfigState> {
       await loadConfigs();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.createConfig');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -164,8 +168,9 @@ class AdminBonusesNotifier extends StateNotifier<AdminBonusesState> {
       final repo = _ref.read(adminRepositoryProvider);
       final bonuses = await repo.getBonuses(type: type, isActive: isActive);
       state = state.copyWith(isLoading: false, bonuses: bonuses);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminBonusesNotifier.loadBonuses');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -177,8 +182,9 @@ class AdminBonusesNotifier extends StateNotifier<AdminBonusesState> {
       await loadBonuses();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminBonusesNotifier.createBonus');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -191,8 +197,9 @@ class AdminBonusesNotifier extends StateNotifier<AdminBonusesState> {
       await loadBonuses();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.updateBonus');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -203,8 +210,9 @@ class AdminBonusesNotifier extends StateNotifier<AdminBonusesState> {
       await repo.toggleBonus(bonusId, isActive);
       await loadBonuses();
       return true;
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.toggleBonus');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -222,8 +230,9 @@ class AdminReportsNotifier extends StateNotifier<AdminReportsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final reports = await repo.getReports();
       state = state.copyWith(isLoading: false, reports: reports);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminReportsNotifier.loadReports');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -235,8 +244,9 @@ class AdminReportsNotifier extends StateNotifier<AdminReportsState> {
       await loadReports();
       state = state.copyWith(isGenerating: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isGenerating: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminReportsNotifier.generateReport');
+      state = state.copyWith(isGenerating: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -306,8 +316,9 @@ class AdminPlatformConfigNotifier extends StateNotifier<AdminPlatformConfigState
       final data = Map<String, List<dynamic>>.from(response['data'] as Map);
       final cats = List<String>.from(response['categories'] as List);
       state = state.copyWith(isLoading: false, configs: data, categories: cats);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminPlatformConfigNotifier.loadAll');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -318,8 +329,9 @@ class AdminPlatformConfigNotifier extends StateNotifier<AdminPlatformConfigState
       final updated = Map<String, List<dynamic>>.from(state.configs);
       updated[category] = configs;
       state = state.copyWith(configs: updated, selectedCategory: category);
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminPlatformConfigNotifier.loadCategory');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -331,8 +343,9 @@ class AdminPlatformConfigNotifier extends StateNotifier<AdminPlatformConfigState
       await loadCategory(category);
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.updateConfig');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -378,8 +391,9 @@ class AdminPlayerProgressionNotifier extends StateNotifier<AdminPlayerProgressio
       final adminRepo = ref.read(adminRepositoryProvider);
       final levels = await adminRepo.getPlayerProgressionLevels();
       state = state.copyWith(isLoading: false, levels: levels);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminPlayerProgressionNotifier.loadLevels');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -391,8 +405,9 @@ class AdminPlayerProgressionNotifier extends StateNotifier<AdminPlayerProgressio
       await loadLevels();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminPlayerProgressionNotifier.updateLevel');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -405,8 +420,9 @@ class AdminPlayerProgressionNotifier extends StateNotifier<AdminPlayerProgressio
       await loadLevels();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.createLevel');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -419,8 +435,9 @@ class AdminPlayerProgressionNotifier extends StateNotifier<AdminPlayerProgressio
       await loadLevels();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.deleteLevel');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -466,8 +483,9 @@ class AdminXPRulesNotifier extends StateNotifier<AdminXPRulesState> {
       final adminRepo = ref.read(adminRepositoryProvider);
       final rules = await adminRepo.getXPRules();
       state = state.copyWith(isLoading: false, rules: rules);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminXPRulesNotifier.loadRules');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
     }
   }
 
@@ -479,8 +497,9 @@ class AdminXPRulesNotifier extends StateNotifier<AdminXPRulesState> {
       await loadRules();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminXPRulesNotifier.saveRules');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -493,8 +512,9 @@ class AdminXPRulesNotifier extends StateNotifier<AdminXPRulesState> {
       await loadRules();
       state = state.copyWith(isSaving: false);
       return true;
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'Admin.deleteRules');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
       return false;
     }
   }

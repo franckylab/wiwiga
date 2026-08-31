@@ -7,7 +7,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/empty_state.dart';
@@ -290,9 +292,10 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
                     context.showSuccess('Message diffusé avec succès');
                   }
                   ref.read(adminAlertsProvider.notifier).loadNotifications();
-                } catch (e) {
+                } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'AdminNotifications.broadcast');
                   if (mounted) {
-                    context.showError('Erreur: $e');
+                    WiwigaSnack.showError(context, e);
                   }
                 }
               }

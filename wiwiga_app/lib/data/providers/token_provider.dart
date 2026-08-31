@@ -20,9 +20,6 @@ class TokenState {
   final int tokenBalance;
   final double monetaryValueFcfa;
   final double exchangeRate;
-  final int minExchange;
-  final int maxExchange;
-  final bool transferEnabled;
   final bool giftEnabled;
   final List<TokenTransactionModel> transactions;
   final List<PromoTokenModel> availablePromos;
@@ -34,9 +31,6 @@ class TokenState {
     this.tokenBalance = 0,
     this.monetaryValueFcfa = 0,
     this.exchangeRate = 1.0,
-    this.minExchange = 100,
-    this.maxExchange = 100000,
-    this.transferEnabled = true,
     this.giftEnabled = true,
     this.transactions = const [],
     this.availablePromos = const [],
@@ -49,9 +43,6 @@ class TokenState {
     int? tokenBalance,
     double? monetaryValueFcfa,
     double? exchangeRate,
-    int? minExchange,
-    int? maxExchange,
-    bool? transferEnabled,
     bool? giftEnabled,
     List<TokenTransactionModel>? transactions,
     List<PromoTokenModel>? availablePromos,
@@ -64,9 +55,6 @@ class TokenState {
       tokenBalance: tokenBalance ?? this.tokenBalance,
       monetaryValueFcfa: monetaryValueFcfa ?? this.monetaryValueFcfa,
       exchangeRate: exchangeRate ?? this.exchangeRate,
-      minExchange: minExchange ?? this.minExchange,
-      maxExchange: maxExchange ?? this.maxExchange,
-      transferEnabled: transferEnabled ?? this.transferEnabled,
       giftEnabled: giftEnabled ?? this.giftEnabled,
       transactions: transactions ?? this.transactions,
       availablePromos: availablePromos ?? this.availablePromos,
@@ -85,7 +73,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
 
   TokenNotifier(this._repository) : super(const TokenState());
 
-  /// Charge le résumé des wiga
+  /// Charge le résumé des wiga (sans transfert/échange)
   Future<void> loadSummary() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -97,9 +85,6 @@ class TokenNotifier extends StateNotifier<TokenState> {
         tokenBalance: model.tokenBalance,
         monetaryValueFcfa: model.monetaryValueFcfa,
         exchangeRate: model.exchangeRate,
-        minExchange: model.minExchange,
-        maxExchange: model.maxExchange,
-        transferEnabled: model.transferEnabled,
         giftEnabled: model.giftEnabled,
       );
     } on ApiException catch (e) {
@@ -149,48 +134,7 @@ class TokenNotifier extends StateNotifier<TokenState> {
     }
   }
 
-  /// Échange wiga → monnaie
-  Future<void> exchangeTokens(int tokenAmount) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      await _repository.exchangeTokens(
-        tokenAmount: tokenAmount,
-        idempotencyKey: 'exchange_${DateTime.now().millisecondsSinceEpoch}',
-      );
-
-      await loadSummary();
-      await loadTransactions();
-
-      state = state.copyWith(isLoading: false);
-    } on ApiException catch (e) {
-      state = state.copyWith(isLoading: false, error: e.userMessage);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur échange');
-    }
-  }
-
-  /// Transfert de wiga
-  Future<void> transferTokens(String recipientId, int tokenAmount) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      await _repository.transferTokens(
-        recipientId: recipientId,
-        tokenAmount: tokenAmount,
-        idempotencyKey: 'transfer_${DateTime.now().millisecondsSinceEpoch}',
-      );
-
-      await loadSummary();
-      await loadTransactions();
-
-      state = state.copyWith(isLoading: false);
-    } on ApiException catch (e) {
-      state = state.copyWith(isLoading: false, error: e.userMessage);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erreur transfert');
-    }
-  }
-
-  /// Envoi cadeau
+  /// Envoi cadeau entre amis uniquement
   Future<void> sendGift(String recipientId, int tokenAmount, {String message = ''}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {

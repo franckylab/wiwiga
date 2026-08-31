@@ -49,11 +49,9 @@ defmodule GameHub.RBAC.Role do
       "wallet:withdraw",
       "wallet:view_transactions",
       
-      # Tokens
+      # Tokens — seuls achat, cadeau ami, promos
       "tokens:view_balance",
       "tokens:purchase",
-      "tokens:exchange",
-      "tokens:transfer",
       "tokens:gift",
       "tokens:redeem_promo",
       

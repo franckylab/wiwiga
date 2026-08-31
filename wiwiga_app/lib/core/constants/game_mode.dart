@@ -1,47 +1,42 @@
 // ============================================================
 // Fichier: game_mode.dart
-// Description: Référentiel centralisé des modes de jeu WIWIGA
-//              Remplace "Mise en ligne" par Partie sans/avec mise
+// Description: Référentiel modes WIWIGA — migration brutale 2026-08-30
+//              SUPPRIME "Mise en ligne"/"betting"/"pari" — uniquement free/staked
 // Auteur: Franck Arlos CHENDJOU
 // Date: 2026-08-30
 // ============================================================
 
-/// Modes de jeu canoniques WIWIGA.
+/// Modes canoniques WIWIGA — seuls valides depuis 2026-08-30.
 ///
-/// - [free]   → Partie sans mise (gratuit) — amical, sans enjeu.
-/// - [staked] → Partie avec mise — avec enjeu en jetons.
-///
-/// L'ancien identifiant `"betting"` est conservé comme **alias** de [staked]
-/// pour rétro-compatibilité (backend < 2026-08-30).
+/// - [free]   → Partie sans mise (gratuit)
+/// - [staked] → Partie avec mise
 enum GameMode {
   free,
   staked;
 
-  /// Parse une valeur brute (string nullable) vers le mode canonique.
-  /// Normalise automatiquement `"betting"` → [staked].
+  /// Parse strict. Seuls free/staked et variantes françaises sans_mise/avec_mise acceptés.
+  /// Lève [ArgumentError] si invalide — pas de fallback betting.
   static GameMode parse(String? raw) {
-    if (raw == null) return GameMode.free;
+    if (raw == null) throw ArgumentError('mode requis: free | staked');
     final v = raw.trim().toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
-    const freeAliases = {'free', 'sans_mise', 'without_stake', 'gratuit', 'sans_mise_gratuit'};
-    const stakedAliases = {
-      'staked',
-      'betting',
-      'avec_mise',
-      'with_stake',
-      'pari',
-      'mise',
-      'mise_en_ligne',
-      'avec_mise_payante',
-    };
+    const freeAliases = {'free', 'sans_mise', 'without_stake', 'gratuit'};
+    const stakedAliases = {'staked', 'avec_mise', 'with_stake'};
     if (freeAliases.contains(v)) return GameMode.free;
     if (stakedAliases.contains(v)) return GameMode.staked;
-    // Par défaut : si valeur inconnue, considérer comme free pour sécurité
-    if (v == 'staked') return GameMode.staked;
     if (v == 'free') return GameMode.free;
-    return GameMode.free;
+    if (v == 'staked') return GameMode.staked;
+    throw ArgumentError('mode invalide: $raw — attendu free | staked');
   }
 
-  /// Valeur sérialisée pour l'API (canonique : "free" | "staked").
+  /// Parse souple retournant null si invalide.
+  static GameMode? tryParse(String? raw) {
+    try {
+      return parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
   String get apiValue {
     switch (this) {
       case GameMode.free:
@@ -51,18 +46,6 @@ enum GameMode {
     }
   }
 
-  /// Alias historique : l'API ancienne attendait "betting".
-  /// Ne plus utiliser pour l'envoi, seulement pour compat lecture.
-  String get legacyApiValue {
-    switch (this) {
-      case GameMode.free:
-        return 'free';
-      case GameMode.staked:
-        return 'betting';
-    }
-  }
-
-  /// Label complet français pour UI.
   String get displayLabel {
     switch (this) {
       case GameMode.free:
@@ -72,7 +55,6 @@ enum GameMode {
     }
   }
 
-  /// Label court français.
   String get shortLabel {
     switch (this) {
       case GameMode.free:
@@ -82,7 +64,6 @@ enum GameMode {
     }
   }
 
-  /// Sous-titre explicatif.
   String get subtitle {
     switch (this) {
       case GameMode.free:
@@ -92,7 +73,6 @@ enum GameMode {
     }
   }
 
-  /// Description longue.
   String get description {
     switch (this) {
       case GameMode.free:
@@ -104,31 +84,17 @@ enum GameMode {
 
   bool get isFree => this == GameMode.free;
   bool get isStaked => this == GameMode.staked;
-
-  /// Alias déprécié conservé pour compatibilité code existant.
-  bool get isBetting => isStaked;
 }
 
-/// Helpers statiques legacy (si code utilise strings directement).
 class GameModes {
   static const String freeLabel = 'Partie sans mise (gratuit)';
   static const String stakedLabel = 'Partie avec mise';
   static const String freeShort = 'Sans mise';
   static const String stakedShort = 'Avec mise';
 
-  /// Normalise une string mode vers sa valeur canonique API.
   static String normalize(String? raw) => GameMode.parse(raw).apiValue;
-
-  /// Retourne le label complet depuis une string brute.
   static String labelOf(String? raw) => GameMode.parse(raw).displayLabel;
-
-  /// Retourne le label court depuis une string brute.
   static String shortLabelOf(String? raw) => GameMode.parse(raw).shortLabel;
-
-  /// Vérifie si une string correspond à un mode avec mise.
   static bool isStaked(String? raw) => GameMode.parse(raw).isStaked;
   static bool isFree(String? raw) => GameMode.parse(raw).isFree;
-
-  /// Alias déprécié.
-  static bool isBetting(String? raw) => isStaked(raw);
 }

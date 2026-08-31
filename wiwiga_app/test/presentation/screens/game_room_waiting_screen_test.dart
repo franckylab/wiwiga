@@ -39,20 +39,16 @@ void main() {
     });
 
     testWidgets('bouton démarrer visible si créateur + 2 joueurs + Partie avec mise', (tester) async {
-      // Le bouton démarrer ne doit être visible que si:
-      // - L'utilisateur est le créateur
-      // - Il y a au moins 2 joueurs
-      // - Le mode est Partie avec mise (staked, alias betting)
+      // Migration brutale: seuls staked/free valides — betting supprimé
       const isCreator = true;
       const playerCount = 2;
       const mode = 'staked';
 
       const canStart = isCreator && playerCount >= 2 && mode == 'staked';
       expect(canStart, isTrue);
-      // Rétro-compat : betting → staked
-      const legacyMode = 'betting';
-      const canStartLegacy = isCreator && playerCount >= 2 && (legacyMode == 'staked' || legacyMode == 'betting');
-      expect(canStartLegacy, isTrue);
+      // betting supprimé → ne doit plus être valide
+      const invalidMode = 'betting';
+      expect(invalidMode == 'staked', isFalse);
     });
 
     testWidgets('bouton démarrer caché si Partie sans mise (free)', (tester) async {

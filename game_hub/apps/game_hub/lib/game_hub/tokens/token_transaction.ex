@@ -8,19 +8,19 @@
 defmodule GameHub.Tokens.TokenTransaction do
   @moduledoc """
   Schema transaction jetons.
-  
-  ## Types
+
+  ## Types — seuls achat, cadeau ami, jeu et promos
     - `purchase`: Achat jetons (monnaie → jetons)
-    - `exchange`: Échange jetons (jetons → monnaie)
     - `bet`: Mise de jeu
     - `winnings`: Gains
-    - `transfer_out`: Transfert sortant
-    - `transfer_in`: Transfert entrant
-    - `gift_sent`: Cadeau envoyé
+    - `gift_sent`: Cadeau envoyé (ami uniquement)
     - `gift_received`: Cadeau reçu
     - `promo_credit`: Crédit promotionnel
     - `promo_debit`: Débit promotionnel
     - `commission`: Commission plateforme
+
+  Anciens types `exchange`, `transfer_out`, `transfer_in` supprimés et conservés
+  uniquement en historique lecture seule.
   """
   
   use Ecto.Schema
@@ -52,7 +52,7 @@ defmodule GameHub.Tokens.TokenTransaction do
     timestamps()
   end
   
-  @valid_types ~w(purchase exchange bet winnings transfer_out transfer_in gift_sent gift_received promo_credit promo_debit commission)
+  @valid_types ~w(purchase bet winnings gift_sent gift_received promo_credit promo_debit commission)
   
   @doc """
   Changeset pour création transaction.

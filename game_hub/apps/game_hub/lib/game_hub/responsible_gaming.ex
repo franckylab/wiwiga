@@ -218,7 +218,7 @@ defmodule GameHub.ResponsibleGaming do
     total_loss = Repo.one(
       from t in TokenTransaction,
         where: t.user_id == ^user_id and
-               t.type in ["bet", "exchange"] and
+               t.type == "bet" and
                t.inserted_at >= ^today_start,
         select: fragment("SUM(ABS(?))", t.token_amount)
     ) || 0

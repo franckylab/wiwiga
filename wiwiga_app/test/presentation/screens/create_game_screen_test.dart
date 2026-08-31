@@ -39,16 +39,14 @@ void main() {
     });
 
     testWidgets('mise visible uniquement en mode Partie avec mise (staked)', (tester) async {
-      // En mode Partie sans mise (free), la section mise ne doit pas être visible
-      // En mode Partie avec mise (staked, alias betting), les presets + custom doivent être affichés
+      // Migration brutale: betting supprimé — seul staked affiche mise
       final presets = [100, 250, 500, 1000, 2500, 5000];
       expect(presets, isNotEmpty);
       expect(presets.first, equals(100));
     });
 
     testWidgets('récapitulatif affiché avant création', (tester) async {
-      // Vérifier que le récapitulatif montre tous les paramètres
-      // refacto : mode canonique "staked" (alias historique "betting")
+      // Migration brutale 2026-08-30: betting supprimé
       final config = {
         'mode': 'staked',
         'rule_type': 'normal',

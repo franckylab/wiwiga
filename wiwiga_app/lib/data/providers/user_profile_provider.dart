@@ -5,6 +5,7 @@
 
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/errors/error_handler.dart';
 import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
 import '../repositories/profile_repository.dart';
@@ -70,10 +71,11 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
         profile: profile,
         achievements: achievements,
       );
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'UserProfile.loadProfile');
       state = state.copyWith(
         isLoading: false,
-        error: 'Erreur chargement profil: $e',
+        error: ErrorHandler.userMessage(e),
       );
     }
   }
@@ -85,8 +87,9 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       // Mettre à jour le user dans authProvider
       _ref.read(authProvider.notifier).refreshProfile();
       return true;
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur update username: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'UserProfile.updateUsername');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -101,8 +104,9 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       // Le backend gère avatar_type dans le changeset
       await _ref.read(authProvider.notifier).refreshProfile();
       return true;
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur changement avatar: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'UserProfile.selectAvatar');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return false;
     }
   }
@@ -114,8 +118,9 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       // Refresh le profil pour obtenir le nouvel avatar_url
       await _ref.read(authProvider.notifier).refreshProfile();
       return avatarUrl;
-    } catch (e) {
-      state = state.copyWith(error: 'Erreur upload avatar: $e');
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'UserProfile.uploadAvatar');
+      state = state.copyWith(error: ErrorHandler.userMessage(e));
       return null;
     }
   }

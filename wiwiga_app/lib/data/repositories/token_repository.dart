@@ -46,41 +46,7 @@ class TokenRepository {
     return response['data'] as Map<String, dynamic>;
   }
 
-  /// Échange wiga → monnaie
-  Future<Map<String, dynamic>> exchangeTokens({
-    required int tokenAmount,
-    required String idempotencyKey,
-  }) async {
-    final response = await _apiService.post(
-      ApiEndpoints.tokenExchange,
-      body: {
-        'token_amount': tokenAmount,
-        'idempotency_key': idempotencyKey,
-      },
-      requiresAuth: true,
-    );
-    return response['data'] as Map<String, dynamic>;
-  }
-
-  /// Transfert de wiga entre joueurs
-  Future<Map<String, dynamic>> transferTokens({
-    required String recipientId,
-    required int tokenAmount,
-    required String idempotencyKey,
-  }) async {
-    final response = await _apiService.post(
-      ApiEndpoints.tokenTransfer,
-      body: {
-        'recipient_id': recipientId,
-        'token_amount': tokenAmount,
-        'idempotency_key': idempotencyKey,
-      },
-      requiresAuth: true,
-    );
-    return response['data'] as Map<String, dynamic>;
-  }
-
-  /// Envoi de cadeau (wiga gratuits)
+  /// Envoi de cadeau entre amis uniquement (backend vérifie Friendship)
   Future<Map<String, dynamic>> sendGift({
     required String recipientId,
     required int tokenAmount,

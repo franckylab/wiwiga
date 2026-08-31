@@ -155,7 +155,7 @@ class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
     final totalBet = game['total_bet'] ?? game['pot'] ?? 0;
     final status = game['status'] ?? 'active';
     final gameId = game['id']?.toString() ?? '';
-    // Mode : Partie sans mise / Partie avec mise (alias betting normalisé)
+    // Mode : Partie sans mise / Partie avec mise — betting supprimé (migration brutale)
     final rawMode = game['mode'] ?? game['game_mode'] ?? (totalBet is num && totalBet > 0 ? 'staked' : 'free');
     final mode = GameMode.parse(rawMode.toString());
     final modeColor = mode.isStaked ? NeonColors.success : NeonColors.primary;

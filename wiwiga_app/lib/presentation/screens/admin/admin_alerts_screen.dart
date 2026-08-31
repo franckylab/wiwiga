@@ -7,7 +7,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/alert_badge.dart';
@@ -142,9 +144,10 @@ class _AdminAlertsScreenState extends ConsumerState<AdminAlertsScreen> {
                     context.showSuccess('Alerte résolue');
                     ref.read(adminAlertsProvider.notifier).loadNotifications();
                     ref.read(adminAlertsProvider.notifier).loadUnreadCount();
-                  } catch (e) {
+                  } catch (e, st) {
+                    ErrorHandler.logError(e, st, context: 'AdminAlerts.resolve');
                     if (!context.mounted) return;
-                    context.showError('Erreur: $e');
+                    WiwigaSnack.showError(context, e);
                   }
                 },
         );

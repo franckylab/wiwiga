@@ -213,12 +213,13 @@ class ApiService {
     } catch (e, st) {
       if (e is ApiException) rethrow;
       // SocketException, HttpException, CORS TypeError (Failed to fetch) sur Web
+      // Ne jamais leak le détail technique ($e, $st, URL LAN) dans le message utilisateur
       if (kDebugMode) {
         debugPrint('[ApiService] Network error for $url -> $e');
         debugPrint('[ApiService] baseUrl=${AppConfig.baseUrl} isWeb=$kIsWeb');
         debugPrint('$st');
       }
-      throw ApiException.network('Erreur de connexion. Vérifiez votre réseau. ($e)', url: url);
+      throw ApiException.network('Pas de connexion. Vérifiez votre réseau.', url: url);
     }
   }
   
@@ -358,35 +359,33 @@ class ApiService {
     return _handleResponse(response);
   }
   
-  /// Upload multipart (fichier)
+  /// Upload multipart (fichier) — avec refresh 401
   Future<Map<String, dynamic>> uploadMultipart(
     String endpoint, {
     required String fieldName,
     required String filePath,
     bool requiresAuth = true,
   }) async {
-    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
-    final request = http.MultipartRequest('POST', uri);
-    
-    // Ajouter le token si requis
-    if (requiresAuth) {
-      final token = await getAccessToken();
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
+    Future<http.Response> doUpload() async {
+      final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+      if (requiresAuth) {
+        final token = await getAccessToken();
+        if (token != null) request.headers['Authorization'] = 'Bearer $token';
       }
+      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+      final streamed = await _wrapNetwork(
+        () => request.send().timeout(Duration(milliseconds: AppConfig.requestTimeout)),
+        url: uri.toString(),
+      );
+      return http.Response.fromStream(streamed);
     }
-    
-    // Ajouter le fichier
-    request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
-    
-    final streamedResponse = await _wrapNetwork(
-      () => request.send().timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      ),
-      url: uri.toString(),
-    );
-    
-    final response = await http.Response.fromStream(streamedResponse);
+
+    final response = await doUpload();
+    if (response.statusCode == 401 && requiresAuth) {
+      final retry = await _handle401AndRetry(() => doUpload());
+      if (retry != null) return _handleResponse(retry);
+    }
     return _handleResponse(response);
   }
   
@@ -548,7 +547,7 @@ class ApiService {
       case 400:
         return ApiException.badRequest(msg, errorCode: errorCode, details: details, url: url);
       case 401:
-        return ApiException.unauthorized(url: url);
+        return ApiException.unauthorized(message: msg, errorCode: errorCode, url: url);
       case 403:
         return ApiException.forbidden(msg, url: url);
       case 404:
@@ -558,9 +557,9 @@ class ApiService {
       case 422:
         return ApiException.validation(msg, details: details, url: url);
       case 429:
-        return ApiException.rateLimited(url: url);
+        return ApiException.rateLimited(message: msg, errorCode: errorCode, details: details, url: url);
       case >= 500:
-        return ApiException.serverError(url: url);
+        return ApiException.serverError(message: msg, errorCode: errorCode, details: details, url: url);
       default:
         return ApiException(statusCode: statusCode, message: msg, errorCode: errorCode, details: details, requestUrl: url);
     }

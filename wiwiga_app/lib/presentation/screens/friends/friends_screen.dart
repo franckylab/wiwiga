@@ -8,11 +8,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/errors/api_exception.dart';
+import '../../../core/errors/error_handler.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/friend_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/gift/gift_sheet.dart';
 
 /// Masque partiellement un numéro de téléphone pour la confidentialité.
 /// Ex: "+237691234567" → "+237 6** *** 567"
@@ -135,8 +139,7 @@ class _FriendsListTab extends ConsumerWidget {
     return friendsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        final msg = e.toString();
-        final isAuthError = msg.contains('401') || msg.contains('Session expirée') || msg.contains('Unauthorized') || msg.contains('Non autorisé');
+        final isAuthError = e is ApiException ? e.isUnauthorized : ErrorHandler.userMessage(e).contains('Session expirée');
         if (isAuthError) {
           return Center(
             child: Column(
@@ -153,18 +156,7 @@ class _FriendsListTab extends ConsumerWidget {
             ),
           );
         }
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
-              const SizedBox(height: 12),
-              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendsProvider), variant: NeonButtonVariant.outline),
-            ],
-          ),
-        );
+        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendsProvider));
       },
       data: (friends) {
         if (friends.isEmpty) {
@@ -254,6 +246,12 @@ class _FriendCard extends ConsumerWidget {
                 ],
               ),
             ),
+            // Bouton Cadeau — amis uniquement (best-practice gifting)
+            IconButton(
+              icon: const Icon(Icons.card_giftcard_outlined, color: NeonColors.secondary),
+              onPressed: () => showGiftSheet(context, friend),
+              tooltip: 'Offrir des wiga',
+            ),
             // Bouton Jouer
             IconButton(
               icon: const Icon(Icons.sports_esports_outlined, color: NeonColors.primary),
@@ -267,6 +265,10 @@ class _FriendCard extends ConsumerWidget {
               color: NeonColors.surface,
               icon: const Icon(Icons.more_vert, color: NeonColors.textSecondary),
               onSelected: (value) async {
+                if (value == 'gift') {
+                  showGiftSheet(context, friend);
+                  return;
+                }
                 final repo = ref.read(friendRepositoryProvider);
                 try {
                   if (value == 'remove') {
@@ -285,15 +287,16 @@ class _FriendCard extends ConsumerWidget {
                     }
                   }
                   ref.invalidate(friendsProvider);
-                } catch (e) {
+                } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
-                    );
+                    WiwigaSnack.showError(context, e);
                   }
                 }
               },
               itemBuilder: (context) => [
+                const PopupMenuItem(value: 'gift', child: Row(children: [Icon(Icons.card_giftcard, size: 18, color: NeonColors.secondary), SizedBox(width: 8), Text('Offrir des wiga', style: TextStyle(color: NeonColors.textPrimary))])),
+                const PopupMenuDivider(),
                 const PopupMenuItem(value: 'remove', child: Text('Supprimer', style: TextStyle(color: NeonColors.error))),
                 const PopupMenuItem(value: 'block', child: Text('Bloquer', style: TextStyle(color: NeonColors.error))),
               ],
@@ -317,20 +320,10 @@ class _RequestsListTab extends ConsumerWidget {
     return requestsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        final msg = e.toString();
-        if (msg.contains('401') || msg.contains('Unauthorized')) {
+        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
           return const Center(child: Text('Connectez-vous pour voir vos demandes', style: TextStyle(color: NeonColors.textSecondary)));
         }
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(pendingRequestsProvider), variant: NeonButtonVariant.outline),
-            ],
-          ),
-        );
+        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(pendingRequestsProvider));
       },
       data: (requests) {
         if (requests.isEmpty) {
@@ -408,11 +401,10 @@ class _RequestCard extends ConsumerWidget {
                       const SnackBar(content: Text('Demande acceptée'), backgroundColor: NeonColors.success),
                     );
                   }
-                } catch (e) {
+                } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
-                    );
+                    WiwigaSnack.showError(context, e);
                   }
                 }
               },
@@ -447,20 +439,10 @@ class _ActivityTab extends ConsumerWidget {
     return activityAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        final msg = e.toString();
-        if (msg.contains('401') || msg.contains('Unauthorized')) {
+        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
           return const Center(child: Text('Connectez-vous pour voir l\'activité', style: TextStyle(color: NeonColors.textSecondary)));
         }
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendActivityProvider), variant: NeonButtonVariant.outline),
-            ],
-          ),
-        );
+        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendActivityProvider));
       },
       data: (activities) {
         if (activities.isEmpty) {
@@ -559,20 +541,10 @@ class _LeaderboardTab extends ConsumerWidget {
     return leaderboardAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        final msg = e.toString();
-        if (msg.contains('401') || msg.contains('Unauthorized')) {
+        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
           return const Center(child: Text('Connectez-vous pour voir le classement', style: TextStyle(color: NeonColors.textSecondary)));
         }
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Erreur: $e', style: const TextStyle(color: NeonColors.error), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              NeonButton(text: 'RÉESSAYER', onPressed: () => ref.invalidate(friendLeaderboardProvider), variant: NeonButtonVariant.outline),
-            ],
-          ),
-        );
+        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendLeaderboardProvider));
       },
       data: (entries) {
         if (entries.isEmpty) {
@@ -769,12 +741,11 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
       final repo = ref.read(friendRepositoryProvider);
       final results = await repo.searchPlayer(query);
       setState(() { _results = results; _isSearching = false; });
-    } catch (e) {
+    } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
       setState(() => _isSearching = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur recherche: $e'), backgroundColor: NeonColors.error),
-        );
+        WiwigaSnack.showError(context, e);
       }
     }
   }
@@ -787,11 +758,10 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Demande envoyée à ${result.name}'), backgroundColor: NeonColors.success),
       );
-    } catch (e) {
+    } catch (e, st) {
+                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: NeonColors.error),
-      );
+      WiwigaSnack.showError(context, e);
     }
   }
 }

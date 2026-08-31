@@ -7,11 +7,11 @@
 
 defmodule GameHub.GameRoom do
   @moduledoc """
-  GenServer gérant les salles de jeu en attente.
+  GenServer gérant les salles de jeu en attente — migration brutale 2026-08-30.
 
   ## Concepts
   - **Partie sans mise (gratuit)** (`:free`) : créée par un joueur, partageable par code ou invitation ami, sans enjeu en jetons.
-  - **Partie avec mise** (`:staked`, alias historique `:betting`) : créée avec mise fixe, démarrage manuel si 2 joueurs, enjeu en jetons.
+  - **Partie avec mise** (`:staked`) : créée avec mise fixe, démarrage manuel si 2 joueurs, enjeu en jetons. `betting` supprimé.
 
   ## State Machine Room
       :waiting → :starting → :in_progress → :ended
@@ -35,7 +35,7 @@ defmodule GameHub.GameRoom do
   end
 
   @doc """
-  Crée une nouvelle salle de jeu.
+  Crée une nouvelle salle de jeu — migration brutale (betting supprimé).
 
   ## Parameters
     - `params`: %{
@@ -43,8 +43,8 @@ defmodule GameHub.GameRoom do
         creator_name: string,
         game_type: "dice",
         rule_type: "normal" | "cible",
-        mode: :free | :staked (alias historique :betting → normalisé en :staked),
-        bet_amount: integer (0 si :free / Partie sans mise),
+        mode: :free | :staked,
+        bet_amount: integer (0 si Partie sans mise),
         sets_count: integer,
         dice_count: integer,
         max_players: integer
@@ -52,10 +52,10 @@ defmodule GameHub.GameRoom do
 
   ## Modes
     - `:free`   → Partie sans mise (gratuit)
-    - `:staked` → Partie avec mise (alias "betting" accepté)
+    - `:staked` → Partie avec mise
 
   ## Returns
-    - `{:ok, room}`
+    - `{:ok, room}` | `{:error, :invalid_mode}` si mode hors free/staked
   """
   def create_room(params) do
     GenServer.call(__MODULE__, {:create_room, params})
@@ -131,13 +131,22 @@ defmodule GameHub.GameRoom do
     room_id = generate_room_id()
     room_code = generate_room_code()
 
-    # Charger les règles pour valider la config
-    rule_type = params.rule_type || "normal"
-    rules = GameRules.get_rules_or_default(params.game_type, rule_type)
+    # Charger les règles pour valider la config (robuste aux clés manquantes)
+    rule_type = Map.get(params, :rule_type, "normal") || "normal"
+    game_type = Map.get(params, :game_type, "dice") || "dice"
+    rules = GameRules.get_rules_or_default(game_type, rule_type)
     rc = rules.config
 
-    # Normaliser le mode (rétro-compatibilité betting → staked)
-    canonical_mode = GameMode.normalize(Map.get(params, :mode, :free))
+    # Migration brutale 2026-08-30: seuls :free (Partie sans mise) et :staked (Partie avec mise) valides — "betting" supprimé
+    raw_mode = Map.get(params, :mode, :free)
+    canonical_mode = case GameMode.parse_strict(to_string(raw_mode)) do
+      {:ok, m} -> m
+      {:error, _} -> nil
+    end
+
+    if is_nil(canonical_mode) do
+      {:reply, {:error, :invalid_mode}, state}
+    else
 
     # Valeurs par défaut
     sets_count = Map.get(params, :sets_count, rc["default_sets"] || 1)
@@ -145,11 +154,14 @@ defmodule GameHub.GameRoom do
     max_players = Map.get(params, :max_players, rc["max_players"] || 2)
     bet_amount = if canonical_mode == :staked, do: Map.get(params, :bet_amount, 0), else: 0
 
+    creator_id = Map.get(params, :creator_id)
+    creator_name = Map.get(params, :creator_name, "Créateur") || "Créateur"
+
     room = %{
       room_id: room_id,
       room_code: room_code,
-      creator_id: params.creator_id,
-      game_type: params.game_type,
+      creator_id: creator_id,
+      game_type: game_type,
       rule_type: rule_type,
       mode: canonical_mode,
       status: :waiting,
@@ -159,8 +171,8 @@ defmodule GameHub.GameRoom do
       max_players: max_players,
       players: [
         %{
-          id: params.creator_id,
-          name: params.creator_name || "Créateur",
+          id: creator_id,
+          name: creator_name,
           joined_at: DateTime.utc_now()
         }
       ],
@@ -174,9 +186,10 @@ defmodule GameHub.GameRoom do
     # Index par code pour recherche rapide
     :ets.insert(state.table, {{:code, room_code}, room_id})
 
-    Logger.info("Room #{room_id} created by #{params.creator_id} (code: #{room_code}, mode: #{room.mode})")
+    Logger.info("Room #{room_id} created by #{creator_id} (code: #{room_code}, mode: #{room.mode})")
 
     {:reply, {:ok, room}, state}
+    end
   end
 
   @impl true
@@ -359,8 +372,21 @@ defmodule GameHub.GameRoom do
 
   @impl true
   def handle_call({:list_waiting, game_type, mode}, _from, state) do
-    # Normaliser le filtre mode (alias betting → staked)
-    canonical_filter = if mode, do: GameMode.normalize(mode), else: nil
+    # Migration brutale: seuls free/staked valides — betting rejeté (retour liste vide si filtre invalide)
+    canonical_filter =
+      case mode do
+        nil -> nil
+        _ ->
+          case GameMode.parse_strict(to_string(mode)) do
+            {:ok, m} -> m
+            {:error, _} -> :invalid
+          end
+      end
+
+    # Si filtre invalide (dont betting), retourner liste vide (le controller renvoie déjà 400, mais sécurité GenServer)
+    if canonical_filter == :invalid do
+      {:reply, [], state}
+    else
 
     rooms = :ets.tab2list(state.table)
     |> Enum.filter(fn
@@ -377,7 +403,12 @@ defmodule GameHub.GameRoom do
     end)
     |> then(fn rooms ->
       if canonical_filter do
-        Enum.filter(rooms, fn r -> GameMode.normalize(r.mode) == canonical_filter end)
+        Enum.filter(rooms, fn r ->
+          case GameMode.parse_strict(to_string(r.mode)) do
+            {:ok, m} -> m == canonical_filter
+            _ -> false
+          end
+        end)
       else
         rooms
       end
@@ -385,6 +416,7 @@ defmodule GameHub.GameRoom do
     |> Enum.sort_by(fn r -> r.created_at end, {:desc, DateTime})
 
     {:reply, rooms, state}
+    end
   end
 
   @impl true
