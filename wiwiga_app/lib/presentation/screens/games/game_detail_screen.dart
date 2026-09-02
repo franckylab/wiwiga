@@ -10,12 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_model.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
-import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -38,11 +36,70 @@ class GameDetailScreen extends ConsumerStatefulWidget {
 class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _hasRedirected = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkActiveAndRedirect());
+  }
+
+  Future<void> _checkActiveAndRedirect() async {
+    if (_hasRedirected) return;
+    try {
+      final active = await ref.read(activeGameProvider.future);
+      if (!mounted || active == null) return;
+      final path = _activeRedirectPath(active);
+      // Éviter boucle si la cible est déjà la page détail elle-même
+      if (path != null && path != '/games/${widget.gameType}' && mounted) {
+        _hasRedirected = true;
+        context.go(path, extra: _activeExtra(active));
+      }
+    } catch (_) {}
+  }
+
+  String? _activeRedirectPath(Map<String, dynamic> active) {
+    final type = active['type'] as String?;
+    final gameType = active['game_type'] as String? ?? widget.gameType;
+    switch (type) {
+      case 'match':
+        final matchId = active['match_id'] as String?;
+        if (matchId != null) return '/games/$gameType/match/$matchId';
+        break;
+      case 'room_waiting':
+      case 'room_in_progress':
+        final roomId = active['room_id'] as String?;
+        final matchId = active['match_id'] as String?;
+        if (matchId != null && matchId.toString().isNotEmpty) {
+          return '/games/$gameType/match/$matchId';
+        }
+        if (roomId != null) return '/games/$gameType/room/$roomId';
+        break;
+      case 'quick_lobby':
+        return '/games/$gameType/quick-search';
+      default:
+        return null;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _activeExtra(Map<String, dynamic> active) {
+    final type = active['type'] as String?;
+    if (type == 'quick_lobby') {
+      return {
+        'bet_amount': active['bet_amount'],
+        'rule_type': active['rule_type'] ?? 'normal',
+      };
+    }
+    if (type == 'match') {
+      return {
+        'rule_type': active['rule_type'] ?? 'normal',
+        'bet_amount': active['bet_amount'] ?? 0,
+      };
+    }
+    return null;
   }
 
   @override
@@ -53,6 +110,22 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Redirection auto si déjà en partie (écoute en temps réel)
+    final activeAsync = ref.watch(activeGameProvider);
+    activeAsync.whenData((active) {
+      if (active != null && !_hasRedirected) {
+        final path = _activeRedirectPath(active);
+        if (path != null && path != '/games/${widget.gameType}' && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_hasRedirected) {
+              _hasRedirected = true;
+              context.go(path, extra: _activeExtra(active));
+            }
+          });
+        }
+      }
+    });
+
     final gameAsync = ref.watch(gameDetailProvider(widget.gameType));
 
     return Scaffold(
@@ -83,8 +156,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
         children: [
           const Icon(Icons.error_outline, size: 56, color: NeonColors.error),
           const SizedBox(height: 12),
-          const Text('Jeu introuvable',
-              style: TextStyle(color: NeonColors.textSecondary, fontSize: 15),),
+          const Text(
+            'Jeu introuvable',
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 15),
+          ),
           const SizedBox(height: 16),
           NeonButton(
             text: 'Retour au catalogue',
@@ -112,7 +187,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             labelColor: NeonColors.primary,
             unselectedLabelColor: NeonColors.textSecondary,
             labelStyle: const TextStyle(
-                fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13,),
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
             tabs: const [
               Tab(text: 'Aperçu'),
               Tab(text: 'Classement'),
@@ -158,13 +236,17 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               gradient: NeonGradients.cta,
               boxShadow: [
                 BoxShadow(
-                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
+                  color: NeonColors.primary
+                      .withValues(alpha: NeonGlow.opacityMedium),
                   blurRadius: NeonGlow.blurSmall,
                 ),
               ],
             ),
-            child: const Icon(Icons.casino_outlined,
-                size: 34, color: NeonColors.background,),
+            child: const Icon(
+              Icons.casino_outlined,
+              size: 34,
+              color: NeonColors.background,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -215,7 +297,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       decoration: BoxDecoration(
         color: NeonColors.background,
         border: const Border(
-          top: BorderSide(color: NeonColors.primary, width: NeonGlow.borderWidth),
+          top: BorderSide(
+            color: NeonColors.primary,
+            width: NeonGlow.borderWidth,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -286,57 +371,48 @@ class _QuickMatchSheet extends ConsumerStatefulWidget {
 }
 
 class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
-  static const List<int> _betPresets = [10, 25, 50, 100, 250, 500, 1000];
-
-  int _betAmount = 50;
+  int _betAmount = 500;
   String _ruleType = 'normal';
-  bool _isSearching = false;
   String? _error;
 
-  Future<void> _startQuickMatch() async {
-    setState(() {
-      _isSearching = true;
-      _error = null;
-    });
+  // Presets dynamiques depuis config admin (fallback hardcodé)
+  List<int> _betPresetsForGame() {
+    final gameAsync = ref.watch(gameDetailProvider(widget.gameType));
+    return gameAsync.maybeWhen(
+      data: (game) {
+        final minBet = game.minBet.toInt().clamp(1, 1000000);
+        final maxBet = game.maxBet.toInt().clamp(minBet, 1000000);
+        final steps = [
+          100,
+          250,
+          500,
+          1000,
+          2500,
+          5000,
+          10000,
+          25000,
+          50000,
+          100000,
+        ];
+        final presets =
+            steps.where((s) => s >= minBet && s <= maxBet).take(6).toList();
+        if (presets.isEmpty) return {minBet, maxBet}.toList();
+        return presets;
+      },
+      orElse: () => [100, 250, 500, 1000, 2500, 5000],
+    );
+  }
 
-    try {
-      final repo = ref.read(gameRepositoryProvider);
-      final result = await repo.joinGame(
-        gameId: widget.gameType,
-        betAmount: _betAmount,
-      );
-
-      if (!mounted) return;
-      final status = result['status'] as String?;
-
-      if (status == 'matched') {
-        final gameId = result['game_id'] as String? ?? '';
-        Navigator.of(context).pop();
-        context.push(
-          '/games/${widget.gameType}/session/$gameId',
-          extra: {'bet_amount': _betAmount},
-        );
-      } else {
-        // En file d'attente : rediriger vers le lobby en attendant l'adversaire
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'En file d\'attente... un adversaire arrive bientôt !',
-              style: TextStyle(color: NeonColors.primary),
-            ),
-          ),
-        );
-        context.go('/games/${widget.gameType}/lobby');
-      }
-    } catch (e, st) {
-      ErrorHandler.logError(e, st, context: 'GameDetail._startQuickMatch');
-      if (!mounted) return;
-      setState(() {
-        _isSearching = false;
-        _error = ErrorHandler.userMessage(e);
-      });
-    }
+  void _startQuickMatch() {
+    // Fermer le sheet et pousser l'écran de recherche bloquant (V3)
+    // La recherche hybrid mise+rule se fait dans QuickMatchSearchScreen (bloquant + annulable + refund)
+    final bet = _betAmount;
+    final rule = _ruleType;
+    Navigator.of(context).pop();
+    context.push(
+      '/games/${widget.gameType}/quick-search',
+      extra: {'bet_amount': bet, 'rule_type': rule},
+    );
   }
 
   @override
@@ -375,23 +451,37 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
           const SizedBox(height: 20),
           Row(
             children: [
-              const Text('Mise (wiga)',
-                  style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              const Text(
+                'Mise (wiga)',
+                style: TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
-              TokenStack(count: (_betAmount / 50).clamp(1, 5).round(), size: 20, metal: TokenMetal.emerald, altMetal: TokenMetal.gold),
+              TokenStack(
+                count: (_betAmount / 50).clamp(1, 5).round(),
+                size: 20,
+                metal: TokenMetal.emerald,
+                altMetal: TokenMetal.gold,
+              ),
             ],
           ),
           const SizedBox(height: 8),
           TokenChipGroup(
-            amounts: _betPresets,
+            amounts: _betPresetsForGame(),
             selectedAmount: _betAmount,
             onSelected: (v) => setState(() => _betAmount = v),
             chipSize: 38,
           ),
           const SizedBox(height: 20),
-          const Text('Règle',
-              style: TextStyle(
-                  color: NeonColors.textPrimary, fontWeight: FontWeight.bold,),),
+          const Text(
+            'Règle',
+            style: TextStyle(
+              color: NeonColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -402,16 +492,17 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!,
-                style: const TextStyle(color: NeonColors.error, fontSize: 13),),
+            Text(
+              _error!,
+              style: const TextStyle(color: NeonColors.error, fontSize: 13),
+            ),
           ],
           const SizedBox(height: 24),
           NeonButton(
-            text: _isSearching ? 'Recherche...' : 'Trouver un adversaire',
+            text: 'Trouver un adversaire',
             icon: Icons.bolt,
             width: double.infinity,
-            isLoading: _isSearching,
-            onPressed: _isSearching ? () {} : _startQuickMatch,
+            onPressed: _startQuickMatch,
           ),
         ],
       ),
@@ -430,7 +521,8 @@ class _QuickMatchSheetState extends ConsumerState<_QuickMatchSheet> {
               : NeonColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: isSelected ? NeonColors.primary : NeonColors.border,),
+            color: isSelected ? NeonColors.primary : NeonColors.border,
+          ),
         ),
         child: Text(
           label,
@@ -523,8 +615,10 @@ class _OverviewTab extends ConsumerWidget {
   Widget _mutedText(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(text,
-          style: const TextStyle(color: NeonColors.textMuted, fontSize: 13),),
+      child: Text(
+        text,
+        style: const TextStyle(color: NeonColors.textMuted, fontSize: 13),
+      ),
     );
   }
 
@@ -533,10 +627,16 @@ class _OverviewTab extends ConsumerWidget {
     final items = [
       ('Joueurs en ligne', '${stats.playersOnline}', Icons.wifi_tethering),
       ('Parties du jour', '${stats.matchesToday}', Icons.sports_esports),
-      ('Distribué aujourd\'hui', formatTokens(stats.totalDistributedToday),
-          Icons.payments_outlined),
-      ('Plus gros gain du jour', formatTokens(stats.biggestWinToday),
-          Icons.emoji_events_outlined),
+      (
+        'Distribué aujourd\'hui',
+        formatTokens(stats.totalDistributedToday),
+        Icons.payments_outlined
+      ),
+      (
+        'Plus gros gain du jour',
+        formatTokens(stats.biggestWinToday),
+        Icons.emoji_events_outlined
+      ),
     ];
 
     return GridView.builder(
@@ -567,7 +667,9 @@ class _OverviewTab extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 11, color: NeonColors.textSecondary,),
+                        fontSize: 11,
+                        color: NeonColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -617,7 +719,10 @@ class _OverviewTab extends ConsumerWidget {
               children: [
                 _myStatItem('Parties', '${stats.matchesPlayed}'),
                 _myStatItem('Victoires', '${stats.wins}'),
-                _myStatItem('Taux vict.', '${stats.winRate.toStringAsFixed(0)}%'),
+                _myStatItem(
+                  'Taux vict.',
+                  '${stats.winRate.toStringAsFixed(0)}%',
+                ),
                 _myStatItem('Série', '${stats.currentStreak}'),
               ],
             ),
@@ -652,9 +757,13 @@ class _OverviewTab extends ConsumerWidget {
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(label,
-                style:
-                    const TextStyle(fontSize: 11, color: NeonColors.textSecondary),),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: NeonColors.textSecondary,
+              ),
+            ),
           ),
         ],
       ),
@@ -662,7 +771,10 @@ class _OverviewTab extends ConsumerWidget {
   }
 
   Widget _buildWaitingRooms(
-      BuildContext context, WidgetRef ref, List<GameRoomModel> rooms,) {
+    BuildContext context,
+    WidgetRef ref,
+    List<GameRoomModel> rooms,
+  ) {
     if (rooms.isEmpty) {
       return _mutedText('Aucune salle en attente — créez la vôtre !');
     }
@@ -677,7 +789,12 @@ class _OverviewTab extends ConsumerWidget {
             child: Row(
               children: [
                 if (room.isStaked)
-                  TokenCoin(size: 28, metal: TokenMetal.emerald, lod: TokenLod.bevel, showShadow: false)
+                  const TokenCoin(
+                    size: 28,
+                    metal: TokenMetal.emerald,
+                    lod: TokenLod.bevel,
+                    showShadow: false,
+                  )
                 else
                   const Icon(Icons.people_outline, color: NeonColors.primary),
                 const SizedBox(width: 12),
@@ -698,7 +815,9 @@ class _OverviewTab extends ConsumerWidget {
                             ? '${room.betAmount} wiga · ${room.playersCount}/${room.maxPlayers} joueurs · ${room.modeShortLabel}'
                             : '${room.modeShortLabel} · ${room.playersCount}/${room.maxPlayers} joueurs',
                         style: const TextStyle(
-                            fontSize: 12, color: NeonColors.textSecondary,),
+                          fontSize: 12,
+                          color: NeonColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -713,7 +832,10 @@ class _OverviewTab extends ConsumerWidget {
   }
 
   Future<void> _joinRoom(
-      BuildContext context, WidgetRef ref, GameRoomModel room,) async {
+    BuildContext context,
+    WidgetRef ref,
+    GameRoomModel room,
+  ) async {
     try {
       final roomRepo = ref.read(roomRepositoryProvider);
       final joined = await roomRepo.joinRoom(room.roomId);
@@ -745,8 +867,11 @@ class _OverviewTab extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.emoji_events,
-                    size: 18, color: NeonColors.secondary,),
+                const Icon(
+                  Icons.emoji_events,
+                  size: 18,
+                  color: NeonColors.secondary,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -754,13 +879,17 @@ class _OverviewTab extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 13, color: NeonColors.textPrimary,),
+                      fontSize: 13,
+                      color: NeonColors.textPrimary,
+                    ),
                   ),
                 ),
                 Text(
                   _relativeTime(event.insertedAt),
-                  style:
-                      const TextStyle(fontSize: 11, color: NeonColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: NeonColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -814,8 +943,11 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
 
   @override
   Widget build(BuildContext context) {
-    final leaderboardAsync = ref.watch(gameLeaderboardProvider(
-        (gameType: widget.gameType, metric: _metric, period: _period),),);
+    final leaderboardAsync = ref.watch(
+      gameLeaderboardProvider(
+        (gameType: widget.gameType, metric: _metric, period: _period),
+      ),
+    );
 
     return Column(
       children: [
@@ -852,8 +984,10 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
               ],
             ),
             error: (_, __) => const Center(
-              child: Text('Classement indisponible',
-                  style: TextStyle(color: NeonColors.textMuted),),
+              child: Text(
+                'Classement indisponible',
+                style: TextStyle(color: NeonColors.textMuted),
+              ),
             ),
           ),
         ),
@@ -890,7 +1024,8 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                       : NeonColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: isSelected ? color : NeonColors.border,),
+                    color: isSelected ? color : NeonColors.border,
+                  ),
                 ),
                 child: Text(
                   label,
@@ -918,8 +1053,11 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.emoji_events_outlined,
-                size: 48, color: NeonColors.textMuted,),
+            Icon(
+              Icons.emoji_events_outlined,
+              size: 48,
+              color: NeonColors.textMuted,
+            ),
             SizedBox(height: 12),
             Text(
               'Aucun classement sur cette période',
@@ -950,7 +1088,11 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
       podium.isNotEmpty ? podium[0] : null,
       podium.length > 2 ? podium[2] : null,
     ];
-    final colors = [NeonColors.rankSilver, NeonColors.rankGold, NeonColors.rankBronze];
+    final colors = [
+      NeonColors.rankSilver,
+      NeonColors.rankGold,
+      NeonColors.rankBronze,
+    ];
     final heights = [86.0, 110.0, 74.0];
 
     return Row(
@@ -983,7 +1125,8 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                     color: colors[index].withValues(alpha: 0.18),
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(10)),
-                    border: Border.all(color: colors[index].withValues(alpha: 0.6)),
+                    border:
+                        Border.all(color: colors[index].withValues(alpha: 0.6)),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1001,8 +1144,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             _formatValue(entry.value),
                             style: const TextStyle(
@@ -1114,8 +1256,10 @@ class _RulesTab extends ConsumerWidget {
       data: (rules) {
         if (rules.isEmpty) {
           return const Center(
-            child: Text('Règles indisponibles',
-                style: TextStyle(color: NeonColors.textMuted),),
+            child: Text(
+              'Règles indisponibles',
+              style: TextStyle(color: NeonColors.textMuted),
+            ),
           );
         }
         return ListView(
@@ -1128,8 +1272,10 @@ class _RulesTab extends ConsumerWidget {
         child: ShimmerLoader(height: 200),
       ),
       error: (_, __) => const Center(
-        child: Text('Règles indisponibles',
-            style: TextStyle(color: NeonColors.textMuted),),
+        child: Text(
+          'Règles indisponibles',
+          style: TextStyle(color: NeonColors.textMuted),
+        ),
       ),
     );
   }
@@ -1194,8 +1340,9 @@ class _RulesTab extends ConsumerWidget {
                           Text(
                             _configLabels[entry.key] ?? entry.key,
                             style: const TextStyle(
-                                fontSize: 12,
-                                color: NeonColors.textSecondary,),
+                              fontSize: 12,
+                              color: NeonColors.textSecondary,
+                            ),
                           ),
                           Text(
                             '${entry.value}',
@@ -1236,8 +1383,10 @@ class _TipsTab extends ConsumerWidget {
       data: (tips) {
         if (tips.isEmpty) {
           return const Center(
-            child: Text('Aucune astuce pour le moment',
-                style: TextStyle(color: NeonColors.textMuted),),
+            child: Text(
+              'Aucune astuce pour le moment',
+              style: TextStyle(color: NeonColors.textMuted),
+            ),
           );
         }
         return ListView.builder(
@@ -1258,8 +1407,11 @@ class _TipsTab extends ConsumerWidget {
                         shape: BoxShape.circle,
                         color: NeonColors.secondary.withValues(alpha: 0.15),
                       ),
-                      child: const Icon(Icons.lightbulb_outline,
-                          size: 20, color: NeonColors.secondary,),
+                      child: const Icon(
+                        Icons.lightbulb_outline,
+                        size: 20,
+                        color: NeonColors.secondary,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1298,8 +1450,10 @@ class _TipsTab extends ConsumerWidget {
         child: ShimmerLoader(height: 200),
       ),
       error: (_, __) => const Center(
-        child: Text('Astuces indisponibles',
-            style: TextStyle(color: NeonColors.textMuted),),
+        child: Text(
+          'Astuces indisponibles',
+          style: TextStyle(color: NeonColors.textMuted),
+        ),
       ),
     );
   }

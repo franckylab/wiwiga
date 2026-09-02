@@ -27,10 +27,12 @@ class GameRoomWaitingScreen extends ConsumerStatefulWidget {
   const GameRoomWaitingScreen({super.key, required this.room});
 
   @override
-  ConsumerState<GameRoomWaitingScreen> createState() => _GameRoomWaitingScreenState();
+  ConsumerState<GameRoomWaitingScreen> createState() =>
+      _GameRoomWaitingScreenState();
 }
 
-class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> with TickerProviderStateMixin {
+class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
+    with TickerProviderStateMixin {
   late GameRoomModel _room;
   Timer? _refreshTimer;
   Timer? _countdownTimer;
@@ -50,9 +52,17 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
   void initState() {
     super.initState();
     _room = widget.room;
-    _pulseCtrl = AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
-    _shimmerCtrl = AnimationController(duration: const Duration(milliseconds: 1200), vsync: this);
-    _progressCtrl = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    _pulseCtrl =
+        AnimationController(duration: const Duration(seconds: 2), vsync: this)
+          ..repeat(reverse: true);
+    _shimmerCtrl = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _progressCtrl = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
     _startRefreshTimer();
     _startCountdown();
     _initWebSocket();
@@ -69,7 +79,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         // Payload contient soit {room: {...}} soit directement la room
         final roomData = payload['room'] as Map<String, dynamic>? ?? payload;
         try {
-          final updated = GameRoomModel.fromJson(_normalizeRoomJson(roomData, payload));
+          final updated =
+              GameRoomModel.fromJson(_normalizeRoomJson(roomData, payload));
           if (updated.roomId != _room.roomId) return;
           final oldCount = _room.playersCount;
           final newCount = updated.playersCount;
@@ -90,13 +101,17 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
             }
           });
           _checkAutoStart();
-          if (updated.matchId != null && (updated.status == 'starting' || updated.status == 'in_progress')) {
+          if (updated.matchId != null &&
+              (updated.status == 'starting' ||
+                  updated.status == 'in_progress')) {
             _goToMatch(updated.matchId!);
           }
         } catch (_) {}
       };
       ws.onMatchStarted = (payload) {
-        final matchId = payload['match_id'] as String? ?? payload['matchId'] as String? ?? _room.matchId;
+        final matchId = payload['match_id'] as String? ??
+            payload['matchId'] as String? ??
+            _room.matchId;
         if (matchId != null && mounted) _goToMatch(matchId);
       };
       ws.onPlayerJoined = (payload) {
@@ -112,10 +127,15 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
     }
   }
 
-  Map<String, dynamic> _normalizeRoomJson(Map<String, dynamic> data, Map<String, dynamic> full) {
+  Map<String, dynamic> _normalizeRoomJson(
+    Map<String, dynamic> data,
+    Map<String, dynamic> full,
+  ) {
     // Gère différents formats de broadcast
     if (data.containsKey('room_id')) return data;
-    if (full.containsKey('room') && full['room'] is Map) return Map<String, dynamic>.from(full['room'] as Map);
+    if (full.containsKey('room') && full['room'] is Map) {
+      return Map<String, dynamic>.from(full['room'] as Map);
+    }
     return data;
   }
 
@@ -128,7 +148,10 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         });
         _autoStartTimer?.cancel();
         _autoStartTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-          if (!mounted) { t.cancel(); return; }
+          if (!mounted) {
+            t.cancel();
+            return;
+          }
           if (_autoStartCountdown <= 1) {
             t.cancel();
             // Essayer de démarrer automatiquement si créateur, sinon attendre broadcast match_started
@@ -167,7 +190,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
   }
 
   void _startRefreshTimer() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => _refreshRoom());
+    _refreshTimer =
+        Timer.periodic(const Duration(seconds: 3), (_) => _refreshRoom());
   }
 
   void _startCountdown() {
@@ -200,7 +224,9 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         }
       });
       _checkAutoStart();
-      if (updatedRoom.matchId != null && (updatedRoom.status == 'starting' || updatedRoom.status == 'in_progress')) {
+      if (updatedRoom.matchId != null &&
+          (updatedRoom.status == 'starting' ||
+              updatedRoom.status == 'in_progress')) {
         _goToMatch(updatedRoom.matchId!);
       }
     } catch (_) {
@@ -225,7 +251,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
           'sets_count': _room.setsCount,
           'dice_count': _room.diceCount,
           'bet_amount': _room.isStaked ? _room.betAmount : 0,
-          'players': _room.players.map((p) => {'id': p.id, 'name': p.name}).toList(),
+          'players':
+              _room.players.map((p) => {'id': p.id, 'name': p.name}).toList(),
         },
       );
     });
@@ -256,8 +283,18 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
             const SizedBox(width: 8),
             if (_wsListening)
               Container(
-                width: 8, height: 8,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: NeonColors.success, boxShadow: [BoxShadow(color: NeonColors.success.withValues(alpha: 0.6), blurRadius: 6)]),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: NeonColors.success,
+                  boxShadow: [
+                    BoxShadow(
+                      color: NeonColors.success.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -265,7 +302,12 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         foregroundColor: NeonColors.primary,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.logout), color: NeonColors.error, tooltip: 'Quitter la salle', onPressed: _leaveRoom),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            color: NeonColors.error,
+            tooltip: 'Quitter la salle',
+            onPressed: _leaveRoom,
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -288,8 +330,21 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: NeonColors.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8), border: Border.all(color: NeonColors.error.withValues(alpha: 0.4))),
-                  child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 12), textAlign: TextAlign.center),
+                  decoration: BoxDecoration(
+                    color: NeonColors.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: NeonColors.error.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: NeonColors.error,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             _buildActionButtons(),
@@ -298,18 +353,50 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
               AnimatedBuilder(
                 animation: _pulseCtrl,
                 builder: (context, child) => Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(color: NeonColors.success.withValues(alpha: 0.12 + _pulseCtrl.value * 0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: NeonColors.success.withValues(alpha: 0.5))),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: NeonColors.success
+                        .withValues(alpha: 0.12 + _pulseCtrl.value * 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: NeonColors.success.withValues(alpha: 0.5),
+                    ),
+                  ),
                   child: child,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.bolt_rounded, color: NeonColors.success, size: 18),
+                    const Icon(
+                      Icons.bolt_rounded,
+                      color: NeonColors.success,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
-                    Text(_autoStartCountdown > 0 ? 'Lancement dans $_autoStartCountdown s...' : 'Lancement imminent...', style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.6)),
+                    Text(
+                      _autoStartCountdown > 0
+                          ? 'Lancement dans $_autoStartCountdown s...'
+                          : 'Lancement imminent...',
+                      style: const TextStyle(
+                        color: NeonColors.success,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: NeonColors.success, value: _autoStartCountdown > 0 ? (3 - _autoStartCountdown) / 3 : null)),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: NeonColors.success,
+                        value: _autoStartCountdown > 0
+                            ? (3 - _autoStartCountdown) / 3
+                            : null,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -326,11 +413,29 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12, letterSpacing: 0.6, fontWeight: FontWeight.w600)),
+              const Text(
+                'Code de la salle',
+                style: TextStyle(
+                  color: NeonColors.textSecondary,
+                  fontSize: 12,
+                  letterSpacing: 0.6,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: NeonColors.primary.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8)),
-                child: Text('${_room.playersCount}/${_room.maxPlayers} joueurs', style: const TextStyle(color: NeonColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
+                decoration: BoxDecoration(
+                  color: NeonColors.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_room.playersCount}/${_room.maxPlayers} joueurs',
+                  style: const TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
@@ -338,19 +443,36 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
           GestureDetector(
             onTap: () {
               Clipboard.setData(ClipboardData(text: _room.roomCode));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copié !'), backgroundColor: NeonColors.success));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Code copié !'),
+                  backgroundColor: NeonColors.success,
+                ),
+              );
             },
             child: AnimatedBuilder(
               animation: _shimmerCtrl,
               builder: (context, child) {
                 final shimmer = _shimmerCtrl.value;
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                   decoration: BoxDecoration(
-                    color: NeonColors.primary.withValues(alpha: 0.1 + shimmer * 0.08),
+                    color: NeonColors.primary
+                        .withValues(alpha: 0.1 + shimmer * 0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: NeonColors.primary.withValues(alpha: 0.3 + shimmer * 0.2), width: 1.2),
-                    boxShadow: [BoxShadow(color: NeonColors.primary.withValues(alpha: 0.18 + shimmer * 0.12), blurRadius: 12)],
+                    border: Border.all(
+                      color: NeonColors.primary
+                          .withValues(alpha: 0.3 + shimmer * 0.2),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: NeonColors.primary
+                            .withValues(alpha: 0.18 + shimmer * 0.12),
+                        blurRadius: 12,
+                      ),
+                    ],
                   ),
                   child: child,
                 );
@@ -358,21 +480,44 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.tag_rounded, color: NeonColors.primary, size: 18),
+                  const Icon(
+                    Icons.tag_rounded,
+                    color: NeonColors.primary,
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
-                  Text(_room.roomCode, style: const TextStyle(color: NeonColors.primary, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'Orbitron')),
+                  Text(
+                    _room.roomCode,
+                    style: const TextStyle(
+                      color: NeonColors.primary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3,
+                      fontFamily: 'Orbitron',
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(color: NeonColors.primary.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.copy_rounded, color: NeonColors.primary, size: 16),
+                    decoration: BoxDecoration(
+                      color: NeonColors.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.copy_rounded,
+                      color: NeonColors.primary,
+                      size: 16,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 8),
-          const Text('Appuyez pour copier • Partagez ce code à vos amis', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+          const Text(
+            'Appuyez pour copier • Partagez ce code à vos amis',
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 11),
+          ),
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -382,7 +527,9 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                 value: progress,
                 minHeight: 6,
                 backgroundColor: NeonColors.border,
-                valueColor: AlwaysStoppedAnimation<Color>(_isFull ? NeonColors.success : NeonColors.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _isFull ? NeonColors.success : NeonColors.primary,
+                ),
               ),
             ),
           ),
@@ -397,38 +544,82 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
       duration: const Duration(milliseconds: 400),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isFull ? NeonColors.success.withValues(alpha: 0.12) : NeonColors.surface,
+        color: isFull
+            ? NeonColors.success.withValues(alpha: 0.12)
+            : NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isFull ? NeonColors.success.withValues(alpha: 0.5) : NeonColors.border),
+        border: Border.all(
+          color: isFull
+              ? NeonColors.success.withValues(alpha: 0.5)
+              : NeonColors.border,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: isFull ? NeonColors.success.withValues(alpha: 0.18) : NeonColors.primary.withValues(alpha: 0.12), border: Border.all(color: isFull ? NeonColors.success : NeonColors.primary)),
-            child: Icon(isFull ? Icons.celebration_rounded : Icons.hourglass_top_rounded, size: 18, color: isFull ? NeonColors.success : NeonColors.primary),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isFull
+                  ? NeonColors.success.withValues(alpha: 0.18)
+                  : NeonColors.primary.withValues(alpha: 0.12),
+              border: Border.all(
+                color: isFull ? NeonColors.success : NeonColors.primary,
+              ),
+            ),
+            child: Icon(
+              isFull ? Icons.celebration_rounded : Icons.hourglass_top_rounded,
+              size: 18,
+              color: isFull ? NeonColors.success : NeonColors.primary,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isFull ? 'Salle complète !' : 'En attente de joueurs...', style: TextStyle(color: isFull ? NeonColors.success : NeonColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
+                Text(
+                  isFull ? 'Salle complète !' : 'En attente de joueurs...',
+                  style: TextStyle(
+                    color: isFull ? NeonColors.success : NeonColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(isFull ? 'La partie va démarrer automatiquement' : '${_room.maxPlayers - _room.playersCount} place(s) restante(s) • Démarrage auto quand complet', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                Text(
+                  isFull
+                      ? 'La partie va démarrer automatiquement'
+                      : '${_room.maxPlayers - _room.playersCount} place(s) restante(s) • Démarrage auto quand complet',
+                  style: const TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
           if (_wsListening)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: NeonColors.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: NeonColors.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.bolt_rounded, size: 12, color: NeonColors.success),
                   SizedBox(width: 4),
-                  Text('Temps réel', style: TextStyle(color: NeonColors.success, fontSize: 10, fontWeight: FontWeight.w800)),
+                  Text(
+                    'Temps réel',
+                    style: TextStyle(
+                      color: NeonColors.success,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -440,20 +631,49 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
   Widget _buildTimerProgress(double progress) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: NeonColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: NeonColors.border)),
+      decoration: BoxDecoration(
+        color: NeonColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NeonColors.border),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.timer_outlined, color: NeonColors.textSecondary, size: 16),
+          const Icon(
+            Icons.timer_outlined,
+            color: NeonColors.textSecondary,
+            size: 16,
+          ),
           const SizedBox(width: 8),
-          Text('Attente: $_formattedTime', style: const TextStyle(color: NeonColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(
+            'Attente: $_formattedTime',
+            style: const TextStyle(
+              color: NeonColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const Spacer(),
-          Text('${(progress * 100).toInt()}% rempli', style: TextStyle(color: _isFull ? NeonColors.success : NeonColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
+          Text(
+            '${(progress * 100).toInt()}% rempli',
+            style: TextStyle(
+              color: _isFull ? NeonColors.success : NeonColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(width: 8),
           SizedBox(
             width: 60,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(value: progress, minHeight: 6, backgroundColor: NeonColors.border, valueColor: AlwaysStoppedAnimation<Color>(_isFull ? NeonColors.success : NeonColors.primary)),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: NeonColors.border,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _isFull ? NeonColors.success : NeonColors.primary,
+                ),
+              ),
             ),
           ),
         ],
@@ -471,15 +691,45 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
             children: [
               const Row(
                 children: [
-                  Icon(Icons.people_rounded, size: 16, color: NeonColors.primary),
+                  Icon(
+                    Icons.people_rounded,
+                    size: 16,
+                    color: NeonColors.primary,
+                  ),
                   SizedBox(width: 6),
-                  Text('Joueurs', style: TextStyle(color: NeonColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+                  Text(
+                    'Joueurs',
+                    style: TextStyle(
+                      color: NeonColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _isFull ? NeonColors.success.withValues(alpha: 0.14) : NeonColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8), border: Border.all(color: _isFull ? NeonColors.success : NeonColors.primary.withValues(alpha: 0.3))),
-                child: Text('${_room.playersCount}/${_room.maxPlayers}', style: TextStyle(color: _isFull ? NeonColors.success : NeonColors.primary, fontWeight: FontWeight.w900, fontSize: 13, fontFamily: 'Orbitron')),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _isFull
+                      ? NeonColors.success.withValues(alpha: 0.14)
+                      : NeonColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _isFull
+                        ? NeonColors.success
+                        : NeonColors.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  '${_room.playersCount}/${_room.maxPlayers}',
+                  style: TextStyle(
+                    color: _isFull ? NeonColors.success : NeonColors.primary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    fontFamily: 'Orbitron',
+                  ),
+                ),
               ),
             ],
           ),
@@ -496,10 +746,27 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: isNew ? NeonColors.success.withValues(alpha: 0.12) : (isMe ? NeonColors.primary.withValues(alpha: 0.08) : NeonColors.surface),
+                color: isNew
+                    ? NeonColors.success.withValues(alpha: 0.12)
+                    : (isMe
+                        ? NeonColors.primary.withValues(alpha: 0.08)
+                        : NeonColors.surface),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isNew ? NeonColors.success : (isMe ? NeonColors.primary.withValues(alpha: 0.4) : NeonColors.border)),
-                boxShadow: isNew ? [BoxShadow(color: NeonColors.success.withValues(alpha: 0.25), blurRadius: 10)] : null,
+                border: Border.all(
+                  color: isNew
+                      ? NeonColors.success
+                      : (isMe
+                          ? NeonColors.primary.withValues(alpha: 0.4)
+                          : NeonColors.border),
+                ),
+                boxShadow: isNew
+                    ? [
+                        BoxShadow(
+                          color: NeonColors.success.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                        ),
+                      ]
+                    : null,
               ),
               child: Row(
                 children: [
@@ -508,25 +775,49 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                     tween: Tween(begin: isNew ? 0.0 : 1.0, end: 1.0),
                     duration: const Duration(milliseconds: 600),
                     curve: Curves.elasticOut,
-                    builder: (context, v, child) => Transform.scale(scale: v, child: child),
+                    builder: (context, v, child) =>
+                        Transform.scale(scale: v, child: child),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         CircleAvatar(
                           radius: 20,
-                          backgroundColor: isCreator ? NeonColors.primary.withValues(alpha: 0.25) : (isMe ? NeonColors.primary.withValues(alpha: 0.18) : NeonColors.card),
+                          backgroundColor: isCreator
+                              ? NeonColors.primary.withValues(alpha: 0.25)
+                              : (isMe
+                                  ? NeonColors.primary.withValues(alpha: 0.18)
+                                  : NeonColors.card),
                           child: Text(
-                            player.name.isNotEmpty ? player.name[0].toUpperCase() : '?',
-                            style: TextStyle(color: isCreator ? NeonColors.primary : (isMe ? NeonColors.primary : NeonColors.textPrimary), fontWeight: FontWeight.w900, fontSize: 14),
+                            player.name.isNotEmpty
+                                ? player.name[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              color: isCreator
+                                  ? NeonColors.primary
+                                  : (isMe
+                                      ? NeonColors.primary
+                                      : NeonColors.textPrimary),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         if (isNew)
                           Positioned(
-                            right: -2, top: -2,
+                            right: -2,
+                            top: -2,
                             child: Container(
-                              width: 14, height: 14,
-                              decoration: const BoxDecoration(shape: BoxShape.circle, color: NeonColors.success),
-                              child: const Icon(Icons.check_rounded, size: 10, color: Colors.white),
+                              width: 14,
+                              height: 14,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: NeonColors.success,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 10,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                       ],
@@ -539,28 +830,87 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                       children: [
                         Row(
                           children: [
-                            Flexible(child: Text(isMe ? 'Moi' : player.name, style: TextStyle(color: isMe ? NeonColors.primary : NeonColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13))),
+                            Flexible(
+                              child: Text(
+                                isMe ? 'Moi' : player.name,
+                                style: TextStyle(
+                                  color: isMe
+                                      ? NeonColors.primary
+                                      : NeonColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
                             if (isMe) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(color: NeonColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: NeonColors.primary.withValues(alpha: 0.3))),
-                                child: const Text('MOI', style: TextStyle(color: NeonColors.primary, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: NeonColors.primary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: NeonColors.primary
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'MOI',
+                                  style: TextStyle(
+                                    color: NeonColors.primary,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
                               ),
                             ],
                             if (isCreator) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(color: NeonColors.secondary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                                child: const Text('CRÉATEUR', style: TextStyle(color: NeonColors.secondary, fontSize: 8, fontWeight: FontWeight.w800)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: NeonColors.secondary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'CRÉATEUR',
+                                  style: TextStyle(
+                                    color: NeonColors.secondary,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ],
                           ],
                         ),
                         if (!isMe)
-                          Text(player.name, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        if (isMe) const Text('Toi', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                          Text(
+                            player.name,
+                            style: const TextStyle(
+                              color: NeonColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        if (isMe)
+                          const Text(
+                            'Toi',
+                            style: TextStyle(
+                              color: NeonColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -569,11 +919,29 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                     child: isNew
                         ? Container(
                             key: const ValueKey('new'),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: NeonColors.success.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8)),
-                            child: const Text('Nouveau !', style: TextStyle(color: NeonColors.success, fontSize: 10, fontWeight: FontWeight.w800)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: NeonColors.success.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Nouveau !',
+                              style: TextStyle(
+                                color: NeonColors.success,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           )
-                        : const Icon(Icons.check_circle_rounded, key: ValueKey('ok'), color: NeonColors.success, size: 20),
+                        : const Icon(
+                            Icons.check_circle_rounded,
+                            key: ValueKey('ok'),
+                            color: NeonColors.success,
+                            size: 20,
+                          ),
                   ),
                 ],
               ),
@@ -587,39 +955,77 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
                 tween: Tween(begin: 0.0, end: 1.0),
                 duration: Duration(milliseconds: 400 + delay),
                 curve: Curves.easeOut,
-                builder: (context, v, child) => Opacity(opacity: v, child: Transform.translate(offset: Offset(0, 8 * (1 - v)), child: child)),
+                builder: (context, v, child) => Opacity(
+                  opacity: v,
+                  child: Transform.translate(
+                    offset: Offset(0, 8 * (1 - v)),
+                    child: child,
+                  ),
+                ),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   decoration: BoxDecoration(
                     color: NeonColors.surface.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: NeonColors.border, style: BorderStyle.solid),
+                    border: Border.all(
+                      color: NeonColors.border,
+                      style: BorderStyle.solid,
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: NeonColors.surface, border: Border.all(color: NeonColors.border, style: BorderStyle.solid)),
-                        child: const Icon(Icons.person_add_outlined, color: NeonColors.textSecondary, size: 18),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: NeonColors.surface,
+                          border: Border.all(
+                            color: NeonColors.border,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.person_add_outlined,
+                          color: NeonColors.textSecondary,
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('En attente...', style: TextStyle(color: NeonColors.textSecondary, fontStyle: FontStyle.italic, fontSize: 13)),
-                            Text('Slot libre', style: TextStyle(color: NeonColors.textMuted, fontSize: 11)),
+                            Text(
+                              'En attente...',
+                              style: TextStyle(
+                                color: NeonColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              'Slot libre',
+                              style: TextStyle(
+                                color: NeonColors.textMuted,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       AnimatedBuilder(
                         animation: _pulseCtrl,
                         builder: (context, child) => Container(
-                          width: 8, height: 8,
+                          width: 8,
+                          height: 8,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: NeonColors.textSecondary.withValues(alpha: 0.4 + _pulseCtrl.value * 0.4),
+                            color: NeonColors.textSecondary.withValues(
+                              alpha: 0.4 + _pulseCtrl.value * 0.4,
+                            ),
                           ),
                         ),
                       ),
@@ -642,27 +1048,73 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
             children: [
               Icon(Icons.settings_rounded, size: 16, color: NeonColors.primary),
               SizedBox(width: 6),
-              Text('Paramètres', style: TextStyle(color: NeonColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800)),
+              Text(
+                'Paramètres',
+                style: TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _settingRow('Mode', _room.modeLabel, Icons.style_rounded),
-          _settingRow('Règles', _room.ruleType == 'normal' ? 'Normal — Plus haut gagne' : 'Cible — Plus proche gagne', Icons.rule_rounded),
-          _settingRow('Sets', '${_room.setsCount} (premier à ${(_room.setsCount ~/ 2) + 1})', Icons.layers_rounded),
-          _settingRow('Dés', '${_room.diceCount} dé${_room.diceCount > 1 ? 's' : ''}', Icons.casino_rounded),
+          _settingRow(
+            'Règles',
+            _room.ruleType == 'normal'
+                ? 'Normal — Plus haut gagne'
+                : 'Cible — Plus proche gagne',
+            Icons.rule_rounded,
+          ),
+          _settingRow(
+            'Sets',
+            '${_room.setsCount} (premier à ${(_room.setsCount ~/ 2) + 1})',
+            Icons.layers_rounded,
+          ),
+          _settingRow(
+            'Dés',
+            '${_room.diceCount} dé${_room.diceCount > 1 ? 's' : ''}',
+            Icons.casino_rounded,
+          ),
           if (_room.isStaked)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: NeonColors.tokenGold.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: NeonColors.tokenGold.withValues(alpha: 0.3))),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: NeonColors.tokenGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: NeonColors.tokenGold.withValues(alpha: 0.3),
+                  ),
+                ),
                 child: Row(
                   children: [
-                    TokenCoin(size: 20, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                    const TokenCoin(
+                      size: 20,
+                      metal: TokenMetal.gold,
+                      lod: TokenLod.bevel,
+                      showShadow: false,
+                    ),
                     const SizedBox(width: 8),
-                    const Text('Mise', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+                    const Text(
+                      'Mise',
+                      style: TextStyle(
+                        color: NeonColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                     const Spacer(),
-                    Text('${_room.betAmount} wiga', style: const TextStyle(color: NeonColors.tokenGold, fontWeight: FontWeight.w900, fontFamily: 'Orbitron')),
+                    Text(
+                      '${_room.betAmount} wiga',
+                      style: const TextStyle(
+                        color: NeonColors.tokenGold,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'Orbitron',
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -679,9 +1131,25 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         children: [
           Icon(icon, size: 14, color: NeonColors.textSecondary),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: NeonColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
           const Spacer(),
-          Flexible(child: Text(value, textAlign: TextAlign.right, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13))),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: NeonColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -700,7 +1168,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
         const SizedBox(height: 10),
         if (canStart)
           NeonButton(
-            text: 'Démarrer la partie (${_room.playersCount}/${_room.maxPlayers})',
+            text:
+                'Démarrer la partie (${_room.playersCount}/${_room.maxPlayers})',
             onPressed: _isStarting ? () {} : _startMatch,
             isLoading: _isStarting,
             variant: NeonButtonVariant.success,
@@ -723,9 +1192,23 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: NeonColors.textSecondary)),
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: NeonColors.textSecondary,
+                  ),
+                ),
                 SizedBox(width: 8),
-                Text('En attente de l\'hôte...', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontStyle: FontStyle.italic)),
+                Text(
+                  'En attente de l\'hôte...',
+                  style: TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               ],
             ),
           ),
@@ -744,23 +1227,38 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
 
   Future<void> _startMatch() async {
     if (_isStarting) return;
-    setState(() { _isStarting = true; _error = null; });
+    setState(() {
+      _isStarting = true;
+      _error = null;
+    });
     try {
       final apiService = ref.read(apiServiceProvider);
       final roomRepo = RoomRepository(apiService);
       final result = await roomRepo.startMatch(_room.roomId);
       if (!mounted) return;
-      final matchId = result['match_id'] as String? ?? result['matchId'] as String? ?? _room.matchId;
+      final matchId = result['match_id'] as String? ??
+          result['matchId'] as String? ??
+          _room.matchId;
       if (matchId != null) {
         _goToMatch(matchId);
       } else {
         setState(() => _isStarting = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Match créé, en attente...'), backgroundColor: NeonColors.primary));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Match créé, en attente...'),
+            backgroundColor: NeonColors.primary,
+          ),
+        );
         _refreshRoom();
       }
     } catch (e, st) {
       ErrorHandler.logError(e, st, context: 'GameRoomWaiting.startMatch');
-      if (mounted) setState(() { _isStarting = false; _error = ErrorHandler.userMessage(e); });
+      if (mounted) {
+        setState(() {
+          _isStarting = false;
+          _error = ErrorHandler.userMessage(e);
+        });
+      }
     }
   }
 
@@ -771,7 +1269,9 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen> w
       await roomRepo.leaveRoom(_room.roomId);
     } catch (_) {}
     if (!mounted) return;
-    try { ref.read(gameWebSocketServiceProvider).leaveRoom(_room.roomId); } catch (_) {}
+    try {
+      ref.read(gameWebSocketServiceProvider).leaveRoom(_room.roomId);
+    } catch (_) {}
     if (context.canPop()) {
       context.pop();
     } else {

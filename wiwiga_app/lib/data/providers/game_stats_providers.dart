@@ -112,3 +112,19 @@ final waitingRoomsProvider =
   final repo = ref.watch(roomRepositoryProvider);
   return repo.listWaitingRooms(gameType: gameType);
 });
+
+/// Partie active de l'utilisateur pour redirection auto (room/match/quick_lobby)
+/// Usage: lorsqu'un joueur est déjà dans une partie en attente ou en cours,
+/// la page Jeux le redirige directement vers attente ou partie.
+final activeGameProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (auth.isGuest || auth.isUnknown) return null;
+  final repo = ref.watch(gameRepositoryProvider);
+  try {
+    final data = await repo.getActiveGame();
+    if (data['has_active'] == true) return data;
+    return null;
+  } catch (_) {
+    return null;
+  }
+});

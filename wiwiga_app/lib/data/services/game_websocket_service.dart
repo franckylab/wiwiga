@@ -72,6 +72,7 @@ class GameWebSocketService extends ChangeNotifier {
   void Function(Map<String, dynamic>)? onTargetVoted;
   void Function(Map<String, dynamic>)? onPlayerForfeited;
   void Function(Map<String, dynamic>)? onMatchForfeit;
+  void Function(Map<String, dynamic>)? onMatchState;
   
   GameWebSocketService({required ApiService apiService})
       : _apiService = apiService;
@@ -135,41 +136,125 @@ class GameWebSocketService extends ChangeNotifier {
     _setConnectionStatus(GameConnectionStatus.disconnected);
   }
   
-  // === Matchmaking ===
+  // === Matchmaking V3 — Partie rapide unifiée (mise+rule) ===
   
   /// Rejoint la file de matchmaking via WebSocket (ou REST en fallback)
+  /// V3.1: rejoint d'abord le topic `matchmaking:{gameType}` en temps réel, puis envoie `join_queue`
   Future<Map<String, dynamic>> joinMatchmaking({
     required String gameType,
+    required int betAmount,
+    String ruleType = 'normal',
+  }) async {
+    if (isConnected) {
+      final topic = 'matchmaking:$gameType';
+      // 1) Rejoindre le channel pour recevoir lobby_update / game_matched en temps réel
+      _sendToChannel(topic: topic, event: WebSocketEvents.phxJoin, payload: {});
+      // Petit délai pour laisser le serveur traiter le join
+      await Future.delayed(const Duration(milliseconds: 120));
+      _sendToChannel(
+        topic: topic,
+        event: WebSocketEvents.joinQueue,
+        payload: {
+          'game_type': gameType,
+          'bet_amount': betAmount,
+          'rule_type': ruleType,
+        },
+      );
+      return {'status': 'queued'};
+    } else {
+      // Fallback REST — hybrid Room+Queue côté serveur
+      final res = await _apiService.post(
+        '${ApiEndpoints.joinGame}/$gameType/join',
+        body: {'bet_amount': betAmount, 'rule_type': ruleType},
+        requiresAuth: true,
+      );
+      return res['data'] as Map<String, dynamic>? ?? res;
+    }
+  }
+
+  /// Rejoint le channel matchmaking pour recevoir les updates lobby sans forcément rejoindre la file
+  void joinMatchmakingChannel(String gameType) {
+    if (isConnected) {
+      _sendToChannel(topic: 'matchmaking:$gameType', event: WebSocketEvents.phxJoin, payload: {});
+    }
+  }
+  
+  /// Quitte la file de matchmaking (WS + REST fallback退款)
+  Future<void> leaveMatchmaking({
+    required String gameType,
+    String ruleType = 'normal',
+    int? betAmount,
+  }) async {
+    if (isConnected) {
+      final topic = 'matchmaking:$gameType';
+      _sendToChannel(
+        topic: topic,
+        event: WebSocketEvents.leaveQueue,
+        payload: {'rule_type': ruleType, if (betAmount != null) 'bet_amount': betAmount},
+      );
+      // Optionnel: quitter le topic
+      _sendToChannel(topic: topic, event: WebSocketEvents.phxLeave, payload: {});
+    }
+    // Toujours REST pour remboursement idempotent
+    try {
+      await _apiService.delete(
+        '${ApiEndpoints.leaveQueue}/$gameType/queue',
+        queryParams: {
+          'rule_type': ruleType,
+          if (betAmount != null) 'bet_amount': '$betAmount',
+        },
+        requiresAuth: true,
+      );
+    } catch (_) {}
+  }
+
+  /// Poll statut file (REST) — utilisé si WS down
+  Future<Map<String, dynamic>> getQueueStatus({
+    required String gameType,
+    String ruleType = 'normal',
+  }) async {
+    final res = await _apiService.get(
+      '${ApiEndpoints.queueStatus}/$gameType/queue/status',
+      queryParams: {'rule_type': ruleType},
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  // Quick lobby synchro
+  void Function(Map<String, dynamic>)? onLobbyUpdate;
+
+  Future<Map<String, dynamic>> getQuickLobby({
+    required String gameType,
+    required String ruleType,
+    required int betAmount,
+  }) async {
+    final res = await _apiService.get(
+      '${ApiEndpoints.quickLobby}/$gameType/quick-lobby',
+      queryParams: {'rule_type': ruleType, 'bet_amount': '$betAmount'},
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  Future<Map<String, dynamic>> toggleQuickReady({
+    required String gameType,
+    required String ruleType,
     required int betAmount,
   }) async {
     if (isConnected) {
       _sendToChannel(
         topic: WebSocketChannels.matchmaking,
-        event: WebSocketEvents.joinQueue,
-        payload: {
-          'game_type': gameType,
-          'bet_amount': betAmount,
-        },
-      );
-      return {'status': 'queued'};
-    } else {
-      // Fallback REST
-      return await _apiService.post(
-        '${ApiEndpoints.joinGame}/$gameType',
-        body: {'bet_amount': betAmount},
-        requiresAuth: true,
+        event: 'toggle_ready',
+        payload: {'game_type': gameType, 'rule_type': ruleType, 'bet_amount': betAmount},
       );
     }
-  }
-  
-  /// Quitte la file de matchmaking
-  void leaveMatchmaking() {
-    if (isConnected) {
-      _sendToChannel(
-        topic: WebSocketChannels.matchmaking,
-        event: WebSocketEvents.leaveQueue,
-      );
-    }
+    final res = await _apiService.post(
+      '${ApiEndpoints.quickReady}/$gameType/quick-ready',
+      body: {'rule_type': ruleType, 'bet_amount': betAmount},
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
   }
   
   // === Game Actions ===
@@ -360,6 +445,16 @@ class GameWebSocketService extends ChangeNotifier {
       );
     }
   }
+
+  /// Démarre le set suivant (après résultat)
+  void startSet(String matchId) {
+    if (isConnected) {
+      _sendToChannel(
+        topic: '${WebSocketChannels.gamePrefix}$matchId',
+        event: 'start_set',
+      );
+    }
+  }
   
   // === Message Handling ===
   
@@ -494,6 +589,14 @@ class GameWebSocketService extends ChangeNotifier {
         case 'match_forfeit':
           onMatchForfeit?.call(payload);
           onPlayerForfeited?.call(payload);
+          notifyListeners();
+          break;
+        case 'match_state':
+          onMatchState?.call(payload);
+          notifyListeners();
+          break;
+        case 'lobby_update':
+          onLobbyUpdate?.call(payload);
           notifyListeners();
           break;
       }

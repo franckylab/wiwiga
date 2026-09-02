@@ -27,7 +27,8 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  ConsumerState<AdminDashboardScreen> createState() =>
+      _AdminDashboardScreenState();
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
@@ -82,9 +83,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             children: [
               const Icon(Icons.lock_outline, color: NeonColors.error, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé', style: TextStyle(color: NeonColors.textPrimary, fontSize: 20)),
+              const Text(
+                'Accès non autorisé',
+                style: TextStyle(color: NeonColors.textPrimary, fontSize: 20),
+              ),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: () => context.go('/home'), child: const Text('Retour à l\'accueil')),
+              ElevatedButton(
+                onPressed: () => context.go('/home'),
+                child: const Text('Retour à l\'accueil'),
+              ),
             ],
           ),
         ),
@@ -116,7 +123,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
               child: Text(
                 user.role.displayName,
-                style: TextStyle(color: _roleColor(user.role), fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: _roleColor(user.role),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -195,13 +206,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.username.isNotEmpty ? user.username : user.phone ?? 'Admin',
-                  style: const TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                  user.username.isNotEmpty
+                      ? user.username
+                      : user.phone ?? 'Admin',
+                  style: const TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? user.phone ?? '',
-                  style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+                  style: const TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -219,8 +239,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     // Calculer un score de santé simplifié
     final totalUsers = (_stats?['total_users'] as int?) ?? 0;
     final activeUsers = (_stats?['active_users'] as int?) ?? 0;
-    final healthScore = totalUsers > 0 ? ((activeUsers / totalUsers) * 100).round() : 0;
-    final healthColor = healthScore >= 80 ? NeonColors.success : healthScore >= 50 ? NeonColors.warning : NeonColors.error;
+    final healthScore =
+        totalUsers > 0 ? ((activeUsers / totalUsers) * 100).round() : 0;
+    final healthColor = healthScore >= 80
+        ? NeonColors.success
+        : healthScore >= 50
+            ? NeonColors.warning
+            : NeonColors.error;
 
     return Row(
       children: [
@@ -242,11 +267,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     children: [
                       Icon(Icons.favorite, color: healthColor, size: 18),
                       const SizedBox(width: 6),
-                      const Text('Santé Plateforme', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                      const Text(
+                        'Santé Plateforme',
+                        style: TextStyle(
+                          color: NeonColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('$healthScore%', style: TextStyle(color: healthColor, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$healthScore%',
+                    style: TextStyle(
+                      color: healthColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(3),
@@ -270,24 +308,60 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: (unreadAlerts > 0 ? NeonColors.warning : NeonColors.success).withValues(alpha: 0.1),
+                color:
+                    (unreadAlerts > 0 ? NeonColors.warning : NeonColors.success)
+                        .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: (unreadAlerts > 0 ? NeonColors.warning : NeonColors.success).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: (unreadAlerts > 0
+                          ? NeonColors.warning
+                          : NeonColors.success)
+                      .withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(unreadAlerts > 0 ? Icons.warning_amber : Icons.check_circle, color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, size: 18),
+                      Icon(
+                        unreadAlerts > 0
+                            ? Icons.warning_amber
+                            : Icons.check_circle,
+                        color: unreadAlerts > 0
+                            ? NeonColors.warning
+                            : NeonColors.success,
+                        size: 18,
+                      ),
                       const SizedBox(width: 6),
-                      const Text('Alertes', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                      const Text(
+                        'Alertes',
+                        style: TextStyle(
+                          color: NeonColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text('$unreadAlerts', style: TextStyle(color: unreadAlerts > 0 ? NeonColors.warning : NeonColors.success, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$unreadAlerts',
+                    style: TextStyle(
+                      color: unreadAlerts > 0
+                          ? NeonColors.warning
+                          : NeonColors.success,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(unreadAlerts > 0 ? 'non traitées' : 'tout va bien', style: const TextStyle(color: NeonColors.textMuted, fontSize: 10)),
+                  Text(
+                    unreadAlerts > 0 ? 'non traitées' : 'tout va bien',
+                    style: const TextStyle(
+                      color: NeonColors.textMuted,
+                      fontSize: 10,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -313,7 +387,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               child: GestureDetector(
                 onTap: () => context.go('/admin/alerts'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: NeonColors.error.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -321,9 +396,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.notifications_active, color: NeonColors.error, size: 14),
+                      Icon(
+                        Icons.notifications_active,
+                        color: NeonColors.error,
+                        size: 14,
+                      ),
                       SizedBox(width: 4),
-                      Text('Alertes', style: TextStyle(color: NeonColors.error, fontSize: 11)),
+                      Text(
+                        'Alertes',
+                        style: TextStyle(color: NeonColors.error, fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
@@ -338,7 +420,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           children: [
             AdminMetricCard(
               title: 'Revenus 24h',
-              value: AnalyticsFormat.amount(dashboard['total_revenue_24h'] ?? 0),
+              value:
+                  AnalyticsFormat.amount(dashboard['total_revenue_24h'] ?? 0),
               icon: Icons.account_balance_wallet,
               color: NeonColors.success,
               deltaPercent: (dashboard['revenue_delta'] as num?)?.toDouble(),
@@ -351,23 +434,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
             AdminMetricCard(
               title: 'Utilisateurs connectés',
-              value: '${dashboard['active_users'] ?? dashboard['logged_in_users'] ?? 0}',
+              value:
+                  '${dashboard['active_users'] ?? dashboard['logged_in_users'] ?? 0}',
               icon: Icons.people,
               color: NeonColors.info,
             ),
             AdminMetricCard(
               title: 'Alertes actives',
-              value: '${dashboard['active_alerts'] ?? alertsState.unreadNotifications}',
+              value:
+                  '${dashboard['active_alerts'] ?? alertsState.unreadNotifications}',
               icon: Icons.warning_amber,
               color: NeonColors.warning,
             ),
           ],
         ),
         // Mini sparkline si données disponibles
-        if (dashboard['timeseries'] != null && (dashboard['timeseries'] as List).isNotEmpty) ...[
+        if (dashboard['timeseries'] != null &&
+            (dashboard['timeseries'] as List).isNotEmpty) ...[
           const SizedBox(height: 12),
           AdminSparkline(
-            data: (dashboard['timeseries'] as List).map((e) => (e is num ? e.toDouble() : 0.0)).toList(),
+            data: (dashboard['timeseries'] as List)
+                .map((e) => (e is num ? e.toDouble() : 0.0))
+                .toList(),
             color: NeonColors.primary,
             height: 40,
             width: double.infinity,
@@ -391,25 +479,65 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       children: [
         Row(
           children: [
-            _StatCard(icon: Icons.people, label: 'Total', value: totalUsers.toString(), color: NeonColors.primary),
+            _StatCard(
+              icon: Icons.people,
+              label: 'Total',
+              value: totalUsers.toString(),
+              color: NeonColors.primary,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.check_circle, label: 'Actifs', value: activeUsers.toString(), color: NeonColors.adminCyan),
+            _StatCard(
+              icon: Icons.check_circle,
+              label: 'Actifs',
+              value: activeUsers.toString(),
+              color: NeonColors.adminCyan,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.today, label: '24h', value: active24h.toString(), color: NeonColors.paymentOrange),
+            _StatCard(
+              icon: Icons.today,
+              label: '24h',
+              value: active24h.toString(),
+              color: NeonColors.paymentOrange,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.trending_up, label: '7j', value: newUsers7d.toString(), color: NeonColors.adminMagenta),
+            _StatCard(
+              icon: Icons.trending_up,
+              label: '7j',
+              value: newUsers7d.toString(),
+              color: NeonColors.adminMagenta,
+            ),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            _StatCard(icon: Icons.devices, label: 'Sessions', value: activeSessions.toString(), color: NeonColors.adminBlue),
+            _StatCard(
+              icon: Icons.devices,
+              label: 'Sessions',
+              value: activeSessions.toString(),
+              color: NeonColors.adminBlue,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.smartphone, label: 'Appareils', value: activeDevices.toString(), color: NeonColors.adminPurple),
+            _StatCard(
+              icon: Icons.smartphone,
+              label: 'Appareils',
+              value: activeDevices.toString(),
+              color: NeonColors.adminPurple,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.verified_user, label: 'KYC OK', value: kycVerified.toString(), color: NeonColors.primary),
+            _StatCard(
+              icon: Icons.verified_user,
+              label: 'KYC OK',
+              value: kycVerified.toString(),
+              color: NeonColors.primary,
+            ),
             const SizedBox(width: 8),
-            _StatCard(icon: Icons.hourglass_empty, label: 'KYC En attente', value: kycPending.toString(), color: NeonColors.adminAmber),
+            _StatCard(
+              icon: Icons.hourglass_empty,
+              label: 'KYC En attente',
+              value: kycPending.toString(),
+              color: NeonColors.adminAmber,
+            ),
           ],
         ),
       ],
@@ -424,9 +552,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _metricRow('Événements audit (24h)', audit24h.toString(), NeonColors.adminPurple),
+        _metricRow(
+          'Événements audit (24h)',
+          audit24h.toString(),
+          NeonColors.adminPurple,
+        ),
         _metricRow('Auto-exclus', selfExcluded.toString(), NeonColors.error),
-        _metricRow('Utilisateurs inactifs', inactiveUsers.toString(), NeonColors.adminAmber),
+        _metricRow(
+          'Utilisateurs inactifs',
+          inactiveUsers.toString(),
+          NeonColors.adminAmber,
+        ),
       ],
     );
   }
@@ -438,8 +574,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _metricRow('Solde total (wiga)', _formatMoney(totalBalance), NeonColors.primary),
-        _metricRow('Wiga en circulation', AnalyticsFormat.number(totalTokenBalance), NeonColors.adminCyan),
+        _metricRow(
+          'Solde total (wiga)',
+          _formatMoney(totalBalance),
+          NeonColors.primary,
+        ),
+        _metricRow(
+          'Wiga en circulation',
+          AnalyticsFormat.number(totalTokenBalance),
+          NeonColors.adminCyan,
+        ),
       ],
     );
   }
@@ -450,35 +594,51 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       desktopRatio: 1.5,
       children: [
         _QuickActionCard(
-          icon: Icons.people, label: 'Utilisateurs', color: NeonColors.primary,
+          icon: Icons.people,
+          label: 'Utilisateurs',
+          color: NeonColors.primary,
           onTap: () => context.go('/admin/users'),
         ),
         _QuickActionCard(
-          icon: Icons.monitor_heart, label: 'Supervision', color: NeonColors.adminBlue,
+          icon: Icons.monitor_heart,
+          label: 'Supervision',
+          color: NeonColors.adminBlue,
           onTap: () => context.go('/admin/monitoring'),
         ),
         _QuickActionCard(
-          icon: Icons.settings, label: 'Configuration', color: NeonColors.adminMagenta,
+          icon: Icons.settings,
+          label: 'Configuration',
+          color: NeonColors.adminMagenta,
           onTap: () => context.go('/admin/config'),
         ),
         _QuickActionCard(
-          icon: Icons.history, label: 'Logs d\'audit', color: NeonColors.adminPurple,
+          icon: Icons.history,
+          label: 'Logs d\'audit',
+          color: NeonColors.adminPurple,
           onTap: () => context.go('/admin/audit'),
         ),
         _QuickActionCard(
-          icon: Icons.monetization_on, label: 'Analytique\nRevenus', color: NeonColors.primary,
+          icon: Icons.monetization_on,
+          label: 'Analytique\nRevenus',
+          color: NeonColors.primary,
           onTap: () => context.go('/admin/analytics/revenue'),
         ),
         _QuickActionCard(
-          icon: Icons.people_outline, label: 'Analytique\nJoueurs', color: NeonColors.accent,
+          icon: Icons.people_outline,
+          label: 'Analytique\nJoueurs',
+          color: NeonColors.accent,
           onTap: () => context.go('/admin/analytics/players'),
         ),
         _QuickActionCard(
-          icon: Icons.swap_horiz, label: 'Flux\nMonétaire', color: NeonColors.warning,
+          icon: Icons.swap_horiz,
+          label: 'Flux\nMonétaire',
+          color: NeonColors.warning,
           onTap: () => context.go('/admin/analytics/monetary-flow'),
         ),
         _QuickActionCard(
-          icon: Icons.card_giftcard, label: 'Bonus et\nPromos', color: NeonColors.info,
+          icon: Icons.card_giftcard,
+          label: 'Bonus et\nPromos',
+          color: NeonColors.info,
           onTap: () => context.go('/admin/bonuses'),
         ),
       ],
@@ -503,7 +663,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 SizedBox(
                   width: 100,
-                  child: Text(role.displayName, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    role.displayName,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: ClipRRect(
@@ -517,7 +684,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(count.toString(), style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+                Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           );
@@ -526,21 +699,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-
-
   Widget _metricRow(String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 14)),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: NeonColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
         ],
       ),
     );
   }
-
 
   String _formatMoney(dynamic value) {
     final amount = int.tryParse(value.toString()) ?? 0;
@@ -560,7 +743,12 @@ class _StatCard extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _StatCard({required this.icon, required this.label, required this.value, required this.color});
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -576,9 +764,22 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 4),
-            Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 10,
+              ),
+            ),
           ],
         ),
       ),
@@ -592,7 +793,12 @@ class _QuickActionCard extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickActionCard({required this.icon, required this.label, required this.color, required this.onTap});
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -609,7 +815,14 @@ class _QuickActionCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 32),
             const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: NeonColors.textPrimary, fontSize: 12)),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: NeonColors.textPrimary,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),

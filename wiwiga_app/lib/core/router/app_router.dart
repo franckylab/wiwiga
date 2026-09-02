@@ -47,6 +47,7 @@ import '../../presentation/screens/dice_game/dice_match_screen.dart';
 import '../../presentation/screens/friends/friends_screen.dart';
 import '../../presentation/screens/game/create_game_screen.dart';
 import '../../presentation/screens/game/game_room_waiting_screen.dart';
+import '../../presentation/screens/game/quick_match_search_screen.dart';
 import '../../presentation/screens/game_lobby/game_lobby_enhanced_screen.dart';
 import '../../presentation/screens/games/game_detail_screen.dart';
 import '../../presentation/screens/games/games_catalog_screen.dart';
@@ -378,6 +379,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       builder: (context, state) => CreateGameScreen(
                         gameType: state.pathParameters['gameType']!,
                       ),
+                    ),
+                    GoRoute(
+                      path: 'quick-search',
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (context, state) {
+                        final extra = state.extra as Map<String, dynamic>? ?? {};
+                        return QuickMatchSearchScreen(
+                          gameType: state.pathParameters['gameType']!,
+                          betAmount: (extra['bet_amount'] as num?)?.toInt() ?? 500,
+                          ruleType: (extra['rule_type'] as String?) ?? 'normal',
+                        );
+                      },
                     ),
                     GoRoute(
                       path: 'room/:roomId',

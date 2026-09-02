@@ -26,16 +26,25 @@ void main() async {
     // Global error handlers — séparation user copy / telemetry (best practice)
     FlutterError.onError = (details) {
       final msg = details.exceptionAsString();
-      if (msg.contains('runtime.lastError') || msg.contains('message port closed')) {
+      if (msg.contains('runtime.lastError') ||
+          msg.contains('message port closed')) {
         return; // bruit extension Chrome, pas app
       }
       // Telemetry (jamais exposée telle quelle à l'utilisateur)
-      ErrorHandler.logError(details.exception, details.stack, context: 'FlutterError', force: kDebugMode);
+      ErrorHandler.logError(
+        details.exception,
+        details.stack,
+        context: 'FlutterError',
+        force: kDebugMode,
+      );
       if (kDebugMode) FlutterError.presentError(details);
     };
     PlatformDispatcher.instance.onError = (error, stack) {
       final msg = error.toString();
-      if (msg.contains('runtime.lastError') || msg.contains('message port closed')) return true;
+      if (msg.contains('runtime.lastError') ||
+          msg.contains('message port closed')) {
+        return true;
+      }
       ErrorHandler.logError(error, stack, context: 'PlatformDispatcher');
       return false;
     };
@@ -50,20 +59,28 @@ void main() async {
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Erreur d\'affichage (debug): $msg',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12), textAlign: TextAlign.center),
+              child: Text(
+                'Erreur d\'affichage (debug): $msg',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         );
       }
       return Material(
         color: const Color(0xFF0F172A),
-        child: WiwigaErrorView(error: details.exception, stackTrace: details.stack, title: 'Affichage indisponible'),
+        child: WiwigaErrorView(
+          error: details.exception,
+          stackTrace: details.stack,
+          title: 'Affichage indisponible',
+        ),
       );
     };
 
     // Pré-charger Noto Sans sans bloquer le premier frame
-    GoogleFonts.pendingFonts([GoogleFonts.notoSans()]).catchError((_) => <void>[]);
+    GoogleFonts.pendingFonts([GoogleFonts.notoSans()])
+        .catchError((_) => <void>[]);
 
     runApp(
       const ProviderScope(
@@ -71,7 +88,12 @@ void main() async {
       ),
     );
   }, (error, stack) {
-    ErrorHandler.logError(error, stack, context: 'runZonedGuarded', force: true);
+    ErrorHandler.logError(
+      error,
+      stack,
+      context: 'runZonedGuarded',
+      force: true,
+    );
   });
 }
 
@@ -91,7 +113,10 @@ class WiwigaApp extends ConsumerWidget {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final ctx = rootNavigatorKey.currentContext;
             if (ctx != null && ctx.mounted) {
-              WiwigaSnack.showError(ctx, 'Session expirée. Reconnectez-vous pour continuer.');
+              WiwigaSnack.showError(
+                ctx,
+                'Session expirée. Reconnectez-vous pour continuer.',
+              );
               // Redirection immédiate si pas déjà sur /auth
               final current = router.routeInformationProvider.value.uri.path;
               if (current != '/auth' && current != '/splash') {

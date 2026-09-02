@@ -11,11 +11,11 @@ import '../../widgets/neon/neon_widgets.dart';
 // === Game State ===
 
 enum DiceGamePhase {
-  waitingPlayers,   // En attente d'adversaires
-  betting,          // Phase de prédiction
-  rolling,          // Dés en cours de lancement
-  showingResult,    // Résultat affiché
-  finished,         // Partie terminée
+  waitingPlayers, // En attente d'adversaires
+  betting, // Phase de prédiction
+  rolling, // Dés en cours de lancement
+  showingResult, // Résultat affiché
+  finished, // Partie terminée
 }
 
 class DiceGameState {
@@ -110,18 +110,18 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     // Rejoindre la partie via WebSocket
     _initGameConnection();
   }
-  
+
   void _initGameConnection() {
     final gameWs = ref.read(gameWebSocketServiceProvider);
-    
+
     if ((widget.gameId ?? '').isNotEmpty) {
       gameWs.joinGame(widget.gameId!);
     }
-    
+
     // Écouter les événements
     gameWs.onPlayerJoined = (payload) {
       if (mounted) {
@@ -132,7 +132,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         );
       }
     };
-    
+
     gameWs.onBetPlaced = (payload) {
       if (mounted) {
         final state = ref.read(diceGameStateProvider);
@@ -141,13 +141,13 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         );
       }
     };
-    
+
     gameWs.onTurnExecuted = (payload) {
       if (mounted) {
         _showRollResult(payload);
       }
     };
-    
+
     gameWs.onGameResult = (payload) {
       if (mounted) {
         _showGameResult(payload);
@@ -208,9 +208,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('JEU DE DÉS',
-                    style: AppTypography.heading4
-                        .copyWith(color: Colors.white),),
+                Text(
+                  'JEU DE DÉS',
+                  style: AppTypography.heading4.copyWith(color: Colors.white),
+                ),
                 Text(
                   _phaseLabel(state.phase),
                   style: const TextStyle(
@@ -224,8 +225,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
           ),
           // Mise
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: NeonColors.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
@@ -234,7 +234,12 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
+                const TokenCoin(
+                  size: 14,
+                  metal: TokenMetal.emerald,
+                  lod: TokenLod.flat,
+                  showShadow: false,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${widget.betAmount} wiga',
@@ -284,7 +289,9 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                   boxShadow: [
                     BoxShadow(
                       color: NeonColors.primary.withValues(
-                          alpha: NeonGlow.opacityLow + _glowController.value * 0.3,),
+                        alpha:
+                            NeonGlow.opacityLow + _glowController.value * 0.3,
+                      ),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -292,17 +299,21 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                 ),
                 child: CircleAvatar(
                   radius: 50,
-                  backgroundColor:
-                      NeonColors.primary.withValues(alpha: 0.1),
-                  child: const Icon(Icons.people,
-                      size: 50, color: NeonColors.primary,),
+                  backgroundColor: NeonColors.primary.withValues(alpha: 0.1),
+                  child: const Icon(
+                    Icons.people,
+                    size: 50,
+                    color: NeonColors.primary,
+                  ),
                 ),
               );
             },
           ),
           const SizedBox(height: 24),
-          Text('EN ATTENTE DE JOUEURS...',
-              style: AppTypography.heading3,),
+          Text(
+            'EN ATTENTE DE JOUEURS...',
+            style: AppTypography.heading3,
+          ),
           const SizedBox(height: 8),
           const Text(
             'La partie commence quand au moins 2 joueurs sont prêts',
@@ -348,20 +359,27 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                   CircleAvatar(
                     backgroundColor:
                         NeonColors.secondary.withValues(alpha: 0.2),
-                    child: const Icon(Icons.person,
-                        color: NeonColors.secondary,),
+                    child: const Icon(
+                      Icons.person,
+                      color: NeonColors.secondary,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Adversaire',
-                          style: TextStyle(
-                              color: NeonColors.textSecondary,
-                              fontSize: 12,
-                              fontFamily: 'Inter',),),
-                      Text(state.opponentName!,
-                          style: AppTypography.subtitle,),
+                      const Text(
+                        'Adversaire',
+                        style: TextStyle(
+                          color: NeonColors.textSecondary,
+                          fontSize: 12,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      Text(
+                        state.opponentName!,
+                        style: AppTypography.subtitle,
+                      ),
                     ],
                   ),
                   const Spacer(),
@@ -374,8 +392,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             ),
 
           const SizedBox(height: 20),
-          Text('CHOISIS TA PRÉDICTION',
-              style: AppTypography.heading3,),
+          Text(
+            'CHOISIS TA PRÉDICTION',
+            style: AppTypography.heading3,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Quelle sera la somme des 2 dés ?',
@@ -430,8 +450,10 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('LANCEMENT DES DÉS...',
-              style: AppTypography.heading3,),
+          Text(
+            'LANCEMENT DES DÉS...',
+            style: AppTypography.heading3,
+          ),
           const SizedBox(height: 40),
           // Animated dice
           AnimatedBuilder(
@@ -507,10 +529,9 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (isWinner
-                                ? NeonColors.success
-                                : NeonColors.danger)
-                            .withValues(alpha: 0.4),
+                        color:
+                            (isWinner ? NeonColors.success : NeonColors.danger)
+                                .withValues(alpha: 0.4),
                         blurRadius: 30,
                         spreadRadius: 10,
                       ),
@@ -518,16 +539,13 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                   ),
                   child: CircleAvatar(
                     radius: 60,
-                    backgroundColor: (isWinner
-                            ? NeonColors.success
-                            : NeonColors.danger)
-                        .withValues(alpha: 0.2),
+                    backgroundColor:
+                        (isWinner ? NeonColors.success : NeonColors.danger)
+                            .withValues(alpha: 0.2),
                     child: Icon(
                       isWinner ? Icons.emoji_events : Icons.close,
                       size: 60,
-                      color: isWinner
-                          ? NeonColors.success
-                          : NeonColors.danger,
+                      color: isWinner ? NeonColors.success : NeonColors.danger,
                     ),
                   ),
                 ),
@@ -581,8 +599,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                   label: state.opponentName ?? 'Adversaire',
                   prediction: state.opponentPrediction,
                   isWinner: !isWinner,
-                  isCorrect:
-                      state.opponentPrediction == state.totalSum,
+                  isCorrect: state.opponentPrediction == state.totalSum,
                 ),
               ],
             ),
@@ -595,7 +612,13 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
             NeonCard(
               child: Column(
                 children: [
-                  TokenCoin(size: 48, metal: TokenMetal.gold, lod: TokenLod.full, effect: TokenEffect.shimmer, animated: true),
+                  const TokenCoin(
+                    size: 48,
+                    metal: TokenMetal.gold,
+                    lod: TokenLod.full,
+                    effect: TokenEffect.shimmer,
+                    animated: true,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     '+${state.netWinnings} wiga',
@@ -657,7 +680,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
   void _confirmPrediction(int prediction) async {
     final state = ref.read(diceGameStateProvider);
     final gameWs = ref.read(gameWebSocketServiceProvider);
-    
+
     // Envoyer le pari au serveur
     try {
       await gameWs.placeBet(
@@ -665,11 +688,11 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         betAmount: widget.betAmount,
         predictedSum: prediction,
       );
-      
+
       // Mettre à jour l'état local
       ref.read(diceGameStateProvider.notifier).state =
           state.copyWith(myPrediction: prediction);
-      
+
       // Si en mode fallback ou solo, simuler le résultat
       if (gameWs.isFallbackMode || (widget.gameId?.isEmpty ?? true)) {
         _simulateLocalGame(prediction);
@@ -680,27 +703,28 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       _simulateLocalGame(prediction);
     }
   }
-  
+
   void _simulateLocalGame(int prediction) {
     final state = ref.read(diceGameStateProvider);
     ref.read(diceGameStateProvider.notifier).state =
         state.copyWith(phase: DiceGamePhase.rolling);
-    
+
     _diceAnimController.forward(from: 0);
-    
+
     Future.delayed(const Duration(milliseconds: 2000), () {
       final random = Random();
       final dice1 = random.nextInt(6) + 1;
       final dice2 = random.nextInt(6) + 1;
       final sum = dice1 + dice2;
       final isWin = prediction == sum;
-      
+
       // Get dynamic commission rate from admin config (fallback 5%)
       final commissionRate = _getCommissionRate();
-      final netWin = isWin ? widget.betAmount * 2 - (widget.betAmount * commissionRate).toInt() : 0;
-      
-      ref.read(diceGameStateProvider.notifier).state =
-          state.copyWith(
+      final netWin = isWin
+          ? widget.betAmount * 2 - (widget.betAmount * commissionRate).toInt()
+          : 0;
+
+      ref.read(diceGameStateProvider.notifier).state = state.copyWith(
         phase: DiceGamePhase.showingResult,
         diceResults: [dice1, dice2],
         totalSum: sum,
@@ -709,11 +733,11 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
         opponentPrediction: random.nextInt(11) + 2,
         opponentName: 'Adversaire',
       );
-      
+
       _resultController.forward(from: 0);
     });
   }
-  
+
   /// Fetch commission rate from game rules (admin-configurable)
   double _getCommissionRate() {
     try {
@@ -734,31 +758,31 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
       return 0.05;
     }
   }
-  
+
   void _showRollResult(Map<String, dynamic> payload) {
     final state = ref.read(diceGameStateProvider);
     final diceResults = List<int>.from(payload['dice_results'] ?? []);
     final totalSum = payload['total_sum'] as int?;
-    
+
     ref.read(diceGameStateProvider.notifier).state = state.copyWith(
       phase: DiceGamePhase.rolling,
       diceResults: diceResults,
       totalSum: totalSum,
     );
-    
+
     _diceAnimController.forward(from: 0);
   }
-  
+
   void _showGameResult(Map<String, dynamic> payload) {
     final state = ref.read(diceGameStateProvider);
     final isWin = payload['winner'] == 'me';
-    
+
     ref.read(diceGameStateProvider.notifier).state = state.copyWith(
       phase: DiceGamePhase.showingResult,
       winnerId: isWin ? 'me' : 'opponent',
       netWinnings: payload['net_winnings'] as int? ?? 0,
     );
-    
+
     _resultController.forward(from: 0);
   }
 
@@ -900,9 +924,7 @@ class _PredictionGrid extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: isSelected
-                        ? NeonColors.primary
-                        : Colors.white,
+                    color: isSelected ? NeonColors.primary : Colors.white,
                     fontFamily: 'Orbitron',
                   ),
                 ),
@@ -927,9 +949,17 @@ class _PredictionGrid extends StatelessWidget {
   String _getProbabilityLabel(int sum) {
     // Probability distribution for 2 dice
     final probs = {
-      2: '2.8%', 3: '5.6%', 4: '8.3%', 5: '11.1%',
-      6: '13.9%', 7: '16.7%', 8: '13.9%', 9: '11.1%',
-      10: '8.3%', 11: '5.6%', 12: '2.8%',
+      2: '2.8%',
+      3: '5.6%',
+      4: '8.3%',
+      5: '11.1%',
+      6: '13.9%',
+      7: '16.7%',
+      8: '13.9%',
+      9: '11.1%',
+      10: '8.3%',
+      11: '5.6%',
+      12: '2.8%',
     };
     return probs[sum] ?? '';
   }
@@ -1016,7 +1046,8 @@ class _DiceWidget extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
+                  color:
+                      NeonColors.primary.withValues(alpha: NeonGlow.opacityLow),
                   blurRadius: 8,
                 ),
               ],
@@ -1027,9 +1058,7 @@ class _DiceWidget extends StatelessWidget {
           style: TextStyle(
             fontSize: size * 0.4,
             fontWeight: FontWeight.bold,
-            color: isGhost
-                ? NeonColors.textSecondary
-                : NeonColors.primary,
+            color: isGhost ? NeonColors.textSecondary : NeonColors.primary,
             fontFamily: 'Orbitron',
           ),
         ),
@@ -1072,9 +1101,8 @@ class _PredictionRow extends StatelessWidget {
                 'Prédiction: $prediction',
                 style: TextStyle(
                   fontFamily: 'Orbitron',
-                  color: isCorrect
-                      ? NeonColors.success
-                      : NeonColors.textSecondary,
+                  color:
+                      isCorrect ? NeonColors.success : NeonColors.textSecondary,
                 ),
               ),
               const SizedBox(width: 8),

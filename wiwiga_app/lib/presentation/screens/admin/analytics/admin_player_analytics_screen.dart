@@ -21,10 +21,12 @@ class AdminPlayerAnalyticsScreen extends ConsumerStatefulWidget {
   const AdminPlayerAnalyticsScreen({super.key});
 
   @override
-  ConsumerState<AdminPlayerAnalyticsScreen> createState() => _AdminPlayerAnalyticsScreenState();
+  ConsumerState<AdminPlayerAnalyticsScreen> createState() =>
+      _AdminPlayerAnalyticsScreenState();
 }
 
-class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalyticsScreen> {
+class _AdminPlayerAnalyticsScreenState
+    extends ConsumerState<AdminPlayerAnalyticsScreen> {
   @override
   void initState() {
     super.initState();
@@ -51,7 +53,8 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             value: state.selectedPeriod,
             onChanged: (value) {
               if (value != null) {
-                final notifier = ref.read(adminPlayerAnalyticsProvider.notifier);
+                final notifier =
+                    ref.read(adminPlayerAnalyticsProvider.notifier);
                 notifier.setPeriod(value);
                 notifier.load(period: value);
               }
@@ -62,7 +65,11 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
       body: state.isLoading && state.data == null
           ? const NeonLoadingSpinner.center()
           : state.error != null && state.data == null
-              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminPlayerAnalyticsProvider.notifier).load())
+              ? AdminErrorState(
+                  error: state.error!,
+                  onRetry: () =>
+                      ref.read(adminPlayerAnalyticsProvider.notifier).load(),
+                )
               : _buildContent(state, cohortsState, funnelState),
     );
   }
@@ -99,7 +106,9 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
               const AnalyticsSectionTitle('Utilisateurs Actifs (DAU)'),
               const SizedBox(height: 8),
               AdminLineChart(
-                data: dauTimeseries.map((t) => (t['count'] as num?)?.toDouble() ?? 0.0).toList(),
+                data: dauTimeseries
+                    .map((t) => (t['count'] as num?)?.toDouble() ?? 0.0)
+                    .toList(),
                 lineColor: NeonColors.accent,
                 label: 'DAU',
                 height: 180,
@@ -112,10 +121,20 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             const SizedBox(height: 8),
             cohortsState.when(
               data: (d) => _buildRetentionSection(d),
-              loading: () => const SizedBox(height: 100, child: NeonLoadingSpinner.center()),
+              loading: () => const SizedBox(
+                height: 100,
+                child: NeonLoadingSpinner.center(),
+              ),
               error: (e, st) {
-                ErrorHandler.logError(e, st, context: 'AdminPlayerAnalytics.retention');
-                return Text(ErrorHandler.userMessage(e), style: const TextStyle(color: NeonColors.error));
+                ErrorHandler.logError(
+                  e,
+                  st,
+                  context: 'AdminPlayerAnalytics.retention',
+                );
+                return Text(
+                  ErrorHandler.userMessage(e),
+                  style: const TextStyle(color: NeonColors.error),
+                );
               },
             ),
             const SizedBox(height: 20),
@@ -125,10 +144,20 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
             const SizedBox(height: 8),
             funnelState.when(
               data: (d) => _buildFunnelSection(d),
-              loading: () => const SizedBox(height: 100, child: NeonLoadingSpinner.center()),
+              loading: () => const SizedBox(
+                height: 100,
+                child: NeonLoadingSpinner.center(),
+              ),
               error: (e, st) {
-                ErrorHandler.logError(e, st, context: 'AdminPlayerAnalytics.funnel');
-                return Text(ErrorHandler.userMessage(e), style: const TextStyle(color: NeonColors.error));
+                ErrorHandler.logError(
+                  e,
+                  st,
+                  context: 'AdminPlayerAnalytics.funnel',
+                );
+                return Text(
+                  ErrorHandler.userMessage(e),
+                  style: const TextStyle(color: NeonColors.error),
+                );
               },
             ),
           ],
@@ -137,7 +166,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
     );
   }
 
-  Widget _buildKpiCards(Map<String, dynamic> summary, Map<String, dynamic> deltas) {
+  Widget _buildKpiCards(
+    Map<String, dynamic> summary,
+    Map<String, dynamic> deltas,
+  ) {
     return AnalyticsKpiGrid(
       children: [
         AdminMetricCard(
@@ -200,16 +232,31 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           // D1, D7, D30 averages
           Row(
             children: [
-              _buildRetentionBadge('D1', averages['avg_d1'], NeonColors.primary),
+              _buildRetentionBadge(
+                'D1',
+                averages['avg_d1'],
+                NeonColors.primary,
+              ),
               const SizedBox(width: 12),
-              _buildRetentionBadge('D7', averages['avg_d7'], NeonColors.secondary),
+              _buildRetentionBadge(
+                'D7',
+                averages['avg_d7'],
+                NeonColors.secondary,
+              ),
               const SizedBox(width: 12),
-              _buildRetentionBadge('D30', averages['avg_d30'], NeonColors.accent),
+              _buildRetentionBadge(
+                'D30',
+                averages['avg_d30'],
+                NeonColors.accent,
+              ),
             ],
           ),
           if (cohorts.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Text('Cohortes récentes', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+            const Text(
+              'Cohortes récentes',
+              style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+            ),
             const SizedBox(height: 8),
             SizedBox(
               height: 120,
@@ -229,12 +276,37 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(cohort['week'] as String? ?? '', style: const TextStyle(color: NeonColors.textMuted, fontSize: 9)),
+                        Text(
+                          cohort['week'] as String? ?? '',
+                          style: const TextStyle(
+                            color: NeonColors.textMuted,
+                            fontSize: 9,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('${cohort['size'] ?? 0}', style: const TextStyle(color: NeonColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text(
+                          '${cohort['size'] ?? 0}',
+                          style: const TextStyle(
+                            color: NeonColors.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('D1: ${AnalyticsFormat.percent(cohort['d1_rate'], decimals: 0)}', style: const TextStyle(color: NeonColors.primary, fontSize: 9)),
-                        Text('D7: ${AnalyticsFormat.percent(cohort['d7_rate'], decimals: 0)}', style: const TextStyle(color: NeonColors.secondary, fontSize: 9)),
+                        Text(
+                          'D1: ${AnalyticsFormat.percent(cohort['d1_rate'], decimals: 0)}',
+                          style: const TextStyle(
+                            color: NeonColors.primary,
+                            fontSize: 9,
+                          ),
+                        ),
+                        Text(
+                          'D7: ${AnalyticsFormat.percent(cohort['d7_rate'], decimals: 0)}',
+                          style: const TextStyle(
+                            color: NeonColors.secondary,
+                            fontSize: 9,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -252,7 +324,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
     if (steps.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: Text('Aucune donnée d\'entonnoir', style: TextStyle(color: NeonColors.textMuted)),
+        child: Text(
+          'Aucune donnée d\'entonnoir',
+          style: TextStyle(color: NeonColors.textMuted),
+        ),
       );
     }
 
@@ -270,7 +345,12 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
           final step = entry.value;
           final count = (step['count'] as num?)?.toDouble() ?? 0;
           final ratio = count / maxCount;
-          final colors = [NeonColors.primary, NeonColors.accent, NeonColors.secondary, NeonColors.success];
+          final colors = [
+            NeonColors.primary,
+            NeonColors.accent,
+            NeonColors.secondary,
+            NeonColors.success,
+          ];
           final color = colors[entry.key % colors.length];
 
           return Padding(
@@ -279,7 +359,14 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
               children: [
                 SizedBox(
                   width: 100,
-                  child: Text(step['label'] as String? ?? '', style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    step['label'] as String? ?? '',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: ClipRRect(
@@ -297,7 +384,10 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
                   width: 80,
                   child: Text(
                     '${AnalyticsFormat.number(count)} (${AnalyticsFormat.percent(step['rate'], decimals: 0)})',
-                    style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10),
+                    style: const TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 10,
+                    ),
                     textAlign: TextAlign.right,
                   ),
                 ),
@@ -320,11 +410,24 @@ class _AdminPlayerAnalyticsScreenState extends ConsumerState<AdminPlayerAnalytic
       ),
       child: Column(
         children: [
-          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
-          Text('$pct', style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            pct,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
   }
-
 }

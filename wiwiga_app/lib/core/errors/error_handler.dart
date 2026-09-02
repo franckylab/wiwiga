@@ -124,6 +124,7 @@ class ErrorHandler {
 
   /// Log technique séparé (telemetry) — jamais montré à l'utilisateur
   /// En dev: debugPrint, en prod: Sentry/Crashlytics (TODO)
+  /// 409/404 métier (déjà ami, salle pleine, user not found) ne sont pas des erreurs système → log info seulement
   static void logError(
     Object error,
     StackTrace? stack, {
@@ -131,6 +132,23 @@ class ErrorHandler {
     Map<String, dynamic>? extra,
     bool force = false,
   }) {
+    // Business attendu → pas de log error, juste info en debug
+    if (error is ApiException) {
+      const expected409 = {'ALREADY_FRIENDS', 'REQUEST_PENDING', 'USER_BLOCKED', 'ROOM_FULL', 'ALREADY_IN_ROOM'};
+      if (error.statusCode == 409 && expected409.contains(error.errorCode)) {
+        if (kDebugMode) debugPrint('[WIWIGA][Info] $context => ${error.errorCode}: ${error.message}');
+        return;
+      }
+      if (error.statusCode == 404 && error.errorCode == 'USER_NOT_FOUND') {
+        if (kDebugMode) debugPrint('[WIWIGA][Info] $context => USER_NOT_FOUND');
+        return;
+      }
+      // 403 pour non-admin sur endpoint admin = attendu si guard raté, pas une erreur système
+      if (error.statusCode == 403) {
+        if (kDebugMode) debugPrint('[WIWIGA][Info] 403 $context => ${error.message}');
+        return;
+      }
+    }
     if (kDebugMode || force) {
       final sb = StringBuffer('[WIWIGA][Error]');
       if (context != null) sb.write(' $context');

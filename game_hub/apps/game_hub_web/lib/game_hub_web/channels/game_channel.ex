@@ -47,11 +47,17 @@ defmodule GameHubWeb.GameChannel do
       socket = assign(socket, :user_id, user_id)
       socket = assign(socket, :game_id, game_id)
       
-      # Notifier les autres joueurs
-      broadcast!(socket, "player_joined", %{
-        user_id: user_id,
-        player_name: "Joueur_#{String.slice(to_string(user_id), 0..3)}"
-      })
+      # Notifier différé pour éviter broadcast avant join complet
+      send(self(), {:after_join, user_id})
+
+      # Si c'est un match GameMatch, pousser l'état actuel pour synchro
+      if String.contains?(game_id, "match") do
+        case GameHub.GameMatch.get_match(game_id) do
+          {:ok, match} -> 
+            send(self(), {:push_match_state, match})
+          _ -> :ok
+        end
+      end
       
       {:ok, socket}
     else
@@ -60,10 +66,14 @@ defmodule GameHubWeb.GameChannel do
       socket = assign(socket, :user_id, dev_id)
       socket = assign(socket, :game_id, game_id)
       
-      broadcast!(socket, "player_joined", %{
-        user_id: dev_id,
-        player_name: "Joueur_#{String.slice(dev_id, 0..5)}"
-      })
+      send(self(), {:after_join, dev_id})
+
+      if String.contains?(game_id, "match") do
+        case GameHub.GameMatch.get_match(game_id) do
+          {:ok, match} -> send(self(), {:push_match_state, match})
+          _ -> :ok
+        end
+      end
       
       {:ok, socket}
     end
@@ -232,6 +242,20 @@ defmodule GameHubWeb.GameChannel do
     {:reply, {:error, %{reason: "missing_target_value"}}, socket}
   end
 
+  @impl true
+  def handle_in("start_set", _params, socket) do
+    game_id = socket.assigns.game_id
+
+    case GameHub.GameMatch.start_set(game_id) do
+      {:ok, match} ->
+        broadcast!(socket, "set_started", %{match: sanitize_match(match)})
+        {:reply, {:ok, %{status: "set_started", match: sanitize_match(match)}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
   # Handle leave_game event.
   @impl true
   def handle_in("leave_game", _params, socket) do
@@ -245,9 +269,24 @@ defmodule GameHubWeb.GameChannel do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_info({:after_join, user_id}, socket) do
+    broadcast!(socket, "player_joined", %{
+      user_id: user_id,
+      player_name: "Joueur_#{String.slice(to_string(user_id), 0..5)}"
+    })
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:push_match_state, match}, socket) do
+    push(socket, "match_state", %{match: sanitize_match(match)})
+    {:noreply, socket}
+  end
+
   # Forward GameMatch PubSub events to channel clients
   @impl true
-  def handle_info(%{event: event} = payload, socket) when event in ["dice_rolled", "set_result", "match_result", "player_forfeited", "match_forfeit", "set_started", "target_calculated"] do
+  def handle_info(%{event: event} = payload, socket) when event in ["dice_rolled", "set_result", "match_result", "player_forfeited", "match_forfeit", "set_started", "target_calculated", "match_state"] do
     push(socket, event, payload)
     {:noreply, socket}
   end

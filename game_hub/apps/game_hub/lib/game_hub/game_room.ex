@@ -175,11 +175,11 @@ defmodule GameHub.GameRoom do
           {:reply, {:error, :invalid_mode}, state}
         else
 
-        # Valeurs par défaut
-        sets_count = Map.get(params, :sets_count, rc["default_sets"] || 1)
-        dice_count = Map.get(params, :dice_count, rc["default_dice"] || 2)
-        max_players = Map.get(params, :max_players, rc["max_players"] || 2)
-        bet_amount = if canonical_mode == :staked, do: Map.get(params, :bet_amount, 0), else: 0
+        # Valeurs par défaut (robuste nil)
+        sets_count = Map.get(params, :sets_count) || rc["default_sets"] || 1
+        dice_count = Map.get(params, :dice_count) || rc["default_dice"] || 2
+        max_players = Map.get(params, :max_players) || rc["max_players"] || 2
+        bet_amount = if canonical_mode == :staked, do: (Map.get(params, :bet_amount) || 0), else: 0
 
         creator_name = Map.get(params, :creator_name, "Créateur") || "Créateur"
 

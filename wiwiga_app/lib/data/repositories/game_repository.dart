@@ -95,20 +95,85 @@ class GameRepository {
         .toList();
   }
 
-  /// Rejoint une partie (via REST - fallback)
+  /// Rejoint une partie — Partie rapide unifiée (mise+rule) avec hybrid Room+Queue (V3)
   Future<Map<String, dynamic>> joinGame({
     required String gameId,
     required int betAmount,
+    String ruleType = 'normal',
   }) async {
     final response = await _apiService.post(
       '${ApiEndpoints.joinGame}/$gameId/join',
       body: {
         'bet_amount': betAmount,
+        'rule_type': ruleType,
       },
       requiresAuth: true,
     );
     
-    // Backend retourne {success: true, data: {status: "...", game_id: "..."}}
+    // Backend retourne {success: true, data: {status: "...", game_id: "...", rule_type: "..."}}
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Annule la recherche en file (bloquant)
+  Future<void> leaveQueue({
+    required String gameId,
+    required String ruleType,
+    required int betAmount,
+  }) async {
+    await _apiService.delete(
+      '${ApiEndpoints.leaveQueue}/$gameId/queue',
+      queryParams: {'rule_type': ruleType, 'bet_amount': '$betAmount'},
+      requiresAuth: true,
+    );
+  }
+
+  /// Statut file d'attente (polling fallback)
+  Future<Map<String, dynamic>> getQueueStatus({
+    required String gameId,
+    required String ruleType,
+  }) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.queueStatus}/$gameId/queue/status',
+      queryParams: {'rule_type': ruleType},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Lobby synchronisé — état complet (joueurs, prêts, places)
+  Future<Map<String, dynamic>> getQuickLobby({
+    required String gameId,
+    required String ruleType,
+    required int betAmount,
+  }) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.quickLobby}/$gameId/quick-lobby',
+      queryParams: {'rule_type': ruleType, 'bet_amount': '$betAmount'},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Toggle prêt pour démarrage anticipé (tous doivent valider)
+  Future<Map<String, dynamic>> toggleQuickReady({
+    required String gameId,
+    required String ruleType,
+    required int betAmount,
+  }) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.quickReady}/$gameId/quick-ready',
+      body: {'rule_type': ruleType, 'bet_amount': betAmount},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Partie active pour redirection auto (room/match/quick_lobby)
+  Future<Map<String, dynamic>> getActiveGame() async {
+    final response = await _apiService.get(
+      ApiEndpoints.activeGame,
+      requiresAuth: true,
+    );
     return response['data'] as Map<String, dynamic>? ?? {};
   }
   
@@ -142,12 +207,14 @@ class GameRepository {
   Future<Map<String, dynamic>> joinQueue({
     required String gameId,
     required double betAmount,
+    String ruleType = 'normal',
   }) async {
-    return await _apiService.post(
+    final res = await _apiService.post(
       '${ApiEndpoints.joinGame}/$gameId/join',
-      body: {'bet_amount': betAmount},
+      body: {'bet_amount': betAmount, 'rule_type': ruleType},
       requiresAuth: true,
     );
+    return res['data'] as Map<String, dynamic>? ?? res;
   }
 
   /// Place une mise

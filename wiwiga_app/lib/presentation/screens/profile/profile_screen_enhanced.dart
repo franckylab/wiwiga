@@ -20,8 +20,7 @@ class ProfileScreenEnhanced extends ConsumerStatefulWidget {
       _ProfileScreenEnhancedState();
 }
 
-class _ProfileScreenEnhancedState
-    extends ConsumerState<ProfileScreenEnhanced> {
+class _ProfileScreenEnhancedState extends ConsumerState<ProfileScreenEnhanced> {
   @override
   void initState() {
     super.initState();
@@ -46,7 +45,8 @@ class _ProfileScreenEnhancedState
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
+                    icon:
+                        const Icon(Icons.arrow_back, color: NeonColors.primary),
                     tooltip: 'Retour',
                     onPressed: () => context.pop(),
                   ),
@@ -61,7 +61,11 @@ class _ProfileScreenEnhancedState
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: NeonColors.textSecondary, size: 22),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: NeonColors.textSecondary,
+                      size: 22,
+                    ),
                     tooltip: 'Paramètres',
                     onPressed: () => context.push('/settings'),
                   ),
@@ -70,41 +74,41 @@ class _ProfileScreenEnhancedState
             ),
             Expanded(
               child: profileState.isLoading && profileState.profile == null
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: NeonColors.primary,
-                ),
-              )
-            : CustomScrollView(
-                slivers: [
-                  // Header avec avatar et rang
-                  SliverToBoxAdapter(
-                    child: _ProfileHeader(
-                      authUser: authUser,
-                      profile: profileState.profile,
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: NeonColors.primary,
+                      ),
+                    )
+                  : CustomScrollView(
+                      slivers: [
+                        // Header avec avatar et rang
+                        SliverToBoxAdapter(
+                          child: _ProfileHeader(
+                            authUser: authUser,
+                            profile: profileState.profile,
+                          ),
+                        ),
+                        // Stats rapides
+                        SliverToBoxAdapter(
+                          child: _QuickStats(profile: profileState.profile),
+                        ),
+                        // XP Bar
+                        SliverToBoxAdapter(
+                          child: _XpBar(profile: profileState.profile),
+                        ),
+                        // Achievements
+                        SliverToBoxAdapter(
+                          child: _AchievementsSection(
+                            achievements: profileState.achievements,
+                          ),
+                        ),
+                        // Actions
+                        const SliverToBoxAdapter(
+                          child: _ProfileActions(),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                      ],
                     ),
-                  ),
-                  // Stats rapides
-                  SliverToBoxAdapter(
-                    child: _QuickStats(profile: profileState.profile),
-                  ),
-                  // XP Bar
-                  SliverToBoxAdapter(
-                    child: _XpBar(profile: profileState.profile),
-                  ),
-                  // Achievements
-                  SliverToBoxAdapter(
-                    child: _AchievementsSection(
-                      achievements: profileState.achievements,
-                    ),
-                  ),
-                  // Actions
-                  const SliverToBoxAdapter(
-                    child: _ProfileActions(),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                ],
-              ),
             ),
           ],
         ),
@@ -197,11 +201,17 @@ class _ProfileHeader extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 if (isVerified)
-                  const Icon(Icons.verified,
-                      color: NeonColors.info, size: 20,),
+                  const Icon(
+                    Icons.verified,
+                    color: NeonColors.info,
+                    size: 20,
+                  ),
                 const SizedBox(width: 4),
-                const Icon(Icons.edit,
-                    color: NeonColors.textMuted, size: 14,),
+                const Icon(
+                  Icons.edit,
+                  color: NeonColors.textMuted,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -230,7 +240,13 @@ class _ProfileHeader extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              TokenCoin(size: 18, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
+              const TokenCoin(
+                size: 18,
+                metal: TokenMetal.emerald,
+                lod: TokenLod.flat,
+                showShadow: false,
+                withW: true,
+              ),
             ],
           ),
         ],
@@ -293,7 +309,11 @@ class _StatMini extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _StatMini({required this.value, required this.label, required this.color});
+  const _StatMini({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -396,23 +416,35 @@ class _XpBar extends StatelessWidget {
   int _xpForNextRank(String tier) {
     // Seuil XP du tier suivant (config admin PlayerProgression)
     switch (tier) {
-      case 'bronze': return 500;    // Silver à 500
-      case 'silver': return 2000;   // Gold à 2000
-      case 'gold': return 5000;     // Platinum à 5000
-      case 'platinum': return 10000; // Diamond à 10000
-      case 'diamond': return 25000;  // Legend à 25000
-      default: return 99999;         // Legend = MAX
+      case 'bronze':
+        return 500; // Silver à 500
+      case 'silver':
+        return 2000; // Gold à 2000
+      case 'gold':
+        return 5000; // Platinum à 5000
+      case 'platinum':
+        return 10000; // Diamond à 10000
+      case 'diamond':
+        return 25000; // Legend à 25000
+      default:
+        return 99999; // Legend = MAX
     }
   }
 
   String _nextRankLabel(String tier) {
     switch (tier) {
-      case 'bronze': return 'Argent';
-      case 'silver': return 'Or';
-      case 'gold': return 'Platine';
-      case 'platinum': return 'Diamant';
-      case 'diamond': return 'Légende';
-      default: return 'MAX';
+      case 'bronze':
+        return 'Argent';
+      case 'silver':
+        return 'Or';
+      case 'gold':
+        return 'Platine';
+      case 'platinum':
+        return 'Diamant';
+      case 'diamond':
+        return 'Légende';
+      default:
+        return 'MAX';
     }
   }
 }
@@ -438,8 +470,11 @@ class _AchievementsSection extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  const Icon(Icons.emoji_events,
-                      color: NeonColors.textMuted, size: 32,),
+                  const Icon(
+                    Icons.emoji_events,
+                    color: NeonColors.textMuted,
+                    size: 32,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Jouez pour débloquer des achievements !',
@@ -464,8 +499,11 @@ class _AchievementsSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.emoji_events,
-                  color: NeonColors.rankGold, size: 22,),
+              const Icon(
+                Icons.emoji_events,
+                color: NeonColors.rankGold,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'ACHIEVEMENTS',
@@ -560,9 +598,8 @@ class _AchievementBadge extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 8,
-                color: achievement.isUnlocked
-                    ? color
-                    : NeonColors.textSecondary,
+                color:
+                    achievement.isUnlocked ? color : NeonColors.textSecondary,
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.w500,
               ),
@@ -685,8 +722,11 @@ class _ActionTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: NeonColors.textSecondary, size: 20,),
+            const Icon(
+              Icons.chevron_right,
+              color: NeonColors.textSecondary,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -699,7 +739,9 @@ class _ActionDivider extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Divider(
-            color: NeonColors.border.withValues(alpha: 0.3), height: 1,),
+          color: NeonColors.border.withValues(alpha: 0.3),
+          height: 1,
+        ),
       );
 }
 
@@ -707,43 +749,64 @@ class _ActionDivider extends StatelessWidget {
 
 Color _getRankColor(String tier) {
   switch (tier) {
-    case 'legend': return const Color(0xFFFF00FF); // Magenta légende
-    case 'diamond': return NeonColors.rankDiamond;
-    case 'platinum': return NeonColors.rankPlatinum;
-    case 'gold': return NeonColors.rankGold;
-    case 'silver': return NeonColors.rankSilver;
-    case 'bronze': return NeonColors.rankBronze;
-    default: return NeonColors.textSecondary;
+    case 'legend':
+      return const Color(0xFFFF00FF); // Magenta légende
+    case 'diamond':
+      return NeonColors.rankDiamond;
+    case 'platinum':
+      return NeonColors.rankPlatinum;
+    case 'gold':
+      return NeonColors.rankGold;
+    case 'silver':
+      return NeonColors.rankSilver;
+    case 'bronze':
+      return NeonColors.rankBronze;
+    default:
+      return NeonColors.textSecondary;
   }
 }
 
 Color _getTierColor(String tier) {
   switch (tier) {
-    case 'legend': return const Color(0xFFFF00FF);
-    case 'diamond': return NeonColors.rankDiamond;
-    case 'platinum': return NeonColors.rankPlatinum;
-    case 'gold': return NeonColors.rankGold;
-    case 'silver': return NeonColors.rankSilver;
-    case 'bronze': return NeonColors.rankBronze;
-    default: return NeonColors.textSecondary;
+    case 'legend':
+      return const Color(0xFFFF00FF);
+    case 'diamond':
+      return NeonColors.rankDiamond;
+    case 'platinum':
+      return NeonColors.rankPlatinum;
+    case 'gold':
+      return NeonColors.rankGold;
+    case 'silver':
+      return NeonColors.rankSilver;
+    case 'bronze':
+      return NeonColors.rankBronze;
+    default:
+      return NeonColors.textSecondary;
   }
 }
 
 IconData _getAchievementIcon(String icon) {
   switch (icon) {
-    case 'emoji_events': return Icons.emoji_events;
-    case 'local_fire_department': return Icons.local_fire_department;
-    case 'attach_money': return Icons.attach_money;
-    case 'military_tech': return Icons.military_tech;
-    case 'diamond': return Icons.diamond;
-    case 'workspace_premium': return Icons.workspace_premium;
-    default: return Icons.star;
+    case 'emoji_events':
+      return Icons.emoji_events;
+    case 'local_fire_department':
+      return Icons.local_fire_department;
+    case 'attach_money':
+      return Icons.attach_money;
+    case 'military_tech':
+      return Icons.military_tech;
+    case 'diamond':
+      return Icons.diamond;
+    case 'workspace_premium':
+      return Icons.workspace_premium;
+    default:
+      return Icons.star;
   }
 }
 
 String _formatTokens(int amount) {
   return amount.toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (Match m) => '${m[1]} ',
-  );
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]} ',
+      );
 }

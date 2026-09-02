@@ -452,34 +452,52 @@ class _TokenCoinPainter extends CustomPainter {
 
   Color get _base {
     switch (metal) {
-      case TokenMetal.emerald: return TokenMetals.emeraldBase;
-      case TokenMetal.gold: return TokenMetals.goldBase;
-      case TokenMetal.silver: return TokenMetals.silverBase;
-      case TokenMetal.bronze: return TokenMetals.bronzeBase;
-      case TokenMetal.diamond: return TokenMetals.diamondBase;
-      case TokenMetal.holographic: return NeonColors.accent;
+      case TokenMetal.emerald:
+        return TokenMetals.emeraldBase;
+      case TokenMetal.gold:
+        return TokenMetals.goldBase;
+      case TokenMetal.silver:
+        return TokenMetals.silverBase;
+      case TokenMetal.bronze:
+        return TokenMetals.bronzeBase;
+      case TokenMetal.diamond:
+        return TokenMetals.diamondBase;
+      case TokenMetal.holographic:
+        return NeonColors.accent;
     }
   }
 
   Color get _mid {
     switch (metal) {
-      case TokenMetal.emerald: return TokenMetals.emeraldMid;
-      case TokenMetal.gold: return TokenMetals.goldMid;
-      case TokenMetal.silver: return TokenMetals.silverMid;
-      case TokenMetal.bronze: return TokenMetals.bronzeMid;
-      case TokenMetal.diamond: return TokenMetals.diamondMid;
-      case TokenMetal.holographic: return NeonColors.tokenHoloMid;
+      case TokenMetal.emerald:
+        return TokenMetals.emeraldMid;
+      case TokenMetal.gold:
+        return TokenMetals.goldMid;
+      case TokenMetal.silver:
+        return TokenMetals.silverMid;
+      case TokenMetal.bronze:
+        return TokenMetals.bronzeMid;
+      case TokenMetal.diamond:
+        return TokenMetals.diamondMid;
+      case TokenMetal.holographic:
+        return NeonColors.tokenHoloMid;
     }
   }
 
   Color get _dark {
     switch (metal) {
-      case TokenMetal.emerald: return TokenMetals.emeraldDark;
-      case TokenMetal.gold: return TokenMetals.goldDark;
-      case TokenMetal.silver: return TokenMetals.silverDark;
-      case TokenMetal.bronze: return TokenMetals.bronzeDark;
-      case TokenMetal.diamond: return TokenMetals.diamondDark;
-      case TokenMetal.holographic: return NeonColors.tokenHoloEnd;
+      case TokenMetal.emerald:
+        return TokenMetals.emeraldDark;
+      case TokenMetal.gold:
+        return TokenMetals.goldDark;
+      case TokenMetal.silver:
+        return TokenMetals.silverDark;
+      case TokenMetal.bronze:
+        return TokenMetals.bronzeDark;
+      case TokenMetal.diamond:
+        return TokenMetals.diamondDark;
+      case TokenMetal.holographic:
+        return NeonColors.tokenHoloEnd;
     }
   }
 
@@ -525,7 +543,8 @@ class _TokenCoinPainter extends CustomPainter {
         width: r * 1.86,
         height: edgeH,
       );
-      final edgeRRect = RRect.fromRectAndRadius(edgeRect, Radius.circular(edgeH / 2));
+      final edgeRRect =
+          RRect.fromRectAndRadius(edgeRect, Radius.circular(edgeH / 2));
       final edgePaint = Paint()
         ..shader = LinearGradient(
           colors: [_dark, _edgeColor, _base, _edgeColor, _dark],
@@ -667,7 +686,10 @@ class _TokenCoinPainter extends CustomPainter {
           stops: const [0.0, 0.42, 1.0],
         ).createShader(specRect);
       canvas.save();
-      canvas.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: faceRadius * 0.78)));
+      canvas.clipPath(
+        Path()
+          ..addOval(Rect.fromCircle(center: center, radius: faceRadius * 0.78)),
+      );
       canvas.drawOval(specRect, specPaint);
       canvas.restore();
     }
@@ -687,7 +709,9 @@ class _TokenCoinPainter extends CustomPainter {
     // --- 11. Glow externe (pulse) ---
     if (pulseProgress > 0.31 && !isFlat) {
       final glowPaint = Paint()
-        ..color = _glowColor.withValues(alpha: (pulseProgress - 0.28).clamp(0.0, 0.42))
+        ..color = _glowColor.withValues(
+          alpha: (pulseProgress - 0.28).clamp(0.0, 0.42),
+        )
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.18)
         ..style = PaintingStyle.stroke
         ..strokeWidth = r * 0.10;
@@ -705,7 +729,7 @@ class _TokenCoinPainter extends CustomPainter {
     // On dessine 4 arcs alternés
     for (int i = 0; i < 4; i++) {
       final start = (math.pi / 2) * i - math.pi / 4;
-      final sweep = math.pi / 2;
+      const sweep = math.pi / 2;
       final segPaint = Paint()
         ..color = i.isEven ? lightGold : cream
         ..style = PaintingStyle.fill;
@@ -787,7 +811,7 @@ class _TokenCoinPainter extends CustomPainter {
       ..strokeWidth = glowW
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2.2);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2);
     canvas.drawPath(wPath, glowPaint);
 
     // W principal
@@ -812,7 +836,11 @@ class _TokenCoinPainter extends CustomPainter {
           fontSize: fontSize,
           color: Colors.white,
           shadows: [
-            Shadow(color: Colors.black.withValues(alpha: 0.42), blurRadius: 4, offset: const Offset(0, 1)),
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.42),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
             Shadow(color: Colors.white.withValues(alpha: 0.32), blurRadius: 8),
           ],
         ),
@@ -820,7 +848,8 @@ class _TokenCoinPainter extends CustomPainter {
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     )..layout();
-    final offset = Offset(center.dx - tp.width / 2, center.dy - tp.height / 2 + 1);
+    final offset =
+        Offset(center.dx - tp.width / 2, center.dy - tp.height / 2 + 1);
     tp.paint(canvas, offset);
   }
 
@@ -828,10 +857,15 @@ class _TokenCoinPainter extends CustomPainter {
     // Bande diagonale qui traverse
     final w = faceRect.width * 0.28;
     // progress 0→1 => -1.2 → 2.2
-    final x = faceRect.left + (faceRect.width + w) * (progress * 2.2 - 0.6) - w / 2;
-    final bandRect = Rect.fromLTWH(x, faceRect.top - faceRect.height * 0.18, w, faceRect.height * 1.36);
-    final bandPath = Path()
-      ..addRect(bandRect);
+    final x =
+        faceRect.left + (faceRect.width + w) * (progress * 2.2 - 0.6) - w / 2;
+    final bandRect = Rect.fromLTWH(
+      x,
+      faceRect.top - faceRect.height * 0.18,
+      w,
+      faceRect.height * 1.36,
+    );
+    final bandPath = Path()..addRect(bandRect);
     // clip au cercle
     final clipPath = Path()..addOval(faceRect);
     canvas.save();

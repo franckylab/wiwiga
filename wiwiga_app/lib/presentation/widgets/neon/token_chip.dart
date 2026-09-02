@@ -34,14 +34,18 @@ class TokenChip extends StatefulWidget {
   State<TokenChip> createState() => _TokenChipState();
 }
 
-class _TokenChipState extends State<TokenChip> with SingleTickerProviderStateMixin {
+class _TokenChipState extends State<TokenChip>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scaleAnim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(duration: const Duration(milliseconds: 120), vsync: this);
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 120),
+      vsync: this,
+    );
     _scaleAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
@@ -78,9 +82,9 @@ class _TokenChipState extends State<TokenChip> with SingleTickerProviderStateMix
 
   String _format(int n) {
     return n.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]} ',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]} ',
+        );
   }
 
   @override
@@ -111,14 +115,18 @@ class _TokenChipState extends State<TokenChip> with SingleTickerProviderStateMix
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: widget.isSelected
-                  ? (metal == TokenMetal.gold ? NeonColors.tokenGold : NeonColors.primary)
+                  ? (metal == TokenMetal.gold
+                      ? NeonColors.tokenGold
+                      : NeonColors.primary)
                   : NeonColors.border,
               width: widget.isSelected ? 1.6 : 1.0,
             ),
             boxShadow: widget.isSelected
                 ? [
                     BoxShadow(
-                      color: (metal == TokenMetal.gold ? NeonColors.tokenGold : NeonColors.primary)
+                      color: (metal == TokenMetal.gold
+                              ? NeonColors.tokenGold
+                              : NeonColors.primary)
                           .withValues(alpha: 0.28),
                       blurRadius: 10,
                       spreadRadius: 0,
@@ -133,19 +141,23 @@ class _TokenChipState extends State<TokenChip> with SingleTickerProviderStateMix
                 size: widget.size * 0.58,
                 metal: metal,
                 lod: TokenCoin.autoLod(widget.size * 0.58),
-                effect: widget.isSelected ? TokenEffect.pulse : TokenEffect.none,
+                effect:
+                    widget.isSelected ? TokenEffect.pulse : TokenEffect.none,
                 animated: widget.isSelected,
                 showShadow: false,
               ),
               const SizedBox(width: 6),
               Text(
-                '${_format(widget.amount)}',
+                _format(widget.amount),
                 style: TextStyle(
                   fontFamily: 'Orbitron',
-                  fontWeight: widget.isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight:
+                      widget.isSelected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 12,
                   color: widget.isSelected
-                      ? (metal == TokenMetal.gold ? NeonColors.tokenGold : NeonColors.primary)
+                      ? (metal == TokenMetal.gold
+                          ? NeonColors.tokenGold
+                          : NeonColors.primary)
                       : NeonColors.textSecondary,
                 ),
               ),

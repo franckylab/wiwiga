@@ -5,7 +5,7 @@ import '../neon/token_coin.dart';
 import '../neon/wiwiga_loader.dart';
 
 /// Ecran de chargement WIWIGA avec animation de wiga tournant
-/// 
+///
 /// Variantes :
 /// - [inline] : Petit spinner pour sections
 /// - [overlay] : Overlay semi-transparent
@@ -137,7 +137,7 @@ class _SpinningToken extends StatefulWidget {
   final double size;
   final Color? color;
 
-  const _SpinningToken({required this.size, this.color});
+  const _SpinningToken({required this.size}) : color = null;
 
   @override
   State<_SpinningToken> createState() => _SpinningTokenState();

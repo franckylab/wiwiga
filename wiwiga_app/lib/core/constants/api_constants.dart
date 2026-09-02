@@ -42,10 +42,15 @@ class ApiEndpoints {
   static const String tokenTransactions = '/api/tokens/transactions';
   static const String tokenPromos = '/api/tokens/promos';
   
-  // Games
+  // Games — Partie rapide unifiée (mise+rule) lobby synchronisé
   static const String gamesList = '/api/games';
   static const String gameShow = '/api/games'; // + /:game_id
-  static const String joinGame = '/api/games'; // + /:game_id/join
+  static const String joinGame = '/api/games'; // + /:game_id/join {bet_amount, rule_type}
+  static const String leaveQueue = '/api/games'; // + /:game_id/queue DELETE
+  static const String queueStatus = '/api/games'; // + /:game_id/queue/status GET
+  static const String quickLobby = '/api/games'; // + /:game_id/quick-lobby GET
+  static const String quickReady = '/api/games'; // + /:game_id/quick-ready POST
+  static const String activeGame = '/api/games/me/active'; // GET partie active pour redirection auto
   static const String gameState = '/api/games'; // + /:game_id/state
   
   // Game stats & contenus (base + /:game_type + suffixe)

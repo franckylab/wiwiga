@@ -39,7 +39,8 @@ void main() {
       expect(user.loginCount, 1);
     });
 
-    test('UserModel.fromJson gère backend plat vs imbriqué (data vs data.user)', () {
+    test('UserModel.fromJson gère backend plat vs imbriqué (data vs data.user)',
+        () {
       // Simule le fix admin_repository: raw['user'] ?? raw
       final rawPlat = {
         'id': 16,
@@ -47,7 +48,7 @@ void main() {
         'role': 'user',
       };
       final rawImbrique = {
-        'user': {'id': 16, 'username': 'newuser_test2026', 'role': 'user'}
+        'user': {'id': 16, 'username': 'newuser_test2026', 'role': 'user'},
       };
 
       Map<String, dynamic> extract(Map<String, dynamic> raw) =>
@@ -61,7 +62,7 @@ void main() {
       // Simule le fix: rawData == null -> throw notFound au lieu de as Map
       Map<String, dynamic> responseNull = {'data': null};
       Map<String, dynamic> responsePlat = {
-        'data': {'id': 16, 'username': 'test'}
+        'data': {'id': 16, 'username': 'test'},
       };
 
       String parse(Map<String, dynamic> response) {

@@ -122,6 +122,13 @@ defmodule GameHub.GameMatch do
   end
 
   @doc """
+  Récupère le match actif d'un joueur (non terminé).
+  """
+  def get_active_match_for_player(player_id) do
+    GenServer.call(__MODULE__, {:get_active_for_player, to_string(player_id)})
+  end
+
+  @doc """
   Déclare forfait pour un joueur (timeout expiré). Retiré de la partie, ne peut plus jouer.
   Si un seul joueur reste, il est déclaré gagnant du match.
   """
@@ -166,10 +173,10 @@ defmodule GameHub.GameMatch do
       {:reply, {:error, :invalid_mode}, state}
     else
 
-    # Valeurs par défaut depuis les règles
-    sets_count = Map.get(config, :sets_count, rc["default_sets"] || 1)
-    dice_count = Map.get(config, :dice_count, rc["default_dice"] || 2)
-    max_players = Map.get(config, :max_players, rc["max_players"] || 2)
+    # Valeurs par défaut depuis les règles (robuste nil)
+    sets_count = Map.get(config, :sets_count) || rc["default_sets"] || 1
+    dice_count = Map.get(config, :dice_count) || rc["default_dice"] || 2
+    max_players = Map.get(config, :max_players) || rc["max_players"] || 2
 
     match = %{
       match_id: match_id,
@@ -313,7 +320,7 @@ defmodule GameHub.GameMatch do
             if length(turn_order) < 2 do
               # Plus qu'un joueur actif → fin de match par forfait
               winner_id = List.first(turn_order)
-              ended = %{match | status: :match_ended, winner_id: winner_id, updated_at: DateTime.utc_now()}
+              ended = Map.merge(match, %{status: :match_ended, winner_id: winner_id, updated_at: DateTime.utc_now()})
               :ets.insert(state.table, {match_id, ended})
               broadcast_match_forfeit(match_id, nil, winner_id)
               {:reply, {:ok, ended}, state}
@@ -469,7 +476,7 @@ defmodule GameHub.GameMatch do
                     {:winner, _} ->
                       if has_match_winner?(scores, interim.sets_to_win) do
                         winner = get_match_winner(scores, interim.sets_to_win)
-                        %{interim | status: :match_ended, winner_id: winner}
+                        Map.merge(interim, %{status: :match_ended, winner_id: winner})
                       else
                         %{interim | status: :set_ended}
                       end
@@ -535,7 +542,7 @@ defmodule GameHub.GameMatch do
           final =
             if length(active) <= 1 do
               winner_id = if length(active) == 1, do: List.first(active).id, else: nil
-              %{interim | status: :match_ended, winner_id: winner_id}
+              Map.merge(interim, %{status: :match_ended, winner_id: winner_id})
             else
               # si c'était le dernier à jouer dans le set, évaluer avec joueurs restants
               if updated_set && map_size(updated_set.rolls) + MapSet.size(eliminated) >= length(match.players) do
@@ -580,6 +587,22 @@ defmodule GameHub.GameMatch do
   end
 
   @impl true
+  def handle_call({:get_active_for_player, player_id}, _from, state) do
+    pid_str = to_string(player_id)
+    match = :ets.tab2list(state.table)
+    |> Enum.map(fn {_id, m} -> m end)
+    |> Enum.find(fn m ->
+      m.status not in [:match_ended] and
+        Enum.any?(m.players, fn p -> to_string(p.id) == pid_str end)
+    end)
+
+    case match do
+      nil -> {:reply, {:error, :not_found}, state}
+      m -> {:reply, {:ok, m}, state}
+    end
+  end
+
+  @impl true
   def handle_info({:turn_timeout, match_id, player_id}, state) do
     case lookup_match(state.table, match_id) do
       {:ok, match} ->
@@ -613,7 +636,7 @@ defmodule GameHub.GameMatch do
             final =
               if length(active) <= 1 do
                 winner_id = if length(active) == 1, do: List.first(active).id, else: nil
-                %{interim | status: :match_ended, winner_id: winner_id}
+                Map.merge(interim, %{status: :match_ended, winner_id: winner_id})
               else
                 if updated_set && map_size(updated_set.rolls) + MapSet.size(eliminated) >= length(match.players) do
                   result = evaluate_set(interim, updated_set)

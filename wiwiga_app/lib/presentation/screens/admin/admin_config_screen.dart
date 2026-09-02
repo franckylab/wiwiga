@@ -53,12 +53,15 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
             children: [
               const Icon(Icons.lock_outline, color: Colors.redAccent, size: 64),
               const SizedBox(height: 16),
-              const Text('Accès non autorisé',
-                  style: TextStyle(color: Colors.white, fontSize: 20),),
+              const Text(
+                'Accès non autorisé',
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
-                  onPressed: () => context.go('/home'),
-                  child: const Text('Retour'),),
+                onPressed: () => context.go('/home'),
+                child: const Text('Retour'),
+              ),
             ],
           ),
         ),
@@ -74,8 +77,10 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.go('/admin'),
         ),
-        title: const Text('Configuration',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+        title: const Text(
+          'Configuration',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.history, color: Color(0xFF00D9FF)),
@@ -130,11 +135,19 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
                 children: [
                   const Icon(Icons.history, color: Color(0xFF00D9FF)),
                   const SizedBox(width: 8),
-                  const Text('Historique des changements',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),),
+                  const Text(
+                    'Historique des changements',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const Spacer(),
-                  IconButton(icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(ctx),),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white54),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -143,27 +156,57 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
                   future: _loadHistory(ref),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88)));
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00FF88),
+                        ),
+                      );
                     }
                     final history = snapshot.data ?? [];
                     if (history.isEmpty) {
-                      return const Center(child: Text('Aucun changement récent',
-                        style: TextStyle(color: Colors.white54),),);
+                      return const Center(
+                        child: Text(
+                          'Aucun changement récent',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      );
                     }
                     return ListView.separated(
                       controller: scrollController,
                       itemCount: history.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white12),
+                      separatorBuilder: (_, __) =>
+                          const Divider(color: Colors.white12),
                       itemBuilder: (_, i) {
                         final entry = history[i];
                         return ListTile(
-                          leading: const Icon(Icons.settings, color: Color(0xFF00FF88), size: 20),
-                          title: Text(entry['summary'] ?? entry['config_type'] ?? 'Modification',
-                            style: const TextStyle(color: Colors.white, fontSize: 14),),
-                          subtitle: Text(entry['changed_at']?.toString() ?? '',
-                            style: const TextStyle(color: Colors.white54, fontSize: 11),),
-                          trailing: Text(entry['config_type'] ?? '',
-                            style: const TextStyle(color: Color(0xFF00D9FF), fontSize: 11),),
+                          leading: const Icon(
+                            Icons.settings,
+                            color: Color(0xFF00FF88),
+                            size: 20,
+                          ),
+                          title: Text(
+                            entry['summary'] ??
+                                entry['config_type'] ??
+                                'Modification',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                          subtitle: Text(
+                            entry['changed_at']?.toString() ?? '',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                          trailing: Text(
+                            entry['config_type'] ?? '',
+                            style: const TextStyle(
+                              color: Color(0xFF00D9FF),
+                              fontSize: 11,
+                            ),
+                          ),
                         );
                       },
                     );
@@ -202,14 +245,22 @@ class _GamesConfigTab extends ConsumerWidget {
     final gamesConfig = ref.watch(gamesConfigProvider);
 
     return gamesConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(gamesConfigProvider)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
+      ),
+      error: (e, _) => WiwigaErrorView(
+        error: e,
+        onRetry: () => ref.invalidate(gamesConfigProvider),
+      ),
       data: (config) {
         final gameTypes = config.gameTypes;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const _SectionHeader(title: 'Paramètres des jeux', icon: Icons.casino),
+            const _SectionHeader(
+              title: 'Paramètres des jeux',
+              icon: Icons.casino,
+            ),
             const SizedBox(height: 16),
             // Cartes de chaque type de jeu
             ...gameTypes.entries.map((entry) {
@@ -217,10 +268,17 @@ class _GamesConfigTab extends ConsumerWidget {
               return _GameTypeEditor(
                 gameType: game,
                 onSave: (updates) {
-                  _showConfirmDialog(context, 'Sauvegarder la configuration de ${game.type} ?', () {
-                    ref.read(gamesConfigProvider.notifier).updateGameType(game.type, updates);
+                  _showConfirmDialog(
+                      context, 'Sauvegarder la configuration de ${game.type} ?',
+                      () {
+                    ref
+                        .read(gamesConfigProvider.notifier)
+                        .updateGameType(game.type, updates);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Configuration jeu mise à jour'), backgroundColor: Color(0xFF00FF88)),
+                      const SnackBar(
+                        content: Text('Configuration jeu mise à jour'),
+                        backgroundColor: Color(0xFF00FF88),
+                      ),
                     );
                   });
                 },
@@ -232,15 +290,32 @@ class _GamesConfigTab extends ConsumerWidget {
               title: 'Matchmaking',
               subtitle: 'Paramètres de mise en relation',
               fields: [
-                _ConfigField(label: 'Timeout création', value: '${config.matchmakingCreateTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Timeout join', value: '${config.matchmakingJoinTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Timeout tour', value: '${config.turnTimeout}s', icon: Icons.timer),
-                _ConfigField(label: 'Inactivité jeu', value: '${config.inactivityTimeout}s', icon: Icons.timer_off),
+                _ConfigField(
+                  label: 'Timeout création',
+                  value: '${config.matchmakingCreateTimeout}s',
+                  icon: Icons.timer,
+                ),
+                _ConfigField(
+                  label: 'Timeout join',
+                  value: '${config.matchmakingJoinTimeout}s',
+                  icon: Icons.timer,
+                ),
+                _ConfigField(
+                  label: 'Timeout tour',
+                  value: '${config.turnTimeout}s',
+                  icon: Icons.timer,
+                ),
+                _ConfigField(
+                  label: 'Inactivité jeu',
+                  value: '${config.inactivityTimeout}s',
+                  icon: Icons.timer_off,
+                ),
               ],
             ),
             const SizedBox(height: 24),
             const _InfoBanner(
-              message: 'Les modifications prennent effet immédiatement pour les nouvelles parties.',
+              message:
+                  'Les modifications prennent effet immédiatement pour les nouvelles parties.',
             ),
           ],
         );
@@ -248,7 +323,11 @@ class _GamesConfigTab extends ConsumerWidget {
     );
   }
 
-  void _showConfirmDialog(BuildContext context, String message, VoidCallback onConfirm) {
+  void _showConfirmDialog(
+    BuildContext context,
+    String message,
+    VoidCallback onConfirm,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -256,11 +335,25 @@ class _GamesConfigTab extends ConsumerWidget {
         title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
         content: Text(message, style: const TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-            onPressed: () { Navigator.pop(ctx); onConfirm(); },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00FF88),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            child: const Text(
+              'Confirmer',
+              style: TextStyle(color: Color(0xFF0A0A1A)),
+            ),
           ),
         ],
       ),
@@ -305,7 +398,11 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _isActive ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: _isActive
+              ? const Color(0xFF00FF88).withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,17 +411,33 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
             children: [
               const Icon(Icons.casino, color: Color(0xFF00FF88), size: 20),
               const SizedBox(width: 8),
-              Text(widget.gameType.type.toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),),
+              Text(
+                widget.gameType.type.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _isActive ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                  color: _isActive
+                      ? const Color(0xFF00FF88).withValues(alpha: 0.2)
+                      : Colors.redAccent.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(_isActive ? 'Actif' : 'Inactif',
-                  style: TextStyle(color: _isActive ? const Color(0xFF00FF88) : Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),),
+                child: Text(
+                  _isActive ? 'Actif' : 'Inactif',
+                  style: TextStyle(
+                    color:
+                        _isActive ? const Color(0xFF00FF88) : Colors.redAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -332,42 +445,100 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
           // Toggle actif/inactif
           Row(
             children: [
-              Text('Jeu actif', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+              Text(
+                'Jeu actif',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+              ),
               const Spacer(),
-              Switch(value: _isActive, onChanged: (v) => setState(() => _isActive = v),
-                activeThumbColor: const Color(0xFF00FF88),),
+              Switch(
+                value: _isActive,
+                onChanged: (v) => setState(() => _isActive = v),
+                activeThumbColor: const Color(0xFF00FF88),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           // Slider mise min (wiga)
-          Text('Mise minimum: $_minBet wiga', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _minBet.toDouble(), min: 1, max: 100, divisions: 99,
+          Text(
+            'Mise minimum: $_minBet wiga',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
+          Slider(
+            value: _minBet.toDouble(),
+            min: 1,
+            max: 100,
+            divisions: 99,
             activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _minBet = v.round()),),
+            onChanged: (v) => setState(() => _minBet = v.round()),
+          ),
           // Slider mise max (wiga)
-          Text('Mise maximum: $_maxBet wiga', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _maxBet.toDouble(), min: 10, max: 5000, divisions: 100,
+          Text(
+            'Mise maximum: $_maxBet wiga',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
+          Slider(
+            value: _maxBet.toDouble(),
+            min: 10,
+            max: 5000,
+            divisions: 100,
             activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _maxBet = v.round()),),
+            onChanged: (v) => setState(() => _maxBet = v.round()),
+          ),
           // Slider commission
-          Text('Commission: ${_commission.toStringAsFixed(1)}%', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
-          Slider(value: _commission, min: 0, max: 20, divisions: 40,
+          Text(
+            'Commission: ${_commission.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
+          Slider(
+            value: _commission,
+            min: 0,
+            max: 20,
+            divisions: 40,
             activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _commission = v),),
+            onChanged: (v) => setState(() => _commission = v),
+          ),
           // Max joueurs
-          Text('Max joueurs: $_maxPlayers', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(
+            'Max joueurs: $_maxPlayers',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
           Row(
-            children: [1, 2, 3, 4, 6].map((n) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text('$n'),
-                selected: _maxPlayers == n,
-                selectedColor: const Color(0xFF00FF88).withValues(alpha: 0.3),
-                backgroundColor: Colors.white.withValues(alpha: 0.05),
-                labelStyle: TextStyle(color: _maxPlayers == n ? const Color(0xFF00FF88) : Colors.white54, fontSize: 12),
-                onSelected: (sel) => setState(() => _maxPlayers = n),
-              ),
-            ),).toList(),
+            children: [1, 2, 3, 4, 6]
+                .map(
+                  (n) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text('$n'),
+                      selected: _maxPlayers == n,
+                      selectedColor:
+                          const Color(0xFF00FF88).withValues(alpha: 0.3),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
+                      labelStyle: TextStyle(
+                        color: _maxPlayers == n
+                            ? const Color(0xFF00FF88)
+                            : Colors.white54,
+                        fontSize: 12,
+                      ),
+                      onSelected: (sel) => setState(() => _maxPlayers = n),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
           const SizedBox(height: 12),
           // Bouton Sauvegarder
@@ -376,7 +547,9 @@ class _GameTypeEditorState extends State<_GameTypeEditor> {
             child: ElevatedButton.icon(
               icon: const Icon(Icons.save, size: 16),
               label: const Text('Sauvegarder'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00FF88),
+              ),
               onPressed: () => widget.onSave({
                 'min_bet': _minBet,
                 'max_bet': _maxBet,
@@ -401,24 +574,38 @@ class _PaymentsConfigTab extends ConsumerWidget {
     final paymentsConfig = ref.watch(paymentsConfigProvider);
 
     return paymentsConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(paymentsConfigProvider)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
+      ),
+      error: (e, _) => WiwigaErrorView(
+        error: e,
+        onRetry: () => ref.invalidate(paymentsConfigProvider),
+      ),
       data: (config) {
         final providers = config.providers;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const _SectionHeader(title: 'Providers de paiement', icon: Icons.payment),
+            const _SectionHeader(
+              title: 'Providers de paiement',
+              icon: Icons.payment,
+            ),
             const SizedBox(height: 16),
             ...providers.entries.map((entry) {
               final prov = entry.value;
               return _PaymentProviderEditor(
                 provider: prov,
                 onSave: (updates) {
-                  _showConfirmDialog(context, 'Sauvegarder la configuration de ${prov.provider} ?', () {
-                    ref.read(paymentsConfigProvider.notifier).updateProvider(prov.provider, updates);
+                  _showConfirmDialog(context,
+                      'Sauvegarder la configuration de ${prov.provider} ?', () {
+                    ref
+                        .read(paymentsConfigProvider.notifier)
+                        .updateProvider(prov.provider, updates);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Provider mis à jour'), backgroundColor: Color(0xFF00FF88)),
+                      const SnackBar(
+                        content: Text('Provider mis à jour'),
+                        backgroundColor: Color(0xFF00FF88),
+                      ),
                     );
                   });
                 },
@@ -426,7 +613,8 @@ class _PaymentsConfigTab extends ConsumerWidget {
             }),
             const SizedBox(height: 24),
             const _InfoBanner(
-              message: 'Désactiver un provider empêche les dépôts/retraits via ce moyen.',
+              message:
+                  'Désactiver un provider empêche les dépôts/retraits via ce moyen.',
             ),
           ],
         );
@@ -434,7 +622,11 @@ class _PaymentsConfigTab extends ConsumerWidget {
     );
   }
 
-  void _showConfirmDialog(BuildContext context, String message, VoidCallback onConfirm) {
+  void _showConfirmDialog(
+    BuildContext context,
+    String message,
+    VoidCallback onConfirm,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -442,11 +634,25 @@ class _PaymentsConfigTab extends ConsumerWidget {
         title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
         content: Text(message, style: const TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
-            onPressed: () { Navigator.pop(ctx); onConfirm(); },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00FF88),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            child: const Text(
+              'Confirmer',
+              style: TextStyle(color: Color(0xFF0A0A1A)),
+            ),
           ),
         ],
       ),
@@ -490,26 +696,48 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
         color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _isEnabled ? const Color(0xFF00FF88).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),),
+          color: _isEnabled
+              ? const Color(0xFF00FF88).withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.payment, color: _isEnabled ? const Color(0xFF00FF88) : Colors.white38),
+              Icon(
+                Icons.payment,
+                color: _isEnabled ? const Color(0xFF00FF88) : Colors.white38,
+              ),
               const SizedBox(width: 8),
-              Text(name, style: TextStyle(color: _isEnabled ? Colors.white : Colors.white38,
-                fontSize: 16, fontWeight: FontWeight.bold,),),
+              Text(
+                name,
+                style: TextStyle(
+                  color: _isEnabled ? Colors.white : Colors.white38,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _isEnabled ? const Color(0xFF00FF88).withValues(alpha: 0.2) : Colors.redAccent.withValues(alpha: 0.2),
+                  color: _isEnabled
+                      ? const Color(0xFF00FF88).withValues(alpha: 0.2)
+                      : Colors.redAccent.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(_isEnabled ? 'Actif' : 'Inactif',
-                  style: TextStyle(color: _isEnabled ? const Color(0xFF00FF88) : Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),),
+                child: Text(
+                  _isEnabled ? 'Actif' : 'Inactif',
+                  style: TextStyle(
+                    color:
+                        _isEnabled ? const Color(0xFF00FF88) : Colors.redAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -517,36 +745,61 @@ class _PaymentProviderEditorState extends State<_PaymentProviderEditor> {
           // Toggle enabled
           Row(
             children: [
-              Text('Provider actif', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+              Text(
+                'Provider actif',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+              ),
               const Spacer(),
-              Switch(value: _isEnabled, onChanged: (v) => setState(() => _isEnabled = v),
-                activeThumbColor: const Color(0xFF00FF88),),
+              Switch(
+                value: _isEnabled,
+                onChanged: (v) => setState(() => _isEnabled = v),
+                activeThumbColor: const Color(0xFF00FF88),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           // Dépôt min
           _EditableLimitField(
-            label: 'Dépôt min', value: _depositMin, suffix: ' FCFA',
+            label: 'Dépôt min',
+            value: _depositMin,
+            suffix: ' FCFA',
             onSave: (v) => setState(() => _depositMin = v),
           ),
           // Dépôt max
           _EditableLimitField(
-            label: 'Dépôt max', value: _depositMax, suffix: ' FCFA',
+            label: 'Dépôt max',
+            value: _depositMax,
+            suffix: ' FCFA',
             onSave: (v) => setState(() => _depositMax = v),
           ),
           // Frais retrait
-          Text('Frais retrait: ${_withdrawalFee.toStringAsFixed(1)}%',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
-          Slider(value: _withdrawalFee, min: 0, max: 10, divisions: 20,
+          Text(
+            'Frais retrait: ${_withdrawalFee.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
+          Slider(
+            value: _withdrawalFee,
+            min: 0,
+            max: 10,
+            divisions: 20,
             activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _withdrawalFee = v),),
+            onChanged: (v) => setState(() => _withdrawalFee = v),
+          ),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.save, size: 16),
               label: const Text('Sauvegarder'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00FF88),
+              ),
               onPressed: () => widget.onSave({
                 'is_enabled': _isEnabled,
                 'deposit_min': _depositMin,
@@ -570,8 +823,13 @@ class _ThemeConfigTab extends ConsumerWidget {
     final themeConfig = ref.watch(themeConfigProvider);
 
     return themeConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(themeConfigProvider)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
+      ),
+      error: (e, _) => WiwigaErrorView(
+        error: e,
+        onRetry: () => ref.invalidate(themeConfigProvider),
+      ),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -582,9 +840,24 @@ class _ThemeConfigTab extends ConsumerWidget {
             title: 'Couleurs',
             subtitle: 'Palette de couleurs de l\'application',
             fields: [
-              _ConfigField(label: 'Couleur principale', value: config.primaryColor, icon: Icons.color_lens, color: _parseColor(config.primaryColor)),
-              _ConfigField(label: 'Couleur secondaire', value: config.secondaryColor, icon: Icons.color_lens, color: _parseColor(config.secondaryColor)),
-              _ConfigField(label: 'Couleur accent', value: config.accentColor, icon: Icons.color_lens, color: _parseColor(config.accentColor)),
+              _ConfigField(
+                label: 'Couleur principale',
+                value: config.primaryColor,
+                icon: Icons.color_lens,
+                color: _parseColor(config.primaryColor),
+              ),
+              _ConfigField(
+                label: 'Couleur secondaire',
+                value: config.secondaryColor,
+                icon: Icons.color_lens,
+                color: _parseColor(config.secondaryColor),
+              ),
+              _ConfigField(
+                label: 'Couleur accent',
+                value: config.accentColor,
+                icon: Icons.color_lens,
+                color: _parseColor(config.accentColor),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -593,7 +866,9 @@ class _ThemeConfigTab extends ConsumerWidget {
             label: 'Couleur principale',
             currentColor: config.primaryColor,
             onColorChanged: (c) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'primary_color': c});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'primary_color': c});
               _snack(context);
             },
           ),
@@ -601,7 +876,9 @@ class _ThemeConfigTab extends ConsumerWidget {
             label: 'Couleur secondaire',
             currentColor: config.secondaryColor,
             onColorChanged: (c) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'secondary_color': c});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'secondary_color': c});
               _snack(context);
             },
           ),
@@ -609,7 +886,9 @@ class _ThemeConfigTab extends ConsumerWidget {
             label: 'Couleur accent',
             currentColor: config.accentColor,
             onColorChanged: (c) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'accent_color': c});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'accent_color': c});
               _snack(context);
             },
           ),
@@ -619,11 +898,31 @@ class _ThemeConfigTab extends ConsumerWidget {
             title: 'Interface',
             subtitle: 'Paramètres d\'affichage',
             fields: [
-              _ConfigField(label: 'Rayon bordure', value: '${config.borderRadius.toInt()}px', icon: Icons.rounded_corner),
-              _ConfigField(label: 'Intensité éclat', value: '${(config.glowIntensity * 100).toInt()}%', icon: Icons.brightness_7),
-              _ConfigField(label: 'Durée animation', value: '${config.animationDuration}ms', icon: Icons.animation),
-              _ConfigField(label: 'Police body', value: config.fontFamilyBody, icon: Icons.text_fields),
-              _ConfigField(label: 'Police display', value: config.fontFamilyDisplay, icon: Icons.text_fields),
+              _ConfigField(
+                label: 'Rayon bordure',
+                value: '${config.borderRadius.toInt()}px',
+                icon: Icons.rounded_corner,
+              ),
+              _ConfigField(
+                label: 'Intensité éclat',
+                value: '${(config.glowIntensity * 100).toInt()}%',
+                icon: Icons.brightness_7,
+              ),
+              _ConfigField(
+                label: 'Durée animation',
+                value: '${config.animationDuration}ms',
+                icon: Icons.animation,
+              ),
+              _ConfigField(
+                label: 'Police body',
+                value: config.fontFamilyBody,
+                icon: Icons.text_fields,
+              ),
+              _ConfigField(
+                label: 'Police display',
+                value: config.fontFamilyDisplay,
+                icon: Icons.text_fields,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -631,34 +930,50 @@ class _ThemeConfigTab extends ConsumerWidget {
           _SliderEditRow(
             label: 'Rayon bordure',
             value: config.borderRadius,
-            min: 0, max: 24, divisions: 24, suffix: 'px',
+            min: 0,
+            max: 24,
+            divisions: 24,
+            suffix: 'px',
             onChanged: (v) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'border_radius': v});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'border_radius': v});
               _snack(context);
             },
           ),
           _SliderEditRow(
             label: 'Intensité éclat',
             value: config.glowIntensity,
-            min: 0, max: 1, divisions: 20, suffix: '%',
+            min: 0,
+            max: 1,
+            divisions: 20,
+            suffix: '%',
             displayMultiplier: 100,
             onChanged: (v) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'glow_intensity': v});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'glow_intensity': v});
               _snack(context);
             },
           ),
           _SliderEditRow(
             label: 'Durée animation',
             value: config.animationDuration.toDouble(),
-            min: 0, max: 1000, divisions: 20, suffix: 'ms',
+            min: 0,
+            max: 1000,
+            divisions: 20,
+            suffix: 'ms',
             onChanged: (v) {
-              ref.read(themeConfigProvider.notifier).updateConfig({'animation_duration': v.round()});
+              ref
+                  .read(themeConfigProvider.notifier)
+                  .updateConfig({'animation_duration': v.round()});
               _snack(context);
             },
           ),
           const SizedBox(height: 24),
           const _InfoBanner(
-            message: 'Les modifications de thème sont appliquées en temps réel.',
+            message:
+                'Les modifications de thème sont appliquées en temps réel.',
           ),
         ],
       ),
@@ -667,7 +982,11 @@ class _ThemeConfigTab extends ConsumerWidget {
 
   void _snack(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Thème mis à jour'), backgroundColor: Color(0xFF00FF88), duration: Duration(seconds: 2)),
+      const SnackBar(
+        content: Text('Thème mis à jour'),
+        backgroundColor: Color(0xFF00FF88),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -686,7 +1005,11 @@ class _ColorEditRow extends StatefulWidget {
   final String currentColor;
   final ValueChanged<String> onColorChanged;
 
-  const _ColorEditRow({required this.label, required this.currentColor, required this.onColorChanged});
+  const _ColorEditRow({
+    required this.label,
+    required this.currentColor,
+    required this.onColorChanged,
+  });
 
   @override
   State<_ColorEditRow> createState() => _ColorEditRowState();
@@ -726,10 +1049,23 @@ class _ColorEditRowState extends State<_ColorEditRow> {
       ),
       child: Row(
         children: [
-          Container(width: 24, height: 24, decoration: BoxDecoration(color: preview, shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24),),),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: preview,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24),
+            ),
+          ),
           const SizedBox(width: 12),
-          Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(
+            widget.label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
           const Spacer(),
           SizedBox(
             width: 100,
@@ -738,7 +1074,9 @@ class _ColorEditRowState extends State<_ColorEditRow> {
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: const InputDecoration(
                 isDense: true,
-                border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF88))),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF00FF88)),
+                ),
               ),
               onSubmitted: (val) {
                 final hex = val.trim();
@@ -766,9 +1104,14 @@ class _SliderEditRow extends StatefulWidget {
   final ValueChanged<double> onChanged;
 
   const _SliderEditRow({
-    required this.label, required this.value, required this.min,
-    required this.max, required this.divisions, required this.suffix,
-    required this.onChanged, this.displayMultiplier,
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.suffix,
+    required this.onChanged,
+    this.displayMultiplier,
   });
 
   @override
@@ -803,13 +1146,29 @@ class _SliderEditRowState extends State<_SliderEditRow> {
         children: [
           Row(
             children: [
-              Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+              ),
               const Spacer(),
-              Text(display, style: const TextStyle(color: Color(0xFF00FF88), fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(
+                display,
+                style: const TextStyle(
+                  color: Color(0xFF00FF88),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           Slider(
-            value: _value, min: widget.min, max: widget.max, divisions: widget.divisions,
+            value: _value,
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
             activeColor: const Color(0xFF00FF88),
             onChanged: (v) => setState(() => _value = v),
             onChangeEnd: widget.onChanged,
@@ -829,8 +1188,13 @@ class _FeaturesConfigTab extends ConsumerWidget {
     final featureConfig = ref.watch(featureConfigProvider);
 
     return featureConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(featureConfigProvider)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
+      ),
+      error: (e, _) => WiwigaErrorView(
+        error: e,
+        onRetry: () => ref.invalidate(featureConfigProvider),
+      ),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -838,11 +1202,14 @@ class _FeaturesConfigTab extends ConsumerWidget {
           const SizedBox(height: 16),
           _InteractiveFeatureToggle(
             title: 'Mode maintenance',
-            description: 'Active le mode maintenance (app inaccessible aux users)',
+            description:
+                'Active le mode maintenance (app inaccessible aux users)',
             isEnabled: config.maintenanceMode,
             color: Colors.redAccent,
             onChanged: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'maintenance_mode': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'maintenance_mode': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -852,7 +1219,9 @@ class _FeaturesConfigTab extends ConsumerWidget {
             isEnabled: config.registrationEnabled,
             color: const Color(0xFF00FF88),
             onChanged: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'registration_enabled': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'registration_enabled': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -893,7 +1262,9 @@ class _FeaturesConfigTab extends ConsumerWidget {
             value: config.minDepositAmount,
             suffix: ' FCFA',
             onSave: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'min_deposit_amount': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'min_deposit_amount': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -902,7 +1273,9 @@ class _FeaturesConfigTab extends ConsumerWidget {
             value: config.maxDepositAmount,
             suffix: ' FCFA',
             onSave: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'max_deposit_amount': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'max_deposit_amount': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -911,7 +1284,9 @@ class _FeaturesConfigTab extends ConsumerWidget {
             value: config.minWithdrawalAmount,
             suffix: ' FCFA',
             onSave: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'min_withdrawal_amount': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'min_withdrawal_amount': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -920,7 +1295,9 @@ class _FeaturesConfigTab extends ConsumerWidget {
             value: config.maxWithdrawalAmount,
             suffix: ' FCFA',
             onSave: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'max_withdrawal_amount': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'max_withdrawal_amount': val});
               _showSaveConfirmation(context, ref);
             },
           ),
@@ -929,13 +1306,16 @@ class _FeaturesConfigTab extends ConsumerWidget {
             value: config.kycRequiredThreshold,
             suffix: ' FCFA',
             onSave: (val) {
-              ref.read(featureConfigProvider.notifier).updateConfig({'kyc_required_threshold': val});
+              ref
+                  .read(featureConfigProvider.notifier)
+                  .updateConfig({'kyc_required_threshold': val});
               _showSaveConfirmation(context, ref);
             },
           ),
           const SizedBox(height: 24),
           const _InfoBanner(
-            message: 'Les modifications prennent effet immédiatement. Un historique est conservé.',
+            message:
+                'Les modifications prennent effet immédiatement. Un historique est conservé.',
           ),
         ],
       ),
@@ -977,7 +1357,11 @@ class _InteractiveFeatureToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isEnabled ? color.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: isEnabled
+              ? color.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
       ),
       child: Row(
         children: [
@@ -985,9 +1369,22 @@ class _InteractiveFeatureToggle extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(description, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11)),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1051,7 +1448,13 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
         children: [
           const Icon(Icons.edit_outlined, color: Color(0xFF00FF88), size: 16),
           const SizedBox(width: 12),
-          Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(
+            widget.label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+          ),
           const Spacer(),
           if (_isEditing)
             SizedBox(
@@ -1062,7 +1465,9 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: const InputDecoration(
                   isDense: true,
-                  border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF88))),
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF00FF88)),
+                  ),
                 ),
                 onSubmitted: (val) {
                   final parsed = int.tryParse(val);
@@ -1081,7 +1486,11 @@ class _EditableLimitFieldState extends State<_EditableLimitField> {
               },
               child: Text(
                 '${widget.value}${widget.suffix}',
-                style: const TextStyle(color: Color(0xFF00FF88), fontSize: 13, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Color(0xFF00FF88),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
         ],
@@ -1099,25 +1508,43 @@ class _TokensConfigTab extends ConsumerWidget {
     final tokensConfig = ref.watch(tokensConfigProvider);
 
     return tokensConfig.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF00FF88))),
-      error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(tokensConfigProvider)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
+      ),
+      error: (e, _) => WiwigaErrorView(
+        error: e,
+        onRetry: () => ref.invalidate(tokensConfigProvider),
+      ),
       data: (config) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _SectionHeader(title: 'Wiga virtuels', icon: Icons.monetization_on),
+          const _SectionHeader(
+            title: 'Wiga virtuels',
+            icon: Icons.monetization_on,
+          ),
           const SizedBox(height: 16),
           _ConfigCard(
             title: 'Taux de change',
             subtitle: 'Conversion FCFA ↔ Wiga (achat)',
             fields: [
-              _ConfigField(label: 'Taux achat', value: '${config.exchangeRate} wiga/FCFA', icon: Icons.swap_horiz),
-              _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.card_giftcard),
+              _ConfigField(
+                label: 'Taux achat',
+                value: '${config.exchangeRate} wiga/FCFA',
+                icon: Icons.swap_horiz,
+              ),
+              _ConfigField(
+                label: 'Frais cadeau',
+                value: '${config.giftFeePercent.toStringAsFixed(1)}%',
+                icon: Icons.card_giftcard,
+              ),
             ],
           ),
           const SizedBox(height: 12),
           // Taux de change éditable
           _EditableLimitField(
-            label: 'Taux wiga/FCFA', value: config.exchangeRate.toInt(), suffix: ' wiga',
+            label: 'Taux wiga/FCFA',
+            value: config.exchangeRate.toInt(),
+            suffix: ' wiga',
             onSave: (v) {
               _confirmAndSave(context, ref, {'exchange_rate': v});
             },
@@ -1127,36 +1554,68 @@ class _TokensConfigTab extends ConsumerWidget {
             title: 'Limites & Cadeaux',
             subtitle: 'Limites d\'achat et de cadeau entre amis',
             fields: [
-              _ConfigField(label: 'Achat journalier max', value: '${config.dailyPurchaseLimit} FCFA', icon: Icons.shopping_cart),
-              _ConfigField(label: 'Cadeau journalier max', value: '${config.dailyGiftLimit} wiga', icon: Icons.card_giftcard),
-              _ConfigField(label: 'Frais cadeau', value: '${config.giftFeePercent.toStringAsFixed(1)}%', icon: Icons.percent),
+              _ConfigField(
+                label: 'Achat journalier max',
+                value: '${config.dailyPurchaseLimit} FCFA',
+                icon: Icons.shopping_cart,
+              ),
+              _ConfigField(
+                label: 'Cadeau journalier max',
+                value: '${config.dailyGiftLimit} wiga',
+                icon: Icons.card_giftcard,
+              ),
+              _ConfigField(
+                label: 'Frais cadeau',
+                value: '${config.giftFeePercent.toStringAsFixed(1)}%',
+                icon: Icons.percent,
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _EditableLimitField(
-            label: 'Achat journalier max', value: config.dailyPurchaseLimit, suffix: ' FCFA',
-            onSave: (v) => _confirmAndSave(context, ref, {'daily_purchase_limit': v}),
+            label: 'Achat journalier max',
+            value: config.dailyPurchaseLimit,
+            suffix: ' FCFA',
+            onSave: (v) =>
+                _confirmAndSave(context, ref, {'daily_purchase_limit': v}),
           ),
           _EditableLimitField(
-            label: 'Cadeau journalier max', value: config.dailyGiftLimit, suffix: ' wiga',
+            label: 'Cadeau journalier max',
+            value: config.dailyGiftLimit,
+            suffix: ' wiga',
             onSave: (v) async {
               // Stockage effectif en PlatformConfig payment.daily_gift_limit
               try {
                 final api = ref.read(apiServiceProvider);
-                await api.put('${ApiEndpoints.adminPlatformConfig}/payment/daily_gift_limit',
-                    body: {'value': v.toString()}, requiresAuth: true);
+                await api.put(
+                  '${ApiEndpoints.adminPlatformConfig}/payment/daily_gift_limit',
+                  body: {'value': v.toString()},
+                  requiresAuth: true,
+                );
                 // Compat tokensConfigProvider pour affichage local
-                await ref.read(tokensConfigProvider.notifier).updateConfig({'daily_gift_limit': v, 'daily_transfer_limit': v});
+                await ref.read(tokensConfigProvider.notifier).updateConfig(
+                  {'daily_gift_limit': v, 'daily_transfer_limit': v},
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Limite cadeau mise à jour à $v wiga'), backgroundColor: const Color(0xFF00FF88)),
+                    SnackBar(
+                      content: Text('Limite cadeau mise à jour à $v wiga'),
+                      backgroundColor: const Color(0xFF00FF88),
+                    ),
                   );
                 }
               } catch (e, st) {
-                ErrorHandler.logError(e, st, context: 'AdminConfig.dailyGiftLimit');
+                ErrorHandler.logError(
+                  e,
+                  st,
+                  context: 'AdminConfig.dailyGiftLimit',
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.redAccent),
+                    SnackBar(
+                      content: Text('Erreur: $e'),
+                      backgroundColor: Colors.redAccent,
+                    ),
                   );
                 }
               }
@@ -1167,17 +1626,29 @@ class _TokensConfigTab extends ConsumerWidget {
             title: 'Mise minimum wiga',
             subtitle: 'Mises minimum en wiga par type de jeu',
             fields: [
-              _ConfigField(label: 'Dés', value: '${config.diceMinBet} wiga', icon: Icons.casino),
-              _ConfigField(label: 'Cartes', value: '${config.cardsMinBet} wiga', icon: Icons.style),
+              _ConfigField(
+                label: 'Dés',
+                value: '${config.diceMinBet} wiga',
+                icon: Icons.casino,
+              ),
+              _ConfigField(
+                label: 'Cartes',
+                value: '${config.cardsMinBet} wiga',
+                icon: Icons.style,
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _EditableLimitField(
-            label: 'Dés min', value: config.diceMinBet, suffix: ' wiga',
+            label: 'Dés min',
+            value: config.diceMinBet,
+            suffix: ' wiga',
             onSave: (v) => _confirmAndSave(context, ref, {'dice_min_bet': v}),
           ),
           _EditableLimitField(
-            label: 'Cartes min', value: config.cardsMinBet, suffix: ' wiga',
+            label: 'Cartes min',
+            value: config.cardsMinBet,
+            suffix: ' wiga',
             onSave: (v) => _confirmAndSave(context, ref, {'cards_min_bet': v}),
           ),
           const SizedBox(height: 24),
@@ -1189,25 +1660,46 @@ class _TokensConfigTab extends ConsumerWidget {
     );
   }
 
-  void _confirmAndSave(BuildContext context, WidgetRef ref, Map<String, dynamic> updates) {
+  void _confirmAndSave(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> updates,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
         title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
-        content: const Text('Sauvegarder cette modification ?', style: TextStyle(color: Colors.white70)),
+        content: const Text(
+          'Sauvegarder cette modification ?',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF88)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00FF88),
+            ),
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(tokensConfigProvider.notifier).updateConfig(updates);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Configuration wiga mise à jour'), backgroundColor: Color(0xFF00FF88)),
+                const SnackBar(
+                  content: Text('Configuration wiga mise à jour'),
+                  backgroundColor: Color(0xFF00FF88),
+                ),
               );
             },
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFF0A0A1A))),
+            child: const Text(
+              'Confirmer',
+              style: TextStyle(color: Color(0xFF0A0A1A)),
+            ),
           ),
         ],
       ),
@@ -1231,9 +1723,14 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Icon(icon, color: const Color(0xFF00FF88), size: 24),
         const SizedBox(width: 12),
-        Text(title,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,),),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
@@ -1262,40 +1759,62 @@ class _ConfigCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,),),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 16),
-          ...fields.map((f) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Icon(f.icon, color: const Color(0xFF00FF88), size: 16),
-                    const SizedBox(width: 12),
-                    Text(f.label,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
-                    const Spacer(),
-                    if (f.color != null) ...[
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: f.color,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24),
-                        ),
+          ...fields.map(
+            (f) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(f.icon, color: const Color(0xFF00FF88), size: 16),
+                  const SizedBox(width: 12),
+                  Text(
+                    f.label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (f.color != null) ...[
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: f.color,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24),
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(f.value,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500,),),
+                    ),
+                    const SizedBox(width: 8),
                   ],
-                ),
-              ),),
+                  Text(
+                    f.value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1345,17 +1864,23 @@ class _PaymentProviderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.payment,
-                  color: isEnabled ? const Color(0xFF00FF88) : Colors.white38,),
+              Icon(
+                Icons.payment,
+                color: isEnabled ? const Color(0xFF00FF88) : Colors.white38,
+              ),
               const SizedBox(width: 8),
-              Text(name,
-                  style: TextStyle(
-                      color: isEnabled ? Colors.white : Colors.white38,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,),),
+              Text(
+                name,
+                style: TextStyle(
+                  color: isEnabled ? Colors.white : Colors.white38,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isEnabled
                       ? const Color(0xFF00FF88).withValues(alpha: 0.2)
@@ -1365,7 +1890,8 @@ class _PaymentProviderCard extends StatelessWidget {
                 child: Text(
                   isEnabled ? 'Actif' : 'Inactif',
                   style: TextStyle(
-                    color: isEnabled ? const Color(0xFF00FF88) : Colors.redAccent,
+                    color:
+                        isEnabled ? const Color(0xFF00FF88) : Colors.redAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1375,22 +1901,33 @@ class _PaymentProviderCard extends StatelessWidget {
           ),
           if (isEnabled) ...[
             const SizedBox(height: 12),
-            ...details.map((f) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    children: [
-                      Icon(f.icon, color: const Color(0xFF00FF88), size: 14),
-                      const SizedBox(width: 8),
-                      Text(f.label,
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6), fontSize: 12,),),
-                      const Spacer(),
-                      Text(f.value,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500,),),
-                    ],
-                  ),
-                ),),
+            ...details.map(
+              (f) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Icon(f.icon, color: const Color(0xFF00FF88), size: 14),
+                    const SizedBox(width: 8),
+                    Text(
+                      f.label,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      f.value,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -1427,20 +1964,31 @@ class _FeatureToggle extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: color, fontSize: 15, fontWeight: FontWeight.w600,),),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(description,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5), fontSize: 12,),),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isEnabled ? color.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+              color: isEnabled
+                  ? color.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: isEnabled ? color : Colors.white24),
             ),
@@ -1471,15 +2019,21 @@ class _InfoBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF00FF88).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.2)),
+        border:
+            Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           const Icon(Icons.info_outline, color: Color(0xFF00FF88), size: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(message,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),),
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),

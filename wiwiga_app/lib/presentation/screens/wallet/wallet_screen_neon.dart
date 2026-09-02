@@ -60,12 +60,16 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
         foregroundColor: NeonColors.primary,
         actions: [
           IconButton(
-            icon: const Icon(Icons.campaign_outlined, color: NeonColors.secondary),
+            icon: const Icon(
+              Icons.campaign_outlined,
+              color: NeonColors.secondary,
+            ),
             onPressed: () => setState(() => _currentTab = 2),
             tooltip: 'Promotions',
           ),
           IconButton(
-            icon: const Icon(Icons.help_outline, color: NeonColors.textSecondary),
+            icon:
+                const Icon(Icons.help_outline, color: NeonColors.textSecondary),
             onPressed: () => context.push('/responsible-gaming/limits'),
             tooltip: 'Jeu responsable',
           ),
@@ -73,7 +77,9 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
       ),
       body: Column(
         children: [
-          _WigaBalanceHeader(onQuickAction: (tab) => setState(() => _currentTab = tab)),
+          _WigaBalanceHeader(
+            onQuickAction: (tab) => setState(() => _currentTab = tab),
+          ),
           _WigaTabSelector(
             currentIndex: _currentTab,
             onTabChanged: (index) => setState(() => _currentTab = index),
@@ -144,7 +150,12 @@ class _WigaBalanceHeader extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: NeonColors.textPrimary,
                         fontFamily: 'Orbitron',
-                        shadows: [Shadow(color: NeonColors.tokenGold.withValues(alpha: 0.28), blurRadius: 10)],
+                        shadows: [
+                          Shadow(
+                            color: NeonColors.tokenGold.withValues(alpha: 0.28),
+                            blurRadius: 10,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -153,11 +164,24 @@ class _WigaBalanceHeader extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 2),
-          const Text('WIGA',
-              style: TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontFamily: 'Inter', letterSpacing: 3)),
+          const Text(
+            'WIGA',
+            style: TextStyle(
+              fontSize: 11,
+              color: NeonColors.textSecondary,
+              fontFamily: 'Inter',
+              letterSpacing: 3,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('≈ ${tokenState.monetaryValueFcfa.toStringAsFixed(0)} FCFA  •  1 wiga = 1 FCFA',
-              style: TextStyle(color: NeonColors.textSecondary.withValues(alpha: 0.9), fontFamily: 'Inter', fontSize: 11)),
+          Text(
+            '≈ ${tokenState.monetaryValueFcfa.toStringAsFixed(0)} FCFA  •  1 wiga = 1 FCFA',
+            style: TextStyle(
+              color: NeonColors.textSecondary.withValues(alpha: 0.9),
+              fontFamily: 'Inter',
+              fontSize: 11,
+            ),
+          ),
           const SizedBox(height: 14),
           // Actions rapides (3 boutons)
           Row(
@@ -174,7 +198,8 @@ class _WigaBalanceHeader extends ConsumerWidget {
               Expanded(
                 child: NeonButton(
                   text: 'CADEAU',
-                  onPressed: giftEnabled ? () => context.push('/friends') : null,
+                  onPressed:
+                      giftEnabled ? () => context.push('/friends') : null,
                   variant: NeonButtonVariant.secondary,
                   icon: Icons.card_giftcard,
                   isEnabled: giftEnabled,
@@ -198,24 +223,40 @@ class _WigaBalanceHeader extends ConsumerWidget {
             decoration: BoxDecoration(
               color: NeonColors.background.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: NeonColors.border.withValues(alpha: 0.5)),
+              border:
+                  Border.all(color: NeonColors.border.withValues(alpha: 0.5)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.shield_outlined, size: 14, color: NeonColors.info),
+                const Icon(
+                  Icons.shield_outlined,
+                  size: 14,
+                  color: NeonColors.info,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     giftEnabled
                         ? 'Cadeaux entre amis • Limite ${formatWiga(dailyGiftLimit)} / jour • Jeu responsable'
                         : 'Cadeaux temporairement désactivés',
-                    style: const TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 11),
+                    style: const TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                    ),
                   ),
                 ),
                 InkWell(
                   onTap: () => context.push('/responsible-gaming/limits'),
-                  child: const Text('Gérer',
-                      style: TextStyle(color: NeonColors.info, fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Gérer',
+                    style: TextStyle(
+                      color: NeonColors.info,
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -233,7 +274,10 @@ class _WigaBalanceHeader extends ConsumerWidget {
 class _WigaTabSelector extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTabChanged;
-  const _WigaTabSelector({required this.currentIndex, required this.onTabChanged});
+  const _WigaTabSelector({
+    required this.currentIndex,
+    required this.onTabChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -247,9 +291,30 @@ class _WigaTabSelector extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _TabButton(label: 'Historique', icon: Icons.history, isSelected: currentIndex == 0, onTap: () => onTabChanged(0))),
-          Expanded(child: _TabButton(label: 'Acheter', icon: Icons.shopping_cart, isSelected: currentIndex == 1, onTap: () => onTabChanged(1))),
-          Expanded(child: _TabButton(label: 'Promos', icon: Icons.campaign, isSelected: currentIndex == 2, onTap: () => onTabChanged(2))),
+          Expanded(
+            child: _TabButton(
+              label: 'Historique',
+              icon: Icons.history,
+              isSelected: currentIndex == 0,
+              onTap: () => onTabChanged(0),
+            ),
+          ),
+          Expanded(
+            child: _TabButton(
+              label: 'Acheter',
+              icon: Icons.shopping_cart,
+              isSelected: currentIndex == 1,
+              onTap: () => onTabChanged(1),
+            ),
+          ),
+          Expanded(
+            child: _TabButton(
+              label: 'Promos',
+              icon: Icons.campaign,
+              isSelected: currentIndex == 2,
+              onTap: () => onTabChanged(2),
+            ),
+          ),
         ],
       ),
     );
@@ -261,7 +326,12 @@ class _TabButton extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const _TabButton({required this.label, required this.icon, required this.isSelected, required this.onTap});
+  const _TabButton({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -271,14 +341,25 @@ class _TabButton extends StatelessWidget {
         duration: NeonAnimations.standard,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withValues(alpha: 0.2) : Colors.transparent,
+          color: isSelected
+              ? NeonColors.primary.withValues(alpha: 0.2)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(NeonTheme.borderRadius - 4),
-          border: isSelected ? Border.all(color: NeonColors.primary, width: NeonGlow.borderWidth) : null,
+          border: isSelected
+              ? Border.all(
+                  color: NeonColors.primary,
+                  width: NeonGlow.borderWidth,
+                )
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isSelected ? NeonColors.primary : NeonColors.textSecondary, size: 16),
+            Icon(
+              icon,
+              color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
+              size: 16,
+            ),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -286,7 +367,9 @@ class _TabButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 11,
-                  color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
+                  color: isSelected
+                      ? NeonColors.primary
+                      : NeonColors.textSecondary,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   fontFamily: 'Inter',
                 ),
@@ -322,15 +405,37 @@ class _HistoryTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.receipt_long, size: 64, color: NeonColors.textSecondary.withValues(alpha: 0.3)),
+              Icon(
+                Icons.receipt_long,
+                size: 64,
+                color: NeonColors.textSecondary.withValues(alpha: 0.3),
+              ),
               const SizedBox(height: 16),
-              const Text('Aucune transaction', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontWeight: FontWeight.w600)),
+              const Text(
+                'Aucune transaction',
+                style: TextStyle(
+                  color: NeonColors.textSecondary,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Vos achats, cadeaux et gains apparaîtront ici.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: NeonColors.textSecondary.withValues(alpha: 0.7), fontFamily: 'Inter', fontSize: 12)),
+              Text(
+                'Vos achats, cadeaux et gains apparaîtront ici.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: NeonColors.textSecondary.withValues(alpha: 0.7),
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 16),
-              NeonButton(text: 'Acheter des wiga', icon: Icons.shopping_cart, variant: NeonButtonVariant.success, onPressed: () {}),
+              NeonButton(
+                text: 'Acheter des wiga',
+                icon: Icons.shopping_cart,
+                variant: NeonButtonVariant.success,
+                onPressed: () {},
+              ),
             ],
           ),
         ),
@@ -367,20 +472,38 @@ class _HistorySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final achats = transactions.where((t) => t.type == TokenTransactionType.purchase).fold<int>(0, (s, t) => s + t.tokenAmount.abs());
-    final cadeauxSent = transactions.where((t) => t.type == TokenTransactionType.giftSent).fold<int>(0, (s, t) => s + t.tokenAmount.abs());
-    final gains = transactions.where((t) => t.type == TokenTransactionType.winnings).fold<int>(0, (s, t) => s + t.tokenAmount);
+    final achats = transactions
+        .where((t) => t.type == TokenTransactionType.purchase)
+        .fold<int>(0, (s, t) => s + t.tokenAmount.abs());
+    final cadeauxSent = transactions
+        .where((t) => t.type == TokenTransactionType.giftSent)
+        .fold<int>(0, (s, t) => s + t.tokenAmount.abs());
+    final gains = transactions
+        .where((t) => t.type == TokenTransactionType.winnings)
+        .fold<int>(0, (s, t) => s + t.tokenAmount);
 
     return NeonCard(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
           children: [
-            _SummaryItem(label: 'Acheté', amount: achats, color: NeonColors.success),
+            _SummaryItem(
+              label: 'Acheté',
+              amount: achats,
+              color: NeonColors.success,
+            ),
             Container(width: 1, height: 36, color: NeonColors.border),
-            _SummaryItem(label: 'Cadeaux', amount: cadeauxSent, color: NeonColors.secondary),
+            _SummaryItem(
+              label: 'Cadeaux',
+              amount: cadeauxSent,
+              color: NeonColors.secondary,
+            ),
             Container(width: 1, height: 36, color: NeonColors.border),
-            _SummaryItem(label: 'Gagné', amount: gains, color: NeonColors.rankGold),
+            _SummaryItem(
+              label: 'Gagné',
+              amount: gains,
+              color: NeonColors.rankGold,
+            ),
           ],
         ),
       ),
@@ -392,16 +515,38 @@ class _SummaryItem extends StatelessWidget {
   final String label;
   final int amount;
   final Color color;
-  const _SummaryItem({required this.label, required this.amount, required this.color});
+  const _SummaryItem({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter')),
+          Text(
+            label,
+            style: const TextStyle(
+              color: NeonColors.textSecondary,
+              fontSize: 10,
+              fontFamily: 'Inter',
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(formatWigaAmount(amount), style: TextStyle(color: color, fontFamily: 'Orbitron', fontSize: 12, fontWeight: FontWeight.bold)),
-          const Text('wiga', style: TextStyle(color: NeonColors.textSecondary, fontSize: 9)),
+          Text(
+            formatWigaAmount(amount),
+            style: TextStyle(
+              color: color,
+              fontFamily: 'Orbitron',
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Text(
+            'wiga',
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 9),
+          ),
         ],
       ),
     );
@@ -427,7 +572,10 @@ class _TransactionCard extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Icon(_getIcon(), color: color, size: 22),
               ),
               const SizedBox(width: 12),
@@ -435,21 +583,50 @@ class _TransactionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(transaction.typeLabel,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: NeonColors.textPrimary, fontFamily: 'Inter')),
+                    Text(
+                      transaction.typeLabel,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: NeonColors.textPrimary,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(_formatDate(transaction.createdAt),
-                        style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontFamily: 'Inter')),
+                    Text(
+                      _formatDate(transaction.createdAt),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: NeonColors.textSecondary,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
                     if (transaction.counterpartyId != null)
-                      Text('Avec #${transaction.counterpartyId}',
-                          style: const TextStyle(fontSize: 10, color: NeonColors.textSecondary, fontFamily: 'Inter')),
-                    if (transaction.metadata != null && (transaction.metadata!['message'] as String?)?.isNotEmpty == true)
+                      Text(
+                        'Avec #${transaction.counterpartyId}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: NeonColors.textSecondary,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    if (transaction.metadata != null &&
+                        (transaction.metadata!['message'] as String?)
+                                ?.isNotEmpty ==
+                            true)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text('"${transaction.metadata!['message']}"',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, color: NeonColors.info, fontStyle: FontStyle.italic, fontFamily: 'Inter')),
+                        child: Text(
+                          '"${transaction.metadata!['message']}"',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: NeonColors.info,
+                            fontStyle: FontStyle.italic,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -461,14 +638,33 @@ class _TransactionCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${isCredit ? '+' : ''}${formatWigaAmount(transaction.tokenAmount)}',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color, fontFamily: 'Orbitron')),
+                      Text(
+                        '${isCredit ? '+' : ''}${formatWigaAmount(transaction.tokenAmount)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          fontFamily: 'Orbitron',
+                        ),
+                      ),
                       const SizedBox(width: 4),
-                      const TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
+                      const TokenCoin(
+                        size: 14,
+                        metal: TokenMetal.emerald,
+                        lod: TokenLod.flat,
+                        showShadow: false,
+                        withW: true,
+                      ),
                     ],
                   ),
-                  Text('Solde ${formatWigaAmount(transaction.balanceAfter)}',
-                      style: const TextStyle(color: NeonColors.textSecondary, fontSize: 10, fontFamily: 'Inter')),
+                  Text(
+                    'Solde ${formatWigaAmount(transaction.balanceAfter)}',
+                    style: const TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 10,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -536,17 +732,31 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
     final featureConfigAsync = ref.watch(featureConfigProvider);
     final paymentsConfigAsync = ref.watch(paymentsConfigProvider);
 
-    final minDeposit = featureConfigAsync.when(data: (c) => c.minDepositAmount, loading: () => 500, error: (_, __) => 500);
-    final maxDeposit = featureConfigAsync.when(data: (c) => c.maxDepositAmount, loading: () => 1000000, error: (_, __) => 1000000);
+    final minDeposit = featureConfigAsync.when(
+      data: (c) => c.minDepositAmount,
+      loading: () => 500,
+      error: (_, __) => 500,
+    );
+    final maxDeposit = featureConfigAsync.when(
+      data: (c) => c.maxDepositAmount,
+      loading: () => 1000000,
+      error: (_, __) => 1000000,
+    );
 
     final activeProviders = paymentsConfigAsync.when(
-      data: (c) => c.providers.entries.where((e) => e.value.isEnabled).map((e) => e.key).toList(),
+      data: (c) => c.providers.entries
+          .where((e) => e.value.isEnabled)
+          .map((e) => e.key)
+          .toList(),
       loading: () => <String>[],
       error: (_, __) => <String>[],
     );
 
-    final isAmountValid = _selectedAmount >= minDeposit && _selectedAmount <= maxDeposit;
-    final tokensPreview = _selectedAmount > 0 ? (_selectedAmount * tokenState.exchangeRate).floor() : 0;
+    final isAmountValid =
+        _selectedAmount >= minDeposit && _selectedAmount <= maxDeposit;
+    final tokensPreview = _selectedAmount > 0
+        ? (_selectedAmount * tokenState.exchangeRate).floor()
+        : 0;
     final afterBalance = tokenState.tokenBalance + tokensPreview;
 
     return SingleChildScrollView(
@@ -564,18 +774,46 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                   Text('MÉTHODE DE PAIEMENT', style: AppTypography.heading4),
                   const SizedBox(height: 12),
                   if (activeProviders.isEmpty) ...[
-                    _PaymentMethod(name: 'Campay', icon: Icons.payment, isSelected: _selectedPayment == 'Campay', onTap: () => setState(() => _selectedPayment = 'Campay')),
+                    _PaymentMethod(
+                      name: 'Campay',
+                      icon: Icons.payment,
+                      isSelected: _selectedPayment == 'Campay',
+                      onTap: () => setState(() => _selectedPayment = 'Campay'),
+                    ),
                     const SizedBox(height: 8),
-                    _PaymentMethod(name: 'MTN MoMo', icon: Icons.phone_android, isSelected: _selectedPayment == 'MTN', onTap: () => setState(() => _selectedPayment = 'MTN')),
+                    _PaymentMethod(
+                      name: 'MTN MoMo',
+                      icon: Icons.phone_android,
+                      isSelected: _selectedPayment == 'MTN',
+                      onTap: () => setState(() => _selectedPayment = 'MTN'),
+                    ),
                     const SizedBox(height: 8),
-                    _PaymentMethod(name: 'Orange Money', icon: Icons.phone_iphone, isSelected: _selectedPayment == 'OM', onTap: () => setState(() => _selectedPayment = 'OM')),
+                    _PaymentMethod(
+                      name: 'Orange Money',
+                      icon: Icons.phone_iphone,
+                      isSelected: _selectedPayment == 'OM',
+                      onTap: () => setState(() => _selectedPayment = 'OM'),
+                    ),
                   ] else
                     ...activeProviders.asMap().entries.map((e) {
-                      final labels = {'campay': ('Campay', Icons.payment), 'mtn_momo': ('MTN MoMo', Icons.phone_android), 'orange_money': ('Orange Money', Icons.phone_iphone)};
-                      final (name, icon) = labels[e.value] ?? (e.value.toUpperCase(), Icons.payment);
+                      final labels = {
+                        'campay': ('Campay', Icons.payment),
+                        'mtn_momo': ('MTN MoMo', Icons.phone_android),
+                        'orange_money': ('Orange Money', Icons.phone_iphone),
+                      };
+                      final (name, icon) = labels[e.value] ??
+                          (e.value.toUpperCase(), Icons.payment);
                       return Padding(
-                        padding: EdgeInsets.only(bottom: e.key < activeProviders.length - 1 ? 8 : 0),
-                        child: _PaymentMethod(name: name, icon: icon, isSelected: _selectedPayment == e.value, onTap: () => setState(() => _selectedPayment = e.value)),
+                        padding: EdgeInsets.only(
+                          bottom: e.key < activeProviders.length - 1 ? 8 : 0,
+                        ),
+                        child: _PaymentMethod(
+                          name: name,
+                          icon: icon,
+                          isSelected: _selectedPayment == e.value,
+                          onTap: () =>
+                              setState(() => _selectedPayment = e.value),
+                        ),
                       );
                     }),
                 ],
@@ -592,8 +830,14 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                 children: [
                   Text('MONTANT À PAYER (FCFA)', style: AppTypography.heading4),
                   const SizedBox(height: 4),
-                  const Text('1 FCFA = 1 wiga • Paiement sécurisé Mobile Money',
-                      style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 11)),
+                  const Text(
+                    '1 FCFA = 1 wiga • Paiement sécurisé Mobile Money',
+                    style: TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   NeonInput(
                     label: 'Montant',
@@ -601,21 +845,25 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                     keyboardType: TextInputType.number,
                     icon: Icons.attach_money,
                     controller: _controller,
-                    onChanged: (val) => setState(() => _selectedAmount = int.tryParse(val) ?? 0),
+                    onChanged: (val) => setState(
+                      () => _selectedAmount = int.tryParse(val) ?? 0,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: _quickAmounts
-                        .map((amount) => _QuickAmountButton(
-                              amount: amount,
-                              isSelected: _selectedAmount == amount,
-                              onTap: () {
-                                _controller.text = amount.toString();
-                                setState(() => _selectedAmount = amount);
-                              },
-                            ))
+                        .map(
+                          (amount) => _QuickAmountButton(
+                            amount: amount,
+                            isSelected: _selectedAmount == amount,
+                            onTap: () {
+                              _controller.text = amount.toString();
+                              setState(() => _selectedAmount = amount);
+                            },
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
@@ -632,9 +880,21 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                   children: [
                     Row(
                       children: [
-                        TokenStack(count: (tokensPreview / 2000).clamp(1, 6).round(), size: 32, metal: TokenMetal.gold, altMetal: TokenMetal.emerald),
+                        TokenStack(
+                          count: (tokensPreview / 2000).clamp(1, 6).round(),
+                          size: 32,
+                          metal: TokenMetal.gold,
+                          altMetal: TokenMetal.emerald,
+                        ),
                         const SizedBox(width: 14),
-                        const Text('Vous recevrez :', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 13)),
+                        const Text(
+                          'Vous recevrez :',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                          ),
+                        ),
                         const Spacer(),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -642,13 +902,31 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const TokenCoin(size: 20, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                                const TokenCoin(
+                                  size: 20,
+                                  metal: TokenMetal.gold,
+                                  lod: TokenLod.bevel,
+                                  showShadow: false,
+                                ),
                                 const SizedBox(width: 6),
-                                Text('+${formatWigaAmount(tokensPreview)}',
-                                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
+                                Text(
+                                  '+${formatWigaAmount(tokensPreview)}',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: NeonColors.success,
+                                    fontFamily: 'Orbitron',
+                                  ),
+                                ),
                               ],
                             ),
-                            const Text('wiga', style: TextStyle(fontSize: 10, color: NeonColors.textSecondary)),
+                            const Text(
+                              'wiga',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: NeonColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -657,9 +935,23 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Solde après achat', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 12)),
-                        Text('${formatWigaAmount(afterBalance)} wiga',
-                            style: const TextStyle(color: NeonColors.primary, fontFamily: 'Orbitron', fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text(
+                          'Solde après achat',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          '${formatWigaAmount(afterBalance)} wiga',
+                          style: const TextStyle(
+                            color: NeonColors.primary,
+                            fontFamily: 'Orbitron',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -670,15 +962,25 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                _selectedAmount < minDeposit ? 'Minimum : ${_fmt(minDeposit)} FCFA' : 'Maximum : ${_fmt(maxDeposit)} FCFA',
-                style: const TextStyle(color: NeonColors.error, fontSize: 12, fontFamily: 'Inter'),
+                _selectedAmount < minDeposit
+                    ? 'Minimum : ${_fmt(minDeposit)} FCFA'
+                    : 'Maximum : ${_fmt(maxDeposit)} FCFA',
+                style: const TextStyle(
+                  color: NeonColors.error,
+                  fontSize: 12,
+                  fontFamily: 'Inter',
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
           const SizedBox(height: 14),
           NeonButton(
             text: 'ACHETER DES WIGA',
-            onPressed: isAmountValid ? () => ref.read(tokenProvider.notifier).purchaseTokens(_selectedAmount) : () {},
+            onPressed: isAmountValid
+                ? () => ref
+                    .read(tokenProvider.notifier)
+                    .purchaseTokens(_selectedAmount)
+                : () {},
             variant: NeonButtonVariant.success,
             icon: Icons.shopping_cart,
             width: double.infinity,
@@ -691,19 +993,34 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
             decoration: BoxDecoration(
               color: NeonColors.secondary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: NeonColors.secondary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: NeonColors.secondary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.card_giftcard, size: 16, color: NeonColors.secondary),
+                const Icon(
+                  Icons.card_giftcard,
+                  size: 16,
+                  color: NeonColors.secondary,
+                ),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text('Envie d’offrir ? Va dans Amis → Offrir des wiga (réservé aux amis).',
-                      style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 11)),
+                  child: Text(
+                    'Envie d’offrir ? Va dans Amis → Offrir des wiga (réservé aux amis).',
+                    style: TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.push('/friends'),
-                  child: const Text('Y aller', style: TextStyle(color: NeonColors.secondary, fontSize: 11)),
+                  child: const Text(
+                    'Y aller',
+                    style: TextStyle(color: NeonColors.secondary, fontSize: 11),
+                  ),
                 ),
               ],
             ),
@@ -713,7 +1030,10 @@ class _PurchaseTabState extends ConsumerState<_PurchaseTab> {
     );
   }
 
-  String _fmt(int n) => n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ');
+  String _fmt(int n) => n.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]} ',
+      );
 }
 
 // ============================================================
@@ -733,18 +1053,38 @@ class _PromosTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cloud_off_outlined, size: 64, color: NeonColors.error.withValues(alpha: 0.5)),
+              Icon(
+                Icons.cloud_off_outlined,
+                size: 64,
+                color: NeonColors.error.withValues(alpha: 0.5),
+              ),
               const SizedBox(height: 16),
-              const Text('Promotions indisponibles', style: TextStyle(color: NeonColors.error, fontFamily: 'Inter', fontWeight: FontWeight.w600)),
+              const Text(
+                'Promotions indisponibles',
+                style: TextStyle(
+                  color: NeonColors.error,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Impossible de charger les offres. Réessayez plus tard.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: NeonColors.textSecondary.withValues(alpha: 0.6), fontFamily: 'Inter', fontSize: 12)),
+              Text(
+                'Impossible de charger les offres. Réessayez plus tard.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: NeonColors.textSecondary.withValues(alpha: 0.6),
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () => ref.read(tokenProvider.notifier).loadPromos(),
                 icon: const Icon(Icons.refresh, color: NeonColors.primary),
-                label: const Text('Réessayer', style: TextStyle(color: NeonColors.primary)),
+                label: const Text(
+                  'Réessayer',
+                  style: TextStyle(color: NeonColors.primary),
+                ),
               ),
             ],
           ),
@@ -759,12 +1099,28 @@ class _PromosTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.campaign_outlined, size: 64, color: NeonColors.textSecondary.withValues(alpha: 0.3)),
+              Icon(
+                Icons.campaign_outlined,
+                size: 64,
+                color: NeonColors.textSecondary.withValues(alpha: 0.3),
+              ),
               const SizedBox(height: 16),
-              const Text('Aucune promotion disponible', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
+              const Text(
+                'Aucune promotion disponible',
+                style: TextStyle(
+                  color: NeonColors.textSecondary,
+                  fontFamily: 'Inter',
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Revenez bientôt pour des offres !',
-                  style: TextStyle(color: NeonColors.textSecondary.withValues(alpha: 0.6), fontFamily: 'Inter', fontSize: 12)),
+              Text(
+                'Revenez bientôt pour des offres !',
+                style: TextStyle(
+                  color: NeonColors.textSecondary.withValues(alpha: 0.6),
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),
@@ -781,14 +1137,29 @@ class _PromosTab extends ConsumerWidget {
             return ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: tokenState.availablePromos.length,
-              itemBuilder: (context, index) => _PromoCard(promo: tokenState.availablePromos[index], onRedeem: () => ref.read(tokenProvider.notifier).redeemPromo(tokenState.availablePromos[index].id)),
+              itemBuilder: (context, index) => _PromoCard(
+                promo: tokenState.availablePromos[index],
+                onRedeem: () => ref
+                    .read(tokenProvider.notifier)
+                    .redeemPromo(tokenState.availablePromos[index].id),
+              ),
             );
           }
           return GridView.builder(
             padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.6),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.6,
+            ),
             itemCount: tokenState.availablePromos.length,
-            itemBuilder: (context, index) => _PromoCard(promo: tokenState.availablePromos[index], onRedeem: () => ref.read(tokenProvider.notifier).redeemPromo(tokenState.availablePromos[index].id)),
+            itemBuilder: (context, index) => _PromoCard(
+              promo: tokenState.availablePromos[index],
+              onRedeem: () => ref
+                  .read(tokenProvider.notifier)
+                  .redeemPromo(tokenState.availablePromos[index].id),
+            ),
           );
         },
       ),
@@ -812,26 +1183,60 @@ class _PromoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const TokenCoin(size: 44, metal: TokenMetal.gold, lod: TokenLod.full, effect: TokenEffect.shimmer, animated: true),
+                const TokenCoin(
+                  size: 44,
+                  metal: TokenMetal.gold,
+                  lod: TokenLod.full,
+                  effect: TokenEffect.shimmer,
+                  animated: true,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(promo.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: NeonColors.textPrimary, fontFamily: 'Inter')),
+                      Text(
+                        promo.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: NeonColors.textPrimary,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
                       if (promo.description != null)
-                        Text(promo.description!,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, color: NeonColors.textSecondary, fontFamily: 'Inter')),
+                        Text(
+                          promo.description!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('+${formatWigaAmount(promo.tokenAmount)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NeonColors.success, fontFamily: 'Orbitron')),
-                    const Text('wiga', style: TextStyle(fontSize: 9, color: NeonColors.textSecondary)),
+                    Text(
+                      '+${formatWigaAmount(promo.tokenAmount)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: NeonColors.success,
+                        fontFamily: 'Orbitron',
+                      ),
+                    ),
+                    const Text(
+                      'wiga',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: NeonColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -839,21 +1244,52 @@ class _PromoCard extends StatelessWidget {
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: NeonColors.surface, borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(
+                color: NeonColors.surface,
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 14, color: NeonColors.textSecondary),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 14,
+                    color: NeonColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
-                  Expanded(child: Text(promo.conditionsText, style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontFamily: 'Inter'))),
+                  Expanded(
+                    child: Text(
+                      promo.conditionsText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: NeonColors.textSecondary,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             if (promo.daysRemaining != null) ...[
               const SizedBox(height: 8),
-              Text('Expire dans ${promo.daysRemaining} jours', style: const TextStyle(fontSize: 11, color: NeonColors.secondary, fontFamily: 'Inter')),
+              Text(
+                'Expire dans ${promo.daysRemaining} jours',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: NeonColors.secondary,
+                  fontFamily: 'Inter',
+                ),
+              ),
             ],
             const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: NeonButton(text: 'RÉCLAMER', onPressed: onRedeem, variant: NeonButtonVariant.success, icon: Icons.check_circle)),
+            SizedBox(
+              width: double.infinity,
+              child: NeonButton(
+                text: 'RÉCLAMER',
+                onPressed: onRedeem,
+                variant: NeonButtonVariant.success,
+                icon: Icons.check_circle,
+              ),
+            ),
           ],
         ),
       ),
@@ -870,7 +1306,12 @@ class _PaymentMethod extends StatelessWidget {
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const _PaymentMethod({required this.name, required this.icon, required this.isSelected, required this.onTap});
+  const _PaymentMethod({
+    required this.name,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -879,17 +1320,39 @@ class _PaymentMethod extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected
+              ? NeonColors.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? NeonColors.primary : NeonColors.border, width: isSelected ? NeonGlow.borderWidthThick : NeonGlow.borderWidth),
+          border: Border.all(
+            color: isSelected ? NeonColors.primary : NeonColors.border,
+            width:
+                isSelected ? NeonGlow.borderWidthThick : NeonGlow.borderWidth,
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? NeonColors.primary : NeonColors.textSecondary),
+            Icon(
+              icon,
+              color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
+            ),
             const SizedBox(width: 12),
-            Text(name, style: TextStyle(fontSize: 14, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal, color: isSelected ? NeonColors.primary : NeonColors.textPrimary, fontFamily: 'Inter')),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? NeonColors.primary : NeonColors.textPrimary,
+                fontFamily: 'Inter',
+              ),
+            ),
             const Spacer(),
-            if (isSelected) const Icon(Icons.check_circle, color: NeonColors.primary, size: 20),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: NeonColors.primary,
+                size: 20,
+              ),
           ],
         ),
       ),
@@ -901,7 +1364,11 @@ class _QuickAmountButton extends StatelessWidget {
   final int amount;
   final bool isSelected;
   final VoidCallback onTap;
-  const _QuickAmountButton({required this.amount, required this.isSelected, required this.onTap});
+  const _QuickAmountButton({
+    required this.amount,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -910,13 +1377,22 @@ class _QuickAmountButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withValues(alpha: 0.2) : NeonColors.surface,
+          color: isSelected
+              ? NeonColors.primary.withValues(alpha: 0.2)
+              : NeonColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? NeonColors.primary : NeonColors.border),
+          border: Border.all(
+            color: isSelected ? NeonColors.primary : NeonColors.border,
+          ),
         ),
         child: Text(
           formatWigaAmount(amount),
-          style: TextStyle(color: isSelected ? NeonColors.primary : NeonColors.textPrimary, fontFamily: 'Orbitron', fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400, fontSize: 12),
+          style: TextStyle(
+            color: isSelected ? NeonColors.primary : NeonColors.textPrimary,
+            fontFamily: 'Orbitron',
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            fontSize: 12,
+          ),
         ),
       ),
     );
@@ -942,7 +1418,11 @@ class _GuestWalletScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: IconButton(icon: const Icon(Icons.arrow_back, color: NeonColors.primary), tooltip: 'Retour', onPressed: () => context.pop()),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
+                  tooltip: 'Retour',
+                  onPressed: () => context.pop(),
+                ),
               ),
             ),
             Expanded(
@@ -952,21 +1432,42 @@ class _GuestWalletScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const TokenCoin(size: 80, metal: TokenMetal.gold, lod: TokenLod.full, effect: TokenEffect.float, animated: true),
+                      const TokenCoin(
+                        size: 80,
+                        metal: TokenMetal.gold,
+                        lod: TokenLod.full,
+                        effect: TokenEffect.float,
+                        animated: true,
+                      ),
                       const SizedBox(height: 24),
-                      const Text('Connectez-vous pour gérer vos wiga',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NeonColors.textPrimary, fontFamily: 'Orbitron')),
+                      const Text(
+                        'Connectez-vous pour gérer vos wiga',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: NeonColors.textPrimary,
+                          fontFamily: 'Orbitron',
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                      const Text('Achetez des wiga, offrez à vos amis\net suivez votre historique.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, color: NeonColors.textSecondary, fontFamily: 'Inter')),
+                      const Text(
+                        'Achetez des wiga, offrez à vos amis\net suivez votre historique.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: NeonColors.textSecondary,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
                       const SizedBox(height: 32),
                       NeonButton(
                         text: 'SE CONNECTER',
                         icon: Icons.login,
                         onPressed: () {
-                          ref.read(authProvider.notifier).setRedirectTo('/tokens');
+                          ref
+                              .read(authProvider.notifier)
+                              .setRedirectTo('/tokens');
                           context.go('/auth');
                         },
                         width: 220,

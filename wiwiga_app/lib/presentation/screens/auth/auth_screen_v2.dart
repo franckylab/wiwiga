@@ -34,7 +34,17 @@ class AuthScreenV2 extends ConsumerStatefulWidget {
   ConsumerState<AuthScreenV2> createState() => _AuthScreenV2State();
 }
 
-enum _AuthFlow { welcome, login, registerIdentifier, otp, profile, loginSuccess, registerSuccess, logoutSuccess }
+enum _AuthFlow {
+  welcome,
+  login,
+  registerIdentifier,
+  otp,
+  profile,
+  loginSuccess,
+  registerSuccess,
+  logoutSuccess
+}
+
 enum _AuthMethod { phone, email }
 
 class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
@@ -124,13 +134,19 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       final authNotifier = ref.read(authProvider.notifier);
 
       if (_selectedMethod == _AuthMethod.phone) {
-        await authNotifier.loginWithPassword(phone: _identifier, password: password);
+        await authNotifier.loginWithPassword(
+          phone: _identifier,
+          password: password,
+        );
       } else {
-        await authNotifier.loginWithPassword(email: _identifier, password: password);
+        await authNotifier.loginWithPassword(
+          email: _identifier,
+          password: password,
+        );
       }
 
       final newState = ref.read(authProvider);
-      
+
       if (newState.error == 'otp_required') {
         // OTP requis: aller à l'étape OTP
         setState(() {
@@ -149,7 +165,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         setState(() {
           _isLoading = false;
           if (!kReleaseMode) {
-            _error = '${newState.error ?? "Erreur de connexion"}\nUtilisez les identifiants DEV ci-dessous.';
+            _error =
+                '${newState.error ?? "Erreur de connexion"}\nUtilisez les identifiants DEV ci-dessous.';
           } else {
             _error = newState.error ?? 'Erreur de connexion';
           }
@@ -159,9 +176,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       setState(() {
         _isLoading = false;
         if (kDebugMode) {
-          _error = 'Identifiants incorrects.\nUtilisez les identifiants DEV affichés ci-dessous.';
+          _error =
+              'Identifiants incorrects.\nUtilisez les identifiants DEV affichés ci-dessous.';
         } else {
-          _error = 'Identifiants incorrects. Vérifiez votre numéro/email et mot de passe.';
+          _error =
+              'Identifiants incorrects. Vérifiez votre numéro/email et mot de passe.';
         }
       });
     }
@@ -224,7 +243,8 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
       final newState = ref.read(authProvider);
       if (newState.isAuthenticated) {
         final user = newState.user;
-        if (user != null && (user.username.isEmpty || user.username.startsWith('player_'))) {
+        if (user != null &&
+            (user.username.isEmpty || user.username.startsWith('player_'))) {
           setState(() {
             _currentFlow = _AuthFlow.profile;
             _isLoading = false;
@@ -250,7 +270,9 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   Future<void> _completeProfile() async {
     final username = _usernameController.text.trim();
     if (username.length < 3) {
-      setState(() => _error = 'Le pseudonyme doit contenir au moins 3 caractères');
+      setState(
+        () => _error = 'Le pseudonyme doit contenir au moins 3 caractères',
+      );
       return;
     }
 
@@ -347,7 +369,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         // Logo — Q CADRE GRAS avec cadre, cohérent splash (WIWIGA 32 Orbitron primary, tagline Inter 11)
         const WiwigaLogo(variant: LogoVariant.icon, size: 80, withFrame: true),
         const SizedBox(height: 12),
-        Text(
+        const Text(
           'WIWIGA',
           style: TextStyle(
             fontSize: 32,
@@ -362,9 +384,14 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        const Text(
           'Joue. Gagne. Triomphe.',
-          style: TextStyle(color: NeonColors.textSecondary, fontSize: 11, fontFamily: 'Inter', letterSpacing: 2),
+          style: TextStyle(
+            color: NeonColors.textSecondary,
+            fontSize: 11,
+            fontFamily: 'Inter',
+            letterSpacing: 2,
+          ),
         ),
         const SizedBox(height: 48),
 
@@ -380,9 +407,14 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             style: ElevatedButton.styleFrom(
               backgroundColor: NeonColors.primary,
               foregroundColor: NeonColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Se connecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Se connecter',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -398,7 +430,9 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               if (!isRegistrationOpen) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Les inscriptions sont temporairement désactivées'),
+                    content: Text(
+                      'Les inscriptions sont temporairement désactivées',
+                    ),
                     backgroundColor: NeonColors.warning,
                   ),
                 );
@@ -409,9 +443,18 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             },
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: NeonColors.primary, width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Créer un compte', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: NeonColors.primary)),
+            child: const Text(
+              'Créer un compte',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: NeonColors.primary,
+              ),
+            ),
           ),
         ),
       ],
@@ -431,7 +474,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 12),
         const Text(
           'Connexion',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: NeonColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 24),
 
@@ -447,18 +494,33 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               // Identifiant
               TextFormField(
                 controller: _identifierController,
-                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
+                style: const TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontSize: 16,
+                ),
                 keyboardType: _selectedMethod == _AuthMethod.phone
                     ? TextInputType.phone
                     : TextInputType.emailAddress,
                 decoration: _inputDecoration(
-                  hint: _selectedMethod == _AuthMethod.phone ? '+237 6XX XXX XXX' : 'votre@email.com',
-                  icon: _selectedMethod == _AuthMethod.phone ? Icons.phone : Icons.email,
+                  hint: _selectedMethod == _AuthMethod.phone
+                      ? '+237 6XX XXX XXX'
+                      : 'votre@email.com',
+                  icon: _selectedMethod == _AuthMethod.phone
+                      ? Icons.phone
+                      : Icons.email,
                 ),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Ce champ est requis';
-                  if (_selectedMethod == _AuthMethod.phone && !value.contains(RegExp(r'[0-9]'))) return 'Numéro invalide';
-                  if (_selectedMethod == _AuthMethod.email && !value.contains('@')) return 'Email invalide';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Ce champ est requis';
+                  }
+                  if (_selectedMethod == _AuthMethod.phone &&
+                      !value.contains(RegExp(r'[0-9]'))) {
+                    return 'Numéro invalide';
+                  }
+                  if (_selectedMethod == _AuthMethod.email &&
+                      !value.contains('@')) {
+                    return 'Email invalide';
+                  }
                   return null;
                 },
               ),
@@ -467,18 +529,29 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
               // Mot de passe
               TextFormField(
                 controller: _passwordController,
-                style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
+                style: const TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontSize: 16,
+                ),
                 obscureText: _obscurePassword,
                 decoration: _inputDecoration(
                   hint: 'Mot de passe',
                   icon: Icons.lock,
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: NeonColors.textMuted),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: NeonColors.textMuted,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Mot de passe requis';
+                  if (value == null || value.isEmpty) {
+                    return 'Mot de passe requis';
+                  }
                   if (value.length < 8) return '8 caractères minimum';
                   return null;
                 },
@@ -492,7 +565,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: NeonColors.error, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
           ),
 
         // Bouton connexion
@@ -504,11 +581,20 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             style: ElevatedButton.styleFrom(
               backgroundColor: NeonColors.primary,
               foregroundColor: NeonColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Se connecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Se connecter',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
         const SizedBox(height: 16),
@@ -517,13 +603,24 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Pas de compte ?', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5))),
+            Text(
+              'Pas de compte ?',
+              style: TextStyle(
+                color: NeonColors.textPrimary.withValues(alpha: 0.5),
+              ),
+            ),
             TextButton(
               onPressed: () {
                 _resetState();
                 setState(() => _currentFlow = _AuthFlow.registerIdentifier);
               },
-              child: const Text('S\'inscrire', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'S\'inscrire',
+                style: TextStyle(
+                  color: NeonColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -541,7 +638,10 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             _resetState();
             setState(() => _currentFlow = _AuthFlow.welcome);
           },
-          child: const Text('Retour', style: TextStyle(color: NeonColors.textMuted)),
+          child: const Text(
+            'Retour',
+            style: TextStyle(color: NeonColors.textMuted),
+          ),
         ),
       ],
     );
@@ -564,11 +664,36 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   /// Panneau affichant les identifiants seed en mode développement
   Widget _buildDevCredentialsPanel() {
     const credentials = [
-      {'label': 'Super Admin', 'phone': '+237600000000', 'email': 'superadmin@wiwiga.com', 'password': 'Wiwiga@Super2026!'},
-      {'label': 'Admin', 'phone': '+237699999999', 'email': 'admin@wiwiga.com', 'password': 'Wiwiga@Admin2026!'},
-      {'label': 'Modérateur', 'phone': '+237688888888', 'email': 'moderator@wiwiga.com', 'password': 'Wiwiga@Modo2026!'},
-      {'label': 'Test', 'phone': '+237677777777', 'email': 'test@wiwiga.com', 'password': 'Wiwiga@Test2026!'},
-      {'label': 'Joueur', 'phone': '+237666666666', 'email': 'joueur1@wiwiga.com', 'password': 'Wiwiga@Joueur2026!'},
+      {
+        'label': 'Super Admin',
+        'phone': '+237600000000',
+        'email': 'superadmin@wiwiga.com',
+        'password': 'Wiwiga@Super2026!',
+      },
+      {
+        'label': 'Admin',
+        'phone': '+237699999999',
+        'email': 'admin@wiwiga.com',
+        'password': 'Wiwiga@Admin2026!',
+      },
+      {
+        'label': 'Modérateur',
+        'phone': '+237688888888',
+        'email': 'moderator@wiwiga.com',
+        'password': 'Wiwiga@Modo2026!',
+      },
+      {
+        'label': 'Test',
+        'phone': '+237677777777',
+        'email': 'test@wiwiga.com',
+        'password': 'Wiwiga@Test2026!',
+      },
+      {
+        'label': 'Joueur',
+        'phone': '+237666666666',
+        'email': 'joueur1@wiwiga.com',
+        'password': 'Wiwiga@Joueur2026!',
+      },
     ];
 
     return Container(
@@ -597,37 +722,63 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             ],
           ),
           const SizedBox(height: 8),
-          ...credentials.map((c) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: InkWell(
-              onTap: () => _fillDevCredentials(
-                _selectedMethod == _AuthMethod.email ? c['email'] as String : c['phone'] as String,
-                c['password'] as String,
-              ),
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 80,
-                      child: Text(c['label']!, style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontWeight: FontWeight.w600)),
-                    ),
-                    Expanded(
-                      child: Text(
-                        _selectedMethod == _AuthMethod.email ? c['email'] as String : c['phone'] as String,
-                        style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary, fontFamily: 'monospace'),
+          ...credentials.map(
+            (c) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: InkWell(
+                onTap: () => _fillDevCredentials(
+                  _selectedMethod == _AuthMethod.email
+                      ? c['email'] as String
+                      : c['phone'] as String,
+                  c['password'] as String,
+                ),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          c['label']!,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: NeonColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.touch_app, size: 14, color: NeonColors.primary),
-                  ],
+                      Expanded(
+                        child: Text(
+                          _selectedMethod == _AuthMethod.email
+                              ? c['email'] as String
+                              : c['phone'] as String,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.touch_app,
+                        size: 14,
+                        color: NeonColors.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),),
+          ),
           Text(
             'Appuyez pour remplir automatiquement',
-            style: TextStyle(fontSize: 10, color: NeonColors.textPrimary.withValues(alpha: 0.3), fontStyle: FontStyle.italic),
+            style: TextStyle(
+              fontSize: 10,
+              color: NeonColors.textPrimary.withValues(alpha: 0.3),
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),
@@ -647,18 +798,23 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 12),
         const Text(
           'Créer un compte',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: NeonColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           'Inscris-toi avec ton téléphone ou email',
-          style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5), fontSize: 14),
+          style: TextStyle(
+            color: NeonColors.textPrimary.withValues(alpha: 0.5),
+            fontSize: 14,
+          ),
         ),
         const SizedBox(height: 24),
-
         _buildMethodSelector(),
         const SizedBox(height: 20),
-
         Form(
           key: _formKey,
           child: TextFormField(
@@ -668,25 +824,39 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
                 ? TextInputType.phone
                 : TextInputType.emailAddress,
             decoration: _inputDecoration(
-              hint: _selectedMethod == _AuthMethod.phone ? '+237 6XX XXX XXX' : 'votre@email.com',
-              icon: _selectedMethod == _AuthMethod.phone ? Icons.phone : Icons.email,
+              hint: _selectedMethod == _AuthMethod.phone
+                  ? '+237 6XX XXX XXX'
+                  : 'votre@email.com',
+              icon: _selectedMethod == _AuthMethod.phone
+                  ? Icons.phone
+                  : Icons.email,
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty) return 'Ce champ est requis';
-              if (_selectedMethod == _AuthMethod.phone && !value.contains(RegExp(r'[0-9]'))) return 'Numéro invalide';
-              if (_selectedMethod == _AuthMethod.email && !value.contains('@')) return 'Email invalide';
+              if (value == null || value.trim().isEmpty) {
+                return 'Ce champ est requis';
+              }
+              if (_selectedMethod == _AuthMethod.phone &&
+                  !value.contains(RegExp(r'[0-9]'))) {
+                return 'Numéro invalide';
+              }
+              if (_selectedMethod == _AuthMethod.email &&
+                  !value.contains('@')) {
+                return 'Email invalide';
+              }
               return null;
             },
           ),
         ),
         const SizedBox(height: 16),
-
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: NeonColors.error, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
           ),
-
         SizedBox(
           width: double.infinity,
           height: 52,
@@ -695,35 +865,56 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             style: ElevatedButton.styleFrom(
               backgroundColor: NeonColors.primary,
               foregroundColor: NeonColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Continuer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Continuer',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
         const SizedBox(height: 16),
-
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Déjà un compte ?', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.5))),
+            Text(
+              'Déjà un compte ?',
+              style: TextStyle(
+                color: NeonColors.textPrimary.withValues(alpha: 0.5),
+              ),
+            ),
             TextButton(
               onPressed: () {
                 _resetState();
                 setState(() => _currentFlow = _AuthFlow.login);
               },
-              child: const Text('Se connecter', style: TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Se connecter',
+                style: TextStyle(
+                  color: NeonColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
-
         TextButton(
           onPressed: () {
             _resetState();
             setState(() => _currentFlow = _AuthFlow.welcome);
           },
-          child: const Text('Retour', style: TextStyle(color: NeonColors.textMuted)),
+          child: const Text(
+            'Retour',
+            style: TextStyle(color: NeonColors.textMuted),
+          ),
         ),
       ],
     );
@@ -741,7 +932,11 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 16),
         const Text(
           'Vérification',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: NeonColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -749,38 +944,63 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
           style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14),
         ),
         const SizedBox(height: 32),
-
         TextFormField(
           controller: _otpController,
-          style: const TextStyle(color: NeonColors.textPrimary, fontSize: 24, letterSpacing: 8),
+          style: const TextStyle(
+            color: NeonColors.textPrimary,
+            fontSize: 24,
+            letterSpacing: 8,
+          ),
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             hintText: '------',
-            hintStyle: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.2), fontSize: 24, letterSpacing: 8),
+            hintStyle: TextStyle(
+              color: NeonColors.textPrimary.withValues(alpha: 0.2),
+              fontSize: 24,
+              letterSpacing: 8,
+            ),
             counterText: '',
             filled: true,
             fillColor: NeonColors.textPrimary.withValues(alpha: 0.05),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.primary, width: 2)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: NeonColors.primary, width: 2),
+            ),
           ),
         ),
         const SizedBox(height: 16),
-
         if (_countdown > 0)
-          Text('Renvoyer dans ${_countdown}s', style: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.4)))
+          Text(
+            'Renvoyer dans ${_countdown}s',
+            style: TextStyle(
+              color: NeonColors.textPrimary.withValues(alpha: 0.4),
+            ),
+          )
         else
-          TextButton(onPressed: _sendOtp, child: const Text('Renvoyer le code', style: TextStyle(color: NeonColors.primary))),
-
+          TextButton(
+            onPressed: _sendOtp,
+            child: const Text(
+              'Renvoyer le code',
+              style: TextStyle(color: NeonColors.primary),
+            ),
+          ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12, top: 8),
-            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: NeonColors.error, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
           ),
         const SizedBox(height: 12),
-
         SizedBox(
           width: double.infinity,
           height: 52,
@@ -789,21 +1009,32 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             style: ElevatedButton.styleFrom(
               backgroundColor: NeonColors.primary,
               foregroundColor: NeonColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Vérifier', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Vérifier',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
         const SizedBox(height: 12),
-
         TextButton(
           onPressed: () => setState(() {
             _currentFlow = _AuthFlow.registerIdentifier;
             _error = null;
           }),
-          child: const Text('Retour', style: TextStyle(color: NeonColors.textSecondary)),
+          child: const Text(
+            'Retour',
+            style: TextStyle(color: NeonColors.textSecondary),
+          ),
         ),
       ],
     );
@@ -821,31 +1052,41 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         const SizedBox(height: 16),
         const Text(
           'Complète ton profil',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: NeonColors.textPrimary),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: NeonColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 32),
-
         TextFormField(
           controller: _usernameController,
           style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
-          decoration: _inputDecoration(hint: 'Ton pseudonyme', icon: Icons.alternate_email),
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]'))],
+          decoration: _inputDecoration(
+            hint: 'Ton pseudonyme',
+            icon: Icons.alternate_email,
+          ),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+          ],
           maxLength: 30,
         ),
         const SizedBox(height: 24),
-
         AvatarPicker(
           selectedAvatar: _selectedAvatar,
-          onAvatarSelected: (avatar) => setState(() => _selectedAvatar = avatar),
+          onAvatarSelected: (avatar) =>
+              setState(() => _selectedAvatar = avatar),
         ),
         const SizedBox(height: 24),
-
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text(_error!, style: const TextStyle(color: NeonColors.error, fontSize: 14), textAlign: TextAlign.center),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: NeonColors.error, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
           ),
-
         SizedBox(
           width: double.infinity,
           height: 52,
@@ -854,11 +1095,20 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
             style: ElevatedButton.styleFrom(
               backgroundColor: NeonColors.primary,
               foregroundColor: NeonColors.background,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('C\'est parti !', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'C\'est parti !',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
       ],
@@ -868,7 +1118,7 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   // ========================================
   // Success Animations
   // ========================================
-  
+
   Widget _buildLoginSuccess() {
     return Column(
       key: const ValueKey('login_success'),
@@ -959,13 +1209,20 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.3)),
+      hintStyle:
+          TextStyle(color: NeonColors.textPrimary.withValues(alpha: 0.3)),
       prefixIcon: Icon(icon, color: NeonColors.primary),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: NeonColors.textPrimary.withValues(alpha: 0.05),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.primary, width: 2)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: NeonColors.primary, width: 2),
+      ),
     );
   }
 }
@@ -991,19 +1248,30 @@ class _MethodTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isSelected ? NeonColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+            color: isSelected
+                ? NeonColors.primary.withValues(alpha: 0.15)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
-            border: isSelected ? Border.all(color: NeonColors.primary, width: 1.5) : null,
+            border: isSelected
+                ? Border.all(color: NeonColors.primary, width: 1.5)
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: isSelected ? NeonColors.primary : NeonColors.textSecondary, size: 20),
+              Icon(
+                icon,
+                color:
+                    isSelected ? NeonColors.primary : NeonColors.textSecondary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
+                  color: isSelected
+                      ? NeonColors.primary
+                      : NeonColors.textSecondary,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),

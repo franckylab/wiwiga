@@ -31,11 +31,16 @@ class WiwigaErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final msg = ErrorHandler.userMessage(error);
     final isOffline = ErrorHandler.isOffline(error);
-    final icon = isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded;
+    final icon =
+        isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded;
     final color = isOffline ? NeonColors.warning : NeonColors.error;
 
     // Log technique séparé, jamais affiché
-    ErrorHandler.logError(error, stackTrace, context: title ?? 'WiwigaErrorView');
+    ErrorHandler.logError(
+      error,
+      stackTrace,
+      context: title ?? 'WiwigaErrorView',
+    );
 
     return Center(
       child: Padding(
@@ -55,19 +60,31 @@ class WiwigaErrorView extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               title ?? (isOffline ? 'Hors ligne' : 'Oups !'),
-              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Orbitron'),
+              style: const TextStyle(
+                color: NeonColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Orbitron',
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               msg,
-              style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14, height: 1.4),
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 14,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
             if (isOffline) ...[
               const SizedBox(height: 8),
-              const Text('Vos données sont conservées. Réessayez dès que le réseau revient.',
-                  style: TextStyle(color: NeonColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
+              const Text(
+                'Vos données sont conservées. Réessayez dès que le réseau revient.',
+                style: TextStyle(color: NeonColors.textMuted, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
             ],
             const SizedBox(height: 20),
             if (onRetry != null)
@@ -85,7 +102,12 @@ class WiwigaErrorView extends StatelessWidget {
 
 /// SnackBar humain, jamais technique, avec action retry si pertinent
 class WiwigaSnack {
-  static void showError(BuildContext context, Object error, {String? fallback, VoidCallback? onRetry}) {
+  static void showError(
+    BuildContext context,
+    Object error, {
+    String? fallback,
+    VoidCallback? onRetry,
+  }) {
     final msg = ErrorHandler.userMessage(error, fallback: fallback);
     ErrorHandler.logError(error, null, context: 'SnackBar');
     final isRetryable = ErrorHandler.isRetryable(error) && onRetry != null;
@@ -95,7 +117,12 @@ class WiwigaSnack {
           children: [
             const Icon(Icons.error_outline, color: Colors.white, size: 20),
             const SizedBox(width: 12),
-            Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 13))),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
           ],
         ),
         backgroundColor: NeonColors.error,
@@ -103,7 +130,11 @@ class WiwigaSnack {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 3),
         action: isRetryable
-            ? SnackBarAction(label: 'Réessayer', textColor: Colors.white, onPressed: onRetry)
+            ? SnackBarAction(
+                label: 'Réessayer',
+                textColor: Colors.white,
+                onPressed: onRetry,
+              )
             : null,
       ),
     );
@@ -114,9 +145,15 @@ class WiwigaSnack {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+            const Icon(
+              Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+            Expanded(
+              child: Text(message, style: const TextStyle(color: Colors.white)),
+            ),
           ],
         ),
         backgroundColor: NeonColors.success,
@@ -160,7 +197,11 @@ class WiwigaFieldError extends StatelessWidget {
               liveRegion: true,
               child: Text(
                 message!,
-                style: const TextStyle(color: NeonColors.error, fontSize: 12, height: 1.3),
+                style: const TextStyle(
+                  color: NeonColors.error,
+                  fontSize: 12,
+                  height: 1.3,
+                ),
               ),
             ),
           ),

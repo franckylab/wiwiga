@@ -16,12 +16,98 @@ import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Catalogue : grille responsive des jeux disponibles
-class GamesCatalogScreen extends ConsumerWidget {
+/// Redirection auto si le joueur est déjà dans une partie en attente/en cours
+class GamesCatalogScreen extends ConsumerStatefulWidget {
   const GamesCatalogScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GamesCatalogScreen> createState() => _GamesCatalogScreenState();
+}
+
+class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
+  bool _hasRedirected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkActiveAndRedirect());
+  }
+
+  Future<void> _checkActiveAndRedirect() async {
+    if (_hasRedirected) return;
+    try {
+      final active = await ref.read(activeGameProvider.future);
+      if (!mounted || active == null) return;
+      final path = _activeRedirectPath(active);
+      if (path != null && mounted) {
+        _hasRedirected = true;
+        if (mounted) context.go(path, extra: _activeExtra(active));
+      }
+    } catch (_) {}
+  }
+
+  String? _activeRedirectPath(Map<String, dynamic> active) {
+    final type = active['type'] as String?;
+    final gameType = active['game_type'] as String? ?? 'dice';
+    switch (type) {
+      case 'match':
+        final matchId = active['match_id'] as String?;
+        if (matchId != null) return '/games/$gameType/match/$matchId';
+        break;
+      case 'room_waiting':
+      case 'room_in_progress':
+        final roomId = active['room_id'] as String?;
+        final matchId = active['match_id'] as String?;
+        // Si la salle a déjà un match, aller directement au match
+        if (matchId != null && matchId.toString().isNotEmpty) {
+          return '/games/$gameType/match/$matchId';
+        }
+        if (roomId != null) return '/games/$gameType/room/$roomId';
+        break;
+      case 'quick_lobby':
+        final bet = active['bet_amount'];
+        final rule = active['rule_type'] as String? ?? 'normal';
+        // Rediriger vers la recherche bloquante synchronisée
+        return '/games/$gameType/quick-search';
+      default:
+        return null;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _activeExtra(Map<String, dynamic> active) {
+    final type = active['type'] as String?;
+    if (type == 'quick_lobby') {
+      return {
+        'bet_amount': active['bet_amount'],
+        'rule_type': active['rule_type'] ?? 'normal',
+      };
+    }
+    if (type == 'match') {
+      return {
+        'rule_type': active['rule_type'] ?? 'normal',
+        'bet_amount': active['bet_amount'] ?? 0,
+      };
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final catalogAsync = ref.watch(gamesCatalogProvider);
+    final activeAsync = ref.watch(activeGameProvider);
+    activeAsync.whenData((active) {
+      if (active != null && !_hasRedirected) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final path = _activeRedirectPath(active);
+          if (path != null && mounted && !_hasRedirected) {
+            _hasRedirected = true;
+            context.go(path, extra: _activeExtra(active));
+          }
+        });
+      }
+    });
 
     return Scaffold(
       backgroundColor: NeonColors.surface,
@@ -126,8 +212,11 @@ class GamesCatalogScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.videogame_asset_off_outlined,
-              size: 56, color: NeonColors.textMuted,),
+          Icon(
+            Icons.videogame_asset_off_outlined,
+            size: 56,
+            color: NeonColors.textMuted,
+          ),
           SizedBox(height: 12),
           Text(
             'Aucun jeu disponible pour le moment',
@@ -143,7 +232,11 @@ class GamesCatalogScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.wifi_off_outlined, size: 56, color: NeonColors.error),
+          const Icon(
+            Icons.wifi_off_outlined,
+            size: 56,
+            color: NeonColors.error,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Impossible de charger les jeux',
@@ -274,7 +367,12 @@ class GameCatalogCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!comingSoon) ...[
-                        TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false),
+                        const TokenCoin(
+                          size: 14,
+                          metal: TokenMetal.emerald,
+                          lod: TokenLod.flat,
+                          showShadow: false,
+                        ),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
@@ -299,7 +397,9 @@ class GameCatalogCard extends StatelessWidget {
                     height: 40,
                     fontSize: 13,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8,),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     onPressed: () => context.go('/games/${game.type}'),
                   )
                 else

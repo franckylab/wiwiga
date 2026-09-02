@@ -161,8 +161,17 @@ defmodule GameHubWeb.Router do
     get "/tokens/transactions", TokenController, :transactions
     post "/tokens/promos/:id/redeem", TokenController, :redeem_promo
     
-    # Actions de jeu (PROTÉGÉ)
+    # Partie active pour redirection auto (doit être avant :game_id pour éviter collision)
+    get "/games/me/active", GameController, :active
+    # Debug match (test tours)
+    get "/debug/match/:game_id", GameController, :debug_match
+    post "/debug/match/:game_id/roll", GameController, :debug_roll
+    # Actions de jeu (PROTÉGÉ) — Partie rapide unifiée (mise+rule) lobby synchronisé
     post "/games/:game_id/join", GameController, :join
+    delete "/games/:game_id/queue", GameController, :leave_queue
+    get "/games/:game_id/queue/status", GameController, :queue_status
+    get "/games/:game_id/quick-lobby", GameController, :quick_lobby
+    post "/games/:game_id/quick-ready", GameController, :quick_ready
     get "/games/:game_id/state", GameController, :game_state
     
     # Stats personnelles (PROTÉGÉ)

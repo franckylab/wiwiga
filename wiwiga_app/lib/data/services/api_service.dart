@@ -17,7 +17,7 @@ import '../../core/errors/api_exception.dart';
 import '../../core/storage/app_storage.dart';
 
 /// Service centralisé pour les requêtes HTTP
-/// 
+///
 /// Fonctionnalités avancées :
 /// - Stockage sécurisé des tokens (access + refresh)
 /// - Refresh token automatique (silent retry)
@@ -27,33 +27,37 @@ import '../../core/storage/app_storage.dart';
 class ApiService {
   final http.Client _client;
   final AppStorage _storage;
-  
+
   // Clés de stockage sécurisé
   static const _keyAccessToken = 'access_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyDeviceId = 'device_id';
-  static const _keyLegacyToken = 'jwt_token'; // Migration depuis l'ancien système
-  
+  static const _keyLegacyToken =
+      'jwt_token'; // Migration depuis l'ancien système
+
   // État du refresh pour éviter les refresh simultanés
   bool _isRefreshing = false;
   Completer<bool>? _refreshCompleter;
-  
+
   // Stream pour notifier quand les tokens sont effacés (session expirée)
   final _sessionExpiredController = StreamController<bool>.broadcast();
-  
+
   /// Stream qui émet `true` quand les tokens sont effacés (session expirée)
   /// Les listeners peuvent utiliser cela pour rediriger vers /auth
   Stream<bool> get onSessionExpired => _sessionExpiredController.stream;
-  
-  ApiService({http.Client? client, AppStorage? storage, FlutterSecureStorage? secureStorage})
-      : _client = client ?? http.Client(),
+
+  ApiService({
+    http.Client? client,
+    AppStorage? storage,
+    FlutterSecureStorage? secureStorage,
+  })  : _client = client ?? http.Client(),
         _storage = storage ??
             AppStorage(secure: secureStorage ?? const FlutterSecureStorage());
-  
+
   // ========================================
   // TOKENS — Gestion secure storage
   // ========================================
-  
+
   /// Récupère l'access token (résilient LAN insecure context)
   Future<String?> getAccessToken() async {
     try {
@@ -73,7 +77,7 @@ class ApiService {
       return null;
     }
   }
-  
+
   /// Récupère le refresh token
   Future<String?> getRefreshToken() async {
     try {
@@ -83,7 +87,7 @@ class ApiService {
       return null;
     }
   }
-  
+
   /// Sauvegarde les tokens après authentification (LAN-resilient)
   Future<void> saveTokens({
     required String accessToken,
@@ -97,16 +101,18 @@ class ApiService {
       try {
         await _storage.delete(key: _keyLegacyToken);
       } catch (_) {}
-      if (kDebugMode) debugPrint('[ApiService] tokens saved OK (LAN fallback capable)');
+      if (kDebugMode) {
+        debugPrint('[ApiService] tokens saved OK (LAN fallback capable)');
+      }
     } catch (e) {
       debugPrint('[ApiService] saveTokens FAILED: $e');
       rethrow;
     }
   }
-  
+
   /// Compatibilité: getToken() retourne l'access token
   Future<String?> getToken() async => getAccessToken();
-  
+
   /// Compatibilité: saveToken() sauvegarde comme access token
   Future<void> saveToken(String token) async {
     try {
@@ -116,7 +122,7 @@ class ApiService {
       rethrow;
     }
   }
-  
+
   /// Supprime tous les tokens (logout)
   Future<void> clearTokens() async {
     try {
@@ -133,20 +139,20 @@ class ApiService {
       _sessionExpiredController.add(true);
     }
   }
-  
+
   /// Compatibilité: clearToken()
   Future<void> clearToken() async => clearTokens();
-  
+
   /// Vérifie si l'utilisateur a des tokens
   Future<bool> hasTokens() async {
     final accessToken = await getAccessToken();
     return accessToken != null && accessToken.isNotEmpty;
   }
-  
+
   // ========================================
   // DEVICE ID — Identification appareil
   // ========================================
-  
+
   /// Récupère ou génère le Device ID unique (LAN-resilient)
   Future<String> getDeviceId() async {
     try {
@@ -156,7 +162,9 @@ class ApiService {
         try {
           await _storage.write(key: _keyDeviceId, value: deviceId);
         } catch (e) {
-          debugPrint('[ApiService] getDeviceId write failed, returning ephemeral: $e');
+          debugPrint(
+            '[ApiService] getDeviceId write failed, returning ephemeral: $e',
+          );
         }
       }
       return deviceId;
@@ -168,11 +176,11 @@ class ApiService {
 
   /// Diagnostic stockage (pour debug LAN)
   Future<Map<String, dynamic>> diagnoseStorage() => _storage.diagnose();
-  
+
   // ========================================
   // HEADERS — Construction
   // ========================================
-  
+
   /// Construit les headers avec authentification et device ID
   Future<Map<String, String>> _getHeaders({
     bool requiresAuth = false,
@@ -182,25 +190,25 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    
+
     if (requiresAuth) {
       final token = await getAccessToken();
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
-    
+
     if (includeDeviceId) {
       headers['X-Device-ID'] = await getDeviceId();
     }
-    
+
     return headers;
   }
-  
+
   // ========================================
   // REQUÊTES HTTP avec refresh automatique
   // ========================================
-  
+
   /// Wraps a network request to catch transport errors (timeout, socket)
   /// and convert them to [ApiException.network].
   /// Ajout diagnostic LAN: loggue baseUrl et origine pour debug CORS 192.168
@@ -208,8 +216,15 @@ class ApiService {
     try {
       return await request();
     } on TimeoutException catch (_) {
-      if (kDebugMode) debugPrint('[ApiService] Timeout for $url (baseUrl=${AppConfig.baseUrl})');
-      throw ApiException.network('Délai d\'attente dépassé. Vérifiez votre connexion.', url: url);
+      if (kDebugMode) {
+        debugPrint(
+          '[ApiService] Timeout for $url (baseUrl=${AppConfig.baseUrl})',
+        );
+      }
+      throw ApiException.network(
+        'Délai d\'attente dépassé. Vérifiez votre connexion.',
+        url: url,
+      );
     } catch (e, st) {
       if (e is ApiException) rethrow;
       // SocketException, HttpException, CORS TypeError (Failed to fetch) sur Web
@@ -219,10 +234,13 @@ class ApiService {
         debugPrint('[ApiService] baseUrl=${AppConfig.baseUrl} isWeb=$kIsWeb');
         debugPrint('$st');
       }
-      throw ApiException.network('Pas de connexion. Vérifiez votre réseau.', url: url);
+      throw ApiException.network(
+        'Pas de connexion. Vérifiez votre réseau.',
+        url: url,
+      );
     }
   }
-  
+
   /// Requête GET
   Future<Map<String, dynamic>> get(
     String endpoint, {
@@ -233,35 +251,40 @@ class ApiService {
       requiresAuth: requiresAuth,
       includeDeviceId: requiresAuth,
     );
-    
+
     var uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = uri.replace(queryParameters: queryParams);
     }
-    
+
     final response = await _wrapNetwork(
       () => _client.get(uri, headers: headers).timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      ),
+            const Duration(milliseconds: AppConfig.requestTimeout),
+          ),
       url: uri.toString(),
     );
-    
+
     // Si 401 et auth requise, tenter refresh et retry
     if (response.statusCode == 401 && requiresAuth) {
       final retryResponse = await _handle401AndRetry(
-        () async => _client.get(uri, headers: await _getHeaders(
-          requiresAuth: true,
-          includeDeviceId: true,
-        ),).timeout(
-          const Duration(milliseconds: AppConfig.requestTimeout),
-        ),
+        () async => _client
+            .get(
+              uri,
+              headers: await _getHeaders(
+                requiresAuth: true,
+                includeDeviceId: true,
+              ),
+            )
+            .timeout(
+              const Duration(milliseconds: AppConfig.requestTimeout),
+            ),
       );
       if (retryResponse != null) return _handleResponse(retryResponse);
     }
-    
+
     return _handleResponse(response);
   }
-  
+
   /// Requête POST
   Future<Map<String, dynamic>> post(
     String endpoint, {
@@ -272,34 +295,38 @@ class ApiService {
       requiresAuth: requiresAuth,
       includeDeviceId: requiresAuth,
     );
-    
+
     final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
-    final encodedBody = body is String ? body : (body != null ? jsonEncode(body) : null);
-    
+    final encodedBody =
+        body is String ? body : (body != null ? jsonEncode(body) : null);
+
     final response = await _wrapNetwork(
       () => _client.post(uri, headers: headers, body: encodedBody).timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      ),
+            const Duration(milliseconds: AppConfig.requestTimeout),
+          ),
       url: uri.toString(),
     );
-    
+
     // Si 401 et auth requise, tenter refresh et retry
     if (response.statusCode == 401 && requiresAuth) {
       final retryResponse = await _handle401AndRetry(
-        () async => _client.post(
-          uri,
-          headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
-          body: encodedBody,
-        ).timeout(
-          const Duration(milliseconds: AppConfig.requestTimeout),
-        ),
+        () async => _client
+            .post(
+              uri,
+              headers:
+                  await _getHeaders(requiresAuth: true, includeDeviceId: true),
+              body: encodedBody,
+            )
+            .timeout(
+              const Duration(milliseconds: AppConfig.requestTimeout),
+            ),
       );
       if (retryResponse != null) return _handleResponse(retryResponse);
     }
-    
+
     return _handleResponse(response);
   }
-  
+
   /// Requête PUT
   Future<Map<String, dynamic>> put(
     String endpoint, {
@@ -307,58 +334,82 @@ class ApiService {
     bool requiresAuth = true,
   }) async {
     final encodedBody = body != null ? jsonEncode(body) : null;
-    final headers = await _getHeaders(requiresAuth: requiresAuth, includeDeviceId: requiresAuth);
-    
+    final headers = await _getHeaders(
+      requiresAuth: requiresAuth,
+      includeDeviceId: requiresAuth,
+    );
+
     final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
     final response = await _wrapNetwork(
       () => _client.put(uri, headers: headers, body: encodedBody).timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      ),
+            const Duration(milliseconds: AppConfig.requestTimeout),
+          ),
       url: uri.toString(),
     );
 
     if (response.statusCode == 401 && requiresAuth) {
       final retryResponse = await _handle401AndRetry(
-        () async => _client.put(
-          uri,
-          headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
-          body: encodedBody,
-        ).timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
+        () async => _client
+            .put(
+              uri,
+              headers:
+                  await _getHeaders(requiresAuth: true, includeDeviceId: true),
+              body: encodedBody,
+            )
+            .timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
       );
       if (retryResponse != null) return _handleResponse(retryResponse);
     }
-    
+
     return _handleResponse(response);
   }
-  
+
   /// Requête DELETE
   Future<Map<String, dynamic>> delete(
     String endpoint, {
+    Map<String, String>? queryParams,
     bool requiresAuth = true,
   }) async {
-    final headers = await _getHeaders(requiresAuth: requiresAuth, includeDeviceId: requiresAuth);
-    
-    final uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    final headers = await _getHeaders(
+      requiresAuth: requiresAuth,
+      includeDeviceId: requiresAuth,
+    );
+
+    var uri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+    if (queryParams != null && queryParams.isNotEmpty) {
+      uri = uri.replace(queryParameters: queryParams);
+    }
     final response = await _wrapNetwork(
       () => _client.delete(uri, headers: headers).timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      ),
+            const Duration(milliseconds: AppConfig.requestTimeout),
+          ),
       url: uri.toString(),
     );
 
     if (response.statusCode == 401 && requiresAuth) {
       final retryResponse = await _handle401AndRetry(
-        () async => _client.delete(
-          uri,
-          headers: await _getHeaders(requiresAuth: true, includeDeviceId: true),
-        ).timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
+        () async {
+          var retryUri = Uri.parse('${AppConfig.baseUrl}$endpoint');
+          if (queryParams != null && queryParams.isNotEmpty) {
+            retryUri = retryUri.replace(queryParameters: queryParams);
+          }
+          return _client
+              .delete(
+                retryUri,
+                headers: await _getHeaders(
+                  requiresAuth: true,
+                  includeDeviceId: true,
+                ),
+              )
+              .timeout(const Duration(milliseconds: AppConfig.requestTimeout));
+        },
       );
       if (retryResponse != null) return _handleResponse(retryResponse);
     }
-    
+
     return _handleResponse(response);
   }
-  
+
   /// Upload multipart (fichier) — avec refresh 401
   Future<Map<String, dynamic>> uploadMultipart(
     String endpoint, {
@@ -375,7 +426,9 @@ class ApiService {
       }
       request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
       final streamed = await _wrapNetwork(
-        () => request.send().timeout(Duration(milliseconds: AppConfig.requestTimeout)),
+        () => request
+            .send()
+            .timeout(const Duration(milliseconds: AppConfig.requestTimeout)),
         url: uri.toString(),
       );
       return http.Response.fromStream(streamed);
@@ -388,11 +441,11 @@ class ApiService {
     }
     return _handleResponse(response);
   }
-  
+
   // ========================================
   // REFRESH TOKEN — Silent retry
   // ========================================
-  
+
   /// Gère le refresh token automatique sur 401
   Future<http.Response?> _handle401AndRetry(
     Future<http.Response> Function() retryRequest,
@@ -405,10 +458,10 @@ class ApiService {
       // Retry avec le nouveau token
       return retryRequest();
     }
-    
+
     _isRefreshing = true;
     _refreshCompleter = Completer<bool>();
-    
+
     try {
       final refreshToken = await getRefreshToken();
       if (refreshToken == null) {
@@ -416,39 +469,41 @@ class ApiService {
         _refreshCompleter!.complete(false);
         return null;
       }
-      
+
       final deviceId = await getDeviceId();
-      
+
       // Appeler l'endpoint de refresh
-      final response = await _client.post(
-        Uri.parse('${AppConfig.baseUrl}${ApiEndpoints.refreshToken}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'refresh_token': refreshToken,
-          'device_id': deviceId,
-        }),
-      ).timeout(
-        const Duration(milliseconds: AppConfig.requestTimeout),
-      );
-      
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.baseUrl}${ApiEndpoints.refreshToken}'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'refresh_token': refreshToken,
+              'device_id': deviceId,
+            }),
+          )
+          .timeout(
+            const Duration(milliseconds: AppConfig.requestTimeout),
+          );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final responseData = data['data'] as Map<String, dynamic>;
-        
+
         final newAccessToken = responseData['access_token'] as String;
         final newRefreshToken = responseData['refresh_token'] as String;
-        
+
         // Sauvegarder les nouveaux tokens
         await saveTokens(
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
         );
-        
+
         _refreshCompleter!.complete(true);
-        
+
         // Retry la requête originale avec le nouveau token
         return retryRequest();
       } else {
@@ -465,11 +520,11 @@ class ApiService {
       _refreshCompleter = null;
     }
   }
-  
+
   // ========================================
   // RÉPONSE — Traitement
   // ========================================
-  
+
   /// Traite la réponse HTTP et lève une [ApiException] typée en cas d'erreur.
   ///
   /// Gestion des codes statut :
@@ -491,13 +546,21 @@ class ApiService {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return {'data': null};
         }
-        throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+        throw _errorFromStatus(
+          response.statusCode,
+          null,
+          url: response.request?.url.toString(),
+        );
       }
       if (decoded is! Map<String, dynamic>) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return {'data': decoded};
         }
-        throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+        throw _errorFromStatus(
+          response.statusCode,
+          null,
+          url: response.request?.url.toString(),
+        );
       }
       data = decoded;
     } catch (e) {
@@ -507,7 +570,11 @@ class ApiService {
         return {'data': response.body};
       }
       // Erreur serveur sans body JSON
-      throw _errorFromStatus(response.statusCode, null, url: response.request?.url.toString());
+      throw _errorFromStatus(
+        response.statusCode,
+        null,
+        url: response.request?.url.toString(),
+      );
     }
 
     // Succès
@@ -523,14 +590,21 @@ class ApiService {
 
     String message;
     if (error is Map) {
-      message = (error['message'] as String?) ?? _defaultMessageForStatus(response.statusCode);
+      message = (error['message'] as String?) ??
+          _defaultMessageForStatus(response.statusCode);
     } else if (error is String) {
       message = error;
     } else {
       message = _defaultMessageForStatus(response.statusCode);
     }
 
-    throw _errorFromStatus(response.statusCode, message, url: url, errorCode: errorCode, details: details);
+    throw _errorFromStatus(
+      response.statusCode,
+      message,
+      url: url,
+      errorCode: errorCode,
+      details: details,
+    );
   }
 
   /// Crée une [ApiException] appropriée selon le code statut HTTP.
@@ -545,23 +619,53 @@ class ApiService {
 
     switch (statusCode) {
       case 400:
-        return ApiException.badRequest(msg, errorCode: errorCode, details: details, url: url);
+        return ApiException.badRequest(
+          msg,
+          errorCode: errorCode,
+          details: details,
+          url: url,
+        );
       case 401:
-        return ApiException.unauthorized(message: msg, errorCode: errorCode, url: url);
+        return ApiException.unauthorized(
+          message: msg,
+          errorCode: errorCode,
+          url: url,
+        );
       case 403:
         return ApiException.forbidden(msg, url: url);
       case 404:
         return ApiException.notFound(msg, url: url);
       case 409:
-        return ApiException.conflict(msg, errorCode: errorCode, details: details, url: url);
+        return ApiException.conflict(
+          msg,
+          errorCode: errorCode,
+          details: details,
+          url: url,
+        );
       case 422:
         return ApiException.validation(msg, details: details, url: url);
       case 429:
-        return ApiException.rateLimited(message: msg, errorCode: errorCode, details: details, url: url);
+        return ApiException.rateLimited(
+          message: msg,
+          errorCode: errorCode,
+          details: details,
+          url: url,
+        );
       case >= 500:
-        return ApiException.serverError(message: msg, errorCode: errorCode, details: details, url: url);
+        return ApiException.serverError(
+          message: msg,
+          errorCode: errorCode,
+          details: details,
+          url: url,
+        );
       default:
-        return ApiException(statusCode: statusCode, message: msg, errorCode: errorCode, details: details, requestUrl: url);
+        return ApiException(
+          statusCode: statusCode,
+          message: msg,
+          errorCode: errorCode,
+          details: details,
+          requestUrl: url,
+        );
     }
   }
 
@@ -591,7 +695,7 @@ class ApiService {
         return 'Erreur inattendue (code $status).';
     }
   }
-  
+
   /// Libère les ressources
   void dispose() {
     _sessionExpiredController.close();

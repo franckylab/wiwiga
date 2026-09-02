@@ -130,7 +130,8 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                           decoration: BoxDecoration(
                             color: NeonColors.success,
                             shape: BoxShape.circle,
-                            border: Border.all(color: NeonColors.surface, width: 2),
+                            border:
+                                Border.all(color: NeonColors.surface, width: 2),
                           ),
                         ),
                       ),
@@ -154,7 +155,9 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                       Text(
                         widget.friend.isInGame
                             ? 'En partie'
-                            : (widget.friend.isOnline ? 'En ligne' : 'Hors ligne'),
+                            : (widget.friend.isOnline
+                                ? 'En ligne'
+                                : 'Hors ligne'),
                         style: TextStyle(
                           color: widget.friend.isInGame
                               ? NeonColors.warning
@@ -168,7 +171,12 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     ],
                   ),
                 ),
-                const TokenCoin(size: 28, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                const TokenCoin(
+                  size: 28,
+                  metal: TokenMetal.gold,
+                  lod: TokenLod.bevel,
+                  showShadow: false,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -181,17 +189,33 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Solde disponible',
-                            style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 12)),
+                        const Text(
+                          'Solde disponible',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                          ),
+                        ),
                         Row(
                           children: [
                             Text(
                               _fmt(balance),
                               style: const TextStyle(
-                                  color: NeonColors.success, fontFamily: 'Orbitron', fontWeight: FontWeight.w700, fontSize: 13),
+                                color: NeonColors.success,
+                                fontFamily: 'Orbitron',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
                             const SizedBox(width: 4),
-                            const Text('wiga', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+                            const Text(
+                              'wiga',
+                              style: TextStyle(
+                                color: NeonColors.textSecondary,
+                                fontSize: 10,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -200,10 +224,22 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Limite cadeau / jour',
-                            style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 12)),
-                        Text('${_fmt(dailyGiftLimit)} wiga',
-                            style: const TextStyle(color: NeonColors.primary, fontFamily: 'Inter', fontSize: 12)),
+                        const Text(
+                          'Limite cadeau / jour',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          '${_fmt(dailyGiftLimit)} wiga',
+                          style: const TextStyle(
+                            color: NeonColors.primary,
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                     if (giftFeePercent > 0) ...[
@@ -211,10 +247,22 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Frais cadeau',
-                              style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 12)),
-                          Text('${giftFeePercent.toStringAsFixed(1)} %  •  ~${_fmt(feePreview)} wiga',
-                              style: const TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 11)),
+                          const Text(
+                            'Frais cadeau',
+                            style: TextStyle(
+                              color: NeonColors.textSecondary,
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            '${giftFeePercent.toStringAsFixed(1)} %  •  ~${_fmt(feePreview)} wiga',
+                            style: const TextStyle(
+                              color: NeonColors.textSecondary,
+                              fontFamily: 'Inter',
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -230,13 +278,16 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('MONTANT EN WIGA',
-                        style: TextStyle(
-                            color: NeonColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            letterSpacing: 0.8)),
+                    const Text(
+                      'MONTANT EN WIGA',
+                      style: TextStyle(
+                        color: NeonColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     NeonInput(
                       label: 'Nombre de wiga',
@@ -244,21 +295,25 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                       keyboardType: TextInputType.number,
                       icon: Icons.monetization_on,
                       controller: _amountCtrl,
-                      onChanged: (v) => setState(() => _selectedAmount = int.tryParse(v) ?? 0),
+                      onChanged: (v) => setState(
+                        () => _selectedAmount = int.tryParse(v) ?? 0,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: _quickAmounts
-                          .map((a) => _QuickAmountButton(
-                                amount: a,
-                                isSelected: _selectedAmount == a,
-                                onTap: () {
-                                  _amountCtrl.text = a.toString();
-                                  setState(() => _selectedAmount = a);
-                                },
-                              ))
+                          .map(
+                            (a) => _QuickAmountButton(
+                              amount: a,
+                              isSelected: _selectedAmount == a,
+                              onTap: () {
+                                _amountCtrl.text = a.toString();
+                                setState(() => _selectedAmount = a);
+                              },
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(height: 8),
@@ -272,25 +327,48 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                         ),
                         child: Row(
                           children: [
-                            const TokenCoin(size: 20, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
+                            const TokenCoin(
+                              size: 20,
+                              metal: TokenMetal.emerald,
+                              lod: TokenLod.flat,
+                              showShadow: false,
+                              withW: true,
+                            ),
                             const SizedBox(width: 8),
-                            const Text('Après envoi :',
-                                style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 12)),
+                            const Text(
+                              'Après envoi :',
+                              style: TextStyle(
+                                color: NeonColors.textSecondary,
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                              ),
+                            ),
                             const Spacer(),
-                            Text('${_fmt(afterBalance)} wiga',
-                                style: TextStyle(
-                                    color: afterBalance < 0 ? NeonColors.error : NeonColors.textPrimary,
-                                    fontFamily: 'Orbitron',
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13)),
+                            Text(
+                              '${_fmt(afterBalance)} wiga',
+                              style: TextStyle(
+                                color: afterBalance < 0
+                                    ? NeonColors.error
+                                    : NeonColors.textPrimary,
+                                fontFamily: 'Orbitron',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     if (_selectedAmount > balance)
                       const Padding(
                         padding: EdgeInsets.only(top: 6),
-                        child: Text('Solde insuffisant',
-                            style: TextStyle(color: NeonColors.error, fontFamily: 'Inter', fontSize: 12)),
+                        child: Text(
+                          'Solde insuffisant',
+                          style: TextStyle(
+                            color: NeonColors.error,
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -304,13 +382,16 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('MESSAGE (OPTIONNEL)',
-                        style: TextStyle(
-                            color: NeonColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            letterSpacing: 0.8)),
+                    const Text(
+                      'MESSAGE (OPTIONNEL)',
+                      style: TextStyle(
+                        color: NeonColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     NeonInput(
                       label: 'Message',
@@ -323,13 +404,16 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     ),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text('${_messageCtrl.text.length}/$_maxMessageLen',
-                          style: TextStyle(
-                              color: _messageCtrl.text.length > _maxMessageLen
-                                  ? NeonColors.error
-                                  : NeonColors.textSecondary,
-                              fontSize: 11,
-                              fontFamily: 'Inter')),
+                      child: Text(
+                        '${_messageCtrl.text.length}/$_maxMessageLen',
+                        style: TextStyle(
+                          color: _messageCtrl.text.length > _maxMessageLen
+                              ? NeonColors.error
+                              : NeonColors.textSecondary,
+                          fontSize: 11,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -342,7 +426,8 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
               decoration: BoxDecoration(
                 color: NeonColors.info.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: NeonColors.info.withValues(alpha: 0.2)),
+                border:
+                    Border.all(color: NeonColors.info.withValues(alpha: 0.2)),
               ),
               child: const Row(
                 children: [
@@ -351,7 +436,11 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                   Expanded(
                     child: Text(
                       'Les cadeaux sont réservés à tes amis. Pense à entretenir ton réseau !',
-                      style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter', fontSize: 11),
+                      style: TextStyle(
+                        color: NeonColors.textSecondary,
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 ],
@@ -365,12 +454,20 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
               variant: NeonButtonVariant.success,
               width: double.infinity,
               isEnabled: isValid && !_sending && tokenState.giftEnabled,
-              onPressed: isValid && !_sending ? () => _sendGift(context) : () {},
+              onPressed:
+                  isValid && !_sending ? () => _sendGift(context) : () {},
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-              child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
+              onPressed:
+                  _sending ? null : () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(
+                  color: NeonColors.textSecondary,
+                  fontFamily: 'Inter',
+                ),
+              ),
             ),
             if (!tokenState.giftEnabled)
               Container(
@@ -385,8 +482,14 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     Icon(Icons.block, size: 16, color: NeonColors.error),
                     SizedBox(width: 8),
                     Expanded(
-                      child: Text('Les cadeaux sont temporairement désactivés par l’administration.',
-                          style: TextStyle(color: NeonColors.error, fontFamily: 'Inter', fontSize: 12)),
+                      child: Text(
+                        'Les cadeaux sont temporairement désactivés par l’administration.',
+                        style: TextStyle(
+                          color: NeonColors.error,
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -397,7 +500,10 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
     );
   }
 
-  String _fmt(int n) => n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ');
+  String _fmt(int n) => n.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]} ',
+      );
 
   Future<void> _sendGift(BuildContext context) async {
     final amount = _selectedAmount;
@@ -410,15 +516,36 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: NeonColors.surface,
-          title: const Text('Confirmer le cadeau', style: TextStyle(color: NeonColors.textPrimary, fontFamily: 'Orbitron')),
-          content: Text('Envoyer ${_fmt(amount)} wiga à ${widget.friend.name} ?\n\nSolde après : ${_fmt(ref.read(tokenProvider).tokenBalance - amount)} wiga',
-              style: const TextStyle(color: NeonColors.textSecondary, fontFamily: 'Inter')),
+          title: const Text(
+            'Confirmer le cadeau',
+            style: TextStyle(
+              color: NeonColors.textPrimary,
+              fontFamily: 'Orbitron',
+            ),
+          ),
+          content: Text(
+            'Envoyer ${_fmt(amount)} wiga à ${widget.friend.name} ?\n\nSolde après : ${_fmt(ref.read(tokenProvider).tokenBalance - amount)} wiga',
+            style: const TextStyle(
+              color: NeonColors.textSecondary,
+              fontFamily: 'Inter',
+            ),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(color: NeonColors.textSecondary),
+              ),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.success),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: NeonColors.success),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Confirmer', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Confirmer',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -428,16 +555,28 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
 
     setState(() => _sending = true);
     try {
-      await ref.read(tokenProvider.notifier).sendGift(widget.friend.id.toString(), amount, message: msg);
+      await ref
+          .read(tokenProvider.notifier)
+          .sendGift(widget.friend.id.toString(), amount, message: msg);
       final after = ref.read(tokenProvider);
       if (!context.mounted) return;
       if (after.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(after.error!), backgroundColor: NeonColors.error));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(after.error!),
+            backgroundColor: NeonColors.error,
+          ),
+        );
         setState(() => _sending = false);
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cadeau de ${_fmt(amount)} wiga envoyé à ${widget.friend.name} !'), backgroundColor: NeonColors.success),
+        SnackBar(
+          content: Text(
+            'Cadeau de ${_fmt(amount)} wiga envoyé à ${widget.friend.name} !',
+          ),
+          backgroundColor: NeonColors.success,
+        ),
       );
       if (context.mounted) Navigator.of(context).pop(true);
     } catch (e, st) {
@@ -452,7 +591,11 @@ class _QuickAmountButton extends StatelessWidget {
   final int amount;
   final bool isSelected;
   final VoidCallback onTap;
-  const _QuickAmountButton({required this.amount, required this.isSelected, required this.onTap});
+  const _QuickAmountButton({
+    required this.amount,
+    required this.isSelected,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -460,12 +603,19 @@ class _QuickAmountButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? NeonColors.primary.withValues(alpha: 0.2) : NeonColors.surface,
+          color: isSelected
+              ? NeonColors.primary.withValues(alpha: 0.2)
+              : NeonColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? NeonColors.primary : NeonColors.border),
+          border: Border.all(
+            color: isSelected ? NeonColors.primary : NeonColors.border,
+          ),
         ),
         child: Text(
-          amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} '),
+          amount.toString().replaceAllMapped(
+                RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                (m) => '${m[1]} ',
+              ),
           style: TextStyle(
             color: isSelected ? NeonColors.primary : NeonColors.textPrimary,
             fontFamily: 'Orbitron',

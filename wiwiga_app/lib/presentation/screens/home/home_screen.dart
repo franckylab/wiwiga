@@ -47,8 +47,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final walletState = ref.watch(walletProvider);
     final catalogAsync = ref.watch(gamesCatalogProvider);
     final activityAsync = ref.watch(gameActivityProvider('dice'));
-    final weeklyPodiumAsync = ref.watch(gameLeaderboardProvider(
-        (gameType: 'dice', metric: 'wins', period: 'week'),),);
+    final weeklyPodiumAsync = ref.watch(
+      gameLeaderboardProvider(
+        (gameType: 'dice', metric: 'wins', period: 'week'),
+      ),
+    );
     final myStatsAsync = ref.watch(myGameStatsProvider('dice'));
 
     final isGuest = authState.isGuest || authState.isUnknown;
@@ -62,8 +65,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onRefresh: () async {
           ref.invalidate(gamesCatalogProvider);
           ref.invalidate(gameActivityProvider('dice'));
-          ref.invalidate(gameLeaderboardProvider(
-              (gameType: 'dice', metric: 'wins', period: 'week'),),);
+          ref.invalidate(
+            gameLeaderboardProvider(
+              (gameType: 'dice', metric: 'wins', period: 'week'),
+            ),
+          );
           if (!isGuest) {
             ref.invalidate(myGameStatsProvider('dice'));
             await ref.read(walletProvider.notifier).loadBalance();
@@ -84,12 +90,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 20),
             _buildShortcuts(isGuest),
             const SizedBox(height: 20),
-            if (!isGuest) ...[  
+            if (!isGuest) ...[
               _buildMyStats(myStatsAsync),
               const SizedBox(height: 20),
             ],
-            _buildSectionTitle('Activité de la communauté',
-                Icons.local_fire_department,),
+            _buildSectionTitle(
+              'Activité de la communauté',
+              Icons.local_fire_department,
+            ),
             const SizedBox(height: 8),
             activityAsync.when(
               data: (events) => _buildCommunityFeed(events),
@@ -135,9 +143,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ? 'Connectez-vous pour jouer et gagner !'
                       : 'Prêt à défier la communauté ?',
                   style: const TextStyle(
-                      fontSize: 13, color: NeonColors.textSecondary,),
+                    fontSize: 13,
+                    color: NeonColors.textSecondary,
+                  ),
                 ),
-                if (isGuest) ...[  
+                if (isGuest) ...[
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: () {
@@ -145,7 +155,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       context.go('/auth');
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         gradient: NeonGradients.cta,
                         borderRadius: BorderRadius.circular(8),
@@ -191,8 +204,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.campaign_outlined,
-              size: 32, color: NeonColors.background,),
+          const Icon(
+            Icons.campaign_outlined,
+            size: 32,
+            color: NeonColors.background,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -248,8 +264,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               shape: BoxShape.circle,
               gradient: NeonGradients.cta,
             ),
-            child: const Icon(Icons.casino_outlined,
-                size: 32, color: NeonColors.background,),
+            child: const Icon(
+              Icons.casino_outlined,
+              size: 32,
+              color: NeonColors.background,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -280,10 +299,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Text(
                       '${game.playersOnline} joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
-                      style: const TextStyle(fontSize: 12, color: NeonColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: NeonColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(width: 3),
-                    TokenCoin(size: 14, metal: TokenMetal.emerald, lod: TokenLod.flat, showShadow: false, withW: true),
+                    const TokenCoin(
+                      size: 14,
+                      metal: TokenMetal.emerald,
+                      lod: TokenLod.flat,
+                      showShadow: false,
+                      withW: true,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -295,8 +323,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     width: 130,
                     height: 38,
                     fontSize: 13,
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   ),
                 ),
               ],
@@ -309,10 +336,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildShortcuts(bool isGuest) {
     final shortcuts = [
-      ('Acheter', Icons.shopping_cart_outlined, NeonColors.success, '/tokens', true),
+      (
+        'Acheter',
+        Icons.shopping_cart_outlined,
+        NeonColors.success,
+        '/tokens',
+        true
+      ),
       ('Amis', Icons.people_outline, NeonColors.accent, '/friends', true),
-      ('Classement', Icons.emoji_events_outlined, NeonColors.secondary,
-          '/leaderboard', false),
+      (
+        'Classement',
+        Icons.emoji_events_outlined,
+        NeonColors.secondary,
+        '/leaderboard',
+        false
+      ),
     ];
 
     return Row(
@@ -330,7 +368,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                     child: Column(
                       children: [
-                        Icon(icon, color: color.withValues(alpha: 0.5), size: 26),
+                        Icon(
+                          icon,
+                          color: color.withValues(alpha: 0.5),
+                          size: 26,
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           label,
@@ -391,8 +433,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.insights_outlined,
-                  size: 18, color: NeonColors.accent,),
+              Icon(
+                Icons.insights_outlined,
+                size: 18,
+                color: NeonColors.accent,
+              ),
               SizedBox(width: 8),
               Text(
                 'Mes dernières performances',
@@ -439,8 +484,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary),),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: NeonColors.textSecondary),
+        ),
       ],
     );
   }
@@ -463,8 +510,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _mutedText(String text) {
-    return Text(text,
-        style: const TextStyle(color: NeonColors.textMuted, fontSize: 13),);
+    return Text(
+      text,
+      style: const TextStyle(color: NeonColors.textMuted, fontSize: 13),
+    );
   }
 
   Widget _buildCommunityFeed(List<GameActivityEvent> events) {
@@ -479,7 +528,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 7),
             child: Row(
               children: [
-                TokenCoin(size: 18, metal: TokenMetal.gold, lod: TokenLod.bevel, showShadow: false),
+                const TokenCoin(
+                  size: 18,
+                  metal: TokenMetal.gold,
+                  lod: TokenLod.bevel,
+                  showShadow: false,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Row(
@@ -489,15 +543,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           '${event.name} a gagné ',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13, color: NeonColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: NeonColors.textPrimary,
+                          ),
                         ),
                       ),
                       Text(
                         _homeAmountFormat.format(event.amount),
-                        style: const TextStyle(fontSize: 13, color: NeonColors.tokenGold, fontFamily: 'Orbitron', fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: NeonColors.tokenGold,
+                          fontFamily: 'Orbitron',
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(width: 3),
-                      TokenCoin(size: 12, metal: TokenMetal.gold, lod: TokenLod.flat, showShadow: false),
+                      const TokenCoin(
+                        size: 12,
+                        metal: TokenMetal.gold,
+                        lod: TokenLod.flat,
+                        showShadow: false,
+                      ),
                     ],
                   ),
                 ),
@@ -550,7 +617,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 Text(
                   '${entry.value} victoires',
-                  style: const TextStyle(fontSize: 12, color: NeonColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: NeonColors.textSecondary,
+                  ),
                 ),
               ],
             ),
