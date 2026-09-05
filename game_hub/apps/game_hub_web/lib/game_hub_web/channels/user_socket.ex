@@ -15,12 +15,13 @@ defmodule GameHubWeb.UserSocket do
   channel "room:*", GameHubWeb.RoomChannel
   channel "friend:*", GameHubWeb.FriendChannel
   channel "user:*", GameHubWeb.UserChannel
+  channel "online:*", GameHubWeb.OnlineChannel
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
     case GameHub.Guardian.resource_from_token(token) do
       {:ok, user, _claims} ->
-        socket = assign(socket, :user_id, user.id)
+        socket = socket |> assign(:user_id, to_string(user.id)) |> assign(:current_user, user)
         {:ok, socket}
 
       {:error, _reason} ->

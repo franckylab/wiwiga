@@ -10,12 +10,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../data/providers/responsible_gaming_provider.dart';
 import '../../providers/config_provider.dart';
 
 /// Overlay de contrôle de réalité (jeu responsable).
 /// À placer dans le widget tree des écrans de jeu.
-/// Utilise l'intervalle configuré par l'admin via FeatureConfig.
+/// Intervalle = préférence personnelle (`reality_check_interval_minutes`),
+/// repli config globale admin (30 min par défaut). Affiche le temps écoulé
+/// et le prochain rappel ; "Faire une pause" quitte vers l'accueil.
 class RealityCheckOverlay extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -34,6 +38,12 @@ class _RealityCheckOverlayState extends ConsumerState<RealityCheckOverlay> {
   void initState() {
     super.initState();
     _sessionStart = DateTime.now();
+    // Charger la préférence personnelle (repli silencieux si indisponible).
+    Future.microtask(() {
+      try {
+        ref.read(responsibleGamingProvider.notifier).loadLimits();
+      } catch (_) {}
+    });
     _startPeriodicCheck();
   }
 
@@ -43,29 +53,39 @@ class _RealityCheckOverlayState extends ConsumerState<RealityCheckOverlay> {
     super.dispose();
   }
 
+  /// Intervalle effectif en minutes : préférence perso, sinon globale admin.
+  /// Borné à >= 1 minute (évite le dialogue en boucle).
+  int _effectiveIntervalMinutes() {
+    final personal =
+        ref.read(responsibleGamingProvider).realityCheckIntervalMinutes;
+    if (personal != null && personal > 0) return personal;
+
+    final globalMs = ref.read(featureConfigProvider).when(
+          data: (c) => c.realityCheckIntervalMs,
+          loading: () => 1800000, // 30 min par défaut
+          error: (_, __) => 1800000,
+        );
+    final fromGlobal = (globalMs / 60000).round();
+    return fromGlobal >= 1 ? fromGlobal : 30;
+  }
+
   void _startPeriodicCheck() {
     // Vérifier toutes les 60s si un rappel est nécessaire
     _checkTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (!mounted || _sessionStart == null) return;
 
-      final intervalMs = ref.read(featureConfigProvider).when(
-        data: (c) => c.realityCheckIntervalMs,
-        loading: () => 1800000, // 30 min par défaut
-        error: (_, __) => 1800000,
-      );
-
-      final intervalMinutes = (intervalMs / 60000).round();
+      final intervalMinutes = _effectiveIntervalMinutes();
       final elapsedMinutes = DateTime.now().difference(_sessionStart!).inMinutes;
 
       // Afficher le rappel si l'intervalle est atteint
       if (elapsedMinutes >= _lastCheckMinutes + intervalMinutes && elapsedMinutes > 0) {
         _lastCheckMinutes = elapsedMinutes;
-        _showRealityCheckDialog(elapsedMinutes);
+        _showRealityCheckDialog(elapsedMinutes, intervalMinutes);
       }
     });
   }
 
-  void _showRealityCheckDialog(int elapsedMinutes) {
+  void _showRealityCheckDialog(int elapsedMinutes, int intervalMinutes) {
     final hours = elapsedMinutes ~/ 60;
     final minutes = elapsedMinutes % 60;
     final durationStr = hours > 0
@@ -102,7 +122,15 @@ class _RealityCheckOverlayState extends ConsumerState<RealityCheckOverlay> {
                 fontSize: 16,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            Text(
+              'Prochain rappel dans $intervalMinutes min.',
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 8),
             const Text(
               'Pensez à faire des pauses régulières. Le jeu doit rester un plaisir.',
               style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
@@ -123,7 +151,9 @@ class _RealityCheckOverlayState extends ConsumerState<RealityCheckOverlay> {
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.of(context).pop(); // Quitter l'écran de jeu
+              // Quitter vers l'accueil (la partie continue côté serveur
+              // selon ses règles de forfait — le joueur est informé).
+              if (mounted) context.go('/home');
             },
             icon: const Icon(Icons.logout, size: 16),
             label: const Text('Faire une pause'),

@@ -582,11 +582,19 @@ class ApiService {
       return data;
     }
 
-    // Erreur : extraire le message et le code depuis la réponse
+    // Erreur : extraire le message, le code et les détails.
+    // Le backend répond soit {error: {message, code, details}} (Errors.error),
+    // soit {error_code, details} à plat — on lit les deux formes.
     final url = response.request?.url.toString();
     final error = data['error'];
-    final errorCode = data['error_code'] as String?;
-    final details = data['details'] as Map<String, dynamic>?;
+    final Map<String, dynamic>? errorMap =
+        error is Map<String, dynamic> ? error : (error is Map ? Map<String, dynamic>.from(error) : null);
+    final errorCode =
+        (errorMap?['code'] as String?) ?? data['error_code'] as String?;
+    final rawDetails = errorMap?['details'] ?? data['details'];
+    final details = rawDetails is Map<String, dynamic>
+        ? rawDetails
+        : (rawDetails is Map ? Map<String, dynamic>.from(rawDetails) : null);
 
     String message;
     if (error is Map) {
@@ -632,7 +640,15 @@ class ApiService {
           url: url,
         );
       case 403:
-        return ApiException.forbidden(msg, url: url);
+        // Conserve le code/détails (ex: RESPONSIBLE_GAMING_BLOCK + reason)
+        // au lieu de les écraser par FORBIDDEN générique.
+        return ApiException(
+          statusCode: 403,
+          message: msg,
+          errorCode: errorCode ?? 'FORBIDDEN',
+          details: details,
+          requestUrl: url,
+        );
       case 404:
         return ApiException.notFound(msg, url: url);
       case 409:

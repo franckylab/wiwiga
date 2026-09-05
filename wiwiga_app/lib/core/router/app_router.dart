@@ -58,6 +58,7 @@ import '../../presentation/screens/legal/legal_screen.dart';
 import '../../presentation/screens/main/main_shell_screen.dart';
 import '../../presentation/screens/profile/profile_screen_enhanced.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
+import '../../presentation/screens/responsible_gaming/responsible_gaming_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transaction_history/transaction_history_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen_neon.dart';
@@ -75,6 +76,7 @@ const _protectedRoutes = {
   '/tokens',
   '/wallet',
   '/friends',
+  '/responsible-gaming',
   '/games', // inclut /games/:type/create, /games/:type/lobby, /games/:type/room/* etc.
 };
 
@@ -321,6 +323,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/responsible-gaming/limits',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ResponsibleGamingScreen(),
       ),
       GoRoute(
         path: '/legal/terms',

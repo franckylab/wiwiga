@@ -128,14 +128,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ]),
                   const SizedBox(height: 16),
 
-                  // JEU RESPONSABLE
+                  // JEU RESPONSABLE (hub dédié : limites, pause, exclusion)
                   _buildSection('JEU RESPONSABLE', [
                     _SettingsTile(
                       icon: Icons.monetization_on,
-                      title: 'Limite de perte / jour',
+                      title: 'Limites de jeu',
                       subtitle: ref.watch(responsibleGamingProvider).dailyLossLimitLabel,
                       color: NeonColors.error,
-                      onTap: () => _showLimitDialog(context),
+                      onTap: () => context.push('/responsible-gaming/limits'),
                     ),
                     _SettingsTile(
                       icon: Icons.block,
@@ -144,7 +144,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       color: ref.watch(responsibleGamingProvider).isSelfExcluded
                           ? NeonColors.error
                           : NeonColors.textSecondary,
-                      onTap: () => _showSelfExclusionDialog(context),
+                      onTap: () => context.push('/responsible-gaming/limits'),
                     ),
                   ]),
                   const SizedBox(height: 16),
@@ -533,108 +533,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       },
-    );
-  }
-
-  void _showLimitDialog(BuildContext context) {
-    final currentLimit = ref.read(responsibleGamingProvider).dailyLossLimit;
-    final controller = TextEditingController(
-      text: currentLimit?.toString() ?? '',
-    );
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: NeonColors.surface,
-        title: const Text('Limite de perte quotidienne',
-            style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Définissez un montant maximum de perte par jour (en wiga).',
-              style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16),
-              decoration: InputDecoration(
-                labelText: 'Montant en wiga',
-                labelStyle: const TextStyle(color: NeonColors.textSecondary),
-                prefixIcon: const Icon(Icons.monetization_on, color: NeonColors.warning),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: NeonColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: NeonColors.warning, width: 2),
-                ),
-                filled: true,
-                fillColor: NeonColors.background,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () async {
-              final amount = int.tryParse(controller.text.trim());
-              if (amount != null && amount > 0) {
-                Navigator.pop(ctx);
-                final success = await ref.read(responsibleGamingProvider.notifier).updateLimits({
-                  'daily_loss_limit': amount,
-                });
-                if (context.mounted) {
-                  _showSnackbar(context, success ? 'Limite de perte mise à jour' : 'Erreur lors de la mise à jour');
-                }
-              }
-            },
-            child: const Text('Définir', style: TextStyle(color: NeonColors.warning, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSelfExclusionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: NeonColors.surface,
-        title: const Text('Auto-exclusion',
-            style: TextStyle(color: NeonColors.error, fontSize: 16),),
-        content: const Text(
-          'L\'auto-exclusion vous permet de bloquer l\'accès à votre compte pour une période donnée. Cette action est irréversible pendant la durée choisie.\n\nVoulez-vous continuer ?',
-          style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final success = await ref.read(responsibleGamingProvider.notifier).selfExclude(
-                durationDays: 30,
-                reason: 'Auto-exclusion demandée par le joueur',
-              );
-              if (context.mounted) {
-                _showSnackbar(context, success ? 'Auto-exclusion activée (30 jours)' : 'Erreur lors de l\'auto-exclusion');
-              }
-            },
-            child: const Text('Confirmer', style: TextStyle(color: NeonColors.error, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
     );
   }
 

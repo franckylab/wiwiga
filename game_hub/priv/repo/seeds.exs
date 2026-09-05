@@ -572,6 +572,9 @@ defmodule GameHub.Repo.Seeds do
       {"ranking", "leaderboard_season_days", "30", "integer", "Durée saison", "Durée d'une saison de classement en jours"},
       # Gaming
       {"gaming", "default_daily_loss_limit", "500000", "integer", "Perte quotidienne max", "Limite de perte quotidienne par défaut"},
+      {"gaming", "default_daily_deposit_limit", "1000000", "integer", "Dépôt quotidien max", "Limite de dépôt quotidienne par défaut (jetons)"},
+      {"gaming", "default_daily_wager_limit", "25000", "integer", "Mises quotidiennes max", "Total misé par jour par défaut (jetons)"},
+      {"gaming", "default_daily_matches_limit", "20", "integer", "Parties quotidiennes max", "Participations payantes par jour par défaut"},
       {"gaming", "default_session_time_minutes", "120", "integer", "Durée session max", "Durée max de session de jeu (minutes)"},
       {"gaming", "max_bet_per_round", "1000000", "integer", "Mise max par tour", "Mise maximum par tour de jeu"},
       {"gaming", "reality_check_interval_minutes", "30", "integer", "Intervalle reality check", "Intervalle des rappels de jeu (minutes)"},

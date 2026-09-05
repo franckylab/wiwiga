@@ -496,6 +496,19 @@ class AdminRepository {
     return response['data'] as Map<String, dynamic>? ?? {};
   }
 
+  /// Levée admin d'une auto-exclusion (justification obligatoire, auditée).
+  Future<Map<String, dynamic>> overrideSelfExclusion(
+    String userId,
+    String justification,
+  ) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminResponsibleGamingSelfExclusions}/$userId/override',
+      body: {'justification': justification},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
   // ========================================
   // NOTIFICATIONS
   // ========================================

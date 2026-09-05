@@ -274,13 +274,13 @@ defmodule GameHub.GameRules do
     mode = if rc["sets_mode"] in @sets_modes, do: rc["sets_mode"], else: "fixed"
 
     cond do
-      is_integer(requested) ->
-        {:ok, clamp_int(requested, min, max), mode}
-
       mode == "random" ->
         rmin = to_int(rc["sets_random_min"], min) |> clamp_int(min, max)
         rmax = to_int(rc["sets_random_max"], max) |> clamp_int(rmin, max)
         {:ok, draw_uniform(rmin, rmax), "random"}
+
+      is_integer(requested) ->
+        {:ok, clamp_int(requested, min, max), mode}
 
       true ->
         {:ok, to_int(rc["default_sets"], 3) |> clamp_int(min, max), "fixed"}

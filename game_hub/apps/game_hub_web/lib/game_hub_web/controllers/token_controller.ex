@@ -63,44 +63,62 @@ defmodule GameHubWeb.TokenController do
   """
   def purchase(conn, %{"amount" => amount, "idempotency_key" => key}) do
     user_id = get_current_user_id(conn)
-    
+
     if amount < 100 do
       conn |> put_status(400) |> json(Errors.error("Montant minimum: 1 FCFA (100 centimes)", 400, "AMOUNT_TOO_LOW", %{min: 100}))
     else
-      case Tokens.purchase_tokens(user_id, amount, key) do
-        {:ok, transaction} ->
-          config = TokenConfig.get_config()
-          tokens = TokenConfig.monetary_to_tokens(amount, config)
-          
-          conn |> put_status(201) |> json(%{
-            success: true,
-            data: %{
-              tokens_credited: tokens,
-              monetary_value: amount,
-              exchange_rate: config.exchange_rate,
-              transaction: %{
-                id: transaction.id,
-                type: "purchase",
-                token_amount: transaction.token_amount,
-                balance_after: transaction.balance_after
-              }
-            },
-            meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-          })
-        
-        {:error, :idempotency_key_used} ->
-          conn |> put_status(409) |> json(Errors.error("Transaction déjà effectuée", 409, "IDEMPOTENCY_KEY_USED"))
-        
+      # Jeu responsable : exclusion, pause courte et limite de dépôt
+      # quotidienne avant tout achat (conversion identique à l'achat).
+      purchase_tokens = TokenConfig.monetary_to_tokens(amount)
+
+      case GameHub.ResponsibleGaming.check_deposit(user_id, purchase_tokens) do
         {:error, reason} ->
-          conn |> put_status(400) |> json(Errors.error("Erreur achat jetons", 400, "PURCHASE_FAILED", %{reason: reason}))
+          {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, purchase_tokens)
+
+          conn
+          |> put_status(403)
+          |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+
+        :ok ->
+          do_purchase(conn, user_id, amount, key)
       end
     end
   end
-  
+
   def purchase(conn, _params) do
     conn |> put_status(400) |> json(Errors.error("'amount' et 'idempotency_key' requis", 400, "VALIDATION_ERROR"))
   end
-  
+
+  defp do_purchase(conn, user_id, amount, key) do
+    case Tokens.purchase_tokens(user_id, amount, key) do
+      {:ok, transaction} ->
+        config = TokenConfig.get_config()
+        tokens = TokenConfig.monetary_to_tokens(amount, config)
+
+        conn |> put_status(201) |> json(%{
+          success: true,
+          data: %{
+            tokens_credited: tokens,
+            monetary_value: amount,
+            exchange_rate: config.exchange_rate,
+            transaction: %{
+              id: transaction.id,
+              type: "purchase",
+              token_amount: transaction.token_amount,
+              balance_after: transaction.balance_after
+            }
+          },
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+
+      {:error, :idempotency_key_used} ->
+        conn |> put_status(409) |> json(Errors.error("Transaction déjà effectuée", 409, "IDEMPOTENCY_KEY_USED"))
+
+      {:error, reason} ->
+        conn |> put_status(400) |> json(Errors.error("Erreur achat jetons", 400, "PURCHASE_FAILED", %{reason: reason}))
+    end
+  end
+
   # Échange et transfert supprimés définitivement.
   # POST /api/tokens/exchange et POST /api/tokens/transfer retirés du router.
   # Seuls POST /api/tokens/purchase, /gift (+ promos) restent.

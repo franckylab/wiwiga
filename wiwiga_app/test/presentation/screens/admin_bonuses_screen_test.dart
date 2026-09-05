@@ -14,14 +14,14 @@ void main() {
       expect(find.byType(AdminBonusesScreen), findsOneWidget);
     });
 
-    testWidgets('affiche le titre Bonus & Promotions', (tester) async {
+    testWidgets('affiche le titre Bonus et Promotions', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(home: AdminBonusesScreen()),
         ),
       );
       await tester.pump();
-      expect(find.text('Bonus & Promotions'), findsOneWidget);
+      expect(find.text('Bonus et Promotions'), findsOneWidget);
     });
 
     testWidgets('a un bouton créer', (tester) async {

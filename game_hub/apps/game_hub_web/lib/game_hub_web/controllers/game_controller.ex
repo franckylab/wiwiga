@@ -58,12 +58,13 @@ defmodule GameHubWeb.GameController do
       }
     end)
     
+    total_online = get_total_online()
     conn
     |> put_status(200)
     |> json(%{
       success: true,
       data: games,
-      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601(), total_online: total_online}
     })
   end
   
@@ -412,14 +413,27 @@ defmodule GameHubWeb.GameController do
     if is_nil(bet_amount) do
       conn |> put_status(400) |> json(Errors.error("bet_amount requis", 400, "VALIDATION_ERROR"))
     else
-      case Matchmaking.toggle_quick_ready(user_id, game_id, rule_type, bet_amount) do
-        {:ok, :matched, game_id_matched, lobby} ->
-          conn |> put_status(200) |> json(%{success: true, data: %{status: "matched", game_id: game_id_matched, lobby: serialize_lobby(lobby)}, meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
-        {:ok, lobby} ->
-          conn |> put_status(200) |> json(%{success: true, data: serialize_lobby(lobby), meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+      # Jeu responsable : un joueur exclu/en pause ne confirme pas un départ
+      # (la mise débitée au join reste remboursée via leave_queue).
+      case GameHub.ResponsibleGaming.check_playable(user_id) do
         {:error, reason} ->
-          conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "LOBBY_ERROR"))
+          {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, bet_amount)
+          conn |> put_status(403) |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+
+        :ok ->
+          do_toggle_quick_ready(conn, user_id, game_id, rule_type, bet_amount)
       end
+    end
+  end
+
+  defp do_toggle_quick_ready(conn, user_id, game_id, rule_type, bet_amount) do
+    case Matchmaking.toggle_quick_ready(user_id, game_id, rule_type, bet_amount) do
+      {:ok, :matched, game_id_matched, lobby} ->
+        conn |> put_status(200) |> json(%{success: true, data: %{status: "matched", game_id: game_id_matched, lobby: serialize_lobby(lobby)}, meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+      {:ok, lobby} ->
+        conn |> put_status(200) |> json(%{success: true, data: serialize_lobby(lobby), meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}})
+      {:error, reason} ->
+        conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "LOBBY_ERROR"))
     end
   end
 
@@ -659,13 +673,14 @@ defmodule GameHubWeb.GameController do
 
   defp sanitize_set(set) when is_map(set) do
     rolls = Map.get(set, :rolls, %{}) || %{}
-    sums = Map.new(rolls, fn {pid, roll} ->
-      sum = case roll do
-        %{sum: s} when is_integer(s) -> s
-        %{dice: dice} when is_list(dice) -> Enum.sum(dice)
-        _ -> 0
+    {sums, dice} = Enum.reduce(rolls, {%{}, %{}}, fn {pid, roll}, {sums, dice} ->
+      {sum, faces} = case roll do
+        %{sum: s, dice: d} when is_integer(s) and is_list(d) -> {s, d}
+        %{dice: d} when is_list(d) -> {Enum.sum(d), d}
+        %{sum: s} when is_integer(s) -> {s, []}
+        _ -> {0, []}
       end
-      {to_string(pid), sum}
+      {Map.put(sums, to_string(pid), sum), Map.put(dice, to_string(pid), faces)}
     end)
     {winner_id, result} = case Map.get(set, :winner_id) do
       nil -> case Map.get(set, :result) do
@@ -674,7 +689,7 @@ defmodule GameHubWeb.GameController do
       end
       id -> {to_string(id), "winner"}
     end
-    %{set_number: Map.get(set, :set_number), winner_id: winner_id, result: result, sums: sums, target_value: Map.get(set, :target_value)}
+    %{set_number: Map.get(set, :set_number), winner_id: winner_id, result: result, sums: sums, dice: dice, target_value: Map.get(set, :target_value)}
   end
 
   defp payout_summary(match) do
@@ -903,53 +918,27 @@ defmodule GameHubWeb.GameController do
   defp sanitize_set_result(other), do: %{result: inspect(other)}
 
   defp get_players_online(game_type) do
-    {:ok, c1} = Redix.command(GameHub.Redis, ["HLEN", "queue:#{game_type}:normal"])
-    {:ok, c2} = Redix.command(GameHub.Redis, ["HLEN", "queue:#{game_type}:cible"])
-    c1 + c2
+    GameHub.Presence.count_game_online(game_type)
   rescue
     _ -> 0
+  catch
+    _, _ -> 0
+  end
+
+  defp get_total_online do
+    GameHub.Presence.count_online()
+  rescue
+    _ -> 0
+  catch
+    _, _ -> 0
   end
   
   defp get_tips_items(%{tips: %{"items" => items}}) when is_list(items), do: items
   defp get_tips_items(_config), do: []
 
-  # Messages humains pour jeu responsable (évite "daily_limit_reached" brut)
+  # Messages humains pour jeu responsable — source unique
+  # ResponsibleGaming.block_message/3 (le frontend exploite details.reason).
   defp responsible_gaming_message(reason, user_id, bet_amount) do
-    case reason do
-      :self_excluded ->
-        {"Vous êtes en période d'auto-exclusion. Vous ne pouvez pas jouer pour le moment. Contactez le support si besoin.",
-         %{reason: "self_excluded"}}
-
-      :max_bet_exceeded ->
-        max_bet = GameHub.Admin.PlatformConfig.get_int("gaming", "max_bet_per_round", 10_000)
-        {"Mise trop élevée. Maximum autorisé : #{max_bet} wiga.",
-         %{reason: "max_bet_exceeded", max_bet: max_bet, attempted: bet_amount}}
-
-      :daily_limit_reached ->
-        limit = GameHub.Admin.PlatformConfig.get_int("gaming", "default_daily_loss_limit", 5000)
-        # Récupère total du jour pour contexte (best effort)
-        total =
-          try do
-            today = Date.utc_today() |> Date.to_iso8601() |> Kernel.<>("T00:00:00Z") |> DateTime.from_iso8601() |> elem(1)
-            GameHub.Repo.one(
-              from t in GameHub.Tokens.TokenTransaction,
-                where: t.user_id == ^user_id and t.type == "bet" and t.inserted_at >= ^today,
-                select: fragment("COALESCE(SUM(ABS(?)),0)", t.token_amount)
-            ) || 0
-          rescue
-            _ -> 0
-          end
-        {"Limite quotidienne atteinte (#{limit} wiga). Vos mises d'aujourd'hui : #{total} wiga. Revenez demain ou ajustez vos limites dans Profil > Jeu responsable.",
-         %{reason: "daily_limit_reached", limit: limit, total: total, bet_amount: bet_amount}}
-
-      :session_time_exceeded ->
-        limit = GameHub.Admin.PlatformConfig.get_int("gaming", "default_session_time_minutes", 120)
-        {"Temps de session dépassé (#{limit} min). Faites une pause. Votre session sera réinitialisée après une pause.",
-         %{reason: "session_time_exceeded", limit_minutes: limit}}
-
-      other ->
-        {"Jeu responsable : #{inspect(other)}. Vérifiez vos limites dans Profil > Jeu responsable.",
-         %{reason: inspect(other)}}
-    end
+    GameHub.ResponsibleGaming.block_message(reason, user_id, bet_amount)
   end
 end

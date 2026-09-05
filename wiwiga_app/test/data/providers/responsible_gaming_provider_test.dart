@@ -54,9 +54,9 @@ void main() {
       expect(cleared.selfExclusionReason, isNull);
     });
 
-    test('dailyLossLimitLabel avec limite', () {
+    test('dailyLossLimitLabel avec limite (jetons, sans conversion)', () {
       const state = ResponsibleGamingState(dailyLossLimit: 25000);
-      expect(state.dailyLossLimitLabel, '25000 FCFA');
+      expect(state.dailyLossLimitLabel, '25000 jetons');
     });
 
     test('dailyLossLimitLabel sans limite', () {
@@ -89,6 +89,36 @@ void main() {
         selfExclusionUntil: futureDate,
       );
       expect(state.selfExclusionLabel, contains('2027'));
+    });
+
+    test('nouveaux champs par défaut (mise max, parties, cooling, pending)', () {
+      const state = ResponsibleGamingState();
+      expect(state.maxBetAmount, isNull);
+      expect(state.dailyWagerLimit, isNull);
+      expect(state.dailyMatchesLimit, isNull);
+      expect(state.weeklyLossLimit, isNull);
+      expect(state.monthlyLossLimit, isNull);
+      expect(state.coolingOffUntil, isNull);
+      expect(state.isCoolingOff, false);
+      expect(state.hasPendingIncrease, false);
+      expect(state.pendingConfig, isEmpty);
+    });
+
+    test('isCoolingOff détecte une pause active', () {
+      final state = ResponsibleGamingState(
+        coolingOffUntil: DateTime.now().add(const Duration(days: 2)),
+      );
+      expect(state.isCoolingOff, true);
+    });
+
+    test('copyWith conserve les nouveaux champs', () {
+      const state = ResponsibleGamingState(
+        maxBetAmount: 5000,
+        dailyMatchesLimit: 10,
+      );
+      final updated = state.copyWith(dailyMatchesLimit: 20);
+      expect(updated.maxBetAmount, 5000);
+      expect(updated.dailyMatchesLimit, 20);
     });
   });
 }

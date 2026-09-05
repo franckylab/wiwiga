@@ -255,13 +255,23 @@ defmodule GameHub.GameStats do
   end
 
   @doc """
-  Joueurs en ligne pour un jeu (file d'attente Redis).
+  Joueurs en ligne pour un jeu — temps réel via Phoenix Presence.
+  Un joueur est en ligne s'il est connecté et l'app est ouverte (socket + Presence).
   """
   def players_online(game_type) do
-    case Redix.command(GameHub.Redis, ["HLEN", "queue:#{game_type}"]) do
-      {:ok, count} -> count
-      _ -> 0
-    end
+    GameHub.Presence.count_game_online(game_type)
+  rescue
+    _ -> 0
+  catch
+    _, _ -> 0
+  end
+
+  def total_online do
+    GameHub.Presence.count_online()
+  rescue
+    _ -> 0
+  catch
+    _, _ -> 0
   end
 
   @doc """

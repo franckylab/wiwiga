@@ -15,6 +15,7 @@ import '../../../data/models/game_model.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/presence_provider.dart';
 import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -222,6 +223,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   }
 
   Widget _buildHero(GameModel game) {
+    // Temps réel : per-game online via Presence (fallback sur la valeur REST initiale)
+    final realtimeOnline = ref.watch(perGameOnlineProvider(widget.gameType));
+    final displayOnline = realtimeOnline > 0 ? realtimeOnline : game.playersOnline;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: const BoxDecoration(
@@ -278,7 +282,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                   runSpacing: 6,
                   children: [
                     GlowBadge(
-                      text: '${game.playersOnline} en ligne',
+                      text: '$displayOnline en ligne',
                       color: NeonColors.success,
                     ),
                     GlowBadge(
@@ -571,12 +575,25 @@ class _OverviewTab extends ConsumerWidget {
         ref.invalidate(myGameStatsProvider(gameType));
         ref.invalidate(gameActivityProvider(gameType));
         ref.invalidate(waitingRoomsProvider(gameType));
+        ref.invalidate(perGameOnlineProvider(gameType));
       },
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           statsAsync.when(
-            data: (stats) => _buildStatsGrid(stats),
+            data: (stats) {
+              final realtime = ref.watch(perGameOnlineProvider(gameType));
+              final displayStats = realtime > 0
+                  ? GameGlobalStats(
+                      playersOnline: realtime,
+                      matchesToday: stats.matchesToday,
+                      totalDistributedToday: stats.totalDistributedToday,
+                      biggestWinToday: stats.biggestWinToday,
+                      totalPlayers: stats.totalPlayers,
+                    )
+                  : stats;
+              return _buildStatsGrid(displayStats);
+            },
             loading: () => const ShimmerLoader(height: 160),
             error: (_, __) => const SizedBox.shrink(),
           ),

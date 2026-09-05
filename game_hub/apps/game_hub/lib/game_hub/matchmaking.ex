@@ -718,7 +718,7 @@ defmodule GameHub.Matchmaking do
     _ -> :ok
   end
 
-  defp broadcast_quick_matched(game_type, rule_type, bet_amount, players, game_id, sets_info \\ %{sets_count: nil, sets_mode: "fixed"}) do
+  defp broadcast_quick_matched(game_type, rule_type, bet_amount, players, game_id, sets_info) do
     rule = normalize_rule(rule_type)
     # Limites dynamiques (pas de valeurs codées en dur) + aperçu sets,
     # pour un lobby "matched" cohérent avec la configuration serveur.

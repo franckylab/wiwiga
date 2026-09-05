@@ -56,49 +56,67 @@ defmodule GameHubWeb.WalletController do
   """
   def deposit(conn, %{"amount" => amount, "idempotency_key" => key}) do
     user_id = get_current_user_id(conn)
-    
+
     # Validation montant
     if amount < 100 do
       conn
       |> put_status(400)
       |> json(Errors.error("Montant minimum: 1 FCFA (100 centimes)", 400, "AMOUNT_TOO_LOW", %{min: 100}))
     else
-      case Wallet.deposit(user_id, amount, key) do
-        {:ok, transaction} ->
-          conn
-          |> put_status(201)
-          |> json(%{
-            success: true,
-            data: %{
-              new_balance: transaction.balance_after,
-              transaction: %{
-                id: transaction.id,
-                type: "deposit",
-                amount: transaction.amount
-              }
-            },
-            meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-          })
-        
-        {:error, :idempotency_key_used} ->
-          conn
-          |> put_status(409)
-          |> json(Errors.error("Cette transaction a déjà été effectuée", 409, "IDEMPOTENCY_KEY_USED"))
-        
+      # Jeu responsable : exclusion, pause courte et limite de dépôt
+      # quotidienne avant tout crédit (montants en jetons).
+      deposit_tokens = div(amount, 100)
+
+      case GameHub.ResponsibleGaming.check_deposit(user_id, deposit_tokens) do
         {:error, reason} ->
+          {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, deposit_tokens)
+
           conn
-          |> put_status(400)
-          |> json(Errors.error("Erreur lors du dépôt", 400, "DEPOSIT_FAILED", %{reason: reason}))
+          |> put_status(403)
+          |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+
+        :ok ->
+          do_deposit(conn, user_id, amount, key)
       end
     end
   end
-  
+
   def deposit(conn, _params) do
     conn
     |> put_status(400)
     |> json(Errors.error("Paramètres 'amount' et 'idempotency_key' requis", 400, "VALIDATION_ERROR"))
   end
-  
+
+  defp do_deposit(conn, user_id, amount, key) do
+    case Wallet.deposit(user_id, amount, key) do
+      {:ok, transaction} ->
+        conn
+        |> put_status(201)
+        |> json(%{
+          success: true,
+          data: %{
+            new_balance: transaction.balance_after,
+            transaction: %{
+              id: transaction.id,
+              type: "deposit",
+              amount: transaction.amount
+            }
+          },
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+
+      {:error, :idempotency_key_used} ->
+        conn
+        |> put_status(409)
+        |> json(Errors.error("Cette transaction a déjà été effectuée", 409, "IDEMPOTENCY_KEY_USED"))
+
+      {:error, reason} ->
+        conn
+        |> put_status(400)
+        |> json(Errors.error("Erreur lors du dépôt", 400, "DEPOSIT_FAILED", %{reason: reason}))
+    end
+  end
+
   @doc """
   POST /api/wallet/withdraw
   

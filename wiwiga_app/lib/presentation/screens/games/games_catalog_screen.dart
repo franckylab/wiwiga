@@ -13,8 +13,9 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_model.dart';
 import '../../../data/providers/game_stats_providers.dart';
-import '../../widgets/game/wiwiga_dice_icon.dart';
+import '../../../data/providers/presence_provider.dart';
 import '../../widgets/neon/neon_widgets.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 
 /// Écran Catalogue : grille responsive des jeux disponibles
 /// Redirection auto si le joueur est déjà dans une partie en attente/en cours
@@ -135,21 +136,31 @@ class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
   }
 
   Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
+    final totalOnline = ref.watch(totalOnlineProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Catalogue des jeux',
-            style: TextStyle(
-              fontFamily: 'Orbitron',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: NeonColors.textPrimary,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Catalogue des jeux',
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: NeonColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              GlowBadge(
+                text: '$totalOnline en ligne',
+                color: NeonColors.success,
+              ),
+            ],
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             'Choisissez votre jeu et défiez la communauté',
             style: TextStyle(
@@ -254,8 +265,8 @@ class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
   }
 }
 
-/// Carte néon d'un jeu du catalogue
-class GameCatalogCard extends StatelessWidget {
+/// Carte néon d'un jeu du catalogue — temps réel via Presence
+class GameCatalogCard extends ConsumerWidget {
   final GameModel game;
 
   const GameCatalogCard({super.key, required this.game});
@@ -278,8 +289,11 @@ class GameCatalogCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final comingSoon = game.comingSoon;
+    // Temps réel : per-game online via Presence (fallback sur la valeur REST initiale)
+    final realtimeOnline = !comingSoon ? ref.watch(perGameOnlineProvider(game.type)) : 0;
+    final displayOnline = !comingSoon && realtimeOnline > 0 ? realtimeOnline : game.playersOnline;
 
     return Opacity(
       opacity: comingSoon ? 0.55 : 1,
@@ -301,7 +315,7 @@ class GameCatalogCard extends StatelessWidget {
                     color: comingSoon ? NeonColors.border : null,
                   ),
                   child: game.type == 'dice' && !comingSoon
-                      ? const Center(child: WiwigaDiceIcon(size: 38, withShadow: false))
+                      ? Center(child: WiwigaDiceIcon(size: 38, withShadow: false))
                       : Icon(
                           _gameIcon,
                           size: 28,
@@ -333,7 +347,7 @@ class GameCatalogCard extends StatelessWidget {
                               color: NeonColors.secondary,
                             )
                           : GlowBadge(
-                              text: '${game.playersOnline} en ligne',
+                              text: '$displayOnline en ligne',
                               color: NeonColors.success,
                             ),
                     ],

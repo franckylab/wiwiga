@@ -993,6 +993,7 @@ defmodule GameHubWeb.AuthController do
   # ========================================
   
   defp format_user(user) do
+    token_bal = Map.get(user, :token_balance, 0)
     %{
       id: user.id,
       phone: user.phone,
@@ -1003,7 +1004,8 @@ defmodule GameHubWeb.AuthController do
       avatar_type: user.avatar_type,
       avatar_url: user.avatar_url,
       balance: user.balance,
-      token_balance: Map.get(user, :token_balance, 0),
+      token_balance: token_bal,
+      wiga_balance: token_bal,
       is_active: user.is_active,
       has_verified_kyc: user.has_verified_kyc,
       login_count: user.login_count || 0,

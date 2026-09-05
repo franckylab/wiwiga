@@ -102,10 +102,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   // Revanche opt-out (fin de partie) : lobby serveur synchronisé.
   Map<String, dynamic>? _rematchLobby;
-  bool _confirmRematch = false;
   bool _rematchBusy = false;
   final Set<String> _rematchNavDone = {};
   int _postMatchEmptyPolls = 0;
+  // Modale de résultat : fermable (X), réouvrable. Fermer ≠ quitter :
+  // le joueur reste dans l'interface donc toujours compté.
+  bool _resultModalOpen = true;
 
   // Serveur source de vérité
   Map<String, dynamic>? _serverMatch;
@@ -245,8 +247,15 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (status == null || status == 'none') {
           _rematchLobby = null;
         } else {
+          final hadLobby = _rematchLobby != null &&
+              _rematchLobby!['status']?.toString() == 'proposed';
           _rematchLobby = Map<String, dynamic>.from(rm);
-          _confirmRematch = false;
+          _postMatchEmptyPolls = 0;
+          if (status == 'proposed' && !hadLobby) {
+            // Nouvelle proposition : rouvrir la modale (invitation visible).
+            // La snackbar est gérée par le handler WS ; ici on ouvre juste.
+            _resultModalOpen = true;
+          }
           if (status == 'started') {
             final newId = rm['new_match_id']?.toString();
             final accepted = rm['accepted'] is List
@@ -579,6 +588,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               'result': winnerId == null ? 'tie' : 'winner',
               'winner_id': winnerId,
               'sums': Map<String, int>.from(_playerSums),
+              'dice': Map<String, List<int>>.from(_playerDice),
             });
             _showSetResult = true;
           });
@@ -596,7 +606,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (!mounted) return;
         final match = payload['match'] as Map<String, dynamic>?;
         if (match != null) _syncFromServer(match, seq: payload['seq'] as int?);
-        setState(() => _showMatchResult = true);
+        setState(() {
+          _showMatchResult = true;
+          _resultModalOpen = true;
+        });
         try {
           ref.read(tokenProvider.notifier).loadSummary();
           ref.read(tokenProvider.notifier).loadTransactions();
@@ -715,7 +728,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         } else {
           setState(() {
             _rematchLobby = null;
-            _confirmRematch = false;
           });
         }
         if (mounted) {
@@ -1022,7 +1034,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       final lobbyMap = Map<String, dynamic>.from(lobby);
       setState(() {
         _rematchLobby = lobbyMap['status'] == 'none' ? null : lobbyMap;
-        _confirmRematch = false;
+        // Proposition (nouvelle ou simultanée) : modale visible pour tous.
+        _resultModalOpen = true;
       });
       if (fallbackEvent == 'propose' && mounted) {
         final proposer = lobbyMap['proposed_by']?.toString();
@@ -1055,7 +1068,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // Démarrée sans moi (refus/départ) : retour à l'état résultat.
       setState(() {
         _rematchLobby = null;
-        _confirmRematch = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2452,6 +2464,11 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                     (k, v) => MapEntry(k.toString(), (v as num).toInt()),
                   )
                 : <String, int>{},
+            'dice': (r['dice'] is Map)
+                ? (r['dice'] as Map).map((k, v) => MapEntry(
+                    k.toString(),
+                    v is List ? List<int>.from(v) : <int>[]))
+                : <String, List<int>>{},
           },
         )
         .toList();
@@ -2470,6 +2487,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   /// Fenêtre de fin de partie affichée SUR le plateau (inerte derrière).
   /// Compacte et responsive : carte centrée (max 430px, max 88% hauteur).
+  /// Fermable (X) sans quitter : fermer ≠ partir, le joueur reste compté.
   Widget _buildMatchResult() {
     final narrow = MediaQuery.of(context).size.width < 620;
     return Stack(
@@ -2480,7 +2498,22 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             child: narrow ? _buildCompactBoard() : _buildWideBoard(),
           ),
         ),
-        _buildMatchResultOverlay(),
+        if (_resultModalOpen)
+          _buildMatchResultOverlay()
+        else
+          // Modale fermée : rappel discret pour rouvrir le résumé.
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: FloatingActionButton.small(
+              heroTag: 'match_result_reopen',
+              backgroundColor: NeonColors.surface,
+              foregroundColor: NeonColors.primary,
+              tooltip: 'Voir le résultat',
+              onPressed: () => setState(() => _resultModalOpen = true),
+              child: const Icon(Icons.emoji_events_rounded),
+            ),
+          ),
       ],
     );
   }
@@ -2534,8 +2567,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // En-tête compact : trophée + titre + sous-titre
+                    // En-tête compact : trophée + titre + sous-titre + fermer
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           width: 52,
@@ -2590,6 +2624,23 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                             ],
                           ),
                         ),
+                        // Fermer : masque la fenêtre SANS quitter la partie
+                        // (le joueur reste compté pour les revanches).
+                        IconButton(
+                          tooltip: 'Fermer',
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 20,
+                            color: NeonColors.textSecondary,
+                          ),
+                          onPressed: () =>
+                              setState(() => _resultModalOpen = false),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -2614,7 +2665,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                     _buildRematchZone(),
                     const SizedBox(height: 4),
                     TextButton.icon(
-                      onPressed: _rematchBusy ? null : _sendFriendRequest,
+                      onPressed:
+                          _rematchBusy ? null : _sendFriendRequest,
                       icon: const Icon(Icons.person_add_outlined, size: 16),
                       label: const Text(
                         'Ajouter comme ami',
@@ -2645,21 +2697,18 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       ),
     );
   }
-
-  /// Ligne manche compacte : `S1 · Moi 9 · 7 Bob · 🏆` (toujours visible).
+  /// Ligne manche compacte : `S1` + lancers de chaque joueur
+  /// (mini-dés + somme) + résultat. Toujours visible par tous.
   Widget _buildSetRow(Map<String, dynamic> set) {
     final num = set['set_number']?.toString() ?? '–';
     final winner = set['winner_id']?.toString();
     final sums = set['sums'] is Map
         ? Map<String, dynamic>.from(set['sums'] as Map)
         : <String, dynamic>{};
+    final diceByPlayer = set['dice'] is Map
+        ? Map<String, dynamic>.from(set['dice'] as Map)
+        : <String, dynamic>{};
     final isTie = set['result']?.toString() == 'tie' || winner == null;
-    final sumsText = _displayPlayers.map((p) {
-      final pid = p['id'].toString();
-      final label = pid == _myId ? 'Moi' : (p['name']?.toString() ?? 'J');
-      final sum = sums[pid]?.toString() ?? '–';
-      return '$label $sum';
-    }).join('  ·  ');
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -2668,41 +2717,93 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: NeonColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: NeonColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'S$num',
-              style: const TextStyle(
-                color: NeonColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                fontFamily: 'Orbitron',
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: NeonColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'S$num',
+                  style: const TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Orbitron',
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              sumsText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: NeonColors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+              const Spacer(),
+              Icon(
+                isTie
+                    ? Icons.horizontal_rule_rounded
+                    : Icons.emoji_events_rounded,
+                size: 14,
+                color: isTie ? NeonColors.warning : NeonColors.success,
               ),
-            ),
+            ],
           ),
-          Icon(
-            isTie ? Icons.horizontal_rule_rounded : Icons.emoji_events_rounded,
-            size: 14,
-            color: isTie ? NeonColors.warning : NeonColors.success,
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: _displayPlayers.map((p) {
+              final pid = p['id'].toString();
+              final isWinner = pid == winner;
+              final label =
+                  pid == _myId ? 'Moi' : (p['name']?.toString() ?? 'J');
+              final sum = sums[pid]?.toString() ?? '–';
+              final dice = diceByPlayer[pid] is List
+                  ? List<int>.from(diceByPlayer[pid] as List)
+                  : <int>[];
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isWinner
+                          ? NeonColors.success
+                          : NeonColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight:
+                          isWinner ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  ...dice.map(
+                    (v) => Padding(
+                      padding: const EdgeInsets.only(right: 2),
+                      child: Dice3D(
+                        value: v,
+                        size: 16,
+                        borderColor: isWinner
+                            ? NeonColors.success.withValues(alpha: 0.6)
+                            : NeonColors.border,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '=$sum',
+                    style: TextStyle(
+                      color: isWinner
+                          ? NeonColors.success
+                          : NeonColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: 'Orbitron',
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -2860,8 +2961,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     if (raw is num) return raw.toInt();
     return _lobbyIds('accepted').length;
   }
-
-  /// Zone revanche : confirmation → lobby (invitation / attente / démarrage).
+  /// Zone revanche : un seul tap propose (sans confirmation),
+  /// puis lobby (invitation / attente / démarrage auto).
   Widget _buildRematchZone() {
     final lobby = _rematchLobby;
     // Proposition démarrée : navigation imminente
@@ -2890,74 +2991,24 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     if (lobby != null && lobby['status']?.toString() == 'proposed') {
       return _buildRematchLobby(lobby);
     }
-    // Confirmation avant proposition (explicite, évite les taps accidentels)
-    if (_confirmRematch) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: NeonColors.secondary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: NeonColors.secondary.withValues(alpha: 0.35),
-              ),
-            ),
-            child: const Text(
-              'Proposer une revanche aux mêmes joueurs, mêmes mises ?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: NeonColors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: NeonButton(
-                  text: 'Annuler',
-                  onPressed: _rematchBusy
-                      ? null
-                      : () => setState(() => _confirmRematch = false),
-                  variant: NeonButtonVariant.outline,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: NeonButton(
-                  text: 'Confirmer',
-                  onPressed: _rematchBusy ? null : _proposeRematch,
-                  variant: NeonButtonVariant.primary,
-                  icon: Icons.check_rounded,
-                  isLoading: _rematchBusy,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-    // État initial : une action primaire + sortie explicite
+    // État initial : une action primaire (directe) + sortie explicite
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         NeonButton(
           text: 'Revanche',
-          onPressed: _rematchBusy
-              ? null
-              : () => setState(() => _confirmRematch = true),
+          onPressed: _proposeRematch,
           variant: NeonButtonVariant.primary,
           icon: Icons.replay_rounded,
+          isLoading: _rematchBusy,
+          isEnabled: !_rematchBusy,
           width: double.infinity,
         ),
         const SizedBox(height: 8),
         NeonButton(
           text: 'Quitter',
-          onPressed: _rematchBusy ? null : _quitMatch,
+          onPressed: _quitMatch,
+          isEnabled: !_rematchBusy,
           variant: NeonButtonVariant.outline,
           icon: Icons.home_rounded,
           width: double.infinity,
@@ -2966,7 +3017,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     );
   }
 
-  /// Suivi de proposition : acceptations en temps réel + démarrage.
+  /// Suivi de proposition : invitation mise en avant, acceptations temps réel.
   Widget _buildRematchLobby(Map<String, dynamic> lobby) {
     final invited = lobby['invited'] is List
         ? (lobby['invited'] as List).map((e) => e.toString()).toList()
@@ -2979,38 +3030,140 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final isProposer = _isRematchProposer;
     final count = _rematchAcceptedCount;
     final canStart = isProposer && count >= 2 && !_rematchBusy;
+    final notice = lobby['notice']?.toString();
+    // Invitation reçue et sans réponse : carte mise en avant.
+    final showInvite = !isProposer && vote == 'pending';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.replay_rounded,
-              size: 14,
-              color: NeonColors.secondary,
+        if (showInvite)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: NeonColors.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: NeonColors.secondary.withValues(alpha: 0.55),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: NeonColors.secondary.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                isProposer
-                    ? 'Votre proposition — $count/${invited.length} acceptés'
-                    : '${_findPlayerName(proposer) ?? 'Un joueur'} propose — $count/${invited.length}',
-                style: const TextStyle(
-                  color: NeonColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.replay_rounded,
+                      size: 18,
+                      color: NeonColors.secondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${_findPlayerName(proposer) ?? 'Un joueur'} propose une revanche',
+                        style: const TextStyle(
+                          color: NeonColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Mêmes joueurs, mêmes mises · $count/${invited.length} acceptés',
+                  style: const TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: NeonButton(
+                        text: 'Refuser',
+                        onPressed: () => _respondRematch(false),
+                        isEnabled: !_rematchBusy,
+                        variant: NeonButtonVariant.outline,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: NeonButton(
+                        text: 'Accepter',
+                        onPressed: () => _respondRematch(true),
+                        isEnabled: !_rematchBusy,
+                        variant: NeonButtonVariant.primary,
+                        icon: Icons.check_rounded,
+                        isLoading: _rematchBusy,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else
+          Row(
+            children: [
+              const Icon(
+                Icons.replay_rounded,
+                size: 14,
+                color: NeonColors.secondary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isProposer
+                      ? 'Votre proposition — $count/${invited.length} acceptés'
+                      : 'Revanche — $count/${invited.length} acceptés',
+                  style: const TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            if (_rematchBusy)
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              if (_rematchBusy)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+        if (notice != null && notice.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: NeonColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: NeonColors.warning.withValues(alpha: 0.4),
               ),
-          ],
-        ),
+            ),
+            child: Text(
+              notice,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: NeonColors.warning,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         ...invited.map((pid) {
           final name = pid == _myId ? 'Moi' : _findPlayerName(pid) ?? 'Joueur';
@@ -3067,45 +3220,25 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             ),
           ),
         const SizedBox(height: 8),
-        if (!isProposer && vote == 'pending') ...[
-          // Invitation : deux grandes cibles (anti-misclick, c.f. Lichess)
-          Row(
-            children: [
-              Expanded(
-                child: NeonButton(
-                  text: 'Refuser',
-                  onPressed: _rematchBusy ? null : () => _respondRematch(false),
-                  variant: NeonButtonVariant.outline,
-                  isLoading: false,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: NeonButton(
-                  text: 'Accepter',
-                  onPressed: _rematchBusy ? null : () => _respondRematch(true),
-                  variant: NeonButtonVariant.primary,
-                  icon: Icons.check_rounded,
-                  isLoading: _rematchBusy,
-                ),
-              ),
-            ],
-          ),
-        ] else if (isProposer) ...[
+        if (showInvite)
+          const SizedBox.shrink()
+        else if (isProposer) ...[
           NeonButton(
             text: canStart
                 ? 'Démarrer ($count joueurs)'
                 : 'En attente (min. 2 joueurs)',
-            onPressed: canStart ? _startRematch : null,
+            onPressed: _startRematch,
             variant: NeonButtonVariant.primary,
             icon: Icons.play_arrow_rounded,
             isLoading: _rematchBusy,
+            isEnabled: canStart,
             width: double.infinity,
           ),
           const SizedBox(height: 8),
           NeonButton(
             text: 'Annuler',
-            onPressed: _rematchBusy ? null : _cancelRematch,
+            onPressed: _cancelRematch,
+            isEnabled: !_rematchBusy,
             variant: NeonButtonVariant.outline,
             width: double.infinity,
           ),
@@ -3129,7 +3262,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             const SizedBox(height: 8),
             NeonButton(
               text: 'Se retirer',
-              onPressed: _rematchBusy ? null : () => _respondRematch(false),
+              onPressed: () => _respondRematch(false),
+              isEnabled: !_rematchBusy,
               variant: NeonButtonVariant.outline,
               width: double.infinity,
             ),
@@ -3137,7 +3271,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             const SizedBox(height: 8),
             NeonButton(
               text: 'Quitter',
-              onPressed: _rematchBusy ? null : _quitMatch,
+              onPressed: _quitMatch,
+              isEnabled: !_rematchBusy,
               variant: NeonButtonVariant.outline,
               icon: Icons.home_rounded,
               width: double.infinity,
@@ -3152,8 +3287,21 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final msg = e is ApiException
         ? e.userMessage
         : 'Action impossible — vérifiez votre connexion';
+    final isResponsibleGaming = e is ApiException &&
+        (e.errorCode == 'RESPONSIBLE_GAMING_BLOCK' ||
+            (e.details?['reason']?.toString().isNotEmpty ?? false));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: NeonColors.error),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: NeonColors.error,
+        action: isResponsibleGaming
+            ? SnackBarAction(
+                label: 'Limites',
+                textColor: NeonColors.secondary,
+                onPressed: () => context.go('/responsible-gaming/limits'),
+              )
+            : null,
+      ),
     );
   }
 
@@ -3169,7 +3317,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       if (lobby is Map) {
         setState(() {
           _rematchLobby = Map<String, dynamic>.from(lobby);
-          _confirmRematch = false;
         });
       }
       final match = data['match'];
@@ -3301,6 +3448,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           const SnackBar(
             content: Text('Demande d\'ami envoyée !'),
             backgroundColor: NeonColors.success,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      // 409 déjà amis / déjà en attente → info, pas erreur
+      if (mounted) {
+        final isConflict = e.isConflict;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isConflict ? e.userMessage : 'Erreur lors de l\'envoi'),
+            backgroundColor: isConflict ? NeonColors.warning : NeonColors.error,
           ),
         );
       }
@@ -3524,6 +3682,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       }
       final msg = e.toString().toLowerCase();
       String userMsg;
+      final isResponsibleGaming = e is ApiException &&
+          (e.errorCode == 'RESPONSIBLE_GAMING_BLOCK' ||
+              (e.details?['reason']?.toString().isNotEmpty ?? false));
       if (e is ApiException) {
         userMsg = e.userMessage;
       } else if (msg.contains('not_your_turn') ||
@@ -3544,6 +3705,14 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           backgroundColor: userMsg.contains('tour') || userMsg.contains('déjà')
               ? NeonColors.warning
               : NeonColors.error,
+          // Blocage jeu responsable : accès direct aux limites.
+          action: isResponsibleGaming
+              ? SnackBarAction(
+                  label: 'Limites',
+                  textColor: NeonColors.secondary,
+                  onPressed: () => context.go('/responsible-gaming/limits'),
+                )
+              : null,
         ),
       );
       if (userMsg.contains('réseau')) {

@@ -15,6 +15,7 @@ import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/responsible_gaming_provider.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
@@ -449,10 +450,35 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   }
 
   Widget _buildBetSection() {
+    // Rappel jeu responsable : mise max personnelle si définie.
+    final maxBetPerso = ref.watch(responsibleGamingProvider).maxBetAmount;
     return NeonCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (maxBetPerso != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: NeonColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: NeonColors.warning.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_outlined, color: NeonColors.warning, size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Votre limite : $maxBetPerso jetons max par coup',
+                      style: const TextStyle(color: NeonColors.warning, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Row(
             children: [
               const Text('Mise (wiga)', style: TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -475,19 +501,27 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
             chipSize: 40,
           ),
           const SizedBox(height: 14),
-          // Custom slider
+          // Custom slider (plafonné par la limite perso si définie)
           Row(
             children: [
               const TokenCoin(size: 20, metal: TokenMetal.emerald),
               const SizedBox(width: 6),
               const Text('Perso : ', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
               Expanded(
-                child: Slider(
-                  value: _betAmount.toDouble().clamp(minBet.toDouble(), maxBet.toDouble()),
-                  min: minBet.toDouble(),
-                  max: maxBet.toDouble(),
-                  activeColor: NeonColors.success,
-                  onChanged: (v) => setState(() => _betAmount = v.round()),
+                child: Builder(
+                  builder: (context) {
+                    final plafonne = maxBetPerso != null && maxBetPerso < maxBet
+                        ? maxBetPerso
+                        : maxBet;
+                    final borneMin = minBet <= plafonne ? minBet : plafonne;
+                    return Slider(
+                      value: _betAmount.toDouble().clamp(borneMin.toDouble(), plafonne.toDouble()),
+                      min: borneMin.toDouble(),
+                      max: plafonne.toDouble(),
+                      activeColor: NeonColors.success,
+                      onChanged: (v) => setState(() => _betAmount = v.round().clamp(borneMin, plafonne)),
+                    );
+                  },
                 ),
               ),
               Container(
@@ -596,7 +630,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
         gameType: widget.gameType,
         ruleType: _ruleType,
         mode: _mode,
-        setsCount: _setsCount,
+        setsCount: _setsRandom ? null : _setsCount,
         diceCount: _diceCount,
         betAmount: _isStaked ? _betAmount : 0,
         maxPlayers: _maxPlayers,

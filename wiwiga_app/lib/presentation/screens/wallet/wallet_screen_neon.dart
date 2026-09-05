@@ -43,6 +43,33 @@ class _WalletScreenNeonState extends ConsumerState<WalletScreenNeon> {
     final authState = ref.watch(authProvider);
     final isGuest = authState.isGuest || authState.isUnknown;
 
+    // Erreurs d'achat (dont blocages jeu responsable) : snackbar + accès limites.
+    ref.listen(tokenProvider.select((s) => s.error), (previous, error) {
+      if (error == null || error == previous || !mounted) return;
+      final lower = error.toLowerCase();
+      final isResponsibleGaming = lower.contains('limite') ||
+          lower.contains('exclusion') ||
+          lower.contains('pause') ||
+          lower.contains('session') ||
+          lower.contains('dépôt') ||
+          lower.contains('depot');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: NeonColors.error,
+          behavior: SnackBarBehavior.floating,
+          action: isResponsibleGaming
+              ? SnackBarAction(
+                  label: 'Limites',
+                  textColor: NeonColors.secondary,
+                  onPressed: () =>
+                      context.push('/responsible-gaming/limits'),
+                )
+              : null,
+        ),
+      );
+    });
+
     if (isGuest) {
       return _GuestWalletScreen(authState: authState);
     }

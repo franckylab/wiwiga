@@ -7,6 +7,7 @@ import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/game/wiwiga_dice_icon.dart';
+import '../../widgets/game/reality_check_overlay.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 // === Game State ===
@@ -168,15 +169,18 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
   Widget build(BuildContext context) {
     final gameState = ref.watch(diceGameStateProvider);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(gameState),
-            Expanded(
-              child: _buildPhaseContent(gameState),
-            ),
-          ],
+    // Rappel de réalité (jeu responsable) comme sur l'écran de match.
+    return RealityCheckOverlay(
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(gameState),
+              Expanded(
+                child: _buildPhaseContent(gameState),
+              ),
+            ],
+          ),
         ),
       ),
     );

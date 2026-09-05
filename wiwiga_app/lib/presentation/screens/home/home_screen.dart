@@ -15,6 +15,7 @@ import '../../../data/models/game_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/presence_provider.dart';
 import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
@@ -311,16 +312,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        '${game.playersOnline} joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: false,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: NeonColors.textSecondary,
-                        ),
-                      ),
+                      child: Consumer(builder: (context, ref, _) {
+                        final realtime = ref.watch(perGameOnlineProvider(game.type));
+                        final display = realtime > 0 ? realtime : game.playersOnline;
+                        return Text(
+                          '$display joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: NeonColors.textSecondary,
+                          ),
+                        );
+                      }),
                     ),
                     const SizedBox(width: 3),
                     const TokenCoin(

@@ -1050,7 +1050,12 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
     }
   }
 
+  final Set<int> _sendingIds = {};
+
   Future<void> _sendFriendRequest(PlayerSearchResult result) async {
+    // Garde anti-double-clic : un double appui génère 2 POST → le 2e répond 409
+    if (_sendingIds.contains(result.id)) return;
+    _sendingIds.add(result.id);
     try {
       final repo = ref.read(friendRepositoryProvider);
       await repo.sendRequest(userId: result.id);
@@ -1061,10 +1066,26 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
           backgroundColor: NeonColors.success,
         ),
       );
+      setState(() => _results.remove(result));
     } catch (e, st) {
+      // 409 déjà amis / déjà en attente → info, pas erreur
+      if (e is ApiException && e.isConflict) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.userMessage),
+              backgroundColor: NeonColors.warning,
+            ),
+          );
+          setState(() => _results.remove(result));
+        }
+        return;
+      }
       ErrorHandler.logError(e, st, context: 'FriendsScreen');
       if (!mounted) return;
       WiwigaSnack.showError(context, e);
+    } finally {
+      _sendingIds.remove(result.id);
     }
   }
 }

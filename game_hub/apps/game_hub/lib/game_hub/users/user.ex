@@ -57,10 +57,9 @@ defmodule GameHub.Users.User do
     field :avatar_type, :string, default: @default_avatar
     field :avatar_url, :string
     
-    # Monétaire (legacy) + Wiga (nouveau label jetons)
+    # Monétaire (legacy) + Token (unique source, affichage wiga via currency.dart)
     field :balance, :integer, default: 0
     field :token_balance, :integer, default: 0
-    field :wiga_balance, :integer, virtual: true, default: 0
     
     # Statut
     field :is_active, :boolean, default: true
@@ -388,36 +387,4 @@ defmodule GameHub.Users.User do
   """
   def can_play?(%{is_active: true, self_excluded: false, has_verified_kyc: true}), do: true
   def can_play?(_), do: false
-
-  @doc "Alias wiga pour token_balance (1 wiga = 1 jeton, 1:1)"
-  def wiga_balance(%__MODULE__{token_balance: tb}), do: tb
-  def with_wiga_balance(%__MODULE__{} = user), do: %{user | wiga_balance: user.token_balance}
-  def with_wiga_balance(users) when is_list(users), do: Enum.map(users, &with_wiga_balance/1)
-  def with_wiga_balance(other), do: other
-end
-
-defimpl Jason.Encoder, for: GameHub.Users.User do
-  def encode(user, opts) do
-    map = %{
-      id: user.id,
-      phone: user.phone,
-      email: user.email,
-      username: user.username,
-      name: user.name,
-      role: user.role,
-      avatar_type: user.avatar_type,
-      avatar_url: user.avatar_url,
-      balance: user.balance,
-      token_balance: user.token_balance,
-      wiga_balance: user.token_balance,
-      is_active: user.is_active,
-      has_verified_kyc: user.has_verified_kyc,
-      self_excluded: user.self_excluded,
-      last_login_at: user.last_login_at,
-      login_count: user.login_count,
-      otp_required_on_login: user.otp_required_on_login,
-      preferences: user.preferences
-    }
-    Jason.Encode.map(map, opts)
-  end
 end

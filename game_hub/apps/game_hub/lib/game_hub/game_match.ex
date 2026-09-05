@@ -737,8 +737,21 @@ defmodule GameHub.GameMatch do
           true ->
             case Map.get(match, :rematch) do
               %{started: false} = existing ->
-                # Idempotent : proposition déjà active
-                {:reply, {:ok, rematch_lobby_view(match, existing)}, state}
+                # Revanche simultanée : proposer = accepter. L'appelant
+                # rejoint les acceptants au lieu de rester en attente.
+                merged =
+                  Map.merge(existing, %{
+                    accepted: MapSet.put(existing.accepted, pid),
+                    declined: MapSet.delete(existing.declined, pid),
+                    notice: nil
+                  })
+
+                interim = Map.put(match, :rematch, merged) |> Map.put(:updated_at, DateTime.utc_now())
+                :ets.insert(state.table, {match_id, interim})
+                # Démarre seul si tout le monde a accepté (zéro tap de plus)
+                {final, _started?} = maybe_auto_start(state.table, match_id, interim)
+
+                {:reply, {:ok, rematch_lobby_view(final, Map.get(final, :rematch))}, state}
 
               _ ->
                 lobby = %{
@@ -747,7 +760,8 @@ defmodule GameHub.GameMatch do
                   declined: MapSet.new(),
                   proposed_at: DateTime.utc_now(),
                   started: false,
-                  new_match_id: nil
+                  new_match_id: nil,
+                  notice: nil
                 }
 
                 updated = Map.put(match, :rematch, lobby) |> Map.put(:updated_at, DateTime.utc_now())
@@ -797,12 +811,14 @@ defmodule GameHub.GameMatch do
                     do: MapSet.delete(lobby.declined, pid),
                     else: MapSet.put(lobby.declined, pid)
 
-                updated_lobby = %{lobby | accepted: accepted, declined: declined}
-                updated = Map.put(match, :rematch, updated_lobby) |> Map.put(:updated_at, DateTime.utc_now())
-                :ets.insert(state.table, {match_id, updated})
-                broadcast_rematch(match_id, "rematch_updated", updated)
+                updated_lobby =
+                  Map.merge(lobby, %{accepted: accepted, declined: declined, notice: nil})
+                interim = Map.put(match, :rematch, updated_lobby) |> Map.put(:updated_at, DateTime.utc_now())
+                :ets.insert(state.table, {match_id, interim})
+                # Démarre seul si tout le monde a accepté (zéro tap de plus)
+                {final, _started?} = maybe_auto_start(state.table, match_id, interim)
 
-                {:reply, {:ok, rematch_lobby_view(updated, updated_lobby)}, state}
+                {:reply, {:ok, rematch_lobby_view(final, Map.get(final, :rematch))}, state}
             end
 
           _ ->
@@ -822,67 +838,12 @@ defmodule GameHub.GameMatch do
 
         case Map.get(match, :rematch) do
           %{started: false} = lobby when lobby.proposed_by == pid ->
-            left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+            case do_start_rematch(state.table, match_id, match, lobby) do
+              {:ok, new_match, excluded, updated} ->
+                {:reply, {:ok, %{lobby: rematch_lobby_view(updated, Map.get(updated, :rematch)), new_match_id: new_match.match_id, match: sanitize_match(new_match), excluded: excluded}}, state}
 
-            accepters =
-              lobby.accepted
-              |> MapSet.to_list()
-              |> Enum.reject(fn id -> MapSet.member?(left, id) end)
-              |> Enum.reject(fn id -> MapSet.member?(lobby.declined, id) end)
-              |> Enum.filter(fn id -> match_player?(match, id) end)
-
-            if length(accepters) < 2 do
-              {:reply, {:error, :not_enough_players}, state}
-            else
-              names = Map.new(match.players, fn p -> {to_string(p.id), Map.get(p, :name, "Joueur")} end)
-              bet = Map.get(match, :bet_amount, 0) || 0
-
-              # Partie avec mise : re-débit des acceptants (exclusion si fonds insuffisants)
-              {funded, excluded} =
-                if bet > 0 do
-                  Enum.reduce(accepters, {[], []}, fn id, {ok, ko} ->
-                    case debit_rematch_bet(id, bet, match_id) do
-                      :ok -> {[id | ok], ko}
-                      {:error, _} -> {ok, [id | ko]}
-                    end
-                  end)
-                else
-                  {accepters, []}
-                end
-
-              funded = Enum.reverse(funded)
-              excluded = Enum.reverse(excluded)
-
-              if length(funded) < 2 do
-                # Rembourse les débits effectués (meilleur effort)
-                Enum.each(funded, fn id -> refund_rematch_bet(id, bet, match_id) end)
-                {:reply, {:error, :not_enough_players}, state}
-              else
-                config = %{
-                  game_type: match.game_type,
-                  rule_type: match.rule_type,
-                  mode: match.mode,
-                  sets_count: match.sets_count,
-                  dice_count: match.dice_count,
-                  bet_amount: bet,
-                  max_players: length(funded),
-                  creator_id: pid
-                }
-
-                case create_rematch_match(state.table, config, funded, names) do
-                  {:ok, new_match} ->
-                    started_lobby = %{lobby | started: true, new_match_id: new_match.match_id}
-                    updated = Map.put(match, :rematch, started_lobby) |> Map.put(:updated_at, DateTime.utc_now())
-                    :ets.insert(state.table, {match_id, updated})
-                    Logger.info("Match #{match_id}: revanche démarrée → #{new_match.match_id} (#{length(funded)} joueurs)")
-                    broadcast_rematch_ready(match_id, updated, new_match, excluded)
-                    {:reply, {:ok, %{lobby: rematch_lobby_view(updated, started_lobby), new_match_id: new_match.match_id, match: sanitize_match(new_match), excluded: excluded}}, state}
-
-                  {:error, reason} ->
-                    Enum.each(funded, fn id -> refund_rematch_bet(id, bet, match_id) end)
-                    {:reply, {:error, reason}, state}
-                end
-              end
+              {:error, reason} ->
+                {:reply, {:error, reason}, state}
             end
 
           %{started: false} ->
@@ -947,11 +908,12 @@ defmodule GameHub.GameMatch do
                   if lobby.proposed_by == pid do
                     Map.put(interim, :rematch, nil)
                   else
-                    updated_lobby = %{
-                      lobby
-                      | accepted: MapSet.delete(lobby.accepted, pid),
-                        declined: MapSet.put(lobby.declined, pid)
-                    }
+                    updated_lobby =
+                      Map.merge(lobby, %{
+                        accepted: MapSet.delete(lobby.accepted, pid),
+                        declined: MapSet.put(lobby.declined, pid),
+                        notice: nil
+                      })
 
                     Map.put(interim, :rematch, updated_lobby)
                   end
@@ -1326,10 +1288,126 @@ defmodule GameHub.GameMatch do
     end
   end
 
+  # Acceptants effectifs triés : acceptés − partis − refus − non-joueurs.
+  defp rematch_accepters(match, lobby) do
+    left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+
+    lobby.accepted
+    |> MapSet.to_list()
+    |> Enum.reject(fn id -> MapSet.member?(left, id) end)
+    |> Enum.reject(fn id -> MapSet.member?(lobby.declined, id) end)
+    |> Enum.filter(fn id -> match_player?(match, id) end)
+    |> Enum.sort()
+  end
+
+  # Invités effectifs triés : joueurs n'ayant pas quitté l'interface.
+  defp rematch_invited(match) do
+    left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+
+    match.players
+    |> Enum.map(fn p -> to_string(p.id) end)
+    |> Enum.reject(fn id -> MapSet.member?(left, id) end)
+    |> Enum.sort()
+  end
+
+  # Démarrage effectif (débits + création). Retourne le nouveau match.
+  defp do_start_rematch(table, match_id, match, lobby) do
+    accepters = rematch_accepters(match, lobby)
+
+    if length(accepters) < 2 do
+      {:error, :not_enough_players}
+    else
+      names = Map.new(match.players, fn p -> {to_string(p.id), Map.get(p, :name, "Joueur")} end)
+      bet = Map.get(match, :bet_amount, 0) || 0
+
+      # Partie avec mise : re-débit des acceptants (exclusion si fonds insuffisants)
+      {funded, excluded} =
+        if bet > 0 do
+          {f, e} =
+            Enum.reduce(accepters, {[], []}, fn id, {ok, ko} ->
+              case debit_rematch_bet(id, bet, match_id) do
+                :ok -> {[id | ok], ko}
+                {:error, _} -> {ok, [id | ko]}
+              end
+            end)
+
+          # Reduce prépend : restaurer l'ordre déterministe (trié)
+          {Enum.reverse(f), Enum.reverse(e)}
+        else
+          {accepters, []}
+        end
+
+      if length(funded) < 2 do
+        # Rembourse les débits effectués (meilleur effort)
+        Enum.each(funded, fn id -> refund_rematch_bet(id, bet, match_id) end)
+        {:error, :not_enough_players}
+      else
+        config = %{
+          game_type: match.game_type,
+          rule_type: match.rule_type,
+          mode: match.mode,
+          sets_count: match.sets_count,
+          dice_count: match.dice_count,
+          bet_amount: bet,
+          max_players: length(funded),
+          creator_id: lobby.proposed_by
+        }
+
+        case create_rematch_match(table, config, funded, names) do
+          {:ok, new_match} ->
+            started_lobby =
+              Map.merge(lobby, %{started: true, new_match_id: new_match.match_id, notice: nil})
+            updated = Map.put(match, :rematch, started_lobby) |> Map.put(:updated_at, DateTime.utc_now())
+            :ets.insert(table, {match_id, updated})
+            Logger.info("Match #{match_id}: revanche démarrée → #{new_match.match_id} (#{length(funded)} joueurs)")
+            broadcast_rematch_ready(match_id, updated, new_match, excluded)
+            {:ok, new_match, excluded, updated}
+
+          {:error, reason} ->
+            Enum.each(funded, fn id -> refund_rematch_bet(id, bet, match_id) end)
+            {:error, reason}
+        end
+      end
+    end
+  end
+
+  # Démarrage automatique quand TOUS les invités ont accepté (ex : deux
+  # joueurs appuient simultanément sur Revanche). Zéro tap supplémentaire.
+  # Retourne {match_à_jour, a_démarré?}.
+  defp maybe_auto_start(table, match_id, match) do
+    case Map.get(match, :rematch) do
+      %{started: false} = lobby ->
+        invited = rematch_invited(match)
+        accepters = rematch_accepters(match, lobby)
+
+        if length(invited) >= 2 and length(accepters) >= length(invited) do
+          case do_start_rematch(table, match_id, match, lobby) do
+            {:ok, _new_match, _excluded, updated} ->
+              {updated, true}
+
+            {:error, _reason} ->
+              # Ex : jetons insuffisants → on garde le lobby, avec notice
+              # persistante (effacée à la prochaine réponse/proposition).
+              noticed = Map.put(lobby, :notice, "Démarrage auto impossible : jetons insuffisants")
+              failed = Map.put(match, :rematch, noticed) |> Map.put(:updated_at, DateTime.utc_now())
+              :ets.insert(table, {match_id, failed})
+              broadcast_rematch(match_id, "rematch_updated", failed)
+              {failed, false}
+          end
+        else
+          broadcast_rematch(match_id, "rematch_updated", match)
+          {match, false}
+        end
+
+      _ ->
+        {match, false}
+    end
+  end
+
   # Vue lobby sérialisable : invités = joueurs n'ayant pas quitté l'interface.
   defp rematch_lobby_view(_match, nil), do: %{status: "none"}
 
-  defp rematch_lobby_view(match, %{started: true} = lobby) do
+  defp rematch_lobby_view(_match, %{started: true} = lobby) do
     %{
       status: "started",
       proposed_by: lobby.proposed_by,
@@ -1339,29 +1417,29 @@ defmodule GameHub.GameMatch do
   end
 
   defp rematch_lobby_view(match, lobby) do
-    left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
-    invited =
-      match.players
-      |> Enum.map(fn p -> to_string(p.id) end)
-      |> Enum.reject(fn id -> MapSet.member?(left, id) end)
-
     %{
       status: "proposed",
       proposed_by: lobby.proposed_by,
       accepted: lobby.accepted |> MapSet.to_list() |> Enum.map(&to_string/1),
       declined: lobby.declined |> MapSet.to_list() |> Enum.map(&to_string/1),
-      invited: invited,
-      left: left |> MapSet.to_list() |> Enum.map(&to_string/1),
-      accepted_count: lobby.accepted |> MapSet.to_list() |> Enum.reject(fn id -> MapSet.member?(left, id) end) |> length(),
-      proposed_at: lobby.proposed_at |> DateTime.to_iso8601()
+      invited: rematch_invited(match),
+      left: (Map.get(match, :left_players, MapSet.new()) || MapSet.new()) |> MapSet.to_list() |> Enum.map(&to_string/1),
+      accepted_count: rematch_accepters(match, lobby) |> length(),
+      proposed_at: lobby.proposed_at |> DateTime.to_iso8601(),
+      notice: Map.get(lobby, :notice)
     }
   end
 
   defp debit_rematch_bet(player_id, bet_amount, match_id) do
     case Integer.parse(to_string(player_id)) do
       {int_id, _} ->
-        case GameHub.Wallet.place_bet(int_id, bet_amount, match_id, "rematch_debit_#{match_id}_#{player_id}") do
-          {:ok, _} -> :ok
+        # Jeu responsable : une revanche est une nouvelle mise (mêmes
+        # limites qu'une partie rapide). Le joueur bloqué est exclu du
+        # financement comme pour fonds insuffisants (remboursé ensuite).
+        with :ok <- GameHub.ResponsibleGaming.check_before_bet(int_id, bet_amount),
+             {:ok, _} <- GameHub.Wallet.place_bet(int_id, bet_amount, match_id, "rematch_debit_#{match_id}_#{player_id}") do
+          :ok
+        else
           {:error, reason} -> {:error, reason}
         end
 
@@ -1480,22 +1558,25 @@ defmodule GameHub.GameMatch do
     _ -> nil
   end
 
-  # Détail des sets sérialisable (scores par joueur depuis les lancers).
+  # Détail des sets sérialisable (scores + dés par joueur depuis les lancers).
   defp sanitize_set(set) when is_map(set) do
     rolls = Map.get(set, :rolls, %{}) || %{}
 
-    sums =
-      Map.new(rolls, fn {pid, roll} ->
-        sum =
+    {sums, dice} =
+      Enum.reduce(rolls, {%{}, %{}}, fn {pid, roll}, {sums, dice} ->
+        key = to_string(pid)
+
+        {sum, faces} =
           case roll do
-            %{sum: s} when is_integer(s) -> s
-            %{"sum" => s} when is_integer(s) -> s
-            %{dice: dice} when is_list(dice) -> Enum.sum(dice)
-            %{"dice" => dice} when is_list(dice) -> Enum.sum(dice)
-            _ -> 0
+            %{sum: s, dice: d} when is_integer(s) and is_list(d) -> {s, d}
+            %{"sum" => s, "dice" => d} when is_integer(s) and is_list(d) -> {s, d}
+            %{sum: s} when is_integer(s) -> {s, []}
+            %{dice: d} when is_list(d) -> {Enum.sum(d), d}
+            %{"dice" => d} when is_list(d) -> {Enum.sum(d), d}
+            _ -> {0, []}
           end
 
-        {to_string(pid), sum}
+        {Map.put(sums, key, sum), Map.put(dice, key, faces)}
       end)
 
     {winner_id, result} =
@@ -1516,6 +1597,7 @@ defmodule GameHub.GameMatch do
       winner_id: winner_id,
       result: result,
       sums: sums,
+      dice: dice,
       target_value: Map.get(set, :target_value)
     }
   end

@@ -97,8 +97,16 @@ class ErrorHandler {
       'email': 'Email',
       'username': 'Nom d\'utilisateur',
       'password': 'Mot de passe',
-      'daily_loss_limit': 'Limite de perte',
-      'daily_deposit_limit': 'Limite de dépôt',
+      'daily_loss_limit': 'Limite de perte / jour',
+      'weekly_loss_limit': 'Limite de perte / semaine',
+      'monthly_loss_limit': 'Limite de perte / mois',
+      'daily_deposit_limit': 'Limite de dépôt / jour',
+      'daily_wager_limit': 'Limite de mises / jour',
+      'max_bet_amount': 'Mise max par coup',
+      'daily_matches_limit': 'Limite de parties / jour',
+      'session_time_limit_minutes': 'Durée de session',
+      'reality_check_interval_minutes': 'Rappel de réalité',
+      'cooling_off_days': 'Pause courte',
     };
     return map[field] ?? field.replaceAll('_', ' ');
   }

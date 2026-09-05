@@ -71,6 +71,7 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
   List<FriendModel> _friends = [];
   bool _isLoadingFriends = true;
   String? _invitedFriendId;
+  final Set<int> _sendingIds = {};
 
   @override
   void initState() {
@@ -480,6 +481,9 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
           NeonButton(
             text: 'Ajouter',
             onPressed: () async {
+              // Garde anti-double-clic : évite 2 POST → 2e répond 409
+              if (_sendingIds.contains(result.id)) return;
+              _sendingIds.add(result.id);
               try {
                 final repo = ref.read(friendRepositoryProvider);
                 await repo.sendRequest(userId: result.id);
@@ -509,6 +513,8 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
                 ErrorHandler.logError(e, st, context: 'FriendInviteSheet');
                 if (!mounted) return;
                 WiwigaSnack.showError(context, e);
+              } finally {
+                _sendingIds.remove(result.id);
               }
             },
             height: 32,

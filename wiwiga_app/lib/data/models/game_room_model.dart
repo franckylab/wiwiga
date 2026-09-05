@@ -109,7 +109,7 @@ class CreateGameConfig {
   final String gameType;
   final String ruleType;
   final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
-  final int setsCount;
+  final int? setsCount; // nullable pour mode random (tirage serveur)
   final int diceCount;
   final int betAmount;
   final int maxPlayers;
@@ -118,7 +118,7 @@ class CreateGameConfig {
     this.gameType = 'dice',
     this.ruleType = 'normal',
     this.mode = 'free',
-    this.setsCount = 1,
+    this.setsCount,
     this.diceCount = 2,
     this.betAmount = 0,
     this.maxPlayers = 2,
@@ -148,14 +148,18 @@ class CreateGameConfig {
   Map<String, dynamic> toJson() {
     // Toujours envoyer la valeur canonique (free/staked)
     final canonical = GameMode.parse(mode).apiValue;
-    return {
+    final map = <String, dynamic>{
       'game_type': gameType,
       'rule_type': ruleType,
       'mode': canonical,
-      'sets_count': setsCount,
       'dice_count': diceCount,
       'bet_amount': betAmount,
       'max_players': maxPlayers,
     };
+    // En mode random, ne pas envoyer sets_count (tirage serveur équitable)
+    if (setsCount != null) {
+      map['sets_count'] = setsCount;
+    }
+    return map;
   }
 }

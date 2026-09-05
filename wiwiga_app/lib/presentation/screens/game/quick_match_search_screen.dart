@@ -1071,12 +1071,43 @@ class _QuickMatchSearchScreenState extends ConsumerState<QuickMatchSearchScreen>
     );
   }
 
+  /// Motif de blocage jeu responsable (code stable `details.reason`,
+  /// repli sur le texte si absent).
+  String? _responsibleGamingReason() {
+    if (_errorObj is! ApiException) return null;
+    final apiError = _errorObj as ApiException;
+    if (apiError.statusCode != 403) return null;
+    if (apiError.errorCode != null &&
+        apiError.errorCode != 'RESPONSIBLE_GAMING_BLOCK' &&
+        apiError.errorCode != 'FORBIDDEN') {
+      return null;
+    }
+    final reason = apiError.details?['reason']?.toString();
+    if (reason != null && reason.isNotEmpty) return reason;
+    // Repli texte (anciens messages) — à terme, seul `reason` compte.
+    final text = (_error ?? '').toLowerCase();
+    if (text.contains('auto-exclusion') || text.contains('self_excluded')) {
+      return 'self_excluded';
+    }
+    if (text.contains('quotidienne') || text.contains('daily')) {
+      return 'daily_limit_reached';
+    }
+    if (apiError.errorCode == 'RESPONSIBLE_GAMING_BLOCK' ||
+        text.contains('jeu responsable')) {
+      return 'unknown';
+    }
+    return null;
+  }
+
   Widget _buildError() {
-    final isResponsibleGaming = _errorObj is ApiException &&
-        (_errorObj as ApiException).statusCode == 403 &&
-        (_errorObj as ApiException).errorCode == 'RESPONSIBLE_GAMING_BLOCK';
-    final isDailyLimit = isResponsibleGaming && (_error ?? '').contains('quotidienne');
-    final isSelfExcluded = isResponsibleGaming && (_error ?? '').contains('auto-exclusion');
+    final rgReason = _responsibleGamingReason();
+    final isResponsibleGaming = rgReason != null;
+    final isSelfExcluded = rgReason == 'self_excluded' || rgReason == 'cooling_off';
+    final isDailyLimit = rgReason != null &&
+        (rgReason.contains('daily') ||
+            rgReason.contains('wager') ||
+            rgReason.contains('matches') ||
+            rgReason.contains('deposit'));
 
     return Center(
       child: Padding(
@@ -1116,7 +1147,7 @@ class _QuickMatchSearchScreenState extends ConsumerState<QuickMatchSearchScreen>
               NeonButton(
                 text: 'Voir mes limites',
                 icon: Icons.settings_outlined,
-                onPressed: () => context.go('/settings'),
+                onPressed: () => context.go('/responsible-gaming/limits'),
                 width: 200,
               ),
               const SizedBox(height: 10),

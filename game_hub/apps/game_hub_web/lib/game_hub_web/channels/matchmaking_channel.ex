@@ -83,40 +83,17 @@ defmodule GameHubWeb.MatchmakingChannel do
     if is_nil(bet_amount) do
       {:reply, {:error, %{reason: "bet_amount_required"}}, socket}
     else
-      case Matchmaking.join_queue(user_id, game_type, rule_type, bet_amount) do
-        {:ok, :waiting} ->
-          status = Matchmaking.get_queue_status(user_id, game_type, rule_type)
-          {:reply, {:ok, %{
-            status: "waiting",
-            position: status.position,
-            total_players: status.total_players,
-            elapsed_seconds: status.elapsed_seconds,
-            rule_type: rule_type,
-            message: "En file d'attente..."
-          }}, socket}
-        
-        {:ok, :matched, game_id} ->
-          broadcast!(socket, "player_matched", %{
-            user_id: user_id,
-            game_id: game_id,
-            rule_type: rule_type
-          })
-          {:reply, {:ok, %{
-            status: "matched",
-            game_id: game_id,
-            rule_type: rule_type,
-            message: "Partie trouvée !"
-          }}, socket}
-        
-        {:error, :already_queued} ->
-          {:reply, {:error, %{reason: "already_in_queue"}}, socket}
-        
+      # Jeu responsable : un joueur exclu/en pause n'occupe pas la file.
+      case GameHub.ResponsibleGaming.check_playable(user_id) do
         {:error, reason} ->
-          {:reply, {:error, %{reason: reason}}, socket}
+          {:reply, {:error, %{reason: "responsible_gaming_blocked", rg_reason: to_string(reason)}}, socket}
+
+        :ok ->
+          do_join_queue(socket, user_id, game_type, rule_type, bet_amount)
       end
     end
   end
-  
+
   @impl true
   def handle_in("leave_queue", payload, socket) do
     user_id = socket.assigns.user_id
@@ -168,15 +145,22 @@ defmodule GameHubWeb.MatchmakingChannel do
     if is_nil(bet_amount) do
       {:reply, {:error, %{reason: "bet_amount_required"}}, socket}
     else
-      case Matchmaking.toggle_quick_ready(user_id, game_type, rule_type, bet_amount) do
-        {:ok, :matched, game_id, _lobby} ->
-          broadcast!(socket, "game_matched", %{game_id: game_id})
-          {:reply, {:ok, %{status: "matched", game_id: game_id}}, socket}
-        {:ok, lobby} ->
-          broadcast!(socket, "lobby_update", lobby)
-          {:reply, {:ok, lobby}, socket}
+      # Jeu responsable : un joueur exclu/en pause ne confirme pas un départ.
+      case GameHub.ResponsibleGaming.check_playable(user_id) do
         {:error, reason} ->
-          {:reply, {:error, %{reason: reason}}, socket}
+          {:reply, {:error, %{reason: "responsible_gaming_blocked", rg_reason: to_string(reason)}}, socket}
+
+        :ok ->
+          case Matchmaking.toggle_quick_ready(user_id, game_type, rule_type, bet_amount) do
+            {:ok, :matched, game_id, _lobby} ->
+              broadcast!(socket, "game_matched", %{game_id: game_id})
+              {:reply, {:ok, %{status: "matched", game_id: game_id}}, socket}
+            {:ok, lobby} ->
+              broadcast!(socket, "lobby_update", lobby)
+              {:reply, {:ok, lobby}, socket}
+            {:error, reason} ->
+              {:reply, {:error, %{reason: reason}}, socket}
+          end
       end
     end
   end
@@ -214,6 +198,40 @@ defmodule GameHubWeb.MatchmakingChannel do
           id when is_binary(id) -> id
           _ -> nil
         end
+    end
+  end
+
+  defp do_join_queue(socket, user_id, game_type, rule_type, bet_amount) do
+    case Matchmaking.join_queue(user_id, game_type, rule_type, bet_amount) do
+      {:ok, :waiting} ->
+        status = Matchmaking.get_queue_status(user_id, game_type, rule_type)
+        {:reply, {:ok, %{
+          status: "waiting",
+          position: status.position,
+          total_players: status.total_players,
+          elapsed_seconds: status.elapsed_seconds,
+          rule_type: rule_type,
+          message: "En file d'attente..."
+        }}, socket}
+
+      {:ok, :matched, game_id} ->
+        broadcast!(socket, "player_matched", %{
+          user_id: user_id,
+          game_id: game_id,
+          rule_type: rule_type
+        })
+        {:reply, {:ok, %{
+          status: "matched",
+          game_id: game_id,
+          rule_type: rule_type,
+          message: "Partie trouvée !"
+        }}, socket}
+
+      {:error, :already_queued} ->
+        {:reply, {:error, %{reason: "already_in_queue"}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: reason}}, socket}
     end
   end
 end

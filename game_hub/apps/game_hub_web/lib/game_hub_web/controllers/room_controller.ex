@@ -53,11 +53,22 @@ defmodule GameHubWeb.RoomController do
           max_players: parse_int(Map.get(params, "max_players"))
         }
 
+        rg_gate = rg_gate_for_room(user_id, room_params)
+
         cond do
           GameMode.staked?(room_params.mode) and room_params.bet_amount <= 0 ->
             conn
             |> put_status(400)
             |> json(Errors.error("Mise requise pour le mode Partie avec mise", 400, "VALIDATION_ERROR"))
+
+          # Jeu responsable : un joueur exclu/en pause/limite ne crée pas de
+          # salle (avec mise : contrôle complet, sinon jouabilité).
+          match?({:error, _}, rg_gate) ->
+            {:error, reason} = rg_gate
+            {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, room_params.bet_amount || 0)
+            conn
+            |> put_status(403)
+            |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
 
           room_params.game_type not in ~w(dice) ->
             conn
@@ -146,6 +157,21 @@ defmodule GameHubWeb.RoomController do
     user_id = get_current_user_id(conn)
     player_name = Map.get(params, "player_name")
 
+    # Jeu responsable avant d'occuper un slot (exclu/en pause/limite).
+    with {:ok, room} <- GameRoom.get_room(room_id),
+         :ok <- rg_gate_for_room(user_id, %{mode: room.mode, bet_amount: room.bet_amount}) do
+      do_join_room(conn, room_id, user_id, player_name)
+    else
+      {:error, :room_not_found} ->
+        conn |> put_status(404) |> json(Errors.error("Salle non trouvée", 404, "ROOM_NOT_FOUND"))
+
+      {:error, reason} when is_atom(reason) ->
+        {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, 0)
+        conn |> put_status(403) |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+    end
+  end
+
+  defp do_join_room(conn, room_id, user_id, player_name) do
     case GameRoom.join_room(room_id, user_id, player_name) do
       {:ok, room} ->
         conn
@@ -209,6 +235,22 @@ defmodule GameHubWeb.RoomController do
   def start(conn, %{"room_id" => room_id}) do
     user_id = get_current_user_id(conn)
 
+    # Jeu responsable : tous les joueurs doivent pouvoir jouer (salle avec
+    # mise : contrôle complet avec la mise, sinon jouabilité).
+    with {:ok, room} <- GameRoom.get_room(room_id),
+         :ok <- rg_gate_for_room_players(room) do
+      do_start_match(conn, room_id, user_id)
+    else
+      {:error, :room_not_found} ->
+        conn |> put_status(404) |> json(Errors.error("Salle non trouvée", 404, "ROOM_NOT_FOUND"))
+
+      {:error, {:rg_blocked, reason, blocked_id}} ->
+        {message, details} = GameHub.ResponsibleGaming.block_message(reason, blocked_id, 0)
+        conn |> put_status(403) |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+    end
+  end
+
+  defp do_start_match(conn, room_id, user_id) do
     case GameRoom.start_match(room_id, user_id) do
       {:ok, %{room: room, match: match}} ->
         conn
@@ -307,6 +349,25 @@ defmodule GameHubWeb.RoomController do
     user_id = get_current_user_id(conn)
     player_name = Map.get(params, "player_name")
 
+    # Jeu responsable avant d'occuper un slot (salle résolue par code).
+    with {:ok, room} <- GameRoom.get_room_by_code(code),
+         :ok <- rg_gate_for_room(user_id, %{mode: room.mode, bet_amount: room.bet_amount}) do
+      do_join_by_code(conn, code, user_id, player_name)
+    else
+      {:error, :room_not_found} ->
+        conn |> put_status(404) |> json(Errors.error("Code invalide", 404, "ROOM_NOT_FOUND"))
+
+      {:error, reason} when is_atom(reason) ->
+        {message, details} = GameHub.ResponsibleGaming.block_message(reason, user_id, 0)
+        conn |> put_status(403) |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
+    end
+  end
+
+  def join_by_code(conn, _params) do
+    conn |> put_status(400) |> json(Errors.error("Paramètre 'code' requis", 400, "VALIDATION_ERROR"))
+  end
+
+  defp do_join_by_code(conn, code, user_id, player_name) do
     case GameRoom.join_by_code(code, user_id, player_name) do
       {:ok, room} ->
         conn
@@ -331,15 +392,35 @@ defmodule GameHubWeb.RoomController do
     end
   end
 
-  def join_by_code(conn, _params) do
-    conn |> put_status(400) |> json(Errors.error("Paramètre 'code' requis", 400, "VALIDATION_ERROR"))
-  end
-
   # === Helpers ===
 
   defp get_current_user_id(conn) do
     GameHubWeb.AuthPlug.get_current_user_id(conn)
   end
+
+  # Porte jeu responsable pour une salle : avec mise → contrôle complet
+  # (montant de la salle), sans mise → jouabilité (exclusion/pause/session).
+  defp rg_gate_for_room(user_id, %{mode: mode, bet_amount: bet}) do
+    if staked_mode?(mode) and is_integer(bet) and bet > 0 do
+      GameHub.ResponsibleGaming.check_before_bet(user_id, bet)
+    else
+      GameHub.ResponsibleGaming.check_playable(user_id)
+    end
+  end
+
+  # Tous les joueurs d'une salle au démarrage (premier bloqué remonte).
+  defp rg_gate_for_room_players(room) do
+    Enum.reduce_while(room.players, :ok, fn player, :ok ->
+      case rg_gate_for_room(player.id, %{mode: room.mode, bet_amount: room.bet_amount}) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, {:rg_blocked, reason, player.id}}}
+      end
+    end)
+  end
+
+  defp staked_mode?(:staked), do: true
+  defp staked_mode?("staked"), do: true
+  defp staked_mode?(_), do: false
 
   defp parse_int(nil), do: nil
   defp parse_int(val) when is_integer(val), do: val

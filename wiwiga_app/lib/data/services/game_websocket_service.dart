@@ -46,6 +46,7 @@ class GameWebSocketService extends ChangeNotifier {
   // Pending joins pour reconnexion auto (garantit synchro tour après WS drop)
   final Set<String> _pendingGameJoins = {};
   final Set<String> _pendingUserChannels = {};
+  final Set<String> _pendingPresenceChannels = {};
   // Protocole Phoenix V2 : ref + join_ref monotones (évite joins rejetés)
   int _refCounter = 0;
   int _joinRefCounter = 0;
@@ -95,6 +96,10 @@ class GameWebSocketService extends ChangeNotifier {
   // Wallet / Stats temps réel
   void Function(Map<String, dynamic>)? onWalletUpdate;
   void Function(Map<String, dynamic>)? onStatsUpdate;
+
+  // Presence temps réel (online:lobby, online:game:{type})
+  void Function(Map<String, dynamic>)? onPresenceState;
+  void Function(Map<String, dynamic>)? onPresenceDiff;
 
   GameWebSocketService({required ApiService apiService})
       : _apiService = apiService;
@@ -648,6 +653,22 @@ class GameWebSocketService extends ChangeNotifier {
     }
   }
 
+  void joinPresenceChannel(String topic) {
+    if (isConnected) {
+      _sendToChannel(topic: topic, event: WebSocketEvents.phxJoin, payload: {});
+    } else {
+      // Enregistrer pour rejoindre à la prochaine connexion
+      _pendingPresenceChannels.add(topic);
+    }
+  }
+
+  void leavePresenceChannel(String topic) {
+    if (isConnected) {
+      _sendToChannel(topic: topic, event: WebSocketEvents.phxLeave, payload: {});
+    }
+    _pendingPresenceChannels.remove(topic);
+  }
+
   // === Message Handling ===
 
   void _sendToChannel({
@@ -854,6 +875,16 @@ class GameWebSocketService extends ChangeNotifier {
           break;
         case 'rematch_cancelled':
           onRematchCancelled?.call(payload);
+          notifyListeners();
+          break;
+        case 'presence_state':
+          onPresenceState?.call({'topic': topic, 'presences': payload});
+          notifyListeners();
+          break;
+        case 'presence_diff':
+          final diffPayload = Map<String, dynamic>.from(payload);
+          diffPayload['topic'] = topic;
+          onPresenceDiff?.call(diffPayload);
           notifyListeners();
           break;
         case 'lobby_update':

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../data/providers/app_providers.dart';
 import '../../providers/admin_management_provider.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/metric_card.dart';
@@ -134,13 +135,13 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                 ),
                 AdminMetricCard(
                   title: 'Joueurs à risque',
-                  value: '${data['users_at_risk'] ?? 0}',
+                  value: '${data['users_at_risk_today'] ?? data['users_at_risk'] ?? 0}',
                   icon: Icons.warning_amber_rounded,
                   color: NeonColors.error,
                 ),
                 AdminMetricCard(
                   title: 'Dépassements limites',
-                  value: '${data['limit_breaches'] ?? 0}',
+                  value: '${data['limit_breaches_today'] ?? data['limit_breaches'] ?? 0}',
                   icon: Icons.report_problem,
                   color: NeonColors.secondary,
                 ),
@@ -159,10 +160,13 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, st) {
         ErrorHandler.logError(e, st, context: 'AdminResponsibleGaming.selfExclusions');
-        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminResponsibleGamingProvider));
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminSelfExclusionsProvider));
       },
       data: (data) {
-        final exclusions = data['self_exclusions'] as List? ?? [];
+        // Backend : data.exclusions[] aplatis {user_id, username, phone,
+        // reason, excluded_until} (+ alias self_exclusions).
+        final raw = data['exclusions'] ?? data['self_exclusions'];
+        final exclusions = raw is List ? raw : <dynamic>[];
 
         return exclusions.isEmpty
             ? const Center(child: Text('Aucune auto-exclusion active', style: TextStyle(color: NeonColors.textSecondary)))
@@ -170,7 +174,11 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                 padding: const EdgeInsets.all(16),
                 itemCount: exclusions.length,
                 itemBuilder: (context, index) {
-                  final exclusion = exclusions[index] as Map<String, dynamic>;
+                  final exclusion = exclusions[index] is Map<String, dynamic>
+                      ? exclusions[index] as Map<String, dynamic>
+                      : Map<String, dynamic>.from(exclusions[index] as Map);
+                  final userId = '${exclusion['user_id'] ?? 'N/A'}';
+                  final username = exclusion['username']?.toString();
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
@@ -188,7 +196,9 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'User #${exclusion['user_id'] ?? 'N/A'}',
+                                username != null && username.isNotEmpty
+                                    ? '$username (#$userId)'
+                                    : 'User #$userId',
                                 style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
                               ),
                               Text(
@@ -201,6 +211,15 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                                   style: const TextStyle(color: NeonColors.textMuted, fontSize: 11),
                                 ),
                             ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showOverrideDialog(
+                            exclusion['user_id'],
+                          ),
+                          child: const Text(
+                            'Lever',
+                            style: TextStyle(color: NeonColors.secondary),
                           ),
                         ),
                       ],
@@ -221,11 +240,15 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       Future.microtask(() => ref.read(adminPlatformConfigProvider.notifier).loadCategory('gaming'));
     }
 
-    // Configs clés pour le jeu responsable (limites en wiga, 1:1)
+    // Configs clés pour le jeu responsable (jetons purs + minutes).
+    // Mêmes clés canoniques que celles lues par le moteur (ResponsibleGaming).
     final rgKeys = {
-      'default_daily_loss_limit': {'label': 'Perte quotidienne max (wiga)', 'icon': Icons.money_off, 'default': '5000'},
+      'default_daily_loss_limit': {'label': 'Perte nette / jour défaut (jetons)', 'icon': Icons.money_off, 'default': '500000'},
+      'default_daily_deposit_limit': {'label': 'Dépôt / jour défaut (jetons)', 'icon': Icons.savings_outlined, 'default': '1000000'},
+      'default_daily_wager_limit': {'label': 'Total misé / jour défaut (jetons)', 'icon': Icons.casino, 'default': '25000'},
+      'default_daily_matches_limit': {'label': 'Parties / jour défaut', 'icon': Icons.sports_esports, 'default': '20'},
       'default_session_time_minutes': {'label': 'Durée session max (min)', 'icon': Icons.timer_off, 'default': '120'},
-      'max_bet_per_round': {'label': 'Mise max par round (wiga)', 'icon': Icons.casino, 'default': '10000'},
+      'max_bet_per_round': {'label': 'Mise max par coup (jetons)', 'icon': Icons.casino, 'default': '10000'},
       'reality_check_interval_minutes': {'label': 'Intervalle rappel réalité (min)', 'icon': Icons.notifications_active, 'default': '30'},
       'fallback_timeout_seconds': {'label': 'Timeout matchmaking (s)', 'icon': Icons.hourglass_empty, 'default': '30'},
     };
@@ -280,6 +303,101 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
     );
   }
 
+  /// Levée admin d'une auto-exclusion (justification obligatoire, auditée).
+  void _showOverrideDialog(dynamic userId) {
+    if (userId == null) return;
+    final justificationCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text(
+          'Lever l’exclusion ?',
+          style: TextStyle(color: NeonColors.textPrimary, fontSize: 15),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'User #$userId — la levée est journalisée avec votre justification.',
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: justificationCtrl,
+              style: const TextStyle(color: NeonColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Justification (obligatoire)',
+                labelStyle: TextStyle(color: NeonColors.textSecondary),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: NeonColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: NeonColors.secondary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: NeonColors.secondary,
+            ),
+            onPressed: () async {
+              if (justificationCtrl.text.trim().isEmpty) {
+                ErrorHandler.logError(
+                  'Justification vide',
+                  StackTrace.current,
+                  context: 'AdminRG.override',
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await ref.read(adminRepositoryProvider).overrideSelfExclusion(
+                      '$userId',
+                      justificationCtrl.text.trim(),
+                    );
+                ref.invalidate(adminSelfExclusionsProvider);
+                ref.invalidate(adminResponsibleGamingProvider);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Auto-exclusion levée (action auditée)'),
+                    ),
+                  );
+                }
+              } catch (e, st) {
+                ErrorHandler.logError(e, st, context: 'AdminRG.override');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ErrorHandler.userMessage(e)),
+                      backgroundColor: NeonColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Lever'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _editGamingLimit(String key, String currentValue, String label) {
     final controller = TextEditingController(text: currentValue);
     showDialog(
@@ -324,10 +442,13 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, st) {
         ErrorHandler.logError(e, st, context: 'AdminResponsibleGaming.riskIndicators');
-        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminResponsibleGamingProvider));
+        return AdminErrorState(error: ErrorHandler.userMessage(e), onRetry: () => ref.invalidate(adminRiskIndicatorsProvider));
       },
       data: (data) {
-        final indicators = data['risk_indicators'] as List? ?? data['high_losers'] as List? ?? [];
+        // Backend : data.at_risk_users[] {user_id, username,
+        // total_losses_7d, risk_level} (+ alias risk_indicators).
+        final raw = data['at_risk_users'] ?? data['risk_indicators'] ?? data['high_losers'];
+        final indicators = raw is List ? raw : <dynamic>[];
 
         return indicators.isEmpty
             ? const Center(child: Text('Aucun indicateur de risque détecté', style: TextStyle(color: NeonColors.textSecondary)))
@@ -367,7 +488,7 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
                                 style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600),
                               ),
                               Text(
-                                'Pertes: ${indicator['total_losses'] ?? indicator['net_loss'] ?? 0} wiga',
+                                'Pertes 7j : ${indicator['total_losses_7d'] ?? indicator['total_wagered_7d'] ?? indicator['total_losses'] ?? indicator['net_loss'] ?? 0} jetons',
                                 style: TextStyle(color: riskColor, fontSize: 12),
                               ),
                             ],

@@ -8,6 +8,7 @@ import '../../widgets/neon/neon_widgets.dart';
 import '../../providers/config_provider.dart';
 import '../../../data/providers/token_provider.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/presence_provider.dart';
 import '../../../data/models/game_model.dart';
 
 /// Écran Lobby redesigné avec style néon gaming
@@ -251,6 +252,9 @@ class _GameCardWidget extends ConsumerWidget {
       'cards' => Icons.style,
       _ => Icons.games,
     };
+    // Temps réel : per-game online (fallback sur la valeur REST si WS non connecté)
+    final realtimeOnline = gameModel.comingSoon ? 0 : ref.watch(perGameOnlineProvider(gameModel.type));
+    final displayOnline = realtimeOnline > 0 ? realtimeOnline : gameModel.playersOnline;
 
     return NeonCard(
       onTap: () {
@@ -305,10 +309,15 @@ class _GameCardWidget extends ConsumerWidget {
                 style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
               ),
               Text(
-                gameModel.playersOnline > 0
-                    ? '${gameModel.playersOnline} en ligne'
-                    : '${gameModel.maxPlayers} max',
-                style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12, fontFamily: 'Inter'),
+                displayOnline > 0
+                    ? '$displayOnline en ligne'
+                    : (gameModel.comingSoon ? '${gameModel.maxPlayers} max' : '—'),
+                style: TextStyle(
+                  color: displayOnline > 0 ? NeonColors.success : NeonColors.textSecondary,
+                  fontSize: 12,
+                  fontFamily: 'Inter',
+                  fontWeight: displayOnline > 0 ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ],
           ),
