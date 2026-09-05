@@ -232,4 +232,95 @@ class GameRepository {
       requiresAuth: true,
     );
   }
+
+  /// Lance les dés via REST fallback (si WebSocket indisponible)
+  Future<Map<String, dynamic>> rollDice({required String matchId}) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/roll',
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Vote cible via REST fallback
+  Future<Map<String, dynamic>> voteTarget({
+    required String matchId,
+    required int targetValue,
+  }) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/vote',
+      body: {'target_value': targetValue},
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Démarre le set suivant via REST fallback
+  Future<Map<String, dynamic>> startSet({required String matchId}) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/start_set',
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Récupère l'état complet d'un match (REST)
+  Future<Map<String, dynamic>> getMatchStateRest(String matchId) async {
+    final res = await _apiService.get(
+      '${ApiEndpoints.gameShow}/$matchId/state',
+      requiresAuth: true,
+    );
+    // fallback debug si state est room
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Propose une revanche après fin de partie (idempotent)
+  Future<Map<String, dynamic>> proposeRematch({required String matchId}) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/${ApiEndpoints.rematchPropose}',
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Répond à une revanche proposée
+  Future<Map<String, dynamic>> respondRematch({
+    required String matchId,
+    required bool accept,
+  }) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/${ApiEndpoints.rematchRespond}',
+      body: {'accept': accept},
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Démarre la revanche (proposant) — retourne le nouveau match
+  Future<Map<String, dynamic>> startRematch({required String matchId}) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/${ApiEndpoints.rematchStart}',
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Annule une revanche proposée (proposant)
+  Future<Map<String, dynamic>> cancelRematch({required String matchId}) async {
+    final res = await _apiService.post(
+      '${ApiEndpoints.gameShow}/$matchId/${ApiEndpoints.rematchCancel}',
+      requiresAuth: true,
+    );
+    return res['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Signale la sortie de l'interface de fin de partie (idempotent)
+  Future<void> leaveMatch({required String matchId}) async {
+    try {
+      await _apiService.post(
+        '${ApiEndpoints.gameShow}/$matchId/${ApiEndpoints.matchLeave}',
+        requiresAuth: true,
+      );
+    } catch (_) {}
+  }
 }

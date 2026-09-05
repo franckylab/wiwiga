@@ -189,6 +189,52 @@ class GameRuleInfo {
       config: Map<String, dynamic>.from(json['config'] as Map? ?? {}),
     );
   }
+
+  // === Nombre de sets (source serveur game_rules.config) ===
+  // Le client n'invente jamais ces valeurs : elles pilotent l'affichage
+  // (slider fixe vs carte aléatoire) et restent cohérentes avec le moteur.
+
+  int _configInt(String key, int fallback) {
+    final value = config[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
+  /// Bornes de validation du choix joueur.
+  int get minSets => _configInt('min_sets', 1);
+  int get maxSets {
+    final max = _configInt('max_sets', 11);
+    final min = minSets;
+    return max >= min ? max : min;
+  }
+
+  /// Valeur fixe (mode fixe) : défaut serveur, pas 3 codé en dur.
+  int get defaultSets => _configInt('default_sets', 3).clamp(minSets, maxSets);
+
+  /// Mode de détermination : 'fixed' | 'random' (défaut fixe).
+  String get setsMode {
+    final mode = (config['sets_mode']?.toString() ?? 'fixed').trim();
+    return mode == 'random' ? 'random' : 'fixed';
+  }
+
+  bool get isRandomSets => setsMode == 'random';
+
+  /// Intervalle du tirage serveur (mode aléatoire), borné par min/max.
+  int get setsRandomMin =>
+      _configInt('sets_random_min', minSets).clamp(minSets, maxSets);
+  int get setsRandomMax =>
+      _configInt('sets_random_max', maxSets).clamp(setsRandomMin, maxSets);
+
+  /// Libellé d'affichage : "BO3" ou "Aléatoire (1–5)".
+  String get setsLabel {
+    if (isRandomSets) {
+      if (setsRandomMin == setsRandomMax) return 'BO$setsRandomMin';
+      return 'Aléatoire ($setsRandomMin–$setsRandomMax)';
+    }
+    return 'BO$defaultSets';
+  }
 }
 
 /// Astuce de jeu (GET /api/games/:type/tips)

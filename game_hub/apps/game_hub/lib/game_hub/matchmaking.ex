@@ -21,6 +21,8 @@ defmodule GameHub.Matchmaking do
   3. Phase fallback: mise alternative ±tolérance après timeout
   """
 
+  require Logger
+
   alias GameHub.Redis
   alias GameHub.Admin.PlatformConfig
 
@@ -416,9 +418,9 @@ defmodule GameHub.Matchmaking do
           # Auto-start si complet
           if lobby.players_count >= max_players do
             case create_quick_game(game_type, rule, bet_amount, lobby.players) do
-              {:ok, game_id} ->
+              {:ok, game_id, sets_info} ->
                 cleanup_quick_lobby(game_type, rule, bet_amount, lobby.players)
-                broadcast_quick_matched(game_type, rule, bet_amount, lobby.players, game_id)
+                broadcast_quick_matched(game_type, rule, bet_amount, lobby.players, game_id, sets_info)
                 {:ok, :matched, game_id, lobby}
               _ ->
                 {:ok, :waiting, lobby}
@@ -484,9 +486,9 @@ defmodule GameHub.Matchmaking do
         {min_players, _max} = get_lobby_limits(game_type, rule)
         if lobby.players_count >= min_players and lobby.ready_count == lobby.players_count and lobby.players_count >= 2 do
           case create_quick_game(game_type, rule, bet_amount, lobby.players) do
-            {:ok, game_id} ->
+            {:ok, game_id, sets_info} ->
               cleanup_quick_lobby(game_type, rule, bet_amount, lobby.players)
-              broadcast_quick_matched(game_type, rule, bet_amount, lobby.players, game_id)
+              broadcast_quick_matched(game_type, rule, bet_amount, lobby.players, game_id, sets_info)
               {:ok, :matched, game_id, get_quick_lobby_state(game_type, rule, bet_amount, nil)}
             _ ->
               {:ok, lobby}
@@ -527,7 +529,8 @@ defmodule GameHub.Matchmaking do
             is_full: false,
             elapsed_seconds: 0,
             status: "empty",
-            game_id: nil
+            game_id: nil,
+            sets: lobby_sets(game_type, rule)
           }
         game_id ->
           {min_players, max_players} = get_lobby_limits(game_type, rule)
@@ -545,7 +548,8 @@ defmodule GameHub.Matchmaking do
             is_full: false,
             elapsed_seconds: 0,
             status: "matched",
-            game_id: game_id
+            game_id: game_id,
+            sets: lobby_sets(game_type, rule)
           }
       end
     else
@@ -595,7 +599,8 @@ defmodule GameHub.Matchmaking do
         can_start -> "ready_to_start"
         true -> "waiting"
       end,
-      game_id: nil
+      game_id: nil,
+      sets: lobby_sets(game_type, rule)
     }
 
     # Si lobby vient d'être matché (last_matched existe), propager game_id
@@ -612,7 +617,12 @@ defmodule GameHub.Matchmaking do
     try do
       rules = GameHub.GameRules.get_rules_or_default(game_type, rule_type)
       rc = rules.config
-      sets_count = rc["default_sets"] || 1
+      # Nombre de sets : tirage serveur UNIQUE (nil → défaut fixe ou tirage
+      # aléatoire), identique pour tous les joueurs du lobby. Figé dans le
+      # match : cohérent de la création jusqu'à la fin de la partie.
+      {:ok, sets_count, sets_mode} =
+        GameHub.GameRules.resolve_sets_count(game_type, normalize_rule(rule_type), nil)
+
       dice_count = rc["default_dice"] || 2
       creator = (List.first(players) || %{"id" => "unknown"})["id"]
       config = %{
@@ -643,15 +653,18 @@ defmodule GameHub.Matchmaking do
                 _ -> :ok
               end
               game_id = final_match.match_id
+              Logger.info("Quick match #{game_id} created (#{game_type}/#{rule_type}, #{sets_count} sets, mode #{sets_mode}, #{length(players)} joueurs)")
               # Compat Redis pour game_state fallback
               Redix.command(Redis, ["HSET", "game:#{game_id}", "status", "in_progress"])
               Redix.command(Redis, ["HSET", "game:#{game_id}", "players", Enum.map(players, fn p -> p["id"] end) |> Enum.join(",")])
               Redix.command(Redis, ["HSET", "game:#{game_id}", "bet_amount", "#{bet_amount}"])
               Redix.command(Redis, ["HSET", "game:#{game_id}", "game_type", game_type])
               Redix.command(Redis, ["HSET", "game:#{game_id}", "rule_type", normalize_rule(rule_type)])
+              Redix.command(Redis, ["HSET", "game:#{game_id}", "sets_count", "#{sets_count}"])
+              Redix.command(Redis, ["HSET", "game:#{game_id}", "sets_mode", sets_mode])
               Redix.command(Redis, ["EXPIRE", "game:#{game_id}", 3600])
               Redix.command(Redis, ["SET", "qm:last_matched:#{game_type}:#{normalize_rule(rule_type)}:#{bet_amount}", game_id, "EX", 60])
-              {:ok, game_id}
+              {:ok, game_id, %{sets_count: sets_count, sets_mode: sets_mode}}
             err -> err
           end
 
@@ -663,7 +676,7 @@ defmodule GameHub.Matchmaking do
         player_ids = Enum.map(players, fn p -> p["id"] end)
         game_id = create_game(game_type, rule_type, player_ids, bet_amount)
         Redix.command(Redis, ["SET", "qm:last_matched:#{game_type}:#{normalize_rule(rule_type)}:#{bet_amount}", game_id, "EX", 60])
-        {:ok, game_id}
+        {:ok, game_id, %{sets_count: nil, sets_mode: "fixed"}}
     end
   end
 
@@ -705,14 +718,26 @@ defmodule GameHub.Matchmaking do
     _ -> :ok
   end
 
-  defp broadcast_quick_matched(game_type, rule_type, bet_amount, players, game_id) do
+  defp broadcast_quick_matched(game_type, rule_type, bet_amount, players, game_id, sets_info \\ %{sets_count: nil, sets_mode: "fixed"}) do
+    rule = normalize_rule(rule_type)
+    # Limites dynamiques (pas de valeurs codées en dur) + aperçu sets,
+    # pour un lobby "matched" cohérent avec la configuration serveur.
+    {min_players, max_players} = get_lobby_limits(game_type, rule)
+
     Enum.each(players, fn p ->
-      Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{p["id"]}", %{event: "game_matched", game_id: game_id, bet_amount: bet_amount, rule_type: rule_type})
-      Phoenix.PubSub.broadcast(GameHub.PubSub, "matchmaking:#{game_type}", %{event: "game_matched", game_id: game_id, lobby_players: players})
+      Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{p["id"]}", %{event: "game_matched", game_id: game_id, bet_amount: bet_amount, rule_type: rule, sets_count: sets_info[:sets_count], sets_mode: sets_info[:sets_mode]})
+      Phoenix.PubSub.broadcast(GameHub.PubSub, "matchmaking:#{game_type}", %{event: "game_matched", game_id: game_id, lobby_players: players, sets_count: sets_info[:sets_count], sets_mode: sets_info[:sets_mode]})
     end)
-    broadcast_quick_lobby(%{game_type: game_type, rule_type: normalize_rule(rule_type), bet_amount: bet_amount, players: players, players_count: length(players), max_players: 5, min_players: 2, ready_count: length(players), can_start: true, is_full: true, elapsed_seconds: 0, status: "matched", empty_slots: 0})
+    broadcast_quick_lobby(%{game_type: game_type, rule_type: rule, bet_amount: bet_amount, players: players, players_count: length(players), max_players: max_players, min_players: min_players, ready_count: length(players), can_start: true, is_full: true, elapsed_seconds: 0, status: "matched", empty_slots: 0, sets: lobby_sets(game_type, rule)})
   rescue
     _ -> :ok
+  end
+
+  # Aperçu sets du lobby (jamais de crash : fallback statique).
+  defp lobby_sets(game_type, rule_type) do
+    GameHub.GameRules.sets_preview(game_type, rule_type)
+  rescue
+    _ -> %{mode: "fixed", fixed: 3, random_min: 1, random_max: 5, min_sets: 1, max_sets: 11, default_sets: 3}
   end
 
   @doc """

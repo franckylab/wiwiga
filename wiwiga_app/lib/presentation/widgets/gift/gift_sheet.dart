@@ -137,13 +137,16 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                       ),
                   ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Offrir à ${widget.friend.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                         style: const TextStyle(
                           color: NeonColors.textPrimary,
                           fontWeight: FontWeight.bold,
@@ -158,6 +161,9 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                             : (widget.friend.isOnline
                                 ? 'En ligne'
                                 : 'Hors ligne'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                         style: TextStyle(
                           color: widget.friend.isInGame
                               ? NeonColors.warning
@@ -171,6 +177,7 @@ class _GiftSheetState extends ConsumerState<GiftSheet> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 4),
                 const TokenCoin(
                   size: 28,
                   metal: TokenMetal.gold,

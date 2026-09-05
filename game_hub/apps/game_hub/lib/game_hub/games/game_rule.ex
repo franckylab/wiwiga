@@ -14,6 +14,7 @@ defmodule GameHub.Games.GameRule do
 
   ## Config Keys (dice/normal)
     - `min_sets`, `max_sets`, `default_sets`
+    - `sets_mode` ("fixed" | "random"), `sets_random_min`, `sets_random_max`
     - `min_dice`, `max_dice`, `default_dice`
     - `dice_faces`
     - `commission_rate`
@@ -134,10 +135,15 @@ defmodule GameHub.Games.GameRule do
     end
   end
 
+  @valid_sets_modes ~w(fixed random)
+
   defp validate_dice_config(changeset, config) do
     changeset
     |> validate_config_range(config, "min_sets", 1, 99)
     |> validate_config_range(config, "max_sets", 1, 99)
+    |> validate_config_range(config, "default_sets", 1, 99)
+    |> validate_config_range(config, "sets_random_min", 1, 99)
+    |> validate_config_range(config, "sets_random_max", 1, 99)
     |> validate_config_range(config, "min_dice", 1, 10)
     |> validate_config_range(config, "max_dice", 1, 10)
     |> validate_config_range(config, "dice_faces", 4, 20)
@@ -145,6 +151,70 @@ defmodule GameHub.Games.GameRule do
     |> validate_config_range(config, "max_bet", 0, 10_000_000)
     |> validate_config_range(config, "min_players", 2, 10)
     |> validate_config_range(config, "max_players", 2, 10)
+    |> validate_sets_mode(config)
+    |> validate_sets_coherence(config)
+  end
+
+  defp validate_sets_mode(changeset, config) do
+    case Map.get(config, "sets_mode") do
+      nil ->
+        changeset
+
+      mode when mode in @valid_sets_modes ->
+        changeset
+
+      other ->
+        add_error(
+          changeset,
+          :config,
+          "sets_mode invalide (#{inspect(other)}) : attendu fixed ou random"
+        )
+    end
+  end
+
+  # Cohérence : min <= default/random <= max (évite une config qui
+  # produirait un nombre de sets impossible à valider ensuite).
+  defp validate_sets_coherence(changeset, config) do
+    min = to_config_int(config, "min_sets", 1)
+    max = to_config_int(config, "max_sets", 99)
+    default = to_config_int(config, "default_sets", nil)
+    rmin = to_config_int(config, "sets_random_min", nil)
+    rmax = to_config_int(config, "sets_random_max", nil)
+
+    changeset
+    |> maybe_add_config_error(min > max, "min_sets doit être <= max_sets")
+    |> maybe_add_config_error(
+      is_integer(default) and (default < min or default > max),
+      "default_sets doit être entre min_sets et max_sets"
+    )
+    |> maybe_add_config_error(
+      is_integer(rmin) and (rmin < min or rmin > max),
+      "sets_random_min doit être entre min_sets et max_sets"
+    )
+    |> maybe_add_config_error(
+      is_integer(rmax) and (rmax < min or rmax > max),
+      "sets_random_max doit être entre min_sets et max_sets"
+    )
+    |> maybe_add_config_error(
+      is_integer(rmin) and is_integer(rmax) and rmin > rmax,
+      "sets_random_min doit être <= sets_random_max"
+    )
+  end
+
+  defp maybe_add_config_error(changeset, false, _msg), do: changeset
+  defp maybe_add_config_error(changeset, _, msg), do: add_error(changeset, :config, msg)
+
+  defp to_config_int(config, key, default) do
+    case Map.get(config, key) do
+      nil -> default
+      val when is_integer(val) -> val
+      val when is_binary(val) ->
+        case Integer.parse(String.trim(val)) do
+          {n, ""} -> n
+          _ -> default
+        end
+      _ -> default
+    end
   end
 
   defp validate_config_range(changeset, config, key, min, max) do

@@ -260,6 +260,78 @@ final adminGameConfigManagementProvider = StateNotifierProvider<AdminGameConfigN
   return AdminGameConfigNotifier(ref);
 });
 
+// ========================================
+// RÈGLES MOTEUR — sets/dés (source GameRules)
+// ========================================
+
+/// État règles moteur (game_rules)
+class AdminGameRulesState {
+  final bool isLoading;
+  final String? error;
+  final List<dynamic> rules;
+  final bool isSaving;
+
+  const AdminGameRulesState({
+    this.isLoading = false,
+    this.error,
+    this.rules = const [],
+    this.isSaving = false,
+  });
+
+  AdminGameRulesState copyWith({
+    bool? isLoading,
+    String? error,
+    List<dynamic>? rules,
+    bool? isSaving,
+    bool clearError = false,
+  }) {
+    return AdminGameRulesState(
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      rules: rules ?? this.rules,
+      isSaving: isSaving ?? this.isSaving,
+    );
+  }
+}
+
+/// StateNotifier pour les règles moteur (nombre de sets fixe/aléatoire).
+class AdminGameRulesNotifier extends StateNotifier<AdminGameRulesState> {
+  final Ref _ref;
+
+  AdminGameRulesNotifier(this._ref) : super(const AdminGameRulesState());
+
+  Future<void> loadRules() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final repo = _ref.read(adminRepositoryProvider);
+      final rules = await repo.getGameRules();
+      state = state.copyWith(isLoading: false, rules: rules);
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameRulesNotifier.loadRules');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
+    }
+  }
+
+  Future<bool> updateRule(String gameType, String ruleType, Map<String, dynamic> patch) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final repo = _ref.read(adminRepositoryProvider);
+      await repo.updateGameRule(gameType, ruleType, patch);
+      await loadRules();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameRulesNotifier.updateRule');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
+      return false;
+    }
+  }
+}
+
+final adminGameRulesManagementProvider = StateNotifierProvider<AdminGameRulesNotifier, AdminGameRulesState>((ref) {
+  return AdminGameRulesNotifier(ref);
+});
+
 final adminBonusesManagementProvider = StateNotifierProvider<AdminBonusesNotifier, AdminBonusesState>((ref) {
   return AdminBonusesNotifier(ref);
 });

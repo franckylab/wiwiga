@@ -465,7 +465,8 @@ defmodule GameHub.Repo.Seeds do
 
     rules = [
       {"dice", "normal", "Normal", "High roll séquentiel, ordre tournant", %{
-        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 3,
+        "sets_mode" => "fixed", "sets_random_min" => 1, "sets_random_max" => 5,
         "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,
@@ -473,7 +474,8 @@ defmodule GameHub.Repo.Seeds do
         "tie_rule" => "replay", "turn_order" => "rotating"
       }},
       {"dice", "cible", "Cible", "Vote pour nombre cible, plus proche gagne", %{
-        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 3,
+        "sets_mode" => "fixed", "sets_random_min" => 1, "sets_random_max" => 5,
         "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,

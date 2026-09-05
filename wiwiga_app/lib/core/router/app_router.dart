@@ -32,6 +32,7 @@ import '../../presentation/screens/admin/admin_reconciliation_screen.dart';
 import '../../presentation/screens/admin/admin_settings_screen.dart';
 import '../../presentation/screens/admin/admin_shell_screen.dart';
 import '../../presentation/screens/admin/admin_game_config_screen.dart';
+import '../../presentation/screens/admin/admin_game_rules_screen.dart';
 import '../../presentation/screens/admin/admin_bonuses_screen.dart';
 import '../../presentation/screens/admin/admin_reports_screen.dart';
 import '../../presentation/screens/admin/admin_platform_config_screen.dart';
@@ -91,7 +92,7 @@ const _adminRoutes = {
   '/admin/reconciliation', '/admin/settings',
   '/admin/analytics/revenue', '/admin/analytics/players', '/admin/analytics/games',
   '/admin/analytics/monetary-flow', '/admin/analytics/wealth',
-  '/admin/game-config', '/admin/bonuses', '/admin/reports',
+  '/admin/game-config', '/admin/game-rules', '/admin/bonuses', '/admin/reports',
   '/admin/platform-config', '/admin/player-progression', '/admin/xp-rules',
 };
 
@@ -282,6 +283,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminShellScreen(child: AdminGameConfigScreen()),
       ),
       GoRoute(
+        path: '/admin/game-rules',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminGameRulesScreen()),
+      ),
+      GoRoute(
         path: '/admin/bonuses',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AdminShellScreen(child: AdminBonusesScreen()),
@@ -414,8 +420,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           setsCount: extra['sets_count'] ?? 3,
                           diceCount: extra['dice_count'] ?? 2,
                           betAmount: extra['bet_amount'] ?? 0,
-                          players: List<Map<String, dynamic>>.from(
-                              extra['players'] as List? ?? const [],),
+                          players: (extra['players'] as List? ?? const [])
+                              .map((e) {
+                                if (e is Map<String, dynamic>) return e;
+                                if (e is Map) return Map<String, dynamic>.from(e);
+                                if (e is String) return {'id': e, 'name': 'Joueur $e'};
+                                return {'id': e.toString(), 'name': 'Joueur'};
+                              })
+                              .cast<Map<String, dynamic>>()
+                              .toList(),
                         );
                       },
                     ),

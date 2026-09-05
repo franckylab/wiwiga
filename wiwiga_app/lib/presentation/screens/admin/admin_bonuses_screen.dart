@@ -55,7 +55,12 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
       body: state.isLoading
           ? const AdminSkeletonList(itemCount: 5)
           : state.error != null
-              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses())
+              ? AdminErrorState(
+                  error: state.error!,
+                  onRetry: () => ref
+                      .read(adminBonusesManagementProvider.notifier)
+                      .loadBonuses(),
+                )
               : _buildContent(state),
     );
   }
@@ -63,13 +68,19 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
   Widget _buildContent(AdminBonusesState state) {
     final bonuses = state.bonuses;
     final activeBonuses = bonuses.where((b) => b['is_active'] == true).toList();
-    final inactiveBonuses = bonuses.where((b) => b['is_active'] != true).toList();
+    final inactiveBonuses =
+        bonuses.where((b) => b['is_active'] != true).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cols = constraints.maxWidth > 900 ? 3 : constraints.maxWidth > 600 ? 2 : 1;
+        final cols = constraints.maxWidth > 900
+            ? 3
+            : constraints.maxWidth > 600
+                ? 2
+                : 1;
         return RefreshIndicator(
-          onRefresh: () => ref.read(adminBonusesManagementProvider.notifier).loadBonuses(),
+          onRefresh: () =>
+              ref.read(adminBonusesManagementProvider.notifier).loadBonuses(),
           color: NeonColors.primary,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -104,9 +115,18 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                   child: Wrap(
                     spacing: 8,
                     children: [
-                      _buildSummaryBadge('${activeBonuses.length} actifs', NeonColors.success),
-                      _buildSummaryBadge('${inactiveBonuses.length} inactifs', NeonColors.textMuted),
-                      _buildSummaryBadge('${bonuses.length} total', NeonColors.primary),
+                      _buildSummaryBadge(
+                        '${activeBonuses.length} actifs',
+                        NeonColors.success,
+                      ),
+                      _buildSummaryBadge(
+                        '${inactiveBonuses.length} inactifs',
+                        NeonColors.textMuted,
+                      ),
+                      _buildSummaryBadge(
+                        '${bonuses.length} total',
+                        NeonColors.primary,
+                      ),
                     ],
                   ),
                 ),
@@ -122,23 +142,24 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                     mainAxisSpacing: 12,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildBonusCard(bonuses[index] as Map<String, dynamic>),
+                    (context, index) =>
+                        _buildBonusCard(bonuses[index] as Map<String, dynamic>),
                     childCount: bonuses.length,
                   ),
                 ),
               ),
 
-          if (bonuses.isEmpty)
-            SliverFillRemaining(
-              child: AdminEmptyState(
-                icon: Icons.card_giftcard,
-                title: 'Aucun bonus configuré',
-                actionLabel: 'Créer un bonus',
-                actionIcon: Icons.add,
-                onAction: () => _showCreateDialog(),
-              ),
-            ),
-        ],
+              if (bonuses.isEmpty)
+                SliverFillRemaining(
+                  child: AdminEmptyState(
+                    icon: Icons.card_giftcard,
+                    title: 'Aucun bonus configuré',
+                    actionLabel: 'Créer un bonus',
+                    actionIcon: Icons.add,
+                    onAction: () => _showCreateDialog(),
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -152,7 +173,8 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     final isActive = bonus['is_active'] as bool? ?? false;
     final usageCount = bonus['usage_count'] as int? ?? 0;
     final totalCost = (bonus['total_cost'] as num?)?.toDouble() ?? 0;
-    final wageringReq = (bonus['wagering_requirement'] as num?)?.toDouble() ?? 0;
+    final wageringReq =
+        (bonus['wagering_requirement'] as num?)?.toDouble() ?? 0;
     final expiresAt = bonus['expires_at'] as String?;
 
     final typeColors = {
@@ -169,37 +191,70 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
       decoration: BoxDecoration(
         color: NeonColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isActive ? color.withValues(alpha: 0.3) : NeonColors.border),
+        border: Border.all(
+          color: isActive ? color.withValues(alpha: 0.3) : NeonColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        type.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    child: Text(type.toUpperCase(), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(name, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: const TextStyle(
+                          color: NeonColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Switch(
                 value: isActive,
                 onChanged: (value) async {
                   final id = bonus['id']?.toString() ?? '';
                   final bonusName = bonus['name'] as String? ?? '';
-                  final success = await ref.read(adminBonusesManagementProvider.notifier).toggleBonus(id, value);
+                  final success = await ref
+                      .read(adminBonusesManagementProvider.notifier)
+                      .toggleBonus(id, value);
                   if (mounted) {
-                    context.showResult(success,
-                      successMsg: '"$bonusName" ${value ? "activé" : "désactivé"}',
+                    context.showResult(
+                      success,
+                      successMsg:
+                          '"$bonusName" ${value ? "activé" : "désactivé"}',
                       errorMsg: 'Erreur de mise à jour',
                     );
                   }
@@ -209,23 +264,39 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              _buildStatItem('Valeur', '${value.toStringAsFixed(0)} wiga', color),
-              const SizedBox(width: 16),
-              _buildStatItem('Mise', '${wageringReq.toStringAsFixed(0)}x', NeonColors.secondary),
-              const SizedBox(width: 16),
+              _buildStatItem(
+                'Valeur',
+                '${value.toStringAsFixed(0)} wiga',
+                color,
+              ),
+              _buildStatItem(
+                'Mise',
+                '${wageringReq.toStringAsFixed(0)}x',
+                NeonColors.secondary,
+              ),
               _buildStatItem('Utilisations', '$usageCount', NeonColors.accent),
-              const SizedBox(width: 16),
-              _buildStatItem('Coût total', AnalyticsFormat.amount(totalCost), NeonColors.error),
+              _buildStatItem(
+                'Coût total',
+                AnalyticsFormat.amount(totalCost),
+                NeonColors.error,
+              ),
             ],
           ),
           if (expiresAt != null) ...[
             const SizedBox(height: 8),
-            Text('Expire: ${AnalyticsFormat.date(expiresAt)}', style: TextStyle(
-              color: _isExpired(expiresAt) ? NeonColors.error : NeonColors.textMuted,
-              fontSize: 10,
-            ),),
+            Text(
+              'Expire: ${AnalyticsFormat.date(expiresAt)}',
+              style: TextStyle(
+                color: _isExpired(expiresAt)
+                    ? NeonColors.error
+                    : NeonColors.textMuted,
+                fontSize: 10,
+              ),
+            ),
           ],
         ],
       ),
@@ -239,12 +310,19 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
       selected: isSelected,
       onSelected: (selected) {
         setState(() => _filterType = selected ? type : null);
-        ref.read(adminBonusesManagementProvider.notifier).loadBonuses(type: selected ? type : null);
+        ref
+            .read(adminBonusesManagementProvider.notifier)
+            .loadBonuses(type: selected ? type : null);
       },
       selectedColor: NeonColors.primary.withValues(alpha: 0.2),
       backgroundColor: NeonColors.surface,
-      labelStyle: TextStyle(color: isSelected ? NeonColors.primary : NeonColors.textSecondary, fontSize: 11),
-      side: BorderSide(color: isSelected ? NeonColors.primary : NeonColors.border),
+      labelStyle: TextStyle(
+        color: isSelected ? NeonColors.primary : NeonColors.textSecondary,
+        fontSize: 11,
+      ),
+      side: BorderSide(
+        color: isSelected ? NeonColors.primary : NeonColors.border,
+      ),
     );
   }
 
@@ -255,7 +333,14 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 
@@ -263,9 +348,25 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: NeonColors.textMuted, fontSize: 9)),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          style: const TextStyle(color: NeonColors.textMuted, fontSize: 9),
+        ),
       ],
     );
   }
@@ -282,7 +383,10 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.surface,
-        title: const Text('Nouveau Bonus', style: TextStyle(color: NeonColors.textPrimary)),
+        title: const Text(
+          'Nouveau Bonus',
+          style: TextStyle(color: NeonColors.textPrimary),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -295,31 +399,76 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Type',
                   labelStyle: TextStyle(color: NeonColors.textSecondary),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: NeonColors.border)),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: NeonColors.border),
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'welcome', child: Text('Bienvenue', style: TextStyle(color: NeonColors.textPrimary))),
-                  DropdownMenuItem(value: 'deposit', child: Text('Dépôt', style: TextStyle(color: NeonColors.textPrimary))),
-                  DropdownMenuItem(value: 'cashback', child: Text('Cashback', style: TextStyle(color: NeonColors.textPrimary))),
-                  DropdownMenuItem(value: 'tournament', child: Text('Tournoi', style: TextStyle(color: NeonColors.textPrimary))),
+                  DropdownMenuItem(
+                    value: 'welcome',
+                    child: Text(
+                      'Bienvenue',
+                      style: TextStyle(color: NeonColors.textPrimary),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'deposit',
+                    child: Text(
+                      'Dépôt',
+                      style: TextStyle(color: NeonColors.textPrimary),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'cashback',
+                    child: Text(
+                      'Cashback',
+                      style: TextStyle(color: NeonColors.textPrimary),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'tournament',
+                    child: Text(
+                      'Tournoi',
+                      style: TextStyle(color: NeonColors.textPrimary),
+                    ),
+                  ),
                 ],
                 onChanged: (v) => typeCtrl.text = v ?? 'welcome',
               ),
               const SizedBox(height: 12),
-              _buildTextField(valueCtrl, 'Valeur (wiga)', Icons.monetization_on),
+              _buildTextField(
+                valueCtrl,
+                'Valeur (wiga)',
+                Icons.monetization_on,
+              ),
               const SizedBox(height: 12),
-              _buildTextField(wageringCtrl, 'Condition de mise (x)', Icons.refresh),
+              _buildTextField(
+                wageringCtrl,
+                'Condition de mise (x)',
+                Icons.refresh,
+              ),
               const SizedBox(height: 12),
-              _buildTextField(minDepositCtrl, 'Dépôt Min (FCFA)', Icons.arrow_downward),
+              _buildTextField(
+                minDepositCtrl,
+                'Dépôt Min (FCFA)',
+                Icons.arrow_downward,
+              ),
               const SizedBox(height: 12),
-              _buildTextField(maxBonusCtrl, 'Bonus Max (wiga)', Icons.arrow_upward),
+              _buildTextField(
+                maxBonusCtrl,
+                'Bonus Max (wiga)',
+                Icons.arrow_upward,
+              ),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -340,13 +489,17 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 return;
               }
               if (minDeposit > maxBonus) {
-                context.showError('Le dépôt min ne peut pas dépasser le bonus max');
+                context.showError(
+                  'Le dépôt min ne peut pas dépasser le bonus max',
+                );
                 return;
               }
 
               if (!context.mounted) return;
               Navigator.pop(ctx);
-              final success = await ref.read(adminBonusesManagementProvider.notifier).createBonus({
+              final success = await ref
+                  .read(adminBonusesManagementProvider.notifier)
+                  .createBonus({
                 'name': name,
                 'type': type,
                 'value': value,
@@ -356,13 +509,15 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
               });
 
               if (mounted) {
-                context.showResult(success,
+                context.showResult(
+                  success,
                   successMsg: 'Bonus "$name" créé avec succès',
                   errorMsg: 'Erreur lors de la création du bonus',
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             child: const Text('Créer'),
           ),
         ],
@@ -370,7 +525,11 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
     return TextField(
       controller: controller,
       style: const TextStyle(color: NeonColors.textPrimary),

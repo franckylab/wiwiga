@@ -66,8 +66,13 @@ void main() {
 
     group('matchmaking fallback REST', () {
       test('utilise REST quand WebSocket déconnecté', () async {
-        when(() => mockApiService.post(any(), body: any(named: 'body'), requiresAuth: any(named: 'requiresAuth')))
-            .thenAnswer((_) async => {'status': 'queued', 'position': 3});
+        when(
+          () => mockApiService.post(
+            any(),
+            body: any(named: 'body'),
+            requiresAuth: any(named: 'requiresAuth'),
+          ),
+        ).thenAnswer((_) async => {'status': 'queued', 'position': 3});
 
         final result = await service.joinMatchmaking(
           gameType: 'dice',
@@ -75,18 +80,25 @@ void main() {
         );
 
         expect(result['status'], 'queued');
-        verify(() => mockApiService.post(
-          '/api/games/dice',
-          body: {'bet_amount': 500},
-          requiresAuth: true,
-        ),).called(1);
+        verify(
+          () => mockApiService.post(
+            '/api/games/dice/join',
+            body: {'bet_amount': 500, 'rule_type': 'normal'},
+            requiresAuth: true,
+          ),
+        ).called(1);
       });
     });
 
     group('placeBet fallback REST', () {
       test('utilise REST quand WebSocket déconnecté', () async {
-        when(() => mockApiService.post(any(), body: any(named: 'body'), requiresAuth: any(named: 'requiresAuth')))
-            .thenAnswer((_) async => {'status': 'bet_placed'});
+        when(
+          () => mockApiService.post(
+            any(),
+            body: any(named: 'body'),
+            requiresAuth: any(named: 'requiresAuth'),
+          ),
+        ).thenAnswer((_) async => {'status': 'bet_placed'});
 
         final result = await service.placeBet(
           gameId: 'game_123',
@@ -95,22 +107,30 @@ void main() {
         );
 
         expect(result['status'], 'bet_placed');
-        verify(() => mockApiService.post(
-          '/api/games/game_123/bet',
-          body: {'bet_amount': 500, 'predicted_sum': 7},
-          requiresAuth: true,
-        ),).called(1);
+        verify(
+          () => mockApiService.post(
+            '/api/games/game_123/bet',
+            body: {'bet_amount': 500, 'predicted_sum': 7},
+            requiresAuth: true,
+          ),
+        ).called(1);
       });
     });
 
     group('fetchGameState', () {
       test('récupère l état via REST', () async {
-        when(() => mockApiService.get(any(), requiresAuth: any(named: 'requiresAuth')))
-            .thenAnswer((_) async => {
-              'game_id': 'game_123',
-              'status': 'playing',
-              'total_pot': 1000,
-            },);
+        when(
+          () => mockApiService.get(
+            any(),
+            requiresAuth: any(named: 'requiresAuth'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'game_id': 'game_123',
+            'status': 'playing',
+            'total_pot': 1000,
+          },
+        );
 
         final state = await service.fetchGameState('game_123');
 
@@ -150,9 +170,27 @@ void main() {
           receivedPayload = payload;
         };
 
-        service.onTurnExecuted?.call({'dice_results': [3, 4], 'total_sum': 7});
+        service.onTurnExecuted?.call({
+          'dice_results': [3, 4],
+          'total_sum': 7,
+        });
 
         expect(receivedPayload!['total_sum'], 7);
+      });
+
+      test('expose le callback de changement de tour', () {
+        Map<String, dynamic>? receivedPayload;
+        service.onTurnChanged = (payload) {
+          receivedPayload = payload;
+        };
+
+        service.onTurnChanged?.call({
+          'current_player_id': 'player_2',
+          'current_turn_index': 1,
+        });
+
+        expect(receivedPayload!['current_player_id'], 'player_2');
+        expect(receivedPayload!['current_turn_index'], 1);
       });
 
       test('onGameResult est appelé quand défini', () {
@@ -181,11 +219,26 @@ void main() {
     group('GameConnectionStatus', () {
       test('valeurs enum correctes', () {
         expect(GameConnectionStatus.values.length, 5);
-        expect(GameConnectionStatus.values, contains(GameConnectionStatus.disconnected));
-        expect(GameConnectionStatus.values, contains(GameConnectionStatus.connecting));
-        expect(GameConnectionStatus.values, contains(GameConnectionStatus.connected));
-        expect(GameConnectionStatus.values, contains(GameConnectionStatus.reconnecting));
-        expect(GameConnectionStatus.values, contains(GameConnectionStatus.fallbackRest));
+        expect(
+          GameConnectionStatus.values,
+          contains(GameConnectionStatus.disconnected),
+        );
+        expect(
+          GameConnectionStatus.values,
+          contains(GameConnectionStatus.connecting),
+        );
+        expect(
+          GameConnectionStatus.values,
+          contains(GameConnectionStatus.connected),
+        );
+        expect(
+          GameConnectionStatus.values,
+          contains(GameConnectionStatus.reconnecting),
+        );
+        expect(
+          GameConnectionStatus.values,
+          contains(GameConnectionStatus.fallbackRest),
+        );
       });
     });
 

@@ -159,9 +159,10 @@ defmodule GameHubWeb.GameController do
         true ->
           case GameHub.ResponsibleGaming.check_before_bet(user_id, bet_amount) do
             {:error, reason} ->
+              {message, details} = responsible_gaming_message(reason, user_id, bet_amount)
               conn
               |> put_status(403)
-              |> json(Errors.error("Jeu responsable: #{reason}", 403, "RESPONSIBLE_GAMING_BLOCK"))
+              |> json(Errors.error(message, 403, "RESPONSIBLE_GAMING_BLOCK", details))
             
             :ok ->
               # Vérifier déjà en file / déjà en salle ?
@@ -248,26 +249,19 @@ defmodule GameHubWeb.GameController do
                 players: Enum.map(room.players, fn p -> p.id end),
                 game_type: room.game_type,
                 rule_type: room.rule_type,
-                bet_amount: room.bet_amount
+                bet_amount: room.bet_amount,
+                sets_count: room.sets_count,
+                sets_mode: Map.get(room, :sets_mode, "fixed")
               },
               meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
             })
           _ ->
             case GameMatch.get_match(game_id) do
               {:ok, match} ->
+                # Retour complet pour reload page (tout le state, pas juste résumé)
                 conn |> put_status(200) |> json(%{
                   success: true,
-                  data: %{
-                    game_id: game_id,
-                    match_id: match.match_id,
-                    status: to_string(match.status),
-                    players: Enum.map(match.players, fn p -> p.id end),
-                    game_type: match.game_type,
-                    rule_type: match.rule_type,
-                    bet_amount: match.bet_amount,
-                    current_set: match.current_set,
-                    sets_count: match.sets_count
-                  },
+                  data: sanitize_debug_match(match),
                   meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
                 })
               _ ->
@@ -287,7 +281,9 @@ defmodule GameHubWeb.GameController do
           players: (map["players"] || "") |> String.split(",", trim: true),
           game_type: map["game_type"] || "dice",
           rule_type: map["rule_type"] || "normal",
-          bet_amount: case map["bet_amount"] do nil -> 0; v -> String.to_integer(v) end
+          bet_amount: case map["bet_amount"] do nil -> 0; v -> String.to_integer(v) end,
+          sets_count: case map["sets_count"] do nil -> nil; v -> String.to_integer(v) end,
+          sets_mode: map["sets_mode"] || "fixed"
         }
         
         conn
@@ -378,7 +374,10 @@ defmodule GameHubWeb.GameController do
       can_start: lobby.can_start,
       is_full: lobby.is_full,
       elapsed_seconds: lobby.elapsed_seconds,
-      status: lobby.status
+      status: lobby.status,
+      # Aperçu sets (mode fixe/aléatoire) — affichage lobby cohérent
+      # avec la configuration serveur (jamais deviné côté client).
+      sets: Map.get(lobby, :sets)
     }
   end
 
@@ -596,23 +595,312 @@ defmodule GameHubWeb.GameController do
     end
   end
 
-  # Debug: inspect match (pour test tours)
+  def debug_start_set(conn, %{"game_id" => game_id}) do
+    case GameMatch.start_set(game_id) do
+      {:ok, match} -> conn |> put_status(200) |> json(%{success: true, data: sanitize_debug_match(match)})
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "START_SET_ERROR"))
+    end
+  end
+
+  # Debug: inspect match (pour test tours) — sanitize pour JSON
+  defp sanitize_debug_match(match) do
+    css = Map.get(match, :current_set_state)
+    sanitized_css = case css do
+      nil -> nil
+      m when is_map(m) ->
+        base = case Map.get(m, :result) do
+          {:winner, id} -> Map.put(m, :result, %{winner_id: to_string(id), result: "winner"})
+          :tie -> Map.put(m, :result, %{result: "tie"})
+          _ -> m
+        end
+        base =
+          try do
+            Map.update(base, :rolls, %{}, fn rolls when is_map(rolls) ->
+              Map.new(rolls, fn {k, v} -> {to_string(k), sanitize_roll(v)} end)
+            end)
+          rescue
+            _ -> base
+          end
+        remaining = case Map.get(base, :turn_deadline) do
+          %DateTime{} = dl -> try do max(0, DateTime.diff(dl, DateTime.utc_now(), :second)) rescue _ -> nil end
+          _ -> nil
+        end
+        Map.put(base, :turn_remaining_seconds, remaining)
+      other -> other
+    end
+    {last_roller_id, last_roll} = latest_roll(match)
+    sets = try do Enum.map(Map.get(match, :sets, []), &sanitize_set/1) rescue _ -> [] end
+    %{
+      match_id: match.match_id,
+      status: to_string(match.status),
+      players: Enum.map(match.players, fn p -> %{id: to_string(p.id), name: Map.get(p, :name, "Joueur")} end),
+      current_set: match.current_set,
+      sets_count: Map.get(match, :sets_count, 1),
+      sets_mode: Map.get(match, :sets_mode, "fixed"),
+      sets_to_win: Map.get(match, :sets_to_win, div(Map.get(match, :sets_count, 1), 2) + 1),
+      dice_count: Map.get(match, :dice_count, 2),
+      bet_amount: Map.get(match, :bet_amount, 0),
+      rule_type: Map.get(match, :rule_type, "normal"),
+      game_type: Map.get(match, :game_type, "dice"),
+      max_players: Map.get(match, :max_players, 2),
+      current_set_state: sanitized_css,
+      set_scores: match.set_scores,
+      sets: sets,
+      payout: payout_summary(match),
+      rematch: rematch_lobby_view(match, Map.get(match, :rematch)),
+      left_players: (Map.get(match, :left_players, MapSet.new()) || MapSet.new()) |> MapSet.to_list() |> Enum.map(&to_string/1),
+      eliminated_players: match.eliminated_players |> MapSet.to_list() |> Enum.map(&to_string/1),
+      winner_id: Map.get(match, :winner_id) |> then(fn nil -> nil; v -> to_string(v) end),
+      turn_timeout_ms: GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000,
+      last_roller_id: last_roller_id,
+      last_roll: last_roll
+    }
+  end
+
+  defp sanitize_set(set) when is_map(set) do
+    rolls = Map.get(set, :rolls, %{}) || %{}
+    sums = Map.new(rolls, fn {pid, roll} ->
+      sum = case roll do
+        %{sum: s} when is_integer(s) -> s
+        %{dice: dice} when is_list(dice) -> Enum.sum(dice)
+        _ -> 0
+      end
+      {to_string(pid), sum}
+    end)
+    {winner_id, result} = case Map.get(set, :winner_id) do
+      nil -> case Map.get(set, :result) do
+        {:winner, id} -> {to_string(id), "winner"}
+        _ -> {nil, "tie"}
+      end
+      id -> {to_string(id), "winner"}
+    end
+    %{set_number: Map.get(set, :set_number), winner_id: winner_id, result: result, sums: sums, target_value: Map.get(set, :target_value)}
+  end
+
+  defp payout_summary(match) do
+    bet = Map.get(match, :bet_amount, 0) || 0
+    winner = Map.get(match, :winner_id)
+    if match.status == :match_ended and bet > 0 and not is_nil(winner) do
+      n = length(Map.get(match, :players, []))
+      gross = bet * n
+      rate = try do
+        rules = GameHub.GameRules.get_rules_or_default(match.game_type, match.rule_type || "normal")
+        (rules.config["commission_rate"] || 0.05) |> to_string() |> Decimal.new() |> Decimal.to_float()
+      rescue _ -> 0.05 end
+      commission = trunc(gross * rate)
+      %{gross: gross, commission: commission, net: gross - commission, winner_id: to_string(winner)}
+    else
+      nil
+    end
+  rescue _ -> nil
+  end
+
+  defp rematch_lobby_view(_match, nil), do: %{status: "none"}
+  defp rematch_lobby_view(_match, %{started: true} = lobby) do
+    %{status: "started", proposed_by: lobby.proposed_by,
+      accepted: lobby.accepted |> MapSet.to_list() |> Enum.map(&to_string/1),
+      new_match_id: lobby.new_match_id}
+  end
+  defp rematch_lobby_view(match, lobby) do
+    left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+    invited = match.players |> Enum.map(fn p -> to_string(p.id) end) |> Enum.reject(fn id -> MapSet.member?(left, id) end)
+    %{status: "proposed", proposed_by: lobby.proposed_by,
+      accepted: lobby.accepted |> MapSet.to_list() |> Enum.map(&to_string/1),
+      declined: lobby.declined |> MapSet.to_list() |> Enum.map(&to_string/1),
+      invited: invited,
+      left: left |> MapSet.to_list() |> Enum.map(&to_string/1),
+      accepted_count: lobby.accepted |> MapSet.to_list() |> Enum.reject(fn id -> MapSet.member?(left, id) end) |> length(),
+      proposed_at: lobby.proposed_at |> DateTime.to_iso8601()}
+  end
+
+  defp sanitize_roll(%{dice: dice, sum: sum} = roll) do
+    %{
+      player_id: roll |> Map.get(:player_id) |> to_string(),
+      dice: dice,
+      sum: sum,
+      forfeited: Map.get(roll, :forfeited, false),
+      rolled_at: case Map.get(roll, :rolled_at) do
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        v when is_binary(v) -> v
+        _ -> nil
+      end
+    }
+  end
+  defp sanitize_roll(other) when is_map(other) do
+    pid = Map.get(other, :player_id) || Map.get(other, "player_id")
+    dice = Map.get(other, :dice) || Map.get(other, "dice") || []
+    sum = Map.get(other, :sum) || Map.get(other, "sum") || Enum.sum(List.wrap(dice))
+    %{player_id: to_string(pid), dice: List.wrap(dice), sum: sum,
+      forfeited: Map.get(other, :forfeited) || Map.get(other, "forfeited") || false,
+      rolled_at: case Map.get(other, :rolled_at) || Map.get(other, "rolled_at") do
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        v when is_binary(v) -> v
+        _ -> nil
+      end}
+  rescue _ -> %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+  end
+  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+
+  defp latest_roll(match) do
+    rolls = match |> Map.get(:current_set_state, %{}) |> then(fn
+      nil -> %{}
+      css when is_map(css) -> Map.get(css, :rolls, %{}) || %{}
+      _ -> %{}
+    end)
+    if map_size(rolls) == 0 do
+      {nil, nil}
+    else
+      {pid, roll} = Enum.max_by(rolls, fn {_pid, r} ->
+        case r do
+          %{rolled_at: %DateTime{} = dt} -> DateTime.to_unix(dt, :microsecond)
+          %{"rolled_at" => v} when is_binary(v) -> v
+          %{rolled_at: v} when is_binary(v) -> v
+          _ -> ""
+        end
+      end)
+      {to_string(pid), sanitize_roll(roll)}
+    end
+  rescue _ -> {nil, nil}
+  end
+
   def debug_match(conn, %{"game_id" => game_id}) do
     case GameMatch.get_match(game_id) do
-      {:ok, match} -> conn |> put_status(200) |> json(%{success: true, data: %{match_id: match.match_id, status: to_string(match.status), players: Enum.map(match.players, & &1.id), current_set: match.current_set, current_set_state: match.current_set_state, set_scores: match.set_scores}})
+      {:ok, match} -> conn |> put_status(200) |> json(%{success: true, data: sanitize_debug_match(match)})
       {:error, _} -> conn |> put_status(404) |> json(Errors.error("Match non trouvé", 404, "MATCH_NOT_FOUND"))
     end
   end
 
   def debug_roll(conn, %{"game_id" => game_id} = params) do
     user_id = get_current_user_id(conn)
-    # Permettre de forcer player_id via param pour test
     player_id = to_string(Map.get(params, "player_id", user_id))
     case GameMatch.roll_dice(game_id, player_id) do
-      {:ok, %{match: match, roll: roll}} -> conn |> put_status(200) |> json(%{success: true, data: %{roll: roll, match: %{match_id: match.match_id, status: to_string(match.status), current_set_state: match.current_set_state, set_scores: match.set_scores}}})
+      {:ok, %{match: match, roll: roll, set_result: sr}} ->
+        conn |> put_status(200) |> json(%{success: true, data: %{roll: sanitize_roll(roll), match: sanitize_debug_match(match), set_result: sanitize_set_result(sr)}})
       {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "ROLL_ERROR"))
     end
   end
+
+  # === REST fallback pour jeu temps réel (utilisé si WebSocket indisponible) ===
+
+  def roll(conn, %{"game_id" => game_id} = params) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(Map.get(params, "player_id", user_id))
+    case GameMatch.roll_dice(game_id, player_id) do
+      {:ok, %{match: match, roll: roll, set_result: sr}} ->
+        conn |> put_status(200) |> json(%{success: true, data: %{roll: sanitize_roll(roll), match: sanitize_debug_match(match), set_result: sanitize_set_result(sr)}})
+      {:error, :not_your_turn} -> conn |> put_status(403) |> json(Errors.error("Ce n'est pas votre tour", 403, "NOT_YOUR_TURN"))
+      {:error, :already_rolled} -> conn |> put_status(409) |> json(Errors.error("Vous avez déjà lancé", 409, "ALREADY_ROLLED"))
+      {:error, :player_eliminated} -> conn |> put_status(403) |> json(Errors.error("Vous êtes éliminé", 403, "PLAYER_ELIMINATED"))
+      {:error, :set_not_in_progress} -> conn |> put_status(409) |> json(Errors.error("Set non en cours", 409, "SET_NOT_IN_PROGRESS"))
+      {:error, :voting_phase_active} -> conn |> put_status(409) |> json(Errors.error("Phase de vote en cours", 409, "VOTING_PHASE"))
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "ROLL_ERROR"))
+    end
+  end
+
+  def vote(conn, %{"game_id" => game_id} = params) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(Map.get(params, "player_id", user_id))
+    target = Map.get(params, "target_value") || Map.get(params, "target")
+    target_val = cond do is_integer(target) -> target; is_binary(target) -> String.to_integer(target); true -> nil end
+    if is_nil(target_val) do
+      conn |> put_status(400) |> json(Errors.error("target_value requis", 400, "VALIDATION_ERROR"))
+    else
+      case GameMatch.vote_target(game_id, player_id, target_val) do
+        {:ok, match} -> conn |> put_status(200) |> json(%{success: true, data: sanitize_debug_match(match)})
+        {:error, :already_voted} -> conn |> put_status(409) |> json(Errors.error("Déjà voté", 409, "ALREADY_VOTED"))
+        {:error, :not_voting_phase} -> conn |> put_status(409) |> json(Errors.error("Pas en phase de vote", 409, "NOT_VOTING_PHASE"))
+        {:error, :invalid_target} -> conn |> put_status(400) |> json(Errors.error("Cible invalide", 400, "INVALID_TARGET"))
+        {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "VOTE_ERROR"))
+      end
+    end
+  end
+
+  def start_set_rest(conn, %{"game_id" => game_id}) do
+    case GameMatch.start_set(game_id) do
+      {:ok, match} -> conn |> put_status(200) |> json(%{success: true, data: sanitize_debug_match(match)})
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "START_SET_ERROR"))
+    end
+  end
+
+  # === Revanche opt-out (fin de partie) — REST fallback ===
+
+  def propose_rematch(conn, %{"game_id" => game_id}) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(user_id)
+
+    case GameMatch.propose_rematch(game_id, player_id) do
+      {:ok, lobby} ->
+        {:ok, match} = GameMatch.get_match(game_id)
+        conn |> put_status(200) |> json(%{success: true, data: %{lobby: lobby, match: sanitize_debug_match(match)}})
+
+      {:error, :match_not_found} -> conn |> put_status(404) |> json(Errors.error("Partie introuvable ou expirée", 404, "MATCH_NOT_FOUND"))
+      {:error, :match_not_ended} -> conn |> put_status(409) |> json(Errors.error("La partie n'est pas terminée", 409, "MATCH_NOT_ENDED"))
+      {:error, :not_a_player} -> conn |> put_status(403) |> json(Errors.error("Vous ne faites pas partie de cette partie", 403, "NOT_A_PLAYER"))
+      {:error, :player_left} -> conn |> put_status(409) |> json(Errors.error("Vous avez quitté cette partie", 409, "PLAYER_LEFT"))
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "REMATCH_ERROR"))
+    end
+  end
+
+  def respond_rematch(conn, %{"game_id" => game_id} = params) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(user_id)
+    accept? = Map.get(params, "accept", Map.get(params, "accepted", true))
+
+    case GameMatch.respond_rematch(game_id, player_id, accept?) do
+      {:ok, lobby} ->
+        {:ok, match} = GameMatch.get_match(game_id)
+        conn |> put_status(200) |> json(%{success: true, data: %{lobby: lobby, match: sanitize_debug_match(match)}})
+
+      {:error, :match_not_found} -> conn |> put_status(404) |> json(Errors.error("Partie introuvable ou expirée", 404, "MATCH_NOT_FOUND"))
+      {:error, :no_rematch_proposal} -> conn |> put_status(404) |> json(Errors.error("Aucune revanche proposée", 404, "NO_REMATCH_PROPOSAL"))
+      {:error, :not_a_player} -> conn |> put_status(403) |> json(Errors.error("Vous ne faites pas partie de cette partie", 403, "NOT_A_PLAYER"))
+      {:error, :player_left} -> conn |> put_status(409) |> json(Errors.error("Vous avez quitté cette partie", 409, "PLAYER_LEFT"))
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "REMATCH_ERROR"))
+    end
+  end
+
+  def start_rematch(conn, %{"game_id" => game_id}) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(user_id)
+
+    case GameMatch.start_rematch(game_id, player_id) do
+      {:ok, %{new_match_id: new_id, match: match, excluded: excluded}} ->
+        conn |> put_status(200) |> json(%{success: true, data: %{new_match_id: new_id, match: sanitize_debug_match(match), excluded: Enum.map(excluded, &to_string/1)}})
+
+      {:error, :match_not_found} -> conn |> put_status(404) |> json(Errors.error("Partie introuvable ou expirée", 404, "MATCH_NOT_FOUND"))
+      {:error, :no_rematch_proposal} -> conn |> put_status(404) |> json(Errors.error("Aucune revanche proposée", 404, "NO_REMATCH_PROPOSAL"))
+      {:error, :not_proposer} -> conn |> put_status(403) |> json(Errors.error("Seul le proposant peut démarrer la revanche", 403, "NOT_PROPOSER"))
+      {:error, :not_enough_players} -> conn |> put_status(409) |> json(Errors.error("Pas assez de joueurs (soldes insuffisants ou départs)", 409, "NOT_ENOUGH_PLAYERS"))
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "REMATCH_ERROR"))
+    end
+  end
+
+  def cancel_rematch(conn, %{"game_id" => game_id}) do
+    user_id = get_current_user_id(conn)
+    player_id = to_string(user_id)
+
+    case GameMatch.cancel_rematch(game_id, player_id) do
+      {:ok, lobby} ->
+        conn |> put_status(200) |> json(%{success: true, data: %{lobby: lobby}})
+
+      {:error, :match_not_found} -> conn |> put_status(404) |> json(Errors.error("Partie introuvable ou expirée", 404, "MATCH_NOT_FOUND"))
+      {:error, :no_rematch_proposal} -> conn |> put_status(404) |> json(Errors.error("Aucune revanche proposée", 404, "NO_REMATCH_PROPOSAL"))
+      {:error, :not_proposer} -> conn |> put_status(403) |> json(Errors.error("Seul le proposant peut annuler", 403, "NOT_PROPOSER"))
+      {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "REMATCH_ERROR"))
+    end
+  end
+
+  def leave_match(conn, %{"game_id" => game_id}) do
+    user_id = get_current_user_id(conn)
+    # Idempotent : toujours 200 (chemins dispose)
+    GameMatch.leave_match(game_id, to_string(user_id))
+    conn |> put_status(200) |> json(%{success: true, data: %{status: "left"}})
+  end
+
+  defp sanitize_set_result(:tie), do: %{result: "tie"}
+  defp sanitize_set_result({:winner, id}), do: %{winner_id: to_string(id), result: "winner"}
+  defp sanitize_set_result(:in_progress), do: %{result: "in_progress"}
+  defp sanitize_set_result(other), do: %{result: inspect(other)}
 
   defp get_players_online(game_type) do
     {:ok, c1} = Redix.command(GameHub.Redis, ["HLEN", "queue:#{game_type}:normal"])
@@ -624,4 +912,44 @@ defmodule GameHubWeb.GameController do
   
   defp get_tips_items(%{tips: %{"items" => items}}) when is_list(items), do: items
   defp get_tips_items(_config), do: []
+
+  # Messages humains pour jeu responsable (évite "daily_limit_reached" brut)
+  defp responsible_gaming_message(reason, user_id, bet_amount) do
+    case reason do
+      :self_excluded ->
+        {"Vous êtes en période d'auto-exclusion. Vous ne pouvez pas jouer pour le moment. Contactez le support si besoin.",
+         %{reason: "self_excluded"}}
+
+      :max_bet_exceeded ->
+        max_bet = GameHub.Admin.PlatformConfig.get_int("gaming", "max_bet_per_round", 10_000)
+        {"Mise trop élevée. Maximum autorisé : #{max_bet} wiga.",
+         %{reason: "max_bet_exceeded", max_bet: max_bet, attempted: bet_amount}}
+
+      :daily_limit_reached ->
+        limit = GameHub.Admin.PlatformConfig.get_int("gaming", "default_daily_loss_limit", 5000)
+        # Récupère total du jour pour contexte (best effort)
+        total =
+          try do
+            today = Date.utc_today() |> Date.to_iso8601() |> Kernel.<>("T00:00:00Z") |> DateTime.from_iso8601() |> elem(1)
+            GameHub.Repo.one(
+              from t in GameHub.Tokens.TokenTransaction,
+                where: t.user_id == ^user_id and t.type == "bet" and t.inserted_at >= ^today,
+                select: fragment("COALESCE(SUM(ABS(?)),0)", t.token_amount)
+            ) || 0
+          rescue
+            _ -> 0
+          end
+        {"Limite quotidienne atteinte (#{limit} wiga). Vos mises d'aujourd'hui : #{total} wiga. Revenez demain ou ajustez vos limites dans Profil > Jeu responsable.",
+         %{reason: "daily_limit_reached", limit: limit, total: total, bet_amount: bet_amount}}
+
+      :session_time_exceeded ->
+        limit = GameHub.Admin.PlatformConfig.get_int("gaming", "default_session_time_minutes", 120)
+        {"Temps de session dépassé (#{limit} min). Faites une pause. Votre session sera réinitialisée après une pause.",
+         %{reason: "session_time_exceeded", limit_minutes: limit}}
+
+      other ->
+        {"Jeu responsable : #{inspect(other)}. Vérifiez vos limites dans Profil > Jeu responsable.",
+         %{reason: inspect(other)}}
+    end
+  end
 end

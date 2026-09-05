@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/game_stats_providers.dart';
+import '../../../data/providers/friend_provider.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
 
 /// Shell principal : 4 onglets (Accueil, Jeux, Amis, Classement)
@@ -18,10 +20,70 @@ import '../../widgets/navigation/responsive_navigation.dart';
 /// Mobile (< 600px) : Bottom Navigation Bar
 /// Tablet (600-1024px) : Navigation Rail
 /// Desktop (> 1024px) : Sidebar Navigation
-class MainShellScreen extends ConsumerWidget {
+/// Gère le refresh global au retour premier plan et au changement d'onglet (cohérence + perf)
+class MainShellScreen extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainShellScreen({super.key, required this.navigationShell});
+
+  @override
+  ConsumerState<MainShellScreen> createState() => _MainShellScreenState();
+}
+
+class _MainShellScreenState extends ConsumerState<MainShellScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshVisibleProviders();
+    }
+  }
+
+  void _refreshVisibleProviders() {
+    // Rafraîchit uniquement les providers visibles / critiques, pas tout en même temps (éco batterie)
+    // Invalide sans attendre la fin, laisse Riverpod re-fetch en arrière-plan
+    ref.invalidate(gamesCatalogProvider);
+    ref.invalidate(activeGameProvider);
+    // Le reste sera re-fetch via timers autoDispose quand l'onglet redevient visible
+  }
+
+  void _onBranchChanged(int index) {
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
+    // Rafraîchit les données de l'onglet cible au switch (cohérence immédiate)
+    Future.microtask(() {
+      switch (index) {
+        case 0: // Accueil
+          ref.invalidate(gamesCatalogProvider);
+          break;
+        case 1: // Jeux
+          ref.invalidate(gamesCatalogProvider);
+          ref.invalidate(activeGameProvider);
+          break;
+        case 2: // Amis
+          ref.invalidate(friendsProvider);
+          ref.invalidate(pendingRequestsProvider);
+          break;
+        case 3: // Classement
+          // Invalide le leaderboard par défaut (le family sera re-créé au build)
+          break;
+      }
+    });
+  }
 
   static const List<NavDestination> _destinations = [
     NavDestination(
@@ -43,18 +105,15 @@ class MainShellScreen extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isGuest = authState.isGuest || authState.isUnknown;
 
     return ResponsiveNavigation(
-      currentIndex: navigationShell.currentIndex,
-      onDestinationSelected: (index) => navigationShell.goBranch(
-        index,
-        initialLocation: index == navigationShell.currentIndex,
-      ),
+      currentIndex: widget.navigationShell.currentIndex,
+      onDestinationSelected: _onBranchChanged,
       destinations: _destinations,
-      body: navigationShell,
+      body: widget.navigationShell,
       appBarTitle: 'WIWIGA',
       appBarActions: isGuest
           ? [

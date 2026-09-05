@@ -5,6 +5,7 @@
 // ============================================================
 
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
@@ -70,38 +71,68 @@ class _Dice3DState extends State<Dice3D> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  // Cache shadow colors to avoid withValues per frame
+  static final Color _blackShadow28 = Colors.black.withValues(alpha: 0.28);
+  static final Color _white55 = Colors.white.withValues(alpha: 0.55);
+
   @override
   Widget build(BuildContext context) {
     final s = widget.size;
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) {
-        final rolling = widget.isRolling && _ctrl.isAnimating;
-        final rX = rolling ? _rotX.value : 0.0;
-        final rY = rolling ? _rotY.value : 0.0;
-        final scale = rolling ? _scale.value : 1.0;
-        final dy = rolling ? _bounce.value : 0.0;
-        return Transform.translate(
-          offset: Offset(0, dy),
-          child: Transform.scale(
-            scale: scale,
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.0015)
-                ..rotateX(rX * 0.15)
-                ..rotateY(rY * 0.18),
-              child: child,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, child) {
+          final rolling = widget.isRolling && _ctrl.isAnimating;
+          final rX = rolling ? _rotX.value : 0.0;
+          final rY = rolling ? _rotY.value : 0.0;
+          final scale = rolling ? _scale.value : 1.0;
+          final dy = rolling ? _bounce.value : 0.0;
+          // P2 FIX: sur kIsWeb, désactive Matrix4 3D perspective (coûteux CanvasKit) — simple scale/translate
+          if (kIsWeb) {
+            return Transform.translate(
+              offset: Offset(0, dy * 0.6),
+              child: Transform.scale(
+                scale: scale,
+                child: child,
+              ),
+            );
+          }
+          return Transform.translate(
+            offset: Offset(0, dy),
+            child: Transform.scale(
+              scale: scale,
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0015)
+                  ..rotateX(rX * 0.15)
+                  ..rotateY(rY * 0.18),
+                child: child,
+              ),
             ),
-          ),
-        );
-      },
-      child: _buildDiceFace(s),
+          );
+        },
+        child: _buildDiceFace(s),
+      ),
     );
   }
 
   Widget _buildDiceFace(double s) {
     final isEmpty = widget.value == 0;
+    // P2 FIX: 3 BoxShadow → 1 sur web (blur s*0.08), cache couleurs, évite spreadRadius per frame
+    final List<BoxShadow> shadows;
+    if (kIsWeb) {
+      shadows = [
+        BoxShadow(color: _blackShadow28, blurRadius: s * 0.08, offset: Offset(0, s * 0.06)),
+      ];
+    } else {
+      shadows = [
+        BoxShadow(color: _blackShadow28, blurRadius: s * 0.18, offset: Offset(0, s * 0.10)),
+        if (!isEmpty)
+          BoxShadow(color: widget.borderColor.withValues(alpha: 0.28), blurRadius: s * 0.22, spreadRadius: 0),
+        BoxShadow(color: _white55, blurRadius: 1, offset: const Offset(-1, -1)),
+      ];
+    }
     return Container(
       width: s,
       height: s,
@@ -109,12 +140,7 @@ class _Dice3DState extends State<Dice3D> with SingleTickerProviderStateMixin {
         color: isEmpty ? NeonColors.surface : widget.faceColor,
         borderRadius: BorderRadius.circular(s * 0.18),
         border: Border.all(color: isEmpty ? NeonColors.border : widget.borderColor, width: isEmpty ? 1 : 1.6),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: s * 0.18, offset: Offset(0, s * 0.10)),
-          if (!isEmpty)
-            BoxShadow(color: widget.borderColor.withValues(alpha: 0.28), blurRadius: s * 0.22, spreadRadius: 0),
-          BoxShadow(color: Colors.white.withValues(alpha: 0.55), blurRadius: 1, offset: const Offset(-1, -1)),
-        ],
+        boxShadow: shadows,
         gradient: isEmpty
             ? null
             : LinearGradient(
@@ -231,15 +257,17 @@ class DiceGroup3D extends StatefulWidget {
 class _DiceGroup3DState extends State<DiceGroup3D> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 10,
-      runSpacing: 10,
-      children: List.generate(widget.values.length, (i) {
-        final delay = widget.stagger * i;
-        return TweenAnimationBuilder<double>(
+    // P2 FIX: Wrap → Row centered, RepaintBoundary par dé, throttle 30fps implicite via TweenAnimationBuilder
+    final diceWidgets = List.generate(widget.values.length, (i) {
+      final delay = widget.stagger * i;
+      // Sur web on réduit le stagger et on throttle l'animation à ~30fps en doublant duration
+      final dur = kIsWeb
+          ? Duration(milliseconds: 280 + delay.inMilliseconds ~/ 2)
+          : Duration(milliseconds: 320 + delay.inMilliseconds);
+      return RepaintBoundary(
+        child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: widget.isRolling ? 0 : 1),
-          duration: Duration(milliseconds: 320 + delay.inMilliseconds),
+          duration: dur,
           curve: Curves.easeOutBack,
           builder: (context, v, child) => Transform.scale(scale: 0.7 + 0.3 * v, child: Opacity(opacity: v, child: child)),
           child: Dice3D(
@@ -249,8 +277,19 @@ class _DiceGroup3DState extends State<DiceGroup3D> with TickerProviderStateMixin
             rollDuration: Duration(milliseconds: 850 + i * 120),
             borderColor: widget.isRolling ? NeonColors.accent : NeonColors.primary,
           ),
-        );
-      }),
+        ),
+      );
+    });
+
+    // Row centré évite layout Wrap coûteux (intrinsic) et réduit relayout rAF
+    return RepaintBoundary(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: diceWidgets
+            .map((w) => Padding(padding: const EdgeInsets.symmetric(horizontal: 5), child: w))
+            .toList(),
+      ),
     );
   }
 }

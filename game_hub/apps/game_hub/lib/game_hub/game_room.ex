@@ -175,8 +175,13 @@ defmodule GameHub.GameRoom do
           {:reply, {:error, :invalid_mode}, state}
         else
 
-        # Valeurs par défaut (robuste nil)
-        sets_count = Map.get(params, :sets_count) || rc["default_sets"] || 1
+        # Nombre de sets : source unique GameRules.resolve_sets_count/3.
+        # - Mode fixe : valeur client (bornée) ou défaut.
+        # - Mode aléatoire : tirage serveur unique, valeur client ignorée
+        #   (équité : le créateur ne choisit pas). Figé dans la salle.
+        {:ok, sets_count, sets_mode} =
+          GameHub.GameRules.resolve_sets_count(game_type, rule_type, Map.get(params, :sets_count))
+
         dice_count = Map.get(params, :dice_count) || rc["default_dice"] || 2
         max_players = Map.get(params, :max_players) || rc["max_players"] || 2
         bet_amount = if canonical_mode == :staked, do: (Map.get(params, :bet_amount) || 0), else: 0
@@ -193,6 +198,7 @@ defmodule GameHub.GameRoom do
           status: :waiting,
           bet_amount: bet_amount,
           sets_count: sets_count,
+          sets_mode: sets_mode,
           dice_count: dice_count,
           max_players: max_players,
           players: [
@@ -382,6 +388,17 @@ defmodule GameHub.GameRoom do
                   updated_match
                 end)
 
+                # Passage par états : waiting -> ready -> set_in_progress (synchrone)
+                case GameMatch.start_match(match.match_id) do
+                  {:ok, _} -> :ok
+                  _ -> :ok
+                end
+
+                case GameMatch.start_set(match.match_id) do
+                  {:ok, _} -> :ok
+                  {:error, reason} -> Logger.warning("start_set failed for manual start #{match.match_id}: #{inspect(reason)}")
+                end
+
                 # Mettre à jour la room
                 updated = %{room |
                   status: :in_progress,
@@ -390,9 +407,10 @@ defmodule GameHub.GameRoom do
                 }
 
                 :ets.insert(state.table, {room_id, updated})
-                Logger.info("Room #{room_id}: match #{match.match_id} started")
+                Logger.info("Room #{room_id}: match #{match.match_id} started (manual, #{length(room.players)} joueurs)")
 
                 broadcast_room_update(room_id, updated)
+                broadcast_match_started(room_id, match.match_id)
 
                 {:reply, {:ok, %{room: updated, match: match}}, state}
 
@@ -643,6 +661,7 @@ defmodule GameHub.GameRoom do
       status: room.status,
       bet_amount: room.bet_amount,
       sets_count: room.sets_count,
+      sets_mode: Map.get(room, :sets_mode, "fixed"),
       dice_count: room.dice_count,
       max_players: room.max_players,
       players_count: length(room.players),

@@ -6,6 +6,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 // === Game State ===
@@ -202,7 +203,7 @@ class _DiceGameScreenState extends ConsumerState<DiceGameScreen>
                 context.canPop() ? context.pop() : context.go('/games/dice'),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.casino, color: NeonColors.primary, size: 24),
+          const WiwigaDiceIcon(size: 28, withShadow: false),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

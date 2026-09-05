@@ -53,26 +53,68 @@ defmodule GameHub.Wallet do
   ## Returns
     - `{:ok, transactions, total}`: Liste des transactions et total
   """
-  @spec list_transactions(integer(), integer(), integer()) :: {:ok, list(), integer()}
-  def list_transactions(user_id, page \\ 1, limit \\ 20) do
+  @spec list_transactions(integer(), integer(), integer(), keyword()) :: {:ok, list(), integer()}
+  def list_transactions(user_id, page \\ 1, limit \\ 20, opts \\ []) do
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
     offset = (page - 1) * limit
-    
-    query = from t in WalletTransaction,
-      where: t.user_id == ^user_id,
-      order_by: [desc: t.inserted_at],
-      limit: ^limit,
-      offset: ^offset
-    
+    type = Keyword.get(opts, :type)
+    from_dt = Keyword.get(opts, :from)
+    to_dt = Keyword.get(opts, :to)
+    search = Keyword.get(opts, :search)
+
+    base = from t in WalletTransaction, where: t.user_id == ^user_id
+
+    query =
+      base
+      |> maybe_wallet_filter_type(type)
+      |> maybe_wallet_filter_date(from_dt, to_dt)
+      |> maybe_wallet_filter_search(search)
+      |> order_by([t], desc: t.inserted_at)
+      |> limit(^limit)
+      |> offset(^offset)
+
     transactions = Repo.all(query)
-    
-    total_query = from t in WalletTransaction,
-      where: t.user_id == ^user_id,
-      select: count(t.id)
-    
-    total = Repo.one(total_query)
-    
+
+    total_query =
+      base
+      |> maybe_wallet_filter_type(type)
+      |> maybe_wallet_filter_date(from_dt, to_dt)
+      |> maybe_wallet_filter_search(search)
+      |> select([t], count(t.id))
+
+    total = Repo.one(total_query) || 0
+
     {:ok, transactions, total}
   end
+
+  defp maybe_wallet_filter_type(query, nil), do: query
+  defp maybe_wallet_filter_type(query, t) when is_binary(t) and t != "" and t != "all" do
+    case t do
+      "wiga" -> where(query, [x], x.type in ["deposit", "withdrawal"])
+      "game" -> where(query, [x], x.type in ["bet", "winnings", "commission"])
+      "promo" -> where(query, [x], x.type in ["promo_credit", "promo_debit"])
+      _ -> where(query, [x], x.type == ^t)
+    end
+  end
+  defp maybe_wallet_filter_type(query, _), do: query
+
+  defp maybe_wallet_filter_date(query, nil, nil), do: query
+  defp maybe_wallet_filter_date(query, from, nil) when not is_nil(from), do: where(query, [t], t.inserted_at >= ^from)
+  defp maybe_wallet_filter_date(query, nil, to) when not is_nil(to), do: where(query, [t], t.inserted_at <= ^to)
+  defp maybe_wallet_filter_date(query, from, to), do: where(query, [t], t.inserted_at >= ^from and t.inserted_at <= ^to)
+
+  defp maybe_wallet_filter_search(query, nil), do: query
+  defp maybe_wallet_filter_search(query, s) when is_binary(s) do
+    t = String.trim(s)
+    if t == "" do
+      query
+    else
+      pattern = "%#{t}%"
+      where(query, [x], ilike(x.game_id, ^pattern) or ilike(x.idempotency_key, ^pattern))
+    end
+  end
+  defp maybe_wallet_filter_search(query, _), do: query
   
   @doc """
   Dépose fonds dans le compte.

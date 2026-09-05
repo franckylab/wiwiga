@@ -108,6 +108,8 @@ defmodule GameHubWeb.CORSPlug do
     Application.get_env(:game_hub_web, :cors_origins, [
       "http://localhost:3000", # Flutter dev
       "http://localhost:8080", # Flutter web dev
+      "http://localhost:38379", # Flutter web debug dynamique courant
+      "http://127.0.0.1:38379", # Flutter web debug via loopback
       "http://localhost:8003", # Docker frontend
       "http://localhost:8000", # Backend direct
       "https://wiwiga.com", # Production

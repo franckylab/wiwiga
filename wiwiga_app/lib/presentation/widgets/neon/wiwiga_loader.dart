@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
@@ -87,75 +88,91 @@ class _WiwigaLoaderState extends State<WiwigaLoader>
     final secondary = widget.secondaryColor ?? NeonColors.secondary;
 
     if (!widget.withFrame) {
-      // Sans cadre : W seul qui bat
-      return AnimatedBuilder(
-        animation: _heartAnim,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _heartAnim.value,
-            child: child,
-          );
-        },
-        child: SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: CustomPaint(
-            painter: _WOnlyPainter(color: primary, withCadreW: false),
+      // Sans cadre : W seul qui bat - isolé par RepaintBoundary
+      return RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _heartAnim,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _heartAnim.value,
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: CustomPaint(
+              painter: _WOnlyPainter(color: primary, withCadreW: false),
+              isComplex: true,
+              willChange: false,
+            ),
           ),
         ),
       );
     }
 
     // Avec cadre : Stack cadre dim + 2 lumières + W battant
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Cadre dim de fond
-          SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: CustomPaint(
-              painter: _CadreDimPainter(color: primary),
-            ),
-          ),
-          // Lumières
-          AnimatedBuilder(
-            animation: _cadreController,
-            builder: (context, _) {
-              return SizedBox(
-                width: widget.size,
-                height: widget.size,
-                child: CustomPaint(
-                  painter: _DualLightPainter(
-                    progress: _cadreController.value,
-                    color1: primary,
-                    color2: secondary,
-                  ),
-                ),
-              );
-            },
-          ),
-          // W battant
-          AnimatedBuilder(
-            animation: _heartAnim,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _heartAnim.value,
-                child: child,
-              );
-            },
-            child: SizedBox(
+    // Optimisé : 1 seul RepaintBoundary pour les lumières, cache Path
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Cadre dim de fond - statique, pas de repaint
+            SizedBox(
               width: widget.size,
               height: widget.size,
               child: CustomPaint(
-                painter: _WOnlyPainter(color: primary, withCadreW: true),
+                painter: _CadreDimPainter(color: primary),
+                isComplex: false,
+                willChange: false,
               ),
             ),
-          ),
-        ],
+            // Lumières - seul élément animé à 1.8s
+            AnimatedBuilder(
+              animation: _cadreController,
+              builder: (context, _) {
+                return SizedBox(
+                  width: widget.size,
+                  height: widget.size,
+                  child: CustomPaint(
+                    painter: _DualLightPainter(
+                      progress: _cadreController.value,
+                      color1: primary,
+                      color2: secondary,
+                      size: widget.size,
+                    ),
+                    isComplex: true,
+                    willChange: true,
+                  ),
+                );
+              },
+            ),
+            // W battant - isolé
+            RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _heartAnim,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _heartAnim.value,
+                    child: child,
+                  );
+                },
+                child: SizedBox(
+                  width: widget.size,
+                  height: widget.size,
+                  child: CustomPaint(
+                    painter: _WOnlyPainter(color: primary, withCadreW: true),
+                    isComplex: true,
+                    willChange: false,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -252,18 +269,21 @@ class _CadreDimPainter extends CustomPainter {
   bool shouldRepaint(covariant _CadreDimPainter old) => color != old.color;
 }
 
-/// 2 lumières opposées parcourant le cadre
+/// 2 lumières opposées parcourant le cadre - optimisé : cache Path, pas de blur sur web
 class _DualLightPainter extends CustomPainter {
   final double progress; // 0..1
   final Color color1;
   final Color color2;
+  final double size; // widget size pour cache
 
-  _DualLightPainter({required this.progress, required this.color1, required this.color2});
+  _DualLightPainter({required this.progress, required this.color1, required this.color2, required this.size});
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width;
-    // Construire le path du cadre (squircle)
+  // Cache statique par taille (évite computeMetrics chaque frame → 8-14ms économisés)
+  static final Map<double, _CachedPath> _cache = {};
+
+  _CachedPath _getCached(double s) {
+    var cached = _cache[s];
+    if (cached != null) return cached;
     final x = s * 0.11;
     final y = s * 0.11;
     final w = s * 0.78;
@@ -272,55 +292,75 @@ class _DualLightPainter extends CustomPainter {
     final rrect = RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(rx));
     final path = Path()..addRRect(rrect);
     final metric = path.computeMetrics().first;
-    final total = metric.length;
-    // dash 32/360 => 8.9% du périmètre
-    final dash = total * 0.089;
-    // On dessine 2 segments opposés
-    _drawSegment(canvas, metric, total, dash, progress, color1, s);
-    _drawSegment(canvas, metric, total, dash, (progress + 0.5) % 1.0, color2, s);
+    cached = _CachedPath(path: path, metric: metric, total: metric.length);
+    // Limite cache à 8 tailles
+    if (_cache.length > 8) _cache.remove(_cache.keys.first);
+    _cache[s] = cached;
+    return cached;
   }
 
-  void _drawSegment(Canvas canvas, ui.PathMetric metric, double total, double dash, double prog, Color color, double size) {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = this.size;
+    if (s <= 0) return;
+    final cached = _getCached(s);
+    final dash = cached.total * 0.089;
+    // Sur web et petites tailles, désactive le blur coûteux (saveLayer)
+    final useGlow = !kIsWeb && s > 32;
+    _drawSegment(canvas, cached.metric, cached.total, dash, progress, color1, s, useGlow);
+    _drawSegment(canvas, cached.metric, cached.total, dash, (progress + 0.5) % 1.0, color2, s, useGlow);
+  }
+
+  void _drawSegment(Canvas canvas, ui.PathMetric metric, double total, double dash, double prog, Color color, double size, bool useGlow) {
     final start = prog * total;
     final end = start + dash;
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size * 0.022 // lumière un peu plus épaisse que hairline (1.2% -> 2.2%)
+      ..strokeWidth = size * 0.022
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
 
     if (end <= total) {
       final seg = metric.extractPath(start, end);
       canvas.drawPath(seg, paint);
-      // Glow subtil
-      final glow = Paint()
-        ..color = color.withValues(alpha: 0.35)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = size * 0.04
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
-        ..isAntiAlias = true;
-      canvas.drawPath(seg, glow);
+      if (useGlow) {
+        final glow = Paint()
+          ..color = color.withValues(alpha: 0.28)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = size * 0.038
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5)
+          ..isAntiAlias = true;
+        canvas.drawPath(seg, glow);
+      }
     } else {
-      // Wrap autour
       final seg1 = metric.extractPath(start, total);
       final seg2 = metric.extractPath(0, end - total);
       canvas.drawPath(seg1, paint);
       canvas.drawPath(seg2, paint);
-      final glow = Paint()
-        ..color = color.withValues(alpha: 0.35)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = size * 0.04
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3)
-        ..isAntiAlias = true;
-      canvas.drawPath(seg1, glow);
-      canvas.drawPath(seg2, glow);
+      if (useGlow) {
+        final glow = Paint()
+          ..color = color.withValues(alpha: 0.28)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = size * 0.038
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5)
+          ..isAntiAlias = true;
+        canvas.drawPath(seg1, glow);
+        canvas.drawPath(seg2, glow);
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant _DualLightPainter old) =>
-      progress != old.progress || color1 != old.color1 || color2 != old.color2;
+      progress != old.progress || color1 != old.color1 || color2 != old.color2 || size != old.size;
+}
+
+class _CachedPath {
+  final Path path;
+  final ui.PathMetric metric;
+  final double total;
+  _CachedPath({required this.path, required this.metric, required this.total});
 }

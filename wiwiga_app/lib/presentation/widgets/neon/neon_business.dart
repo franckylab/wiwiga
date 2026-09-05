@@ -58,7 +58,7 @@ class _TokenBalanceDisplayState extends State<TokenBalanceDisplay>
   }
 
   String _formatTokens(int tokens) {
-    final formatter = NumberFormat('#,##0', 'fr_FR');
+    final formatter = (() { try { return NumberFormat('#,##0', 'fr_FR'); } catch (_) { return NumberFormat.decimalPattern(); } })();
     return formatter.format(tokens);
   }
 

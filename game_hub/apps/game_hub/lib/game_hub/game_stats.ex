@@ -80,6 +80,13 @@ defmodule GameHub.GameStats do
     end
 
     invalidate_cache(game_type)
+    # Broadcast temps réel pour que tous les écrans se mettent à jour sans reload
+    Enum.each(player_ids, fn pid ->
+      try do
+        Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{pid}", %{event: "stats_update", game_type: game_type, winner_id: winner_id, player_ids: player_ids})
+        Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{pid}:stats", %{event: "stats_update", game_type: game_type})
+      rescue _ -> :ok end
+    end)
     :ok
   rescue
     error ->

@@ -37,7 +37,9 @@ String _maskPhoneNumber(String phone) {
 
   if (middleLen <= 0) return phone; // Numéro trop court
 
-  final prefix = hasPlus ? '+${digits.substring(0, prefixLen)}' : digits.substring(0, prefixLen);
+  final prefix = hasPlus
+      ? '+${digits.substring(0, prefixLen)}'
+      : digits.substring(0, prefixLen);
   final masked = '*' * middleLen;
   final visible = digits.substring(digits.length - visibleEnd);
 
@@ -54,7 +56,8 @@ class FriendsScreen extends ConsumerStatefulWidget {
   ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
 }
 
-class _FriendsScreenState extends ConsumerState<FriendsScreen> with SingleTickerProviderStateMixin {
+class _FriendsScreenState extends ConsumerState<FriendsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -94,8 +97,14 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> with SingleTicker
           tabs: const [
             Tab(text: 'Amis', icon: Icon(Icons.people_outline, size: 18)),
             Tab(text: 'Demandes', icon: Icon(Icons.mail_outline, size: 18)),
-            Tab(text: 'Activité', icon: Icon(Icons.dynamic_feed_outlined, size: 18)),
-            Tab(text: 'Classement', icon: Icon(Icons.emoji_events_outlined, size: 18)),
+            Tab(
+              text: 'Activité',
+              icon: Icon(Icons.dynamic_feed_outlined, size: 18),
+            ),
+            Tab(
+              text: 'Classement',
+              icon: Icon(Icons.emoji_events_outlined, size: 18),
+            ),
           ],
         ),
         actions: [
@@ -139,24 +148,48 @@ class _FriendsListTab extends ConsumerWidget {
     return friendsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        final isAuthError = e is ApiException ? e.isUnauthorized : ErrorHandler.userMessage(e).contains('Session expirée');
+        final isAuthError = e is ApiException
+            ? e.isUnauthorized
+            : ErrorHandler.userMessage(e).contains('Session expirée');
         if (isAuthError) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_outline, color: NeonColors.warning, size: 48),
+                const Icon(
+                  Icons.lock_outline,
+                  color: NeonColors.warning,
+                  size: 48,
+                ),
                 const SizedBox(height: 12),
-                const Text('Session expirée', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Session expirée',
+                  style: TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                const Text('Veuillez vous reconnecter', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                const Text(
+                  'Veuillez vous reconnecter',
+                  style: TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                NeonButton(text: 'SE CONNECTER', onPressed: () => context.go('/auth')),
+                NeonButton(
+                  text: 'SE CONNECTER',
+                  onPressed: () => context.go('/auth'),
+                ),
               ],
             ),
           );
         }
-        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendsProvider));
+        return WiwigaErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(friendsProvider),
+        );
       },
       data: (friends) {
         if (friends.isEmpty) {
@@ -164,11 +197,27 @@ class _FriendsListTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, color: NeonColors.textSecondary, size: 64),
+                Icon(
+                  Icons.people_outline,
+                  color: NeonColors.textSecondary,
+                  size: 64,
+                ),
                 SizedBox(height: 16),
-                Text('Aucun ami pour le moment', style: TextStyle(color: NeonColors.textSecondary, fontSize: 16)),
+                Text(
+                  'Aucun ami pour le moment',
+                  style: TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 16,
+                  ),
+                ),
                 SizedBox(height: 8),
-                Text('Recherchez des joueurs par téléphone ou nom', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13)),
+                Text(
+                  'Recherchez des joueurs par téléphone ou nom',
+                  style: TextStyle(
+                    color: NeonColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           );
@@ -207,10 +256,16 @@ class _FriendCard extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: friend.isOnline ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
+                  backgroundColor: friend.isOnline
+                      ? NeonColors.success.withValues(alpha: 0.2)
+                      : NeonColors.surface,
                   child: Text(
                     friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                      color: NeonColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
                 if (friend.isOnline)
@@ -229,17 +284,35 @@ class _FriendCard extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(friend.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  Text(
+                    friend.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: NeonColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
-                    friend.isInGame ? 'En partie' : (friend.isOnline ? 'En ligne' : 'Hors ligne'),
+                    friend.isInGame
+                        ? 'En partie'
+                        : (friend.isOnline ? 'En ligne' : 'Hors ligne'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: TextStyle(
-                      color: friend.isInGame ? NeonColors.warning : (friend.isOnline ? NeonColors.success : NeonColors.textSecondary),
+                      color: friend.isInGame
+                          ? NeonColors.warning
+                          : (friend.isOnline
+                              ? NeonColors.success
+                              : NeonColors.textSecondary),
                       fontSize: 12,
                     ),
                   ),
@@ -248,22 +321,44 @@ class _FriendCard extends ConsumerWidget {
             ),
             // Bouton Cadeau — amis uniquement (best-practice gifting)
             IconButton(
-              icon: const Icon(Icons.card_giftcard_outlined, color: NeonColors.secondary),
+              icon: const Icon(
+                Icons.card_giftcard_outlined,
+                color: NeonColors.secondary,
+                size: 20,
+              ),
               onPressed: () => showGiftSheet(context, friend),
               tooltip: 'Offrir des wiga',
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              iconSize: 20,
             ),
             // Bouton Jouer
             IconButton(
-              icon: const Icon(Icons.sports_esports_outlined, color: NeonColors.primary),
+              icon: const Icon(
+                Icons.sports_esports_outlined,
+                color: NeonColors.primary,
+                size: 20,
+              ),
               onPressed: () {
                 context.push('/games/dice/create');
               },
               tooltip: 'Inviter à jouer',
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              iconSize: 20,
             ),
-            // Menu
+            // Menu — contraintes fixes pour éviter push du Text
             PopupMenuButton<String>(
               color: NeonColors.surface,
-              icon: const Icon(Icons.more_vert, color: NeonColors.textSecondary),
+              icon: const Icon(
+                Icons.more_vert,
+                color: NeonColors.textSecondary,
+                size: 20,
+              ),
+              iconSize: 20,
+              padding: const EdgeInsets.all(4),
               onSelected: (value) async {
                 if (value == 'gift') {
                   showGiftSheet(context, friend);
@@ -275,14 +370,20 @@ class _FriendCard extends ConsumerWidget {
                     await repo.removeFriend(friend.id);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ami supprimé'), backgroundColor: NeonColors.success),
+                        const SnackBar(
+                          content: Text('Ami supprimé'),
+                          backgroundColor: NeonColors.success,
+                        ),
                       );
                     }
                   } else if (value == 'block') {
                     await repo.blockUser(friend.id);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Utilisateur bloqué'), backgroundColor: NeonColors.warning),
+                        const SnackBar(
+                          content: Text('Utilisateur bloqué'),
+                          backgroundColor: NeonColors.warning,
+                        ),
                       );
                     }
                   }
@@ -295,10 +396,38 @@ class _FriendCard extends ConsumerWidget {
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(value: 'gift', child: Row(children: [Icon(Icons.card_giftcard, size: 18, color: NeonColors.secondary), SizedBox(width: 8), Text('Offrir des wiga', style: TextStyle(color: NeonColors.textPrimary))])),
+                const PopupMenuItem(
+                  value: 'gift',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.card_giftcard,
+                        size: 18,
+                        color: NeonColors.secondary,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Offrir des wiga',
+                        style: TextStyle(color: NeonColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
                 const PopupMenuDivider(),
-                const PopupMenuItem(value: 'remove', child: Text('Supprimer', style: TextStyle(color: NeonColors.error))),
-                const PopupMenuItem(value: 'block', child: Text('Bloquer', style: TextStyle(color: NeonColors.error))),
+                const PopupMenuItem(
+                  value: 'remove',
+                  child: Text(
+                    'Supprimer',
+                    style: TextStyle(color: NeonColors.error),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'block',
+                  child: Text(
+                    'Bloquer',
+                    style: TextStyle(color: NeonColors.error),
+                  ),
+                ),
               ],
             ),
           ],
@@ -320,10 +449,19 @@ class _RequestsListTab extends ConsumerWidget {
     return requestsAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
-          return const Center(child: Text('Connectez-vous pour voir vos demandes', style: TextStyle(color: NeonColors.textSecondary)));
+        if (e is ApiException && e.isUnauthorized ||
+            ErrorHandler.userMessage(e).contains('Session')) {
+          return const Center(
+            child: Text(
+              'Connectez-vous pour voir vos demandes',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          );
         }
-        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(pendingRequestsProvider));
+        return WiwigaErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(pendingRequestsProvider),
+        );
       },
       data: (requests) {
         if (requests.isEmpty) {
@@ -331,9 +469,16 @@ class _RequestsListTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mail_outline, color: NeonColors.textSecondary, size: 64),
+                Icon(
+                  Icons.mail_outline,
+                  color: NeonColors.textSecondary,
+                  size: 64,
+                ),
                 SizedBox(height: 16),
-                Text('Aucune demande en attente', style: TextStyle(color: NeonColors.textSecondary)),
+                Text(
+                  'Aucune demande en attente',
+                  style: TextStyle(color: NeonColors.textSecondary),
+                ),
               ],
             ),
           );
@@ -372,24 +517,52 @@ class _RequestCard extends ConsumerWidget {
               radius: 22,
               backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
               child: Text(
-                request.fromUser.name.isNotEmpty ? request.fromUser.name[0].toUpperCase() : '?',
-                style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),
+                request.fromUser.name.isNotEmpty
+                    ? request.fromUser.name[0].toUpperCase()
+                    : '?',
+                style: const TextStyle(
+                  color: NeonColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(request.fromUser.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  Text(
+                    request.fromUser.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: NeonColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   if (request.fromUser.phone != null)
-                    Text(_maskPhoneNumber(request.fromUser.phone!), style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                    Text(
+                      _maskPhoneNumber(request.fromUser.phone!),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: const TextStyle(
+                        color: NeonColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
             // Accepter
             IconButton(
-              icon: const Icon(Icons.check_circle, color: Colors.green),
+              icon:
+                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              iconSize: 20,
               onPressed: () async {
                 try {
                   final repo = ref.read(friendRepositoryProvider);
@@ -398,7 +571,10 @@ class _RequestCard extends ConsumerWidget {
                   ref.invalidate(friendsProvider);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Demande acceptée'), backgroundColor: NeonColors.success),
+                      const SnackBar(
+                        content: Text('Demande acceptée'),
+                        backgroundColor: NeonColors.success,
+                      ),
                     );
                   }
                 } catch (e, st) {
@@ -411,7 +587,15 @@ class _RequestCard extends ConsumerWidget {
             ),
             // Refuser
             IconButton(
-              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+              icon: const Icon(
+                Icons.cancel_outlined,
+                color: Colors.red,
+                size: 20,
+              ),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              iconSize: 20,
               onPressed: () async {
                 try {
                   final repo = ref.read(friendRepositoryProvider);
@@ -439,10 +623,19 @@ class _ActivityTab extends ConsumerWidget {
     return activityAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
-          return const Center(child: Text('Connectez-vous pour voir l\'activité', style: TextStyle(color: NeonColors.textSecondary)));
+        if (e is ApiException && e.isUnauthorized ||
+            ErrorHandler.userMessage(e).contains('Session')) {
+          return const Center(
+            child: Text(
+              'Connectez-vous pour voir l\'activité',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          );
         }
-        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendActivityProvider));
+        return WiwigaErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(friendActivityProvider),
+        );
       },
       data: (activities) {
         if (activities.isEmpty) {
@@ -450,9 +643,16 @@ class _ActivityTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.dynamic_feed_outlined, color: NeonColors.textSecondary, size: 64),
+                Icon(
+                  Icons.dynamic_feed_outlined,
+                  color: NeonColors.textSecondary,
+                  size: 64,
+                ),
                 SizedBox(height: 16),
-                Text('Aucune activité', style: TextStyle(color: NeonColors.textSecondary)),
+                Text(
+                  'Aucune activité',
+                  style: TextStyle(color: NeonColors.textSecondary),
+                ),
               ],
             ),
           );
@@ -482,24 +682,37 @@ class _ActivityCard extends StatelessWidget {
 
   IconData _getActionIcon(String action) {
     switch (action) {
-      case 'game_won': return Icons.emoji_events;
-      case 'game_lost': return Icons.sentiment_dissatisfied;
-      case 'friend_added': return Icons.person_add;
-      case 'level_up': return Icons.trending_up;
-      case 'bet_placed': return Icons.monetization_on;
-      default: return Icons.info_outline;
+      case 'game_won':
+        return Icons.emoji_events;
+      case 'game_lost':
+        return Icons.sentiment_dissatisfied;
+      case 'friend_added':
+        return Icons.person_add;
+      case 'level_up':
+        return Icons.trending_up;
+      case 'bet_placed':
+        return Icons.monetization_on;
+      default:
+        return Icons.info_outline;
     }
   }
 
   String _getActionText(String action) {
     switch (action) {
-      case 'game_won': return 'a gagné une partie';
-      case 'game_lost': return 'a perdu une partie';
-      case 'friend_added': return 'a ajouté un ami';
-      case 'level_up': return 'est monté de niveau';
-      case 'bet_placed': return 'a placé une mise';
-      case 'achievement_unlocked': return 'a débloqué un succès';
-      default: return action;
+      case 'game_won':
+        return 'a gagné une partie';
+      case 'game_lost':
+        return 'a perdu une partie';
+      case 'friend_added':
+        return 'a ajouté un ami';
+      case 'level_up':
+        return 'est monté de niveau';
+      case 'bet_placed':
+        return 'a placé une mise';
+      case 'achievement_unlocked':
+        return 'a débloqué un succès';
+      default:
+        return action;
     }
   }
 
@@ -510,14 +723,27 @@ class _ActivityCard extends StatelessWidget {
       child: NeonCard(
         child: Row(
           children: [
-            Icon(_getActionIcon(activity.action), color: NeonColors.primary, size: 24),
+            Icon(
+              _getActionIcon(activity.action),
+              color: NeonColors.primary,
+              size: 24,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: RichText(
                 text: TextSpan(
                   children: [
-                    TextSpan(text: activity.user.name, style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold)),
-                    TextSpan(text: ' ${_getActionText(activity.action)}', style: const TextStyle(color: NeonColors.textSecondary)),
+                    TextSpan(
+                      text: activity.user.name,
+                      style: const TextStyle(
+                        color: NeonColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' ${_getActionText(activity.action)}',
+                      style: const TextStyle(color: NeonColors.textSecondary),
+                    ),
                   ],
                 ),
               ),
@@ -541,10 +767,19 @@ class _LeaderboardTab extends ConsumerWidget {
     return leaderboardAsync.when(
       loading: () => const NeonLoadingSpinner.center(),
       error: (e, _) {
-        if (e is ApiException && e.isUnauthorized || ErrorHandler.userMessage(e).contains('Session')) {
-          return const Center(child: Text('Connectez-vous pour voir le classement', style: TextStyle(color: NeonColors.textSecondary)));
+        if (e is ApiException && e.isUnauthorized ||
+            ErrorHandler.userMessage(e).contains('Session')) {
+          return const Center(
+            child: Text(
+              'Connectez-vous pour voir le classement',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          );
         }
-        return WiwigaErrorView(error: e, onRetry: () => ref.invalidate(friendLeaderboardProvider));
+        return WiwigaErrorView(
+          error: e,
+          onRetry: () => ref.invalidate(friendLeaderboardProvider),
+        );
       },
       data: (entries) {
         if (entries.isEmpty) {
@@ -552,9 +787,16 @@ class _LeaderboardTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.emoji_events_outlined, color: NeonColors.textSecondary, size: 64),
+                Icon(
+                  Icons.emoji_events_outlined,
+                  color: NeonColors.textSecondary,
+                  size: 64,
+                ),
                 SizedBox(height: 16),
-                Text('Classement vide', style: TextStyle(color: NeonColors.textSecondary)),
+                Text(
+                  'Classement vide',
+                  style: TextStyle(color: NeonColors.textSecondary),
+                ),
               ],
             ),
           );
@@ -585,10 +827,14 @@ class _LeaderboardRow extends StatelessWidget {
 
   Color _getRankColor(int rank) {
     switch (rank) {
-      case 1: return Colors.amber;
-      case 2: return Colors.grey.shade300;
-      case 3: return Colors.brown.shade300;
-      default: return NeonColors.textSecondary;
+      case 1:
+        return Colors.amber;
+      case 2:
+        return Colors.grey.shade300;
+      case 3:
+        return Colors.brown.shade300;
+      default:
+        return NeonColors.textSecondary;
     }
   }
 
@@ -609,13 +855,23 @@ class _LeaderboardRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   '#$rank',
-                  style: TextStyle(color: _getRankColor(rank), fontWeight: FontWeight.bold, fontSize: 14),
+                  style: TextStyle(
+                    color: _getRankColor(rank),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(entry.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+              child: Text(
+                entry.name,
+                style: const TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -625,7 +881,10 @@ class _LeaderboardRow extends StatelessWidget {
               ),
               child: Text(
                 '${entry.wins} V',
-                style: const TextStyle(color: NeonColors.success, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: NeonColors.success,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -659,14 +918,23 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
+        left: 16,
+        right: 16,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Rechercher un joueur', style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Rechercher un joueur',
+            style: TextStyle(
+              color: NeonColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
@@ -689,7 +957,8 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: NeonColors.primary, width: 2),
+                borderSide:
+                    const BorderSide(color: NeonColors.primary, width: 2),
               ),
             ),
             onSubmitted: (_) => _search(),
@@ -698,34 +967,62 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
           if (_isSearching)
             const NeonLoadingSpinner.center()
           else
-            ..._results.map((result) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: NeonColors.primary.withValues(alpha: 0.2),
-                    child: Text(result.name.isNotEmpty ? result.name[0].toUpperCase() : '?', style: const TextStyle(color: NeonColors.primary)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(result.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
-                        if (result.phone != null) Text(_maskPhoneNumber(result.phone!), style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
-                      ],
+            ..._results.map(
+              (result) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor:
+                          NeonColors.primary.withValues(alpha: 0.2),
+                      child: Text(
+                        result.name.isNotEmpty
+                            ? result.name[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(color: NeonColors.primary),
+                      ),
                     ),
-                  ),
-                  NeonButton(
-                    text: 'Ajouter',
-                    onPressed: () => _sendFriendRequest(result),
-                    height: 36,
-                    fontSize: 12,
-                    variant: NeonButtonVariant.outline,
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            result.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: const TextStyle(
+                              color: NeonColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (result.phone != null)
+                            Text(
+                              _maskPhoneNumber(result.phone!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: const TextStyle(
+                                color: NeonColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    NeonButton(
+                      text: 'Ajouter',
+                      onPressed: () => _sendFriendRequest(result),
+                      height: 36,
+                      fontSize: 12,
+                      variant: NeonButtonVariant.outline,
+                    ),
+                  ],
+                ),
               ),
-            ),),
+            ),
         ],
       ),
     );
@@ -740,9 +1037,12 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
     try {
       final repo = ref.read(friendRepositoryProvider);
       final results = await repo.searchPlayer(query);
-      setState(() { _results = results; _isSearching = false; });
+      setState(() {
+        _results = results;
+        _isSearching = false;
+      });
     } catch (e, st) {
-                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
+      ErrorHandler.logError(e, st, context: 'FriendsScreen');
       setState(() => _isSearching = false);
       if (mounted) {
         WiwigaSnack.showError(context, e);
@@ -756,10 +1056,13 @@ class _FriendSearchSheetState extends ConsumerState<_FriendSearchSheet> {
       await repo.sendRequest(userId: result.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Demande envoyée à ${result.name}'), backgroundColor: NeonColors.success),
+        SnackBar(
+          content: Text('Demande envoyée à ${result.name}'),
+          backgroundColor: NeonColors.success,
+        ),
       );
     } catch (e, st) {
-                  ErrorHandler.logError(e, st, context: 'FriendsScreen');
+      ErrorHandler.logError(e, st, context: 'FriendsScreen');
       if (!mounted) return;
       WiwigaSnack.showError(context, e);
     }

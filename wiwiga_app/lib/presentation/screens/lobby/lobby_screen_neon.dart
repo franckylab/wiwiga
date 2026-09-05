@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../core/theme/typography.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 import '../../providers/config_provider.dart';
 import '../../../data/providers/token_provider.dart';
@@ -271,11 +272,14 @@ class _GameCardWidget extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  gameIcon,
-                  size: 48,
-                  color: gameModel.comingSoon ? NeonColors.textSecondary : NeonColors.primary,
-                ),
+                if (gameModel.type == 'dice' && !gameModel.comingSoon)
+                  const WiwigaDiceIcon(size: 48, withShadow: false)
+                else
+                  Icon(
+                    gameIcon,
+                    size: 48,
+                    color: gameModel.comingSoon ? NeonColors.textSecondary : NeonColors.primary,
+                  ),
                 if (gameModel.comingSoon)
                   const Text('Bientôt', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
               ],

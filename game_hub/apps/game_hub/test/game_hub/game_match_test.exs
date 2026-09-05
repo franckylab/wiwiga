@@ -25,7 +25,7 @@ defmodule GameHub.GameMatchTest do
       assert match.game_type == "dice"
       assert match.rule_type == "normal"
       assert match.status == :waiting_players
-      assert match.sets_count == 1
+      assert match.sets_count == 3
       assert match.dice_count == 2
     end
 
@@ -129,6 +129,10 @@ defmodule GameHub.GameMatchTest do
       assert result.roll.player_id == first_player_id
       assert length(result.roll.dice) == 2
       assert result.roll.sum >= 2 and result.roll.sum <= 12
+
+      {:ok, after_first_roll} = GameMatch.get_match(match.match_id)
+      assert after_first_roll.current_set_state.current_turn_index == 1
+      assert Enum.at(after_first_roll.current_set_state.turn_order, 1) != first_player_id
     end
 
     test "refuse lancer hors tour" do

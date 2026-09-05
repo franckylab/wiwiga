@@ -5,6 +5,8 @@
 // Date: 2026-07-29
 // ============================================================
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/friend_repository.dart';
 import '../models/friend_model.dart';
@@ -16,21 +18,22 @@ final friendRepositoryProvider = Provider<FriendRepository>((ref) {
   return FriendRepository(apiService);
 });
 
-/// Provider pour la liste des amis
-/// Auto-dispose non nécessaire: cache 30s implicite via Riverpod
-final friendsProvider = FutureProvider<List<FriendModel>>((ref) async {
+/// Provider pour la liste des amis — 30s quand visible, WS `friendOnline` complète
+final friendsProvider = FutureProvider.autoDispose<List<FriendModel>>((ref) async {
+  final timer = Timer(const Duration(seconds: 30), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(friendRepositoryProvider);
   try {
     return await repo.listFriends();
   } catch (e) {
-    // Retourne liste vide si 401 -> l'écran guest gère le CTA
-    // Propager l'erreur pour affichage dans l'UI si authentifié
     rethrow;
   }
 });
 
-/// Provider pour les demandes d'amis en attente
-final pendingRequestsProvider = FutureProvider<List<FriendRequestModel>>((ref) async {
+/// Provider pour les demandes d'amis en attente — 30s
+final pendingRequestsProvider = FutureProvider.autoDispose<List<FriendRequestModel>>((ref) async {
+  final timer = Timer(const Duration(seconds: 30), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(friendRepositoryProvider);
   try {
     return await repo.listPendingRequests();
@@ -39,14 +42,16 @@ final pendingRequestsProvider = FutureProvider<List<FriendRequestModel>>((ref) a
   }
 });
 
-/// Provider pour le nombre de demandes en attente (badge)
-final pendingRequestsCountProvider = FutureProvider<int>((ref) async {
+/// Provider pour le nombre de demandes en attente (badge) — dérivé, pas de timer propre
+final pendingRequestsCountProvider = FutureProvider.autoDispose<int>((ref) async {
   final requests = await ref.watch(pendingRequestsProvider.future);
   return requests.length;
 });
 
-/// Provider pour le leaderboard amis
-final friendLeaderboardProvider = FutureProvider<List<FriendLeaderboardEntry>>((ref) async {
+/// Provider pour le leaderboard amis — 60s
+final friendLeaderboardProvider = FutureProvider.autoDispose<List<FriendLeaderboardEntry>>((ref) async {
+  final timer = Timer(const Duration(seconds: 60), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(friendRepositoryProvider);
   try {
     return await repo.getLeaderboard();
@@ -55,8 +60,10 @@ final friendLeaderboardProvider = FutureProvider<List<FriendLeaderboardEntry>>((
   }
 });
 
-/// Provider pour l'activité des amis
-final friendActivityProvider = FutureProvider<List<FriendActivityModel>>((ref) async {
+/// Provider pour l'activité des amis — 60s
+final friendActivityProvider = FutureProvider.autoDispose<List<FriendActivityModel>>((ref) async {
+  final timer = Timer(const Duration(seconds: 60), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(friendRepositoryProvider);
   try {
     return await repo.getActivity();

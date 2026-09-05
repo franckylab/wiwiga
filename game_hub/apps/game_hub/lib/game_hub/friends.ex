@@ -279,7 +279,7 @@ defmodule GameHub.Friends do
 
   @doc """
   Recherche un joueur par téléphone ou nom.
-  Échappe les wildcards et limite la longueur pour sécurité.
+  Échappe les wildcards, limite la longueur, exclut amis existants/pending/bloqués.
   """
   def search_player(user_id, query_string) do
     try do
@@ -287,24 +287,42 @@ defmodule GameHub.Friends do
       q = query_string |> to_string() |> String.trim() |> String.slice(0, 40)
       escaped = String.replace(q, ~r/[%_]/, "\\\\\\0")
 
+      # IDs déjà en relation (amis, pending, bloqués) à exclure
+      excluded_ids = get_related_user_ids(user_id) ++ [user_id]
+
       cond do
         q == "" -> []
         String.match?(q, ~r/^\+?\d/) ->
           Repo.all(
             from u in User,
-              where: u.id != ^user_id and like(u.phone, ^"%#{escaped}%"),
+              where: u.id not in ^excluded_ids and like(u.phone, ^"%#{escaped}%"),
               limit: 20
           )
         true ->
           Repo.all(
             from u in User,
-              where: u.id != ^user_id and ilike(u.name, ^"%#{escaped}%"),
+              where: u.id not in ^excluded_ids and ilike(u.name, ^"%#{escaped}%"),
               limit: 20
           )
       end
       |> Enum.map(fn u ->
         %{id: u.id, name: u.name, phone: u.phone}
       end)
+    rescue
+      _ -> []
+    catch
+      _, _ -> []
+    end
+  end
+
+  # IDs avec relation existante (accepted, pending, blocked) dans les 2 sens
+  defp get_related_user_ids(user_id) do
+    try do
+      Repo.all(
+        from f in Friendship,
+          where: f.user_id == ^user_id or f.friend_id == ^user_id,
+          select: fragment("CASE WHEN ? = ? THEN ? ELSE ? END", f.user_id, ^user_id, f.friend_id, f.user_id)
+      )
     rescue
       _ -> []
     catch

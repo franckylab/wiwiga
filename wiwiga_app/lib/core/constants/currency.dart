@@ -13,8 +13,14 @@ const String kWigaLabel = 'wiga';
 const String kWigaLabelUpper = 'WIGA';
 const String kWigaLabelPlural = 'wiga'; // invariant, évite wigas
 
-/// Formateur milliers FR (espace fine)
-final NumberFormat _wigaFormat = NumberFormat('#,##0', 'fr_FR');
+/// Formateur milliers FR (espace fine) — fallback si locale non dispo
+final NumberFormat _wigaFormat = (() {
+  try {
+    return NumberFormat('#,##0', 'fr_FR');
+  } catch (_) {
+    return NumberFormat.decimalPattern();
+  }
+})();
 
 /// Formate un montant en wiga (ex: 12345 → "12 345 wiga")
 String formatWiga(int amount, {bool withLabel = true}) {

@@ -541,28 +541,76 @@ defmodule GameHub.Tokens do
   # ========================================
   
   @doc """
-  Historique des transactions jetons (paginé).
+  Historique des transactions jetons (paginé + filtres).
+
+  ## Options
+    - `:type` – filtre par type (purchase, bet, winnings, gift_sent, gift_received, promo_credit, commission)
+    - `:from` – DateTime début (inclusive)
+    - `:to` – DateTime fin (inclusive)
+    - `:search` – recherche sur game_id / idempotency_key / metadata
   """
-  @spec get_token_transactions(integer(), integer(), integer()) :: {:ok, list(), integer()}
-  def get_token_transactions(user_id, page \\ 1, limit \\ 20) do
+  @spec get_token_transactions(integer(), integer(), integer(), keyword()) :: {:ok, list(), integer()}
+  def get_token_transactions(user_id, page \\ 1, limit \\ 20, opts \\ []) do
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
     offset = (page - 1) * limit
-    
-    query = from t in TokenTransaction,
-      where: t.user_id == ^user_id,
-      order_by: [desc: t.inserted_at],
-      limit: ^limit,
-      offset: ^offset
-    
+    type = Keyword.get(opts, :type)
+    from_dt = Keyword.get(opts, :from)
+    to_dt = Keyword.get(opts, :to)
+    search = Keyword.get(opts, :search)
+
+    base_query = from t in TokenTransaction, where: t.user_id == ^user_id
+
+    query =
+      base_query
+      |> maybe_filter_type(type)
+      |> maybe_filter_date(from_dt, to_dt)
+      |> maybe_filter_search(search)
+      |> order_by([t], desc: t.inserted_at)
+      |> limit(^limit)
+      |> offset(^offset)
+
     transactions = Repo.all(query) |> Enum.map(&TokenTransaction.with_wiga/1)
-    
-    total_query = from t in TokenTransaction,
-      where: t.user_id == ^user_id,
-      select: count(t.id)
-    
-    total = Repo.one(total_query)
-    
+
+    total_query =
+      base_query
+      |> maybe_filter_type(type)
+      |> maybe_filter_date(from_dt, to_dt)
+      |> maybe_filter_search(search)
+      |> select([t], count(t.id))
+
+    total = Repo.one(total_query) || 0
+
     {:ok, transactions, total}
   end
+
+  defp maybe_filter_type(query, nil), do: query
+  defp maybe_filter_type(query, type) when is_binary(type) and type != "" and type != "all" do
+    case type do
+      "wiga" -> where(query, [t], t.type in ["purchase", "gift_sent", "gift_received"])
+      "game" -> where(query, [t], t.type in ["bet", "winnings", "commission"])
+      "promo" -> where(query, [t], t.type in ["promo_credit", "promo_debit"])
+      _ -> where(query, [t], t.type == ^type)
+    end
+  end
+  defp maybe_filter_type(query, _), do: query
+
+  defp maybe_filter_date(query, nil, nil), do: query
+  defp maybe_filter_date(query, from, nil) when not is_nil(from), do: where(query, [t], t.inserted_at >= ^from)
+  defp maybe_filter_date(query, nil, to) when not is_nil(to), do: where(query, [t], t.inserted_at <= ^to)
+  defp maybe_filter_date(query, from, to), do: where(query, [t], t.inserted_at >= ^from and t.inserted_at <= ^to)
+
+  defp maybe_filter_search(query, nil), do: query
+  defp maybe_filter_search(query, search) when is_binary(search) do
+    s = String.trim(search)
+    if s == "" do
+      query
+    else
+      pattern = "%#{s}%"
+      where(query, [t], ilike(t.game_id, ^pattern) or ilike(t.idempotency_key, ^pattern))
+    end
+  end
+  defp maybe_filter_search(query, _), do: query
   
   # ========================================
   # FONCTIONS PRIVÉES
@@ -596,6 +644,17 @@ defmodule GameHub.Tokens do
   defp update_user_token_balance(user_id, new_balance) do
     from(u in User, where: u.id == ^user_id)
     |> Repo.update_all(set: [token_balance: new_balance])
+    # Broadcast temps réel pour synchro wallet sans reload (best practice PubSub user:{id})
+    try do
+      Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{user_id}", %{event: "wallet_update", user_id: user_id, token_balance: new_balance, type: "token"})
+      Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{user_id}:wallet", %{event: "wallet_update", user_id: user_id, token_balance: new_balance})
+    rescue _ -> :ok end
+  end
+
+  defp broadcast_token_update(user_id, new_balance, type) do
+    try do
+      Phoenix.PubSub.broadcast(GameHub.PubSub, "user:#{user_id}", %{event: "wallet_update", user_id: user_id, token_balance: new_balance, type: type})
+    rescue _ -> :ok end
   end
   
   defp friendship_accepted?(a, b) do

@@ -88,56 +88,63 @@ class _NeonCardState extends State<NeonCard>
       },
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Container(
-                width: widget.width,
-                decoration: BoxDecoration(
-                  gradient: widget.gradient ?? NeonGradients.card,
-                  color: NeonColors.surface,
-                  borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
-                  border: Border.all(
-                    color: NeonColors.primary.withValues(alpha: _glowAnimation.value),
-                    width: _isHovered ? NeonGlow.borderWidthThick : NeonGlow.borderWidth,
-                  ),
-                  boxShadow: [
-                    if (_isHovered)
-                      BoxShadow(
-                        color: NeonColors.primary.withValues(alpha: _glowAnimation.value),
-                        blurRadius: NeonGlow.blurMedium,
-                        spreadRadius: 2,
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              // Cache colors to avoid withValues allocation per frame when not hovered
+              final glowAlpha = _glowAnimation.value;
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: Container(
+                  width: widget.width,
+                  decoration: BoxDecoration(
+                    gradient: widget.gradient ?? NeonGradients.card,
+                    color: NeonColors.surface,
+                    borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
+                    border: Border.all(
+                      color: NeonColors.primary.withValues(alpha: glowAlpha),
+                      width: _isHovered ? NeonGlow.borderWidthThick : NeonGlow.borderWidth,
+                    ),
+                    boxShadow: [
+                      if (_isHovered)
+                        BoxShadow(
+                          color: NeonColors.primary.withValues(alpha: glowAlpha),
+                          blurRadius: NeonGlow.blurMedium,
+                          spreadRadius: 2,
+                        ),
+                      // Static shadow, const where possible
+                      const BoxShadow(
+                        color: Color(0x4D000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (widget.header != null) ...[
-                      widget.header!,
-                      const Divider(color: NeonColors.border, height: 1),
                     ],
-                    Padding(
-                      padding: widget.padding,
-                      child: widget.child,
-                    ),
-                    if (widget.footer != null) ...[
-                      const Divider(color: NeonColors.border, height: 1),
-                      widget.footer!,
-                    ],
-                  ],
+                  ),
+                  child: child,
                 ),
-              ),
-            );
-          },
+              );
+            },
+            // Static child cached, not rebuilt per frame
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.header != null) ...[
+                  widget.header!,
+                  const Divider(color: NeonColors.border, height: 1),
+                ],
+                Padding(
+                  padding: widget.padding,
+                  child: widget.child,
+                ),
+                if (widget.footer != null) ...[
+                  const Divider(color: NeonColors.border, height: 1),
+                  widget.footer!,
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -37,7 +37,10 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
       backgroundColor: NeonColors.background,
       appBar: AppBar(
         backgroundColor: NeonColors.surface,
-        title: const Text('Règles XP', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Règles XP',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -47,14 +50,19 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(adminXPRulesProvider.notifier).loadRules(),
+            onPressed: () =>
+                ref.read(adminXPRulesProvider.notifier).loadRules(),
           ),
         ],
       ),
       body: state.isLoading && state.rules.isEmpty
           ? const NeonLoadingSpinner.center()
           : state.error != null && state.rules.isEmpty
-              ? AdminErrorState(error: state.error!, onRetry: () => ref.read(adminXPRulesProvider.notifier).loadRules())
+              ? AdminErrorState(
+                  error: state.error!,
+                  onRetry: () =>
+                      ref.read(adminXPRulesProvider.notifier).loadRules(),
+                )
               : _buildRulesList(state),
     );
   }
@@ -67,16 +75,23 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
           children: [
             const Icon(Icons.stars, color: NeonColors.textMuted, size: 64),
             const SizedBox(height: 16),
-            const Text('Aucune règle XP configurée', style: TextStyle(color: NeonColors.textSecondary)),
+            const Text(
+              'Aucune règle XP configurée',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
             const SizedBox(height: 8),
-            const Text('Les règles XP définissent combien d\'XP est gagné\npour chaque action dans chaque type de jeu.',
-              style: TextStyle(color: NeonColors.textMuted, fontSize: 12), textAlign: TextAlign.center,),
+            const Text(
+              'Les règles XP définissent combien d\'XP est gagné\npour chaque action dans chaque type de jeu.',
+              style: TextStyle(color: NeonColors.textMuted, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showCreateDialog(),
               icon: const Icon(Icons.add),
               label: const Text('Créer des règles XP'),
-              style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             ),
           ],
         ),
@@ -111,7 +126,12 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
     final multiplier = (rule['xp_multiplier'] as num?)?.toDouble() ?? 1.0;
     final isActive = rule['is_active'] as bool? ?? true;
 
-    final colors = [NeonColors.primary, NeonColors.secondary, NeonColors.accent, NeonColors.success];
+    final colors = [
+      NeonColors.primary,
+      NeonColors.secondary,
+      NeonColors.accent,
+      NeonColors.success,
+    ];
     final color = colors[gameType.hashCode.abs() % colors.length];
 
     return Card(
@@ -119,7 +139,9 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: isActive ? color.withValues(alpha: 0.3) : NeonColors.border),
+        side: BorderSide(
+          color: isActive ? color.withValues(alpha: 0.3) : NeonColors.border,
+        ),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -138,7 +160,8 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
             Row(
               children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -151,9 +174,28 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(gameType.toUpperCase(),
-                        style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),),
-                      if (!isActive) const Text('Désactivé', style: TextStyle(color: NeonColors.textMuted, fontSize: 10)),
+                      Text(
+                        gameType.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (!isActive)
+                        const Text(
+                          'Désactivé',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: NeonColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -161,8 +203,11 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
                 Switch(
                   value: isActive,
                   onChanged: (value) {
-                    ref.read(adminXPRulesProvider.notifier).saveRules(gameType, {
-                      ...rule, 'is_active': value,
+                    ref
+                        .read(adminXPRulesProvider.notifier)
+                        .saveRules(gameType, {
+                      ...rule,
+                      'is_active': value,
                     });
                   },
                   activeThumbColor: NeonColors.primary,
@@ -171,17 +216,53 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
             ),
             const SizedBox(height: 16),
 
-            // XP Values grid
-            Row(
-              children: [
-                Expanded(child: _buildXpChip('Victoire', '+$winXp', Icons.emoji_events, NeonColors.success)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildXpChip('Défaite', '+$lossXp', Icons.close, NeonColors.error)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildXpChip('Nul', '+$drawXp', Icons.balance, NeonColors.secondary)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildXpChip('Participation', '+$partXp', Icons.person, NeonColors.accent)),
-              ],
+            // XP Values grid — Wrap pour éviter overflow 320px (4x Expanded + label long)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final chipWidth = (constraints.maxWidth - 8) / 2;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: chipWidth,
+                      child: _buildXpChip(
+                        'Victoire',
+                        '+$winXp',
+                        Icons.emoji_events,
+                        NeonColors.success,
+                      ),
+                    ),
+                    SizedBox(
+                      width: chipWidth,
+                      child: _buildXpChip(
+                        'Défaite',
+                        '+$lossXp',
+                        Icons.close,
+                        NeonColors.error,
+                      ),
+                    ),
+                    SizedBox(
+                      width: chipWidth,
+                      child: _buildXpChip(
+                        'Nul',
+                        '+$drawXp',
+                        Icons.balance,
+                        NeonColors.secondary,
+                      ),
+                    ),
+                    SizedBox(
+                      width: chipWidth,
+                      child: _buildXpChip(
+                        'Participation',
+                        '+$partXp',
+                        Icons.person,
+                        NeonColors.accent,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -197,10 +278,29 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Text('Bonus Série', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+                        const Text(
+                          'Bonus Série',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('+$streakBonus/victoire', style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('(max $maxStreak)', style: const TextStyle(color: NeonColors.textMuted, fontSize: 9)),
+                        Text(
+                          '+$streakBonus/victoire',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          '(max $maxStreak)',
+                          style: const TextStyle(
+                            color: NeonColors.textMuted,
+                            fontSize: 9,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -215,10 +315,29 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Text('Multiplicateur', style: TextStyle(color: NeonColors.textSecondary, fontSize: 10)),
+                        const Text(
+                          'Multiplicateur',
+                          style: TextStyle(
+                            color: NeonColors.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('x${multiplier.toStringAsFixed(1)}', style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
-                        const Text('(événements)', style: TextStyle(color: NeonColors.textMuted, fontSize: 9)),
+                        Text(
+                          'x${multiplier.toStringAsFixed(1)}',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const Text(
+                          '(événements)',
+                          style: TextStyle(
+                            color: NeonColors.textMuted,
+                            fontSize: 9,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -227,20 +346,40 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Actions
+            // Actions — Flexible pour éviter overflow sur 320px
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
-                  onPressed: () => _confirmDelete(gameType),
-                  icon: const Icon(Icons.delete, color: NeonColors.error, size: 18),
-                  label: const Text('Supprimer', style: TextStyle(color: NeonColors.error)),
+                Flexible(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmDelete(gameType),
+                    icon: const Icon(
+                      Icons.delete,
+                      color: NeonColors.error,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Supprimer',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: TextStyle(color: NeonColors.error),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _showEditDialog(rule),
-                  icon: Icon(Icons.edit, color: color, size: 18),
-                  label: Text('Modifier', style: TextStyle(color: color)),
+                Flexible(
+                  child: TextButton.icon(
+                    onPressed: () => _showEditDialog(rule),
+                    icon: Icon(Icons.edit, color: color, size: 18),
+                    label: Text(
+                      'Modifier',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: TextStyle(color: color),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -262,9 +401,28 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: NeonColors.textMuted, fontSize: 9)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: const TextStyle(color: NeonColors.textMuted, fontSize: 8),
+            ),
+          ),
         ],
       ),
     );
@@ -275,45 +433,76 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
     final winCtrl = TextEditingController(text: '${rule['win_xp'] ?? 50}');
     final lossCtrl = TextEditingController(text: '${rule['loss_xp'] ?? 10}');
     final drawCtrl = TextEditingController(text: '${rule['draw_xp'] ?? 25}');
-    final partCtrl = TextEditingController(text: '${rule['participation_xp'] ?? 5}');
-    final streakCtrl = TextEditingController(text: '${rule['streak_bonus'] ?? 5}');
-    final maxStreakCtrl = TextEditingController(text: '${rule['max_streak_bonus'] ?? 50}');
-    final multCtrl = TextEditingController(text: '${(rule['xp_multiplier'] as num?)?.toDouble() ?? 1.0}');
+    final partCtrl =
+        TextEditingController(text: '${rule['participation_xp'] ?? 5}');
+    final streakCtrl =
+        TextEditingController(text: '${rule['streak_bonus'] ?? 5}');
+    final maxStreakCtrl =
+        TextEditingController(text: '${rule['max_streak_bonus'] ?? 50}');
+    final multCtrl = TextEditingController(
+      text: '${(rule['xp_multiplier'] as num?)?.toDouble() ?? 1.0}',
+    );
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Règles XP - ${gameType.toUpperCase()}',
-          style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
+        title: Text(
+          'Règles XP - ${gameType.toUpperCase()}',
+          style: const TextStyle(
+            color: NeonColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            _buildField('XP Victoire', winCtrl, Icons.emoji_events),
-            const SizedBox(height: 12),
-            _buildField('XP Défaite', lossCtrl, Icons.close),
-            const SizedBox(height: 12),
-            _buildField('XP Nul', drawCtrl, Icons.balance),
-            const SizedBox(height: 12),
-            _buildField('XP Participation', partCtrl, Icons.person),
-            const SizedBox(height: 12),
-            _buildField('Bonus par série', streakCtrl, Icons.local_fire_department),
-            const SizedBox(height: 12),
-            _buildField('Max bonus série', maxStreakCtrl, Icons.trending_up),
-            const SizedBox(height: 12),
-            _buildField('Multiplicateur XP', multCtrl, Icons.bolt),
-          ],),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildField('XP Victoire', winCtrl, Icons.emoji_events),
+              const SizedBox(height: 12),
+              _buildField('XP Défaite', lossCtrl, Icons.close),
+              const SizedBox(height: 12),
+              _buildField('XP Nul', drawCtrl, Icons.balance),
+              const SizedBox(height: 12),
+              _buildField('XP Participation', partCtrl, Icons.person),
+              const SizedBox(height: 12),
+              _buildField(
+                'Bonus par série',
+                streakCtrl,
+                Icons.local_fire_department,
+              ),
+              const SizedBox(height: 12),
+              _buildField('Max bonus série', maxStreakCtrl, Icons.trending_up),
+              const SizedBox(height: 12),
+              _buildField('Multiplicateur XP', multCtrl, Icons.bolt),
+            ],
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _saveRules(gameType, winCtrl.text, lossCtrl.text, drawCtrl.text,
-                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text,);
+              _saveRules(
+                gameType,
+                winCtrl.text,
+                lossCtrl.text,
+                drawCtrl.text,
+                partCtrl.text,
+                streakCtrl.text,
+                maxStreakCtrl.text,
+                multCtrl.text,
+              );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             child: const Text('Sauvegarder'),
           ),
         ],
@@ -336,44 +525,72 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Nouvelles règles XP',
-          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
+        title: const Text(
+          'Nouvelles règles XP',
+          style: TextStyle(
+            color: NeonColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            _buildField('Type de jeu', typeCtrl, Icons.sports_esports),
-            const SizedBox(height: 12),
-            _buildField('XP Victoire', winCtrl, Icons.emoji_events),
-            const SizedBox(height: 12),
-            _buildField('XP Défaite', lossCtrl, Icons.close),
-            const SizedBox(height: 12),
-            _buildField('XP Nul', drawCtrl, Icons.balance),
-            const SizedBox(height: 12),
-            _buildField('XP Participation', partCtrl, Icons.person),
-            const SizedBox(height: 12),
-            _buildField('Bonus par série', streakCtrl, Icons.local_fire_department),
-            const SizedBox(height: 12),
-            _buildField('Max bonus série', maxStreakCtrl, Icons.trending_up),
-            const SizedBox(height: 12),
-            _buildField('Multiplicateur XP', multCtrl, Icons.bolt),
-          ],),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildField('Type de jeu', typeCtrl, Icons.sports_esports),
+              const SizedBox(height: 12),
+              _buildField('XP Victoire', winCtrl, Icons.emoji_events),
+              const SizedBox(height: 12),
+              _buildField('XP Défaite', lossCtrl, Icons.close),
+              const SizedBox(height: 12),
+              _buildField('XP Nul', drawCtrl, Icons.balance),
+              const SizedBox(height: 12),
+              _buildField('XP Participation', partCtrl, Icons.person),
+              const SizedBox(height: 12),
+              _buildField(
+                'Bonus par série',
+                streakCtrl,
+                Icons.local_fire_department,
+              ),
+              const SizedBox(height: 12),
+              _buildField('Max bonus série', maxStreakCtrl, Icons.trending_up),
+              const SizedBox(height: 12),
+              _buildField('Multiplicateur XP', multCtrl, Icons.bolt),
+            ],
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               if (typeCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Type de jeu requis'), backgroundColor: NeonColors.error),
+                  const SnackBar(
+                    content: Text('Type de jeu requis'),
+                    backgroundColor: NeonColors.error,
+                  ),
                 );
                 return;
               }
-              _saveRules(typeCtrl.text.trim().toLowerCase(),
-                winCtrl.text, lossCtrl.text, drawCtrl.text,
-                partCtrl.text, streakCtrl.text, maxStreakCtrl.text, multCtrl.text,);
+              _saveRules(
+                typeCtrl.text.trim().toLowerCase(),
+                winCtrl.text,
+                lossCtrl.text,
+                drawCtrl.text,
+                partCtrl.text,
+                streakCtrl.text,
+                maxStreakCtrl.text,
+                multCtrl.text,
+              );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
             child: const Text('Créer'),
           ),
         ],
@@ -381,8 +598,16 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
     );
   }
 
-  void _saveRules(String gameType, String win, String loss, String draw,
-      String part, String streak, String maxStreak, String mult,) async {
+  void _saveRules(
+    String gameType,
+    String win,
+    String loss,
+    String draw,
+    String part,
+    String streak,
+    String maxStreak,
+    String mult,
+  ) async {
     final rules = {
       'win_xp': int.tryParse(win) ?? 50,
       'loss_xp': int.tryParse(loss) ?? 10,
@@ -393,11 +618,17 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
       'xp_multiplier': double.tryParse(mult) ?? 1.0,
       'is_active': true,
     };
-    final success = await ref.read(adminXPRulesProvider.notifier).saveRules(gameType, rules);
+    final success = await ref
+        .read(adminXPRulesProvider.notifier)
+        .saveRules(gameType, rules);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Règles XP $gameType sauvegardées' : 'Erreur de sauvegarde'),
+          content: Text(
+            success
+                ? 'Règles XP $gameType sauvegardées'
+                : 'Erreur de sauvegarde',
+          ),
           backgroundColor: success ? NeonColors.success : NeonColors.error,
         ),
       );
@@ -410,22 +641,41 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirmer la suppression',
-          style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold),),
-        content: Text('Supprimer les règles XP pour "$gameType" ?',
-          style: const TextStyle(color: NeonColors.textSecondary),),
+        title: const Text(
+          'Confirmer la suppression',
+          style: TextStyle(
+            color: NeonColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Supprimer les règles XP pour "$gameType" ?',
+          style: const TextStyle(color: NeonColors.textSecondary),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
+          ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(adminXPRulesProvider.notifier).deleteRules(gameType);
+              final success = await ref
+                  .read(adminXPRulesProvider.notifier)
+                  .deleteRules(gameType);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(success ? 'Règles XP supprimées' : 'Erreur de suppression'),
-                    backgroundColor: success ? NeonColors.success : NeonColors.error,
+                    content: Text(
+                      success
+                          ? 'Règles XP supprimées'
+                          : 'Erreur de suppression',
+                    ),
+                    backgroundColor:
+                        success ? NeonColors.success : NeonColors.error,
                   ),
                 );
               }
@@ -438,7 +688,11 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
     return TextField(
       controller: controller,
       style: const TextStyle(color: NeonColors.textPrimary),
@@ -447,15 +701,26 @@ class _AdminXPRulesScreenState extends ConsumerState<AdminXPRulesScreen> {
           : TextInputType.number,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+        labelStyle:
+            const TextStyle(color: NeonColors.textSecondary, fontSize: 13),
         prefixIcon: Icon(icon, color: NeonColors.primary, size: 18),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         filled: true,
         fillColor: NeonColors.surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: NeonColors.border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: NeonColors.border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: NeonColors.primary)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: NeonColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: NeonColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: NeonColors.primary),
+        ),
       ),
     );
   }

@@ -174,24 +174,27 @@ defmodule GameHubWeb.GameChannel do
     # Détecter si c'est un match GameMatch (id contient "match")
     if String.contains?(game_id, "match") do
       case GameHub.GameMatch.roll_dice(game_id, to_string(user_id)) do
-        {:ok, %{roll: roll, match: match}} ->
-          broadcast!(socket, "dice_rolled", %{
-            roll: %{player_id: roll.player_id, dice: roll.dice, sum: roll.sum},
-            match: sanitize_match(match)
-          })
-          # Si le set est terminé, broadcaster set_result / match_result déjà géré par GameMatch PubSub,
-          # mais on push aussi ici pour le channel direct
-          if match.status == :set_ended or match.status == :match_ended do
-            # Le match a déjà broadcast via PubSub, on forward aussi
-            :ok
-          end
-          {:reply, {:ok, %{status: "rolled", roll: roll}}, socket}
+        {:ok, %{roll: roll}} ->
+          # Source unique de vérité : GameMatch diffuse déjà via PubSub
+          # (dice_rolled / turn_changed / set_result / match_result).
+          # Ici on ne fait que répondre au lanceur pour feedback immédiat,
+          # sans broadcast redondant (évite doubles events et races UI).
+          {:reply, {:ok, %{status: "rolled", roll: %{player_id: to_string(roll.player_id), dice: roll.dice, sum: roll.sum}}}, socket}
 
         {:error, :not_your_turn} ->
           {:reply, {:error, %{reason: "not_your_turn"}}, socket}
 
         {:error, :player_eliminated} ->
           {:reply, {:error, %{reason: "player_eliminated"}}, socket}
+
+        {:error, :already_rolled} ->
+          {:reply, {:error, %{reason: "already_rolled"}}, socket}
+
+        {:error, :set_not_in_progress} ->
+          {:reply, {:error, %{reason: "set_not_in_progress"}}, socket}
+
+        {:error, :voting_phase_active} ->
+          {:reply, {:error, %{reason: "voting_phase_active"}}, socket}
 
         {:error, reason} ->
           {:reply, {:error, %{reason: to_string(reason)}}, socket}
@@ -217,21 +220,19 @@ defmodule GameHubWeb.GameChannel do
     game_id = socket.assigns.game_id
 
     case GameHub.GameMatch.vote_target(game_id, to_string(user_id), target_value) do
-      {:ok, match} ->
-        broadcast!(socket, "target_voted", %{
-          player_id: user_id,
-          target_value: target_value,
-          match: sanitize_match(match)
-        })
-        # Si tous ont voté, la cible est calculée → notifier
-        set = match.current_set_state
-        if set && !set.vote_phase && set.target_value do
-          broadcast!(socket, "target_calculated", %{
-            target_value: set.target_value,
-            match: sanitize_match(match)
-          })
-        end
+      {:ok, _match} ->
+        # Source unique : GameMatch diffuse via PubSub (target_voted /
+        # vote_progress / target_calculated). Pas de broadcast redondant ici.
         {:reply, {:ok, %{status: "voted", target: target_value}}, socket}
+
+      {:error, :already_voted} ->
+        {:reply, {:error, %{reason: "already_voted"}}, socket}
+
+      {:error, :not_voting_phase} ->
+        {:reply, {:error, %{reason: "not_voting_phase"}}, socket}
+
+      {:error, :invalid_target} ->
+        {:reply, {:error, %{reason: "invalid_target"}}, socket}
 
       {:error, reason} ->
         {:reply, {:error, %{reason: to_string(reason)}}, socket}
@@ -248,12 +249,69 @@ defmodule GameHubWeb.GameChannel do
 
     case GameHub.GameMatch.start_set(game_id) do
       {:ok, match} ->
-        broadcast!(socket, "set_started", %{match: sanitize_match(match)})
+        # Source unique : GameMatch diffuse set_started via PubSub.
         {:reply, {:ok, %{status: "set_started", match: sanitize_match(match)}}, socket}
 
       {:error, reason} ->
         {:reply, {:error, %{reason: to_string(reason)}}, socket}
     end
+  end
+
+  # === Revanche opt-out (fin de partie) — le GenServer diffuse via PubSub,
+  # ici on ne fait que répondre à l'appelant (pas de broadcast redondant). ===
+
+  @impl true
+  def handle_in("propose_rematch", _params, socket) do
+    case GameHub.GameMatch.propose_rematch(socket.assigns.game_id, to_string(socket.assigns.user_id)) do
+      {:ok, lobby} ->
+        {:reply, {:ok, %{status: "proposed", lobby: lobby}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("respond_rematch", params, socket) do
+    accept? = Map.get(params, "accept", Map.get(params, "accepted", true))
+
+    case GameHub.GameMatch.respond_rematch(socket.assigns.game_id, to_string(socket.assigns.user_id), accept?) do
+      {:ok, lobby} ->
+        {:reply, {:ok, %{status: "responded", lobby: lobby}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("start_rematch", _params, socket) do
+    case GameHub.GameMatch.start_rematch(socket.assigns.game_id, to_string(socket.assigns.user_id)) do
+      # Match déjà sanitisé par GameMatch : ne pas re-sanitiser (idempotence).
+      {:ok, %{new_match_id: new_id, match: match, excluded: excluded}} ->
+        {:reply, {:ok, %{status: "started", new_match_id: new_id, match: match, excluded: excluded}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("cancel_rematch", _params, socket) do
+    case GameHub.GameMatch.cancel_rematch(socket.assigns.game_id, to_string(socket.assigns.user_id)) do
+      {:ok, lobby} ->
+        {:reply, {:ok, %{status: "cancelled", lobby: lobby}}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, %{reason: to_string(reason)}}, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("leave_match", _params, socket) do
+    # Idempotent : quitter l'interface de fin de partie (exclu des revanches)
+    GameHub.GameMatch.leave_match(socket.assigns.game_id, to_string(socket.assigns.user_id))
+    {:reply, {:ok, %{status: "left"}}, socket}
   end
 
   # Handle leave_game event.
@@ -285,8 +343,9 @@ defmodule GameHubWeb.GameChannel do
   end
 
   # Forward GameMatch PubSub events to channel clients
+  # Source unique temps réel : tout vient du GenServer via PubSub.
   @impl true
-  def handle_info(%{event: event} = payload, socket) when event in ["dice_rolled", "set_result", "match_result", "player_forfeited", "match_forfeit", "set_started", "target_calculated", "match_state"] do
+  def handle_info(%{event: event} = payload, socket) when event in ["dice_rolling", "dice_rolled", "turn_changed", "set_result", "match_result", "player_forfeited", "match_forfeit", "set_started", "target_calculated", "target_voted", "vote_progress", "match_state", "rematch_proposed", "rematch_updated", "rematch_ready", "rematch_cancelled"] do
     push(socket, event, payload)
     {:noreply, socket}
   end
@@ -295,19 +354,110 @@ defmodule GameHubWeb.GameChannel do
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp sanitize_match(match) do
+    css = Map.get(match, :current_set_state)
+    sanitized_css = case css do
+      nil -> nil
+      m when is_map(m) ->
+        base = case Map.get(m, :result) do
+          {:winner, id} -> Map.put(m, :result, %{winner_id: to_string(id), result: "winner"})
+          :tie -> Map.put(m, :result, %{result: "tie"})
+          _ -> m
+        end
+        # Rolls sanitize (clés string, rolled_at ISO) — déterministe pour tous
+        base =
+          try do
+            Map.update(base, :rolls, %{}, fn rolls when is_map(rolls) ->
+              Map.new(rolls, fn {k, v} -> {to_string(k), sanitize_roll(v)} end)
+            end)
+          rescue
+            _ -> base
+          end
+        remaining = case Map.get(base, :turn_deadline) do
+          %DateTime{} = dl -> try do max(0, DateTime.diff(dl, DateTime.utc_now(), :second)) rescue _ -> nil end
+          _ -> nil
+        end
+        Map.put(base, :turn_remaining_seconds, remaining)
+      other -> other
+    end
+    timeout_ms = try do GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000 rescue _ -> 30000 end
+    {last_roller_id, last_roll} = latest_roll(match)
     %{
       match_id: match.match_id,
       status: to_string(match.status),
       current_set: match.current_set,
       sets_count: match.sets_count,
+      sets_mode: Map.get(match, :sets_mode, "fixed"),
+      sets_to_win: Map.get(match, :sets_to_win, div(match.sets_count, 2) + 1),
+      dice_count: Map.get(match, :dice_count, 2),
+      bet_amount: Map.get(match, :bet_amount, 0),
+      rule_type: Map.get(match, :rule_type, "normal"),
+      game_type: Map.get(match, :game_type, "dice"),
+      max_players: Map.get(match, :max_players, 2),
       set_scores: match.set_scores,
-      current_set_state: match.current_set_state,
+      current_set_state: sanitized_css,
       eliminated_players: match.eliminated_players |> MapSet.to_list(),
-      winner_id: Map.get(match, :winner_id)
+      winner_id: Map.get(match, :winner_id) |> to_string_if_present(),
+      turn_timeout_ms: timeout_ms,
+      last_roller_id: last_roller_id,
+      last_roll: last_roll,
+      players: Enum.map(Map.get(match, :players, []), fn p -> %{id: to_string(p.id), name: Map.get(p, :name, "Joueur")} end)
     }
   rescue
     _ -> %{match_id: match.match_id, status: to_string(match.status)}
   end
+
+  defp sanitize_roll(%{dice: dice, sum: sum} = roll) do
+    %{
+      player_id: roll |> Map.get(:player_id) |> to_string(),
+      dice: dice,
+      sum: sum,
+      forfeited: Map.get(roll, :forfeited, false),
+      rolled_at: case Map.get(roll, :rolled_at) do
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        v when is_binary(v) -> v
+        _ -> nil
+      end
+    }
+  end
+  defp sanitize_roll(other) when is_map(other) do
+    pid = Map.get(other, :player_id) || Map.get(other, "player_id")
+    dice = Map.get(other, :dice) || Map.get(other, "dice") || []
+    sum = Map.get(other, :sum) || Map.get(other, "sum") || Enum.sum(List.wrap(dice))
+    %{player_id: to_string(pid), dice: List.wrap(dice), sum: sum,
+      forfeited: Map.get(other, :forfeited) || Map.get(other, "forfeited") || false,
+      rolled_at: case Map.get(other, :rolled_at) || Map.get(other, "rolled_at") do
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        v when is_binary(v) -> v
+        _ -> nil
+      end}
+  rescue _ -> %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+  end
+  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+
+  defp latest_roll(match) do
+    rolls = match |> Map.get(:current_set_state, %{}) |> then(fn
+      nil -> %{}
+      css when is_map(css) -> Map.get(css, :rolls, %{}) || Map.get(css, "rolls", %{}) || %{}
+      _ -> %{}
+    end)
+    if map_size(rolls) == 0 do
+      {nil, nil}
+    else
+      {pid, roll} = Enum.max_by(rolls, fn {_pid, r} ->
+        case r do
+          %{rolled_at: %DateTime{} = dt} -> DateTime.to_unix(dt, :microsecond)
+          %{"rolled_at" => v} when is_binary(v) -> v
+          %{rolled_at: v} when is_binary(v) -> v
+          _ -> ""
+        end
+      end)
+      {to_string(pid), sanitize_roll(roll)}
+    end
+  rescue _ -> {nil, nil}
+  end
+
+  defp to_string_if_present(nil), do: nil
+  defp to_string_if_present(v), do: to_string(v)
   
   @doc """
   Handle disconnect.
@@ -317,8 +467,18 @@ defmodule GameHubWeb.GameChannel do
   def terminate(_reason, socket) do
     user_id = socket.assigns[:user_id]
     game_id = socket.assigns[:game_id]
-    
+
     if user_id && game_id do
+      # Fin de partie : quitter l'interface = exclu des revanches (best effort).
+      # leave_match est sans effet avant la fin du match (connexions instables).
+      if String.contains?(to_string(game_id), "match") do
+        try do
+          GameHub.GameMatch.leave_match(to_string(game_id), to_string(user_id))
+        rescue
+          _ -> :ok
+        end
+      end
+
       game_type = extract_game_type(game_id)
       
       # Appliquer politique déconnexion si le jeu existe
@@ -345,9 +505,16 @@ defmodule GameHubWeb.GameChannel do
   end
   
   defp get_user_id(socket) do
-    case socket.assigns[:current_user] do
-      %{id: id} -> id
-      _ -> nil
+    # Le socket assigne :user_id dans UserSocket.connect/3.
+    # Ancien code lisait :current_user (jamais assigné) → guest aléatoire
+    # → not_your_turn permanent via WS. On lit :user_id en priorité.
+    case socket.assigns[:user_id] do
+      nil ->
+        case socket.assigns[:current_user] do
+          %{id: id} -> id
+          _ -> nil
+        end
+      id -> id
     end
   end
 end

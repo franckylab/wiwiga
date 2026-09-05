@@ -24,7 +24,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _progressController;
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
-  double _progress = 0;
 
   @override
   void initState() {
@@ -61,20 +60,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Lancer les animations
     _logoController.forward();
     _progressController.forward();
-
-    // Liaison directe sans Timer: évite setTimeout 100ms qui bloquait le thread (Violation 173ms)
-    _progressController.addListener(() {
-      if (mounted) {
-        setState(() {
-          _progress = (_progressController.value * 0.8).clamp(0.0, 1.0);
-        });
-      }
-    });
   }
 
   void _navigate() {
     if (!mounted) return;
-    setState(() => _progress = 1.0);
 
     // Restaurer la session avant de naviguer
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -117,8 +106,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
         child: Stack(
           children: [
-            // Particules flottantes
-            const FloatingParticles(particleCount: 15),
+            // Particules flottantes - réduit à 8 et isolé par RepaintBoundary (perf)
+            const RepaintBoundary(child: FloatingParticles(particleCount: 8)),
 
             // Contenu principal
             Center(
@@ -175,22 +164,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                     ),
                     const SizedBox(height: 48),
-                    // Barre de progression
-                    SizedBox(
-                      width: 200,
-                      child: WiwigaProgressBar(
-                        progress: _progress,
-                        height: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Texte de statut
-                    Text(
-                      _getLoadingText(),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: NeonColors.textMuted,
-                        fontFamily: 'Inter',
+                    // Barre de progression - isolée par AnimatedBuilder pour éviter rebuild global (perf rAF)
+                    RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: _progressController,
+                        builder: (context, child) {
+                          final p = (_progressController.value * 0.8).clamp(0.0, 1.0);
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 200,
+                                child: WiwigaProgressBar(progress: p, height: 4),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _getLoadingText(p),
+                                style: const TextStyle(fontSize: 11, color: NeonColors.textMuted, fontFamily: 'Inter'),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -220,10 +214,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
-  String _getLoadingText() {
-    if (_progress < 0.3) return 'Initialisation...';
-    if (_progress < 0.6) return 'Connexion au serveur...';
-    if (_progress < 0.9) return 'Preparation de l\'arene...';
+  String _getLoadingText(double progress) {
+    if (progress < 0.3) return 'Initialisation...';
+    if (progress < 0.6) return 'Connexion au serveur...';
+    if (progress < 0.9) return 'Preparation de l\'arene...';
     return 'Bientot pret !';
   }
 }

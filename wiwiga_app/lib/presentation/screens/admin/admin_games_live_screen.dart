@@ -5,6 +5,8 @@
 // Date: 2026-08-25
 // ============================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/game_mode.dart';
@@ -22,14 +24,36 @@ class AdminGamesLiveScreen extends ConsumerStatefulWidget {
   ConsumerState<AdminGamesLiveScreen> createState() => _AdminGamesLiveScreenState();
 }
 
-class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen> {
+class _AdminGamesLiveScreenState extends ConsumerState<AdminGamesLiveScreen>
+    with WidgetsBindingObserver {
+  Timer? _autoTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(() {
       ref.read(adminGamesLiveProvider.notifier).loadActiveGames();
       ref.read(adminGamesLiveProvider.notifier).loadStatsSummary();
     });
+    // Live : 10s quand visible (cohérent monitoring 30s, mais live plus réactif)
+    _autoTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) ref.read(adminGamesLiveProvider.notifier).loadActiveGames();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _autoTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(adminGamesLiveProvider.notifier).loadActiveGames();
+    }
   }
 
   @override

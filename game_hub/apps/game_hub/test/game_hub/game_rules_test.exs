@@ -13,7 +13,7 @@ defmodule GameHub.GameRulesTest do
       assert %GameRule{} = rules
       assert rules.game_type == "dice"
       assert rules.rule_type == "normal"
-      assert rules.config["default_sets"] == 1
+      assert rules.config["default_sets"] == 3
       assert rules.config["default_dice"] == 2
       assert rules.config["dice_faces"] == 6
     end
@@ -84,8 +84,35 @@ defmodule GameHub.GameRulesTest do
     test "retourne config pour dice/normal" do
       config = GameRules.default_config("dice", "normal")
       assert is_map(config)
-      assert config["default_sets"] == 1
+      assert config["default_sets"] == 3
       assert config["default_dice"] == 2
+    end
+  end
+
+  describe "resolve_sets_count/3" do
+    test "mode fixe : défaut serveur sans valeur demandée" do
+      assert {:ok, 3, "fixed"} = GameRules.resolve_sets_count("dice", "normal", nil)
+    end
+
+    test "mode fixe : valeur demandée bornée à [min, max]" do
+      assert {:ok, 5, "fixed"} = GameRules.resolve_sets_count("dice", "normal", 5)
+      assert {:ok, 11, "fixed"} = GameRules.resolve_sets_count("dice", "normal", 100)
+      assert {:ok, 1, "fixed"} = GameRules.resolve_sets_count("dice", "normal", -4)
+    end
+
+    test "valeur explicite jamais retirée (cohérence salle → match)" do
+      # Une salle créée à 5 sets garde 5 sets dans le match.
+      assert {:ok, 5, _mode} = GameRules.resolve_sets_count("dice", "normal", 5)
+    end
+  end
+
+  describe "sets_preview/2" do
+    test "retourne l'aperçu pour le lobby" do
+      preview = GameRules.sets_preview("dice", "normal")
+      assert preview.mode == "fixed"
+      assert preview.fixed == 3
+      assert preview.min_sets == 1
+      assert preview.max_sets == 11
     end
   end
 

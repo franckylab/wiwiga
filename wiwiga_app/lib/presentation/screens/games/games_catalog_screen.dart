@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_model.dart';
 import '../../../data/providers/game_stats_providers.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
 /// Écran Catalogue : grille responsive des jeux disponibles
@@ -66,8 +67,6 @@ class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
         if (roomId != null) return '/games/$gameType/room/$roomId';
         break;
       case 'quick_lobby':
-        final bet = active['bet_amount'];
-        final rule = active['rule_type'] as String? ?? 'normal';
         // Rediriger vers la recherche bloquante synchronisée
         return '/games/$gameType/quick-search';
       default:
@@ -261,7 +260,7 @@ class GameCatalogCard extends StatelessWidget {
 
   const GameCatalogCard({super.key, required this.game});
 
-  static final _amountFormat = NumberFormat('#,##0', 'fr_FR');
+  static final _amountFormat = (() { try { return NumberFormat('#,##0', 'fr_FR'); } catch (_) { return NumberFormat.decimalPattern(); } })();
 
   IconData get _gameIcon {
     switch (game.type) {
@@ -301,13 +300,15 @@ class GameCatalogCard extends StatelessWidget {
                     gradient: comingSoon ? null : NeonGradients.cta,
                     color: comingSoon ? NeonColors.border : null,
                   ),
-                  child: Icon(
-                    _gameIcon,
-                    size: 28,
-                    color: comingSoon
-                        ? NeonColors.textMuted
-                        : NeonColors.background,
-                  ),
+                  child: game.type == 'dice' && !comingSoon
+                      ? const Center(child: WiwigaDiceIcon(size: 38, withShadow: false))
+                      : Icon(
+                          _gameIcon,
+                          size: 28,
+                          color: comingSoon
+                              ? NeonColors.textMuted
+                              : NeonColors.background,
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

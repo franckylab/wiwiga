@@ -5,6 +5,7 @@
 // ============================================================
 
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 import 'dice_3d.dart';
@@ -42,12 +43,20 @@ class _DiceTatamiState extends State<DiceTatami>
     with SingleTickerProviderStateMixin {
   late AnimationController _glowCtrl;
 
+  // Cache couleurs web pour éviter withValues per frame
+  static final Color _glowBase = NeonColors.primary.withValues(alpha: 0.22);
+  static final Color _blackShadow = Colors.black.withValues(alpha: 0.45);
+
   @override
   void initState() {
     super.initState();
     _glowCtrl =
-        AnimationController(duration: const Duration(seconds: 2), vsync: this)
-          ..repeat(reverse: true);
+        AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    // Sur web on désactive le ticker si pas visible / hors viewport — ici on
+    // évite le coûteux repeat 2s en mode web (glow statique).
+    if (!kIsWeb) {
+      _glowCtrl.repeat(reverse: true);
+    }
   }
 
   @override
@@ -62,9 +71,205 @@ class _DiceTatamiState extends State<DiceTatami>
       builder: (context, constraints) {
         final w = math.min(widget.maxWidth, constraints.maxWidth * 0.92);
         final h = w * 0.72;
-        return Center(
-          child: GestureDetector(
-            onTap: widget.onTap,
+        // Extract child stack to avoid rebuilding it per glow tick
+        final content = Stack(
+          children: [
+            // Cadre bois extérieur
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF3A2416),
+                    Color(0xFF5A3520),
+                    Color(0xFF2B1A0F),
+                  ],
+                ),
+                border: Border.all(color: const Color(0xFF6B3A20), width: 3),
+              ),
+              padding: const EdgeInsets.all(7),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFF8B5A2B).withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                // Feutre intérieur
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: Stack(
+                    children: [
+                      // Base feutre avec texture
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment.center,
+                            radius: 1.1,
+                            colors: [
+                              Color(0xFF0F3D2E),
+                              Color(0xFF0A2E22),
+                              Color(0xFF082419),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Grille tatami subtile — painter léger, shouldRepaint false
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          size: Size(w, h),
+                          painter: _TatamiPainter(),
+                          isComplex: false,
+                          willChange: false,
+                        ),
+                      ),
+                      // Vignette intérieure
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          gradient: RadialGradient(
+                            center: Alignment.center,
+                            radius: 0.9,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.22),
+                            ],
+                            stops: const [0.7, 1.0],
+                          ),
+                        ),
+                      ),
+                      // Bordure intérieure néon
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: NeonColors.primary.withValues(alpha: 0.22),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      // Contenu central: dés
+                      Center(child: _buildDiceContent(w)),
+                      // Overlay cible / somme
+                      if (widget.targetLabel != null)
+                        Positioned(
+                          top: 8,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: NeonColors.secondary
+                                    .withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: NeonColors.secondary
+                                      .withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Text(
+                                widget.targetLabel!,
+                                style: const TextStyle(
+                                  color: NeonColors.secondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Somme en bas
+                      if (widget.lastSum != null && !widget.isRolling)
+                        Positioned(
+                          bottom: 8,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: NeonColors.primary.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: NeonColors.primary.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                'SOMME ${widget.lastSum}',
+                                style: const TextStyle(
+                                  color: NeonColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.0,
+                                  fontFamily: 'Orbitron',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Overlay externe si victoire/défaite
+            if (widget.overlay != null)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    child: Center(child: widget.overlay),
+                  ),
+                ),
+              ),
+            // Étoiles décoratives coins
+            Positioned(top: 10, left: 10, child: _cornerStar()),
+            Positioned(top: 10, right: 10, child: _cornerStar()),
+            Positioned(bottom: 10, left: 10, child: _cornerStar()),
+            Positioned(bottom: 10, right: 10, child: _cornerStar()),
+          ],
+        );
+
+        // P1 FIX: Sur web, glow statique (pas de AnimatedBuilder 2s), blur 22→6, RepaintBoundary
+        // Sur mobile, AnimatedBuilder conservé mais encapsulé en RepaintBoundary + couleurs cachées
+        final Widget glowWrapper;
+        if (kIsWeb) {
+          glowWrapper = RepaintBoundary(
+            child: Container(
+              width: w,
+              height: h,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: _glowBase,
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: _blackShadow,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: content,
+            ),
+          );
+        } else {
+          glowWrapper = RepaintBoundary(
             child: AnimatedBuilder(
               animation: _glowCtrl,
               builder: (context, child) {
@@ -81,7 +286,7 @@ class _DiceTatamiState extends State<DiceTatami>
                         spreadRadius: 1,
                       ),
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.45),
+                        color: _blackShadow,
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),
@@ -90,176 +295,15 @@ class _DiceTatamiState extends State<DiceTatami>
                   child: child,
                 );
               },
-              child: Stack(
-                children: [
-                  // Cadre bois extérieur
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF3A2416),
-                          Color(0xFF5A3520),
-                          Color(0xFF2B1A0F),
-                        ],
-                      ),
-                      border:
-                          Border.all(color: const Color(0xFF6B3A20), width: 3),
-                    ),
-                    padding: const EdgeInsets.all(7),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: const Color(0xFF8B5A2B).withValues(alpha: 0.5),
-                          width: 1,
-                        ),
-                      ),
-                      // Feutre intérieur
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: Stack(
-                          children: [
-                            // Base feutre avec texture
-                            Container(
-                              decoration: const BoxDecoration(
-                                gradient: RadialGradient(
-                                  center: Alignment.center,
-                                  radius: 1.1,
-                                  colors: [
-                                    Color(0xFF0F3D2E),
-                                    Color(0xFF0A2E22),
-                                    Color(0xFF082419),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            // Grille tatami subtile
-                            CustomPaint(
-                              size: Size(w, h),
-                              painter: _TatamiPainter(),
-                            ),
-                            // Vignette intérieure
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(13),
-                                gradient: RadialGradient(
-                                  center: Alignment.center,
-                                  radius: 0.9,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.22),
-                                  ],
-                                  stops: const [0.7, 1.0],
-                                ),
-                              ),
-                            ),
-                            // Bordure intérieure néon
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(13),
-                                border: Border.all(
-                                  color: NeonColors.primary
-                                      .withValues(alpha: 0.22),
-                                  width: 1,
-                                ),
-                              ),
-                            ),
-                            // Contenu central: dés
-                            Center(child: _buildDiceContent(w)),
-                            // Overlay cible / somme
-                            if (widget.targetLabel != null)
-                              Positioned(
-                                top: 8,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: NeonColors.secondary
-                                          .withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: NeonColors.secondary
-                                            .withValues(alpha: 0.4),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      widget.targetLabel!,
-                                      style: const TextStyle(
-                                        color: NeonColors.secondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            // Somme en bas
-                            if (widget.lastSum != null && !widget.isRolling)
-                              Positioned(
-                                bottom: 8,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: NeonColors.primary
-                                          .withValues(alpha: 0.16),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: NeonColors.primary
-                                            .withValues(alpha: 0.3),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'SOMME ${widget.lastSum}',
-                                      style: const TextStyle(
-                                        color: NeonColors.primary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.0,
-                                        fontFamily: 'Orbitron',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Overlay externe si victoire/défaite
-                  if (widget.overlay != null)
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.32),
-                          child: Center(child: widget.overlay),
-                        ),
-                      ),
-                    ),
-                  // Étoiles décoratives coins
-                  Positioned(top: 10, left: 10, child: _cornerStar()),
-                  Positioned(top: 10, right: 10, child: _cornerStar()),
-                  Positioned(bottom: 10, left: 10, child: _cornerStar()),
-                  Positioned(bottom: 10, right: 10, child: _cornerStar()),
-                ],
-              ),
+              child: content,
             ),
+          );
+        }
+
+        return Center(
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: glowWrapper,
           ),
         );
       },

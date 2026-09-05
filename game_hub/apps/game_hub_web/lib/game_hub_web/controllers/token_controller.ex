@@ -164,10 +164,14 @@ defmodule GameHubWeb.TokenController do
   """
   def transactions(conn, params) do
     user_id = get_current_user_id(conn)
-    page = Map.get(params, "page", "1") |> String.to_integer()
-    limit = Map.get(params, "limit", "20") |> String.to_integer() |> min(100)
-    
-    case Tokens.get_token_transactions(user_id, page, limit) do
+    page = parse_int_param(params["page"], 1, 1, 1000)
+    limit = parse_int_param(params["limit"], 20, 1, 100)
+    type = Map.get(params, "type")
+    search = Map.get(params, "search") || Map.get(params, "q")
+    from_dt = parse_date_param(params["from"])
+    to_dt = parse_date_param(params["to"])
+
+    case Tokens.get_token_transactions(user_id, page, limit, type: type, from: from_dt, to: to_dt, search: search) do
       {:ok, transactions, total} ->
         conn |> put_status(200) |> json(%{
           success: true,
@@ -176,7 +180,7 @@ defmodule GameHubWeb.TokenController do
             page: page,
             limit: limit,
             total: total,
-            total_pages: ceil(total / limit),
+            total_pages: ceil(total / max(limit, 1)),
             has_next: page * limit < total,
             has_prev: page > 1
           },
@@ -184,6 +188,27 @@ defmodule GameHubWeb.TokenController do
         })
     end
   end
+
+  defp parse_int_param(nil, default, _min, _max), do: default
+  defp parse_int_param(val, default, min, max) when is_binary(val) do
+    case Integer.parse(val) do
+      {n, _} -> n |> max(min) |> min(max)
+      :error -> default
+    end
+  end
+  defp parse_int_param(val, default, min, max) when is_integer(val), do: val |> max(min) |> min(max)
+  defp parse_int_param(_, default, _, _), do: default
+
+  defp parse_date_param(nil), do: nil
+  defp parse_date_param(val) when is_binary(val) do
+    case DateTime.from_iso8601(val) do
+      {:ok, dt, _} -> dt
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  end
+  defp parse_date_param(_), do: nil
   
   # ========================================
   # RÉSUMÉ

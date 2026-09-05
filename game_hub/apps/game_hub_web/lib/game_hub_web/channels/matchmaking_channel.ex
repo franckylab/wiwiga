@@ -37,11 +37,30 @@ defmodule GameHubWeb.MatchmakingChannel do
     user_id = get_user_id(socket) || "dev_user_#{System.unique_integer([:positive])}"
     socket = assign(socket, :user_id, user_id)
     socket = assign(socket, :game_type, game_type)
-    # Abonnement temps réel pour lobby synchronisé et match
     try do
       Phoenix.PubSub.subscribe(GameHub.PubSub, "matchmaking:#{game_type}")
       Phoenix.PubSub.subscribe(GameHub.PubSub, "user:#{user_id}")
-      # Aussi les lobbies quick par bet (wildcard non supporté, on s'abonne au pattern via matchmaking)
+    rescue _ -> :ok end
+    {:ok, socket}
+  end
+
+  @impl true
+  def join("qm:lobby:" <> lobby_suffix, _params, socket) do
+    # lobby_suffix = "dice:normal:500"
+    parts = String.split(lobby_suffix, ":")
+    game_type = Enum.at(parts, 0, "dice")
+    rule_type = Enum.at(parts, 1, "normal")
+    bet_str = Enum.at(parts, 2, "0")
+    user_id = get_user_id(socket) || "dev_user_#{System.unique_integer([:positive])}"
+    socket = socket
+      |> assign(:user_id, user_id)
+      |> assign(:game_type, game_type)
+      |> assign(:rule_type, rule_type)
+      |> assign(:bet_amount, bet_str)
+    try do
+      Phoenix.PubSub.subscribe(GameHub.PubSub, "qm:lobby:#{lobby_suffix}")
+      Phoenix.PubSub.subscribe(GameHub.PubSub, "user:#{user_id}")
+      Phoenix.PubSub.subscribe(GameHub.PubSub, "matchmaking:#{game_type}")
     rescue _ -> :ok end
     {:ok, socket}
   end

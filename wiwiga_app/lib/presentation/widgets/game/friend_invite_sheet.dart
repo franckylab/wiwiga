@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/error_handler.dart';
+import '../../../core/errors/api_exception.dart';
 import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/friend_model.dart';
@@ -135,7 +136,10 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
     gameWs.sendGameInvite(friendId: friendId, roomCode: widget.roomCode);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Invitation envoyée à $friendName !', style: const TextStyle(color: NeonColors.success)),
+        content: Text(
+          'Invitation envoyée à $friendName !',
+          style: const TextStyle(color: NeonColors.success),
+        ),
         backgroundColor: NeonColors.surface,
       ),
     );
@@ -145,7 +149,9 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
+        left: 16,
+        right: 16,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Column(
@@ -158,7 +164,11 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             children: [
               const Text(
                 'Inviter un ami',
-                style: TextStyle(color: NeonColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: NeonColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: NeonColors.textSecondary),
@@ -187,7 +197,13 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
               ),
               child: Column(
                 children: [
-                  const Text('Code de la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 12)),
+                  const Text(
+                    'Code de la salle',
+                    style: TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   GestureDetector(
                     onTap: () {
@@ -198,11 +214,22 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
                     },
                     child: Text(
                       widget.roomCode,
-                      style: const TextStyle(color: NeonColors.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3),
+                      style: const TextStyle(
+                        color: NeonColors.primary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 3,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text('Appuyez pour copier', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                  const Text(
+                    'Appuyez pour copier',
+                    style: TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -215,14 +242,24 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             style: const TextStyle(color: NeonColors.textPrimary),
             decoration: InputDecoration(
               hintText: 'Rechercher par téléphone ou nom...',
-              hintStyle: const TextStyle(color: NeonColors.textSecondary, fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: NeonColors.primary, size: 20),
+              hintStyle: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 13,
+              ),
+              prefixIcon:
+                  const Icon(Icons.search, color: NeonColors.primary, size: 20),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.arrow_forward, color: NeonColors.primary, size: 20),
+                icon: const Icon(
+                  Icons.arrow_forward,
+                  color: NeonColors.primary,
+                  size: 20,
+                ),
                 onPressed: _search,
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               isDense: true,
             ),
             onSubmitted: (_) => _search(),
@@ -231,29 +268,52 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
 
           // Résultats de recherche
           if (_isSearching)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: NeonColors.primary)))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: NeonColors.primary),
+              ),
+            )
           else if (_searchResults.isNotEmpty)
             ..._searchResults.map((r) => _buildSearchResult(r)),
 
           // Liste d'amis
           if (_isLoadingFriends)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: NeonColors.primary)))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: NeonColors.primary),
+              ),
+            )
           else if (_friends.isNotEmpty) ...[
-            const Text('Mes amis', style: TextStyle(color: NeonColors.textSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
+            const Text(
+              'Mes amis',
+              style: TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.35,
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: _friends.length,
-                itemBuilder: (context, index) => _buildFriendCard(_friends[index]),
+                itemBuilder: (context, index) =>
+                    _buildFriendCard(_friends[index]),
               ),
             ),
           ] else if (!_isSearching)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('Aucun ami pour le moment', style: TextStyle(color: NeonColors.textSecondary)),
+                child: Text(
+                  'Aucun ami pour le moment',
+                  style: TextStyle(color: NeonColors.textSecondary),
+                ),
               ),
             ),
         ],
@@ -262,7 +322,8 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
   }
 
   Widget _buildFriendCard(FriendModel friend) {
-    final isExcluded = widget.excludePlayerIds?.contains(friend.id.toString()) ?? false;
+    final isExcluded =
+        widget.excludePlayerIds?.contains(friend.id.toString()) ?? false;
     final isInvited = _invitedFriendId == friend.id.toString();
 
     return Padding(
@@ -273,36 +334,90 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: friend.isOnline ? NeonColors.success.withValues(alpha: 0.2) : NeonColors.surface,
-                child: Text(friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: NeonColors.primary, fontWeight: FontWeight.bold),),
+                backgroundColor: friend.isOnline
+                    ? NeonColors.success.withValues(alpha: 0.2)
+                    : NeonColors.surface,
+                child: Text(
+                  friend.name.isNotEmpty ? friend.name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: NeonColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               if (friend.isOnline)
-                Positioned(right: 0, bottom: 0, child: Container(
-                  width: 10, height: 10,
-                  decoration: BoxDecoration(color: NeonColors.success, shape: BoxShape.circle,
-                      border: Border.all(color: NeonColors.surface, width: 2),),
-                ),),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: NeonColors.success,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: NeonColors.surface, width: 2),
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(friend.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-                Text(friend.isOnline ? 'En ligne' : 'Hors ligne',
-                    style: TextStyle(color: friend.isOnline ? NeonColors.success : NeonColors.textSecondary, fontSize: 11),),
+                Text(
+                  friend.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  friend.isOnline ? 'En ligne' : 'Hors ligne',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: friend.isOnline
+                        ? NeonColors.success
+                        : NeonColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
+          const SizedBox(width: 4),
           if (isExcluded)
-            const Text('Déjà dans la salle', style: TextStyle(color: NeonColors.textSecondary, fontSize: 11))
+            const Flexible(
+              child: Text(
+                'Déjà dans la salle',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(color: NeonColors.textSecondary, fontSize: 11),
+              ),
+            )
           else if (isInvited)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: NeonColors.success.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-              child: const Text('Invité ✓', style: TextStyle(color: NeonColors.success, fontSize: 12, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: NeonColors.success.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Invité ✓',
+                style: TextStyle(
+                  color: NeonColors.success,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             )
           else
             NeonButton(
@@ -326,19 +441,42 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
           CircleAvatar(
             radius: 18,
             backgroundColor: NeonColors.secondary.withValues(alpha: 0.2),
-            child: Text(result.name.isNotEmpty ? result.name[0].toUpperCase() : '?',
-                style: const TextStyle(color: NeonColors.secondary),),
+            child: Text(
+              result.name.isNotEmpty ? result.name[0].toUpperCase() : '?',
+              style: const TextStyle(color: NeonColors.secondary),
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(result.name, style: const TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-                if (result.phone != null) Text(result.phone!, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                Text(
+                  result.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                if (result.phone != null)
+                  Text(
+                    result.phone!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
               ],
             ),
           ),
+          const SizedBox(width: 4),
           NeonButton(
             text: 'Ajouter',
             onPressed: () async {
@@ -347,10 +485,28 @@ class _FriendInviteSheetState extends ConsumerState<FriendInviteSheet> {
                 await repo.sendRequest(userId: result.id);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Demande envoyée à ${result.name}')),
+                  SnackBar(
+                    content: Text('Demande envoyée à ${result.name}'),
+                    backgroundColor: NeonColors.success,
+                  ),
                 );
+                setState(() => _searchResults.remove(result));
               } catch (e, st) {
-      ErrorHandler.logError(e, st, context: 'FriendInviteSheet');
+                if (e is ApiException && e.isConflict) {
+                  // 409 déjà amis / déjà en attente → info, pas erreur
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.userMessage),
+                        backgroundColor: NeonColors.warning,
+                      ),
+                    );
+                    // Retirer de la liste pour éviter re-tentative
+                    setState(() => _searchResults.remove(result));
+                  }
+                  return;
+                }
+                ErrorHandler.logError(e, st, context: 'FriendInviteSheet');
                 if (!mounted) return;
                 WiwigaSnack.showError(context, e);
               }

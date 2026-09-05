@@ -166,6 +166,17 @@ defmodule GameHubWeb.Router do
     # Debug match (test tours)
     get "/debug/match/:game_id", GameController, :debug_match
     post "/debug/match/:game_id/roll", GameController, :debug_roll
+    post "/debug/match/:game_id/start_set", GameController, :debug_start_set
+    # REST fallback temps réel pour jeu de dés (si WebSocket indisponible)
+    post "/games/:game_id/roll", GameController, :roll
+    post "/games/:game_id/vote", GameController, :vote
+    post "/games/:game_id/start_set", GameController, :start_set_rest
+    # Revanche opt-out (fin de partie) + sortie d'interface
+    post "/games/:game_id/rematch/propose", GameController, :propose_rematch
+    post "/games/:game_id/rematch/respond", GameController, :respond_rematch
+    post "/games/:game_id/rematch/start", GameController, :start_rematch
+    post "/games/:game_id/rematch/cancel", GameController, :cancel_rematch
+    post "/games/:game_id/leave", GameController, :leave_match
     # Actions de jeu (PROTÉGÉ) — Partie rapide unifiée (mise+rule) lobby synchronisé
     post "/games/:game_id/join", GameController, :join
     delete "/games/:game_id/queue", GameController, :leave_queue
@@ -400,6 +411,13 @@ defmodule GameHubWeb.Router do
     get "/game-configs", AdminGameConfigController, :index
     put "/game-configs/:game_type", AdminGameConfigController, :update
     post "/game-configs", AdminGameConfigController, :create
+
+    # ========================================
+    # Règles Moteur — sets/dés (source GameRules)
+    # ========================================
+    get "/game-rules", AdminGameRulesController, :index
+    get "/game-rules/:game_type/:rule_type", AdminGameRulesController, :show
+    put "/game-rules/:game_type/:rule_type", AdminGameRulesController, :update
     
     # ========================================
     # Bonuses & Promotions (V3)

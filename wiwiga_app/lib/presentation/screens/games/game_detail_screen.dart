@@ -16,9 +16,16 @@ import '../../../data/models/game_room_model.dart';
 import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/auth/auth_gate.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
-final _tokenFormat = NumberFormat('#,##0', 'fr_FR');
+final _tokenFormat = (() {
+  try {
+    return NumberFormat('#,##0', 'fr_FR');
+  } catch (_) {
+    return NumberFormat.decimalPattern();
+  }
+})();
 
 /// Formate un montant en wiga
 String formatTokens(int tokens) => _tokenFormat.format(tokens);
@@ -242,11 +249,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.casino_outlined,
-              size: 34,
-              color: NeonColors.background,
-            ),
+            child: game.type == 'dice'
+                ? const Center(
+                    child: WiwigaDiceIcon(size: 42, withShadow: false))
+                : const Icon(
+                    Icons.casino_outlined,
+                    size: 34,
+                    color: NeonColors.background,
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(

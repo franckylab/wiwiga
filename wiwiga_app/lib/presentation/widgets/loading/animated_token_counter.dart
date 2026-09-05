@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
@@ -61,52 +62,49 @@ class _AnimatedTokenCounterState extends State<AnimatedTokenCounter>
     super.dispose();
   }
 
+  // Cache RegExp et évite allocation per frame
+  static final _thousandsRegex = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+
   String _formatTokens(int tokens) {
     final absTokens = tokens.abs();
-    return absTokens
-        .toString()
-        .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ',);
+    return absTokens.toString().replaceAllMapped(_thousandsRegex, (m) => '${m[1]} ');
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        final currentValue = (_previousValue +
-                (widget.value - _previousValue) * _animation.value)
-            .round();
-
-        final isPositive = widget.value >= 0;
-        final displayColor = widget.color ??
-            (isPositive ? NeonColors.success : NeonColors.danger);
-
-        final sign = widget.showSign
-            ? (isPositive ? '+' : '')
-            : '';
-
-        return Text(
-          '$sign${_formatTokens(currentValue)}',
-          style: TextStyle(
-            fontSize: widget.fontSize,
-            fontWeight: FontWeight.bold,
-            color: displayColor,
-            fontFamily: 'Orbitron',
-            shadows: [
-              Shadow(
-                color: displayColor.withValues(alpha: 0.4),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-        );
-      },
+    // RepaintBoundary isole le texte animé du reste
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, child) {
+          final currentValue = (_previousValue + (widget.value - _previousValue) * _animation.value).round();
+          final isPositive = widget.value >= 0;
+          final displayColor = widget.color ?? (isPositive ? NeonColors.success : NeonColors.danger);
+          final sign = widget.showSign ? (isPositive ? '+' : '') : '';
+          // Sur web, désactive le Shadow coûteux (CanvasKit saveLayer)
+          final shadows = kIsWeb
+              ? null
+              : [
+                  Shadow(color: displayColor.withValues(alpha: 0.4), blurRadius: 8),
+                ];
+          return Text(
+            '$sign${_formatTokens(currentValue)}',
+            style: TextStyle(
+              fontSize: widget.fontSize,
+              fontWeight: FontWeight.bold,
+              color: displayColor,
+              fontFamily: 'Orbitron',
+              shadows: shadows,
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-/// Compteur de wiga avec animation de flip vertical
+/// Compteur de wiga avec animation de flip vertical — P5 optimisé
+/// 1 seul controller parent (implicit via AnimatedSwitcher) au lieu de N AnimationControllers
 class TokenFlipCounter extends StatefulWidget {
   final int value;
   final double digitHeight;
@@ -123,64 +121,25 @@ class TokenFlipCounter extends StatefulWidget {
   State<TokenFlipCounter> createState() => _TokenFlipCounterState();
 }
 
-class _TokenFlipCounterState extends State<TokenFlipCounter> {
-  @override
-  Widget build(BuildContext context) {
-    final digits = widget.value.toString().split('');
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: digits.map((digit) {
-        return _FlipDigit(
-          digit: digit,
-          height: widget.digitHeight,
-          color: widget.color,
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _FlipDigit extends StatefulWidget {
-  final String digit;
-  final double height;
-  final Color color;
-
-  const _FlipDigit({
-    required this.digit,
-    required this.height,
-    required this.color,
-  });
-
-  @override
-  State<_FlipDigit> createState() => _FlipDigitState();
-}
-
-class _FlipDigitState extends State<_FlipDigit>
+class _TokenFlipCounterState extends State<TokenFlipCounter>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _flipAnimation;
-  String _displayDigit = '0';
 
   @override
   void initState() {
     super.initState();
-    _displayDigit = widget.digit;
+    // P5 FIX: 1 seul controller parent throttle 30fps, au lieu de N controllers 400ms par digit
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 320),
       vsync: this,
-    );
-    _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
   }
 
   @override
-  void didUpdateWidget(_FlipDigit oldWidget) {
+  void didUpdateWidget(TokenFlipCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.digit != widget.digit) {
-      _controller.reset();
-      setState(() => _displayDigit = widget.digit);
-      _controller.forward();
+    if (oldWidget.value != widget.value) {
+      _controller.forward(from: 0);
     }
   }
 
@@ -192,30 +151,67 @@ class _FlipDigitState extends State<_FlipDigit>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _flipAnimation,
-      builder: (context, child) {
-        // Simule un flip vertical avec scale
-        final scale = 1.0 - (_flipAnimation.value - 0.5).abs() * 0.3;
-        return Transform.scale(
-          scaleY: scale,
-          child: SizedBox(
-            width: widget.height * 0.6,
-            height: widget.height,
-            child: Center(
-              child: Text(
-                _displayDigit,
-                style: TextStyle(
-                  fontSize: widget.height * 0.8,
-                  fontWeight: FontWeight.bold,
-                  color: widget.color,
-                  fontFamily: 'Orbitron',
-                ),
+    final digits = widget.value.toString().split('');
+    // RepaintBoundary isole le flip du reste de l'UI
+    return RepaintBoundary(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: digits.map((digit) {
+          return _FlipDigit(
+            digit: digit,
+            height: widget.digitHeight,
+            color: widget.color,
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _FlipDigit extends StatelessWidget {
+  final String digit;
+  final double height;
+  final Color color;
+
+  const _FlipDigit({
+    required this.digit,
+    required this.height,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // P5 FIX: AnimatedSwitcher au lieu de AnimationController par digit — pas deTicker, pas de scale per frame
+    return SizedBox(
+      width: height * 0.6,
+      height: height,
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            // Flip vertical léger via Scale + Fade — sans Matrix4 3D, pas de saveLayer
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
+                child: child,
               ),
+            );
+          },
+          child: Text(
+            digit,
+            key: ValueKey<String>(digit),
+            style: TextStyle(
+              fontSize: height * 0.8,
+              fontWeight: FontWeight.bold,
+              color: color,
+              fontFamily: 'Orbitron',
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

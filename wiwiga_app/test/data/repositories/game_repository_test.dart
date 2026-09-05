@@ -91,7 +91,7 @@ void main() {
         expect(result['game_id'], '123');
         verify(() => mockApiService.post(
           '/api/games/123/join',
-          body: {'bet_amount': 500},
+          body: {'bet_amount': 500, 'rule_type': 'normal'},
           requiresAuth: true,
         ),).called(1);
       });

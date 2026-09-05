@@ -29,25 +29,32 @@ final roomRepositoryProvider = Provider<RoomRepository>((ref) {
 // ============================================================
 
 /// Catalogue des jeux (triés par display_order côté backend)
-final gamesCatalogProvider = FutureProvider<List<GameModel>>((ref) async {
+// Auto-refresh 60s quand visible, pas de polling en background (autoDispose)
+final gamesCatalogProvider = FutureProvider.autoDispose<List<GameModel>>((ref) async {
+  final timer = Timer(const Duration(seconds: 60), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getGames();
 });
 
-/// Détail d'un jeu (tips + config inclus)
+/// Détail d'un jeu (tips + config inclus) — cache 2min, peu volatil
 final gameDetailProvider =
-    FutureProvider.family<GameModel, String>((ref, gameType) async {
+    FutureProvider.autoDispose.family<GameModel, String>((ref, gameType) async {
+  final timer = Timer(const Duration(seconds: 120), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getGame(gameType);
 });
 
 // ============================================================
-// STATS & CLASSEMENT
+// STATS & CLASSEMENT — auto-refresh léger et cohérent
 // ============================================================
 
-/// Stats globales d'un jeu (joueurs en ligne, parties du jour...)
+/// Stats globales d'un jeu (joueurs en ligne, parties du jour...) — 30s
 final gameStatsProvider =
-    FutureProvider.family<GameGlobalStats, String>((ref, gameType) async {
+    FutureProvider.autoDispose.family<GameGlobalStats, String>((ref, gameType) async {
+  final timer = Timer(const Duration(seconds: 30), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getGameStats(gameType);
 });
@@ -55,10 +62,12 @@ final gameStatsProvider =
 /// Paramètres d'un classement
 typedef LeaderboardParams = ({String gameType, String metric, String period});
 
-/// Classement d'un jeu pour une métrique × période
+/// Classement d'un jeu pour une métrique × période — 60s
 final gameLeaderboardProvider =
-    FutureProvider.family<GameLeaderboard, LeaderboardParams>(
+    FutureProvider.autoDispose.family<GameLeaderboard, LeaderboardParams>(
         (ref, params) async {
+  final timer = Timer(const Duration(seconds: 60), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getLeaderboard(
     params.gameType,
@@ -67,23 +76,29 @@ final gameLeaderboardProvider =
   );
 });
 
-/// Mes statistiques personnelles sur un jeu
+/// Mes statistiques personnelles sur un jeu — 45s
 final myGameStatsProvider =
-    FutureProvider.family<MyGameStats, String>((ref, gameType) async {
+    FutureProvider.autoDispose.family<MyGameStats, String>((ref, gameType) async {
+  final timer = Timer(const Duration(seconds: 45), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getMyStats(gameType);
 });
 
-/// Règles d'un jeu (Normal/Cible)
+/// Règles d'un jeu (Normal/Cible) — 5min (peu volatil, admin)
 final gameRulesProvider =
-    FutureProvider.family<List<GameRuleInfo>, String>((ref, gameType) async {
+    FutureProvider.autoDispose.family<List<GameRuleInfo>, String>((ref, gameType) async {
+  final timer = Timer(const Duration(seconds: 300), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getRules(gameType);
 });
 
-/// Astuces d'un jeu
+/// Astuces d'un jeu — 5min
 final gameTipsProvider =
-    FutureProvider.family<List<GameTip>, String>((ref, gameType) async {
+    FutureProvider.autoDispose.family<List<GameTip>, String>((ref, gameType) async {
+  final timer = Timer(const Duration(seconds: 300), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   return repo.getTips(gameType);
 });
@@ -115,10 +130,12 @@ final waitingRoomsProvider =
 
 /// Partie active de l'utilisateur pour redirection auto (room/match/quick_lobby)
 /// Usage: lorsqu'un joueur est déjà dans une partie en attente ou en cours,
-/// la page Jeux le redirige directement vers attente ou partie.
+/// la page Jeux le redirige directement vers attente ou partie. Poll léger 15s quand visible.
 final activeGameProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
   final auth = ref.watch(authProvider);
   if (auth.isGuest || auth.isUnknown) return null;
+  final timer = Timer(const Duration(seconds: 15), () => ref.invalidateSelf());
+  ref.onDispose(timer.cancel);
   final repo = ref.watch(gameRepositoryProvider);
   try {
     final data = await repo.getActiveGame();

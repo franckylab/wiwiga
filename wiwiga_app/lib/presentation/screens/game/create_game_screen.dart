@@ -57,6 +57,14 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   int minPlayers = 2;
   int maxPlayers = 5;
 
+  // Nombre de sets piloté par le serveur (jamais deviné) :
+  // - mode fixe : slider borné, initialisé au défaut serveur ;
+  // - mode aléatoire : pas de choix joueur, tirage serveur à la création.
+  bool _setsInitialized = false;
+  bool _setsRandom = false;
+  int _setsRandomMin = 1;
+  int _setsRandomMax = 5;
+
   List<int> get _betPresets {
     final presets = <int>[];
     final steps = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
@@ -77,14 +85,23 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
       orElse: () => rules.first,
     );
     final c = rule.config;
-    minSets = (c['min_sets'] as num?)?.toInt() ?? minSets;
-    maxSets = (c['max_sets'] as num?)?.toInt() ?? maxSets;
+    minSets = rule.minSets;
+    maxSets = rule.maxSets;
     minDice = (c['min_dice'] as num?)?.toInt() ?? minDice;
     maxDice = (c['max_dice'] as num?)?.toInt() ?? maxDice;
     minBet = (c['min_bet'] as num?)?.toInt() ?? minBet;
     maxBet = (c['max_bet'] as num?)?.toInt() ?? maxBet;
     minPlayers = (c['min_players'] as num?)?.toInt() ?? minPlayers;
     maxPlayers = (c['max_players'] as num?)?.toInt() ?? maxPlayers;
+
+    // Mode sets serveur : fixe (défaut serveur) ou aléatoire (tirage serveur).
+    _setsRandom = rule.isRandomSets;
+    _setsRandomMin = rule.setsRandomMin;
+    _setsRandomMax = rule.setsRandomMax;
+    if (!_setsInitialized) {
+      _setsCount = rule.defaultSets;
+      _setsInitialized = true;
+    }
 
     // Clamp current values to new bounds
     _setsCount = _setsCount.clamp(minSets, maxSets);
@@ -273,6 +290,52 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
   }
 
   Widget _buildSetsSlider() {
+    // Mode aléatoire : aucun choix joueur — le serveur tire à la création.
+    // Affichage informatif cohérent avec la configuration (jamais deviné).
+    if (_setsRandom) {
+      final label = _setsRandomMin == _setsRandomMax
+          ? 'BO$_setsRandomMin'
+          : 'Aléatoire ($_setsRandomMin–$_setsRandomMax)';
+      return NeonCard(
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: NeonColors.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.casino_outlined, color: NeonColors.secondary, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nombre de sets', style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tiré par le serveur à la création (équitable)',
+                    style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: NeonColors.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: NeonColors.secondary.withValues(alpha: 0.35)),
+              ),
+              child: Text(label, style: const TextStyle(color: NeonColors.secondary, fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+          ],
+        ),
+      );
+    }
+    // divisions null si min == max (évite l'assertion Slider).
+    final divisions = maxSets > minSets ? maxSets - minSets : null;
     return NeonCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,11 +359,11 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
               overlayColor: NeonColors.primary.withValues(alpha: 0.2),
             ),
             child: Slider(
-              value: _setsCount.toDouble(),
+              value: _setsCount.toDouble().clamp(minSets.toDouble(), maxSets.toDouble()),
               min: minSets.toDouble(),
               max: maxSets.toDouble(),
-              divisions: maxSets - minSets,
-              onChanged: (v) => setState(() => _setsCount = v.round()),
+              divisions: divisions,
+              onChanged: (v) => setState(() => _setsCount = v.round().clamp(minSets, maxSets)),
             ),
           ),
           Row(
@@ -460,7 +523,14 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
           const SizedBox(height: 12),
           _summaryRow('Mode', modeLabel),
           _summaryRow('Règles', _ruleType == 'normal' ? 'Normal' : 'Cible'),
-          _summaryRow('Sets', '$_setsCount (majorité: ${(_setsCount ~/ 2) + 1})'),
+          _summaryRow(
+            'Sets',
+            _setsRandom
+                ? (_setsRandomMin == _setsRandomMax
+                    ? 'BO$_setsRandomMin (tirage serveur)'
+                    : 'Aléatoire $_setsRandomMin–$_setsRandomMax (tirage serveur)')
+                : '$_setsCount (majorité: ${(_setsCount ~/ 2) + 1})',
+          ),
           _summaryRow('Dés', '$_diceCount dé${_diceCount > 1 ? 's' : ''}'),
           _summaryRow('Joueurs', '$_maxPlayers max'),
           if (_isStaked) _summaryRow('Mise', '$_betAmount wiga'),

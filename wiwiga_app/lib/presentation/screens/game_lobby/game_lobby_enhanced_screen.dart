@@ -15,6 +15,7 @@ import '../../../core/errors/error_handler.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/models/game_room_model.dart';
 import '../../../data/providers/app_providers.dart';
+import '../../../data/providers/game_stats_providers.dart';
 import '../../providers/config_provider.dart';
 import '../../../data/repositories/room_repository.dart';
 import '../../widgets/neon/neon_button.dart';
@@ -36,59 +37,49 @@ class GameLobbyEnhancedScreen extends ConsumerStatefulWidget {
 }
 
 class _GameLobbyEnhancedScreenState
-    extends ConsumerState<GameLobbyEnhancedScreen> {
+    extends ConsumerState<GameLobbyEnhancedScreen> with WidgetsBindingObserver {
   final _codeController = TextEditingController();
-  Timer? _refreshTimer;
-  List<GameRoomModel> _rooms = [];
-  bool _isLoading = true;
-  String? _error;
   String _filterMode =
-      'all'; // 'all' | 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
+      'all'; // 'all' | 'free' | 'staked'
 
   @override
   void initState() {
     super.initState();
-    _loadRooms();
-    _refreshTimer =
-        Timer.periodic(const Duration(seconds: 5), (_) => _loadRooms());
+    WidgetsBinding.instance.addObserver(this);
+    // WS temps réel pour lobby (complète le polling provider 30s)
+    Future.microtask(() {
+      final ws = ref.read(gameWebSocketServiceProvider);
+      ws.onRoomUpdated = (_) {
+        if (mounted) ref.invalidate(waitingRoomsProvider(widget.gameType));
+      };
+      ws.onMatchStarted = (_) {
+        if (mounted) ref.invalidate(waitingRoomsProvider(widget.gameType));
+      };
+      // S'assure que le WS est connecté pour recevoir les push
+      if (!ws.isConnected && !ws.isFallbackMode) {
+        ws.connect();
+        ws.joinMatchmakingChannel(widget.gameType);
+      }
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _codeController.dispose();
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadRooms() async {
-    try {
-      final apiService = ref.read(apiServiceProvider);
-      final roomRepo = RoomRepository(apiService);
-      final mode = _filterMode == 'all' ? null : _filterMode;
-      final rooms = await roomRepo.listWaitingRooms(
-        gameType: widget.gameType,
-        mode: mode,
-      );
-      if (mounted) {
-        setState(() {
-          _rooms = rooms;
-          _isLoading = false;
-          _error = null;
-        });
-      }
-    } catch (e, st) {
-      ErrorHandler.logError(e, st, context: 'GameLobbyEnhanced._loadRooms');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _error = ErrorHandler.userMessage(e);
-        });
-      }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(waitingRoomsProvider(widget.gameType));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final roomsAsync = ref.watch(waitingRoomsProvider(widget.gameType));
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
@@ -103,7 +94,7 @@ class _GameLobbyEnhancedScreenState
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadRooms,
+        onRefresh: () async => ref.invalidate(waitingRoomsProvider(widget.gameType)),
         color: NeonColors.primary,
         backgroundColor: NeonColors.surface,
         child: SingleChildScrollView(
@@ -112,7 +103,7 @@ class _GameLobbyEnhancedScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(),
+              _buildHeader(roomsAsync),
               const SizedBox(height: 16),
               _buildQuickActions(),
               const SizedBox(height: 16),
@@ -120,7 +111,7 @@ class _GameLobbyEnhancedScreenState
               const SizedBox(height: 16),
               _buildFilterTabs(),
               const SizedBox(height: 12),
-              _buildRoomsList(),
+              _buildRoomsList(roomsAsync),
             ],
           ),
         ),
@@ -128,13 +119,15 @@ class _GameLobbyEnhancedScreenState
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AsyncValue<List<GameRoomModel>> roomsAsync) {
     final gamesConfig = ref.watch(gamesConfigProvider);
     final gameConfig = gamesConfig.when(
       data: (config) => config.gameTypes[widget.gameType],
       loading: () => null,
       error: (_, __) => null,
     );
+    final count = roomsAsync.maybeWhen(data: (r) => r.length, orElse: () => 0);
+    final isLoading = roomsAsync.isLoading;
 
     return Row(
       children: [
@@ -152,7 +145,7 @@ class _GameLobbyEnhancedScreenState
               ),
               const SizedBox(height: 4),
               Text(
-                '${_rooms.length} salle${_rooms.length > 1 ? 's' : ''} en attente',
+                '$count salle${count > 1 ? 's' : ''} en attente',
                 style: const TextStyle(
                   color: NeonColors.textSecondary,
                   fontSize: 14,
@@ -171,7 +164,7 @@ class _GameLobbyEnhancedScreenState
             ],
           ),
         ),
-        if (_isLoading)
+        if (isLoading)
           const SizedBox(
             width: 24,
             height: 24,
@@ -183,7 +176,7 @@ class _GameLobbyEnhancedScreenState
         else
           IconButton(
             icon: const Icon(Icons.refresh, color: NeonColors.primary),
-            onPressed: _loadRooms,
+            onPressed: () => ref.invalidate(waitingRoomsProvider(widget.gameType)),
           ),
       ],
     );
@@ -281,10 +274,7 @@ class _GameLobbyEnhancedScreenState
   Widget _filterChip(String mode, String label) {
     final isSelected = _filterMode == mode;
     return GestureDetector(
-      onTap: () {
-        setState(() => _filterMode = mode);
-        _loadRooms();
-      },
+      onTap: () => setState(() => _filterMode = mode),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
@@ -308,65 +298,70 @@ class _GameLobbyEnhancedScreenState
     );
   }
 
-  Widget _buildRoomsList() {
-    if (_isLoading && _rooms.isEmpty) {
-      return const Center(
+  Widget _buildRoomsList(AsyncValue<List<GameRoomModel>> roomsAsync) {
+    return roomsAsync.when(
+      loading: () => const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
           child: CircularProgressIndicator(color: NeonColors.primary),
         ),
-      );
-    }
-
-    if (_error != null && _rooms.isEmpty) {
-      return Center(
+      ),
+      error: (e, _) => Center(
         child: Column(
           children: [
             const Icon(Icons.error_outline, color: NeonColors.error, size: 48),
             const SizedBox(height: 8),
-            const Text(
-              'Erreur de chargement',
-              style: TextStyle(color: NeonColors.error),
+            Text(
+              ErrorHandler.userMessage(e),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: NeonColors.error),
             ),
             const SizedBox(height: 8),
             NeonButton(
               text: 'Réessayer',
-              onPressed: _loadRooms,
+              onPressed: () => ref.invalidate(waitingRoomsProvider(widget.gameType)),
               height: 40,
               fontSize: 13,
             ),
           ],
         ),
-      );
-    }
-
-    if (_rooms.isEmpty) {
-      return const Center(
-        child: Column(
-          children: [
-            Icon(
-              Icons.sports_esports_outlined,
-              color: NeonColors.textSecondary,
-              size: 64,
+      ),
+      data: (rooms) {
+        // Filtrage local pour éviter requête supplémentaire (éco)
+        final filtered = _filterMode == 'all'
+            ? rooms
+            : rooms.where((r) {
+                final m = r.mode.toString().split('.').last;
+                return m == _filterMode;
+              }).toList();
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.sports_esports_outlined,
+                  color: NeonColors.textSecondary,
+                  size: 64,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Aucune partie en attente',
+                  style: TextStyle(color: NeonColors.textSecondary, fontSize: 16),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Créez une partie ou lancez une Partie Rapide depuis le détail du jeu !',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
+                ),
+              ],
             ),
-            SizedBox(height: 12),
-            Text(
-              'Aucune partie en attente',
-              style: TextStyle(color: NeonColors.textSecondary, fontSize: 16),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Créez une partie ou lancez une Partie Rapide depuis le détail du jeu !',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: NeonColors.textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: _rooms.map((room) => _buildRoomCard(room)).toList(),
+          );
+        }
+        return Column(
+          children: filtered.map((room) => _buildRoomCard(room)).toList(),
+        );
+      },
     );
   }
 

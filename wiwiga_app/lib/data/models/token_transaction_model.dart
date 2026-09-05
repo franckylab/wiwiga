@@ -5,6 +5,8 @@
 // Date: 2026-08-01
 // ============================================================
 
+import 'package:flutter/material.dart';
+
 /// Types de transactions de wiga — seuls achat, cadeau ami, jeu, promos
 enum TokenTransactionType {
   purchase,       // Achat wiga (monnaie → wiga)
@@ -111,8 +113,8 @@ class TokenTransactionModel {
   String get typeLabel {
     switch (type) {
       case TokenTransactionType.purchase: return 'Achat';
-      case TokenTransactionType.bet: return 'Mise';
-      case TokenTransactionType.winnings: return 'Gain';
+      case TokenTransactionType.bet: return 'Joué';
+      case TokenTransactionType.winnings: return 'Gagné';
       case TokenTransactionType.giftSent: return 'Cadeau envoyé';
       case TokenTransactionType.giftReceived: return 'Cadeau reçu';
       case TokenTransactionType.promoCredit: return 'Bonus promo';
@@ -120,6 +122,37 @@ class TokenTransactionModel {
       case TokenTransactionType.commission: return 'Commission';
     }
   }
+
+  /// Label avec nom du jeu pour les mises/gains (ex: Joué • Dés)
+  String displayLabelWithGame() {
+    final g = _gameName(gameId);
+    if (g.isEmpty) return typeLabel;
+    if (type == TokenTransactionType.bet) return 'Joué • $g';
+    if (type == TokenTransactionType.winnings) return 'Gagné • $g';
+    if (type == TokenTransactionType.commission) return '$g • Commission';
+    return typeLabel;
+  }
+
+  String _gameName(String? raw) {
+    if (raw == null) return '';
+    final v = raw.toLowerCase();
+    if (v.contains('dice')) return 'Dés';
+    if (v.contains('ludo')) return 'Ludo';
+    if (v.contains('card')) return 'Cartes';
+    return '';
+  }
+
+  /// Icône du jeu
+  IconData get gameIcon {
+    final g = gameId?.toLowerCase() ?? '';
+    if (g.contains('dice')) return Icons.casino_rounded;
+    if (g.contains('ludo')) return Icons.grid_on_rounded;
+    if (g.contains('card')) return Icons.style_rounded;
+    return Icons.sports_esports_rounded;
+  }
+
+  /// Indique si c'est une mise jouée (à afficher comme Joué)
+  bool get isGamePlay => type == TokenTransactionType.bet || type == TokenTransactionType.winnings || type == TokenTransactionType.commission;
 
   /// Icône associée au type
   String get typeIcon {

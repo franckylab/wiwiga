@@ -5,6 +5,8 @@
 // Date: 2026-06-23
 // ============================================================
 
+import 'package:flutter/material.dart';
+
 /// Types de transactions
 enum TransactionType {
   deposit,    // Dépôt
@@ -123,14 +125,39 @@ class WalletTransactionModel {
       case TransactionType.withdraw:
         return 'Retrait';
       case TransactionType.bet:
-        return 'Mise';
+        return 'Joué';
       case TransactionType.win:
-        return 'Gain';
+        return 'Gagné';
       case TransactionType.commission:
         return 'Commission';
       case TransactionType.refund:
         return 'Remboursement';
     }
+  }
+
+  String get displayLabelWithGame {
+    final g = _gameName(gameId);
+    if (g.isEmpty) return typeLabel;
+    if (type == TransactionType.bet) return 'Joué • $g';
+    if (type == TransactionType.win) return 'Gagné • $g';
+    return typeLabel;
+  }
+
+  String _gameName(String? raw) {
+    if (raw == null) return '';
+    final v = raw.toLowerCase();
+    if (v.contains('dice')) return 'Dés';
+    if (v.contains('ludo')) return 'Ludo';
+    if (v.contains('card')) return 'Cartes';
+    return '';
+  }
+
+  IconData get gameIcon {
+    final g = gameId?.toLowerCase() ?? '';
+    if (g.contains('dice')) return Icons.casino_rounded;
+    if (g.contains('ludo')) return Icons.grid_on_rounded;
+    if (g.contains('card')) return Icons.style_rounded;
+    return Icons.sports_esports_rounded;
   }
   
   /// Couleur du type de transaction (vert = positif, rouge = négatif)

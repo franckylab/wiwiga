@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
 
@@ -62,12 +63,21 @@ class TokenCoin extends StatelessWidget {
   Widget build(BuildContext context) {
     // Accessibilité: ne pas animer si reduceMotion
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final eff = reduceMotion &&
+    var eff = reduceMotion &&
             (effect == TokenEffect.spin ||
                 effect == TokenEffect.flip ||
                 effect == TokenEffect.float)
         ? TokenEffect.none
         : effect;
+    // P5 FIX: TokenCoin sur web size<36 → showShadow:false + pulse:none (shader/cache)
+    var effectiveShowShadow = showShadow;
+    if (kIsWeb && size < 36) {
+      effectiveShowShadow = false;
+      // désactive pulse/shimmer coûteux sur petites pièces web
+      if (eff == TokenEffect.pulse || eff == TokenEffect.shimmer) {
+        eff = TokenEffect.none;
+      }
+    }
 
     final coin = _TokenCoinCore(
       size: size,
@@ -75,18 +85,23 @@ class TokenCoin extends StatelessWidget {
       lod: effectiveLod,
       withW: withW,
       rankLabel: rankLabel,
-      showShadow: showShadow,
+      showShadow: effectiveShowShadow,
       thicknessFactor: thicknessFactor,
     );
 
     Widget child;
-    if (animated || eff != TokenEffect.none) {
+    // P5 FIX: cache shaders static + évite AnimatedTokenCoin coûteux sur web petites pièces
+    final effectiveEffect =
+        animated && eff == TokenEffect.none ? TokenEffect.pulse : eff;
+    final shouldAnimate = (animated || eff != TokenEffect.none) &&
+        !(kIsWeb && size < 36 && effectiveEffect == TokenEffect.pulse);
+    if (shouldAnimate) {
       child = _AnimatedTokenCoin(
         size: size,
         metal: metal,
         lod: effectiveLod,
-        effect: animated && eff == TokenEffect.none ? TokenEffect.pulse : eff,
-        showShadow: showShadow,
+        effect: effectiveEffect,
+        showShadow: effectiveShowShadow,
         withW: withW,
         rankLabel: rankLabel,
         thicknessFactor: thicknessFactor,
@@ -520,13 +535,16 @@ class _TokenCoinPainter extends CustomPainter {
         ? 0.18
         : (flipProgress > 0.5 ? 0.08 : 0.0);
 
-    // --- 1. Ombre portée ---
+    // --- 1. Ombre portée --- (P5 fix: cache + web simple)
     if (showShadow && !isFlat) {
+      const isWebSimple = kIsWeb;
       final shadowR = r * 0.96;
       final shadowY = r * 0.18;
       final shadowPaint = Paint()
-        ..color = Colors.black.withValues(alpha: 0.26)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.22);
+        ..color = Colors.black.withValues(alpha: isWebSimple ? 0.18 : 0.26);
+      if (!isWebSimple) {
+        shadowPaint.maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.22);
+      }
       // ellipse aplatie
       canvas.save();
       canvas.translate(cx, cy + shadowY + r * 0.62);
@@ -706,16 +724,29 @@ class _TokenCoinPainter extends CustomPainter {
       _drawShimmer(canvas, faceRect, shimmerProgress);
     }
 
-    // --- 11. Glow externe (pulse) ---
+    // --- 11. Glow externe (pulse) --- (P5: web blur réduit / cache)
     if (pulseProgress > 0.31 && !isFlat) {
-      final glowPaint = Paint()
-        ..color = _glowColor.withValues(
-          alpha: (pulseProgress - 0.28).clamp(0.0, 0.42),
-        )
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.18)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = r * 0.10;
-      canvas.drawCircle(center, faceRadius * 1.02, glowPaint);
+      // Sur web, évite MaskFilter blur coûteux — trait simple sans glow ou blur réduit
+      if (kIsWeb) {
+        if (pulseProgress > 0.42) {
+          final glowPaint = Paint()
+            ..color = _glowColor.withValues(
+              alpha: (pulseProgress - 0.32).clamp(0.0, 0.22),
+            )
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = r * 0.08;
+          canvas.drawCircle(center, faceRadius * 1.02, glowPaint);
+        }
+      } else {
+        final glowPaint = Paint()
+          ..color = _glowColor.withValues(
+            alpha: (pulseProgress - 0.28).clamp(0.0, 0.42),
+          )
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.18)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.10;
+        canvas.drawCircle(center, faceRadius * 1.02, glowPaint);
+      }
     }
   }
 

@@ -63,17 +63,57 @@ class WalletRepository {
     return response['data'] as Map<String, dynamic>;
   }
   
-  /// Récupère l'historique des transactions
-  /// Backend: GET /api/wallet/transactions?page=1&limit=20 → {success: true, data: [...], pagination: {...}}
+  /// Récupère l'historique des transactions (monétaire) – paginé + filtres
+  /// Backend: GET /api/wallet/transactions?page=1&limit=20&type=&from=&to=&search=
   Future<Map<String, dynamic>> getTransactions({
     int page = 1,
     int limit = 20,
+    String? type,
+    DateTime? from,
+    DateTime? to,
+    String? search,
   }) async {
+    final qp = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+      if (type != null && type.isNotEmpty && type != 'all') 'type': type,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (from != null) 'from': from.toIso8601String(),
+      if (to != null) 'to': to.toIso8601String(),
+    };
     final response = await _apiService.get(
-      '${ApiEndpoints.transactions}?page=$page&limit=$limit',
+      ApiEndpoints.transactions,
+      queryParams: qp,
       requiresAuth: true,
     );
-    
+    return {
+      'transactions': response['data'] as List? ?? [],
+      'pagination': response['pagination'] as Map<String, dynamic>? ?? {},
+    };
+  }
+
+  /// Récupère l'historique wiga paginé + filtres (recommandé pour l'historique unifié)
+  Future<Map<String, dynamic>> getTokenTransactions({
+    int page = 1,
+    int limit = 20,
+    String? type,
+    DateTime? from,
+    DateTime? to,
+    String? search,
+  }) async {
+    final qp = <String, String>{
+      'page': '$page',
+      'limit': '$limit',
+      if (type != null && type.isNotEmpty && type != 'all') 'type': type,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (from != null) 'from': from.toIso8601String(),
+      if (to != null) 'to': to.toIso8601String(),
+    };
+    final response = await _apiService.get(
+      ApiEndpoints.tokenTransactions,
+      queryParams: qp,
+      requiresAuth: true,
+    );
     return {
       'transactions': response['data'] as List? ?? [],
       'pagination': response['pagination'] as Map<String, dynamic>? ?? {},

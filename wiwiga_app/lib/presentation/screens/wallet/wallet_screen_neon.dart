@@ -143,19 +143,25 @@ class _WigaBalanceHeader extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Flexible(
-                    child: Text(
-                      formatWigaAmount(tokenState.tokenBalance),
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: NeonColors.textPrimary,
-                        fontFamily: 'Orbitron',
-                        shadows: [
-                          Shadow(
-                            color: NeonColors.tokenGold.withValues(alpha: 0.28),
-                            blurRadius: 10,
-                          ),
-                        ],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        formatWigaAmount(tokenState.tokenBalance),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.bold,
+                          color: NeonColors.textPrimary,
+                          fontFamily: 'Orbitron',
+                          shadows: [
+                            Shadow(
+                              color: NeonColors.tokenGold.withValues(alpha: 0.28),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -561,6 +567,7 @@ class _TransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCredit = transaction.tokenAmount > 0;
     final color = isCredit ? NeonColors.success : NeonColors.danger;
+    final isGame = transaction.isGamePlay;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -569,28 +576,74 @@ class _TransactionCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(_getIcon(), color: color, size: 22),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(_getIcon(), color: color, size: 22),
+                  ),
+                  if (isGame)
+                    Positioned(
+                      right: -4,
+                      bottom: -4,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: NeonColors.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: NeonColors.primary, width: 1.2),
+                        ),
+                        child: Icon(transaction.gameIcon, size: 10, color: NeonColors.primary),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      transaction.typeLabel,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: NeonColors.textPrimary,
-                        fontFamily: 'Inter',
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            transaction.displayLabelWithGame(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: NeonColors.textPrimary,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        if (isGame) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: NeonColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _gameShort(transaction.gameId),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: NeonColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -695,12 +748,29 @@ class _TransactionCard extends StatelessWidget {
     }
   }
 
+  String _gameShort(String? raw) {
+    if (raw == null) return '';
+    final v = raw.toLowerCase();
+    if (v.contains('dice')) return 'Dés';
+    if (v.contains('ludo')) return 'Ludo';
+    if (v.contains('card')) return 'Cartes';
+    return raw;
+  }
+
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
-    return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
+    try {
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+      if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
+      try {
+        return DateFormat('dd/MM/yyyy', 'fr_FR').format(date);
+      } catch (_) {
+        return DateFormat('dd/MM/yyyy').format(date);
+      }
+    } catch (_) {
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+    }
   }
 }
 

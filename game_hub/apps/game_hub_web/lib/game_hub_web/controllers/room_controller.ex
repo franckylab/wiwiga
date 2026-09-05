@@ -64,6 +64,13 @@ defmodule GameHubWeb.RoomController do
             |> put_status(400)
             |> json(Errors.error("Type de jeu non supporté", 400, "INVALID_GAME_TYPE"))
 
+          not valid_room_sets?(room_params) ->
+            preview = GameHub.GameRules.sets_preview(room_params.game_type, room_params.rule_type)
+
+            conn
+            |> put_status(400)
+            |> json(Errors.error("Nombre de sets invalide : attendu entre #{preview.min_sets} et #{preview.max_sets}", 400, "SETS_OUT_OF_RANGE"))
+
           true ->
             case GameRoom.create_room(room_params) do
               {:ok, room} ->
@@ -344,6 +351,21 @@ defmodule GameHubWeb.RoomController do
   end
   defp parse_int(_), do: nil
 
+  # Validation backend obligatoire (règle 23) : en mode fixe, un
+  # sets_count client hors [min_sets, max_sets] est rejeté (400).
+  # En mode aléatoire, la valeur client est ignorée (tirage serveur).
+  defp valid_room_sets?(%{sets_count: nil}), do: true
+
+  defp valid_room_sets?(%{game_type: game_type, rule_type: rule_type, sets_count: sets}) do
+    preview = GameHub.GameRules.sets_preview(game_type, rule_type)
+
+    cond do
+      preview.mode == "random" -> true
+      not is_integer(sets) -> true
+      true -> sets >= preview.min_sets and sets <= preview.max_sets
+    end
+  end
+
   defp format_room(room) do
     canonical_mode = GameMode.normalize(room.mode)
     %{
@@ -358,6 +380,7 @@ defmodule GameHubWeb.RoomController do
       status: to_string(room.status),
       bet_amount: room.bet_amount,
       sets_count: room.sets_count,
+      sets_mode: Map.get(room, :sets_mode, "fixed"),
       dice_count: room.dice_count,
       max_players: room.max_players,
       players_count: length(room.players),

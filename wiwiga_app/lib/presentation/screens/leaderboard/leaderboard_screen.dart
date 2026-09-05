@@ -68,19 +68,24 @@ class LeaderboardScreen extends ConsumerWidget {
             _buildMetricSelector(ref, metric),
             _buildPeriodSelector(ref, period),
             Expanded(
-              child: leaderboardAsync.when(
-                data: (leaderboard) => Column(
-                  children: [
-                    if (leaderboard.entries.length >= 3)
-                      _buildPodium(leaderboard.entries.take(3).toList()),
-                    _buildRewardsBanner(ref),
-                    Expanded(child: _buildLeaderboardList(leaderboard)),
-                    if (leaderboard.myRank != null)
-                      _buildMyRankFooter(leaderboard),
-                  ],
+              child: RefreshIndicator(
+                color: NeonColors.primary,
+                backgroundColor: NeonColors.card,
+                onRefresh: () async => ref.invalidate(gameLeaderboardProvider((gameType: gameType, metric: metric, period: apiPeriod))),
+                child: leaderboardAsync.when(
+                  data: (leaderboard) => Column(
+                    children: [
+                      if (leaderboard.entries.length >= 3)
+                        _buildPodium(leaderboard.entries.take(3).toList()),
+                      _buildRewardsBanner(ref),
+                      Expanded(child: _buildLeaderboardList(leaderboard)),
+                      if (leaderboard.myRank != null)
+                        _buildMyRankFooter(leaderboard),
+                    ],
+                  ),
+                  loading: () => const NeonLoadingSpinner.center(),
+                  error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(gameLeaderboardProvider((gameType: gameType, metric: metric, period: apiPeriod)))),
                 ),
-                loading: () => const NeonLoadingSpinner.center(),
-                error: (e, _) => WiwigaErrorView(error: e, onRetry: () => ref.invalidate(gameLeaderboardProvider((gameType: gameType, metric: metric, period: apiPeriod)))),
               ),
             ),
           ],

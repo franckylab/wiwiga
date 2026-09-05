@@ -11,8 +11,10 @@ defmodule GameHubWeb.UserSocket do
   # Channels
   channel "game:*", GameHubWeb.GameChannel
   channel "matchmaking:*", GameHubWeb.MatchmakingChannel
+  channel "qm:lobby:*", GameHubWeb.MatchmakingChannel
   channel "room:*", GameHubWeb.RoomChannel
   channel "friend:*", GameHubWeb.FriendChannel
+  channel "user:*", GameHubWeb.UserChannel
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do

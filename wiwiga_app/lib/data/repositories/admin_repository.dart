@@ -882,6 +882,51 @@ class AdminRepository {
   }
 
   // ========================================
+  // RÈGLES MOTEUR — sets/dés (source GameRules)
+  // ========================================
+
+  /// Liste les règles moteur (game_rules) avec aperçu sets.
+  Future<List<dynamic>> getGameRules() async {
+    final response = await _apiService.get(
+      ApiEndpoints.adminGameRules,
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Détail d'une règle (game_type/rule_type) avec aperçu sets.
+  Future<Map<String, dynamic>> getGameRule(String gameType, String ruleType) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminGameRules}/$gameType/$ruleType',
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  /// Met à jour les sets d'une règle (patch partiel : min/max/défaut,
+  /// sets_mode, sets_random_min/max). Retourne la règle à jour.
+  Future<Map<String, dynamic>> updateGameRule(
+    String gameType,
+    String ruleType,
+    Map<String, dynamic> patch,
+  ) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminGameRules}/$gameType/$ruleType',
+      body: patch,
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  // ========================================
   // BONUSES & PROMOTIONS (V3)
   // ========================================
 

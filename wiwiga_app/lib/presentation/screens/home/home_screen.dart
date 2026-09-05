@@ -16,9 +16,10 @@ import '../../../data/models/game_stats_models.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../widgets/auth/auth_gate.dart';
+import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
-final _homeAmountFormat = NumberFormat('#,##0', 'fr_FR');
+final _homeAmountFormat = (() { try { return NumberFormat('#,##0', 'fr_FR'); } catch (_) { return NumberFormat.decimalPattern(); } })();
 
 /// Écran Accueil : dashboard avec solde, jeu vedette, raccourcis et activité
 class HomeScreen extends ConsumerStatefulWidget {
@@ -130,6 +131,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 Text(
                   isGuest ? 'Bienvenue sur WIWIGA' : 'Bonjour, $username',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
                   style: const TextStyle(
                     fontFamily: 'Orbitron',
                     fontSize: 18,
@@ -264,11 +268,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               shape: BoxShape.circle,
               gradient: NeonGradients.cta,
             ),
-            child: const Icon(
-              Icons.casino_outlined,
-              size: 32,
-              color: NeonColors.background,
-            ),
+            child: game.type == 'dice'
+                ? const Center(child: WiwigaDiceIcon(size: 42, withShadow: false))
+                : const Icon(
+                    Icons.casino_outlined,
+                    size: 32,
+                    color: NeonColors.background,
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -277,31 +283,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      game.name,
-                      style: const TextStyle(
-                        fontFamily: 'Orbitron',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: NeonColors.textPrimary,
+                    Expanded(
+                      child: Text(
+                        game.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: const TextStyle(
+                          fontFamily: 'Orbitron',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: NeonColors.textPrimary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const GlowBadge(
-                      text: 'VEDETTE',
-                      color: NeonColors.secondary,
-                      fontSize: 10,
+                    const Flexible(
+                      child: GlowBadge(
+                        text: 'VEDETTE',
+                        color: NeonColors.secondary,
+                        fontSize: 10,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text(
-                      '${game.playersOnline} joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: NeonColors.textSecondary,
+                    Flexible(
+                      child: Text(
+                        '${game.playersOnline} joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: NeonColors.textSecondary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 3),

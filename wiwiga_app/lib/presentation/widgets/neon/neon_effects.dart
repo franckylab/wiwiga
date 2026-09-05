@@ -105,19 +105,20 @@ class ShimmerLoader extends StatefulWidget {
 class _ShimmerLoaderState extends State<ShimmerLoader>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _animation;
+  late Animation<double> _opacity;
 
   @override
   void initState() {
     super.initState();
+    // P5 FIX: remplace shader LinearGradient animé par opacity pulse 1s (pas de shader rebuild)
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
-    )..repeat();
+    )..repeat(reverse: true);
 
-    _animation = Tween<double>(
-      begin: -2,
-      end: 2,
+    _opacity = Tween<double>(
+      begin: 0.55,
+      end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
@@ -132,27 +133,24 @@ class _ShimmerLoaderState extends State<ShimmerLoader>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          padding: widget.padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value, 0),
-              end: Alignment(_animation.value + 0.5, 0),
-              colors: [
-                NeonColors.surface,
-                NeonColors.surface.withValues(alpha: 0.5),
-                NeonColors.surface,
-              ],
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _opacity,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _opacity.value,
+            child: Container(
+              width: widget.width,
+              height: widget.height,
+              padding: widget.padding,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(NeonTheme.borderRadius),
+                color: NeonColors.surface,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

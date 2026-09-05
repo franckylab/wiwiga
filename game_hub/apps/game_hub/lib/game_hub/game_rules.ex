@@ -122,6 +122,18 @@ defmodule GameHub.GameRules do
   end
 
   @doc """
+  Liste toutes les règles actives (tous jeux) — usage admin.
+  """
+  @spec list_all() :: [GameRule.t()]
+  def list_all do
+    query = from r in GameRule,
+      where: r.is_active == true,
+      order_by: [asc: r.game_type, asc: r.rule_type]
+
+    Repo.all(query)
+  end
+
+  @doc """
   Valide la configuration d'un match contre les règles.
 
   ## Parameters
@@ -230,6 +242,78 @@ defmodule GameHub.GameRules do
     end
   end
 
+  @sets_modes ~w(fixed random)
+
+  @doc """
+  Résout le nombre de sets d'une partie — source unique de vérité.
+
+  ## Modes (`sets_mode` dans `game_rules.config`)
+    - `"fixed"` (défaut) : utilise `requested` (salles créées par un joueur,
+      borné à `[min_sets, max_sets]`), sinon `default_sets`.
+    - `"random"` : tirage serveur uniforme dans
+      `[sets_random_min, sets_random_max]` quand `requested` est absent
+      (partie rapide : équité + cohérence entre tous les joueurs du lobby).
+
+  Règle de cohérence : une valeur explicite (salle déjà créée) n'est JAMAIS
+  retirée — elle est seulement bornée. Le tirage n'a lieu qu'une fois, à la
+  création (salle ou match rapide), puis la valeur est figée.
+
+  Le tirage utilise `:crypto.strong_rand_bytes/1` (contrainte projet :
+  aléatoire côté serveur uniquement).
+
+  ## Returns
+    - `{:ok, sets_count, sets_mode}`
+  """
+  @spec resolve_sets_count(String.t(), String.t(), integer() | nil) ::
+          {:ok, integer(), String.t()}
+  def resolve_sets_count(game_type, rule_type, requested \\ nil) do
+    rules = get_rules_or_default(game_type, rule_type)
+    rc = rules.config || %{}
+    min = to_int(rc["min_sets"], 1)
+    max = to_int(rc["max_sets"], 11) |> max(min)
+    mode = if rc["sets_mode"] in @sets_modes, do: rc["sets_mode"], else: "fixed"
+
+    cond do
+      is_integer(requested) ->
+        {:ok, clamp_int(requested, min, max), mode}
+
+      mode == "random" ->
+        rmin = to_int(rc["sets_random_min"], min) |> clamp_int(min, max)
+        rmax = to_int(rc["sets_random_max"], max) |> clamp_int(rmin, max)
+        {:ok, draw_uniform(rmin, rmax), "random"}
+
+      true ->
+        {:ok, to_int(rc["default_sets"], 3) |> clamp_int(min, max), "fixed"}
+    end
+  end
+
+  @doc """
+  Aperçu de la configuration des sets pour affichage (lobby, création).
+
+  Retourne `%{mode, fixed, random_min, random_max, min_sets, max_sets,
+  default_sets}` — le client affiche "BO3" ou "Aléatoire (1–5)" sans deviner.
+  """
+  @spec sets_preview(String.t(), String.t()) :: map()
+  def sets_preview(game_type, rule_type) do
+    rules = get_rules_or_default(game_type, rule_type)
+    rc = rules.config || %{}
+    min = to_int(rc["min_sets"], 1)
+    max = to_int(rc["max_sets"], 11) |> max(min)
+    mode = if rc["sets_mode"] in @sets_modes, do: rc["sets_mode"], else: "fixed"
+    rmin = to_int(rc["sets_random_min"], min) |> clamp_int(min, max)
+    rmax = to_int(rc["sets_random_max"], max) |> clamp_int(rmin, max)
+
+    %{
+      mode: mode,
+      fixed: to_int(rc["default_sets"], 3) |> clamp_int(min, max),
+      random_min: rmin,
+      random_max: rmax,
+      min_sets: min,
+      max_sets: max,
+      default_sets: to_int(rc["default_sets"], 3) |> clamp_int(min, max)
+    }
+  end
+
   @doc """
   Invalide le cache pour une règle spécifique (appelé après update DB).
   """
@@ -312,6 +396,33 @@ defmodule GameHub.GameRules do
     Process.send_after(self(), :cleanup_cache, 60_000)
   end
 
+  # Tirage uniforme crypto-safe dans [min, max] (inclus).
+  # Même primitive que les lancers de dés (`:crypto.strong_rand_bytes/1`).
+  defp draw_uniform(min, max) when max <= min, do: min
+
+  defp draw_uniform(min, max) do
+    range = max - min + 1
+
+    :crypto.strong_rand_bytes(1)
+    |> :binary.decode_unsigned()
+    |> rem(range)
+    |> Kernel.+(min)
+  end
+
+  defp to_int(nil, default), do: default
+  defp to_int(val, _default) when is_integer(val), do: val
+
+  defp to_int(val, default) when is_binary(val) do
+    case Integer.parse(String.trim(val)) do
+      {n, ""} -> n
+      _ -> default
+    end
+  end
+
+  defp to_int(_, default), do: default
+
+  defp clamp_int(val, min, max), do: val |> max(min) |> min(max)
+
   # === Defaults Hardcodées (fallback) ===
 
   defp default_config_hardcoded("dice", "normal") do
@@ -321,7 +432,8 @@ defmodule GameHub.GameRules do
       name: "Normal",
       description: "High roll séquentiel, ordre tournant",
       config: %{
-        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 3,
+        "sets_mode" => "fixed", "sets_random_min" => 1, "sets_random_max" => 5,
         "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,
@@ -339,7 +451,8 @@ defmodule GameHub.GameRules do
       name: "Cible",
       description: "Vote pour nombre cible, plus proche gagne",
       config: %{
-        "min_sets" => 1, "max_sets" => 11, "default_sets" => 1,
+        "min_sets" => 1, "max_sets" => 11, "default_sets" => 3,
+        "sets_mode" => "fixed", "sets_random_min" => 1, "sets_random_max" => 5,
         "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,
