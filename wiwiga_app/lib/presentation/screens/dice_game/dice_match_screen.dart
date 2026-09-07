@@ -92,9 +92,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   int? _lastRollSum;
   DateTime? _rollAnimStartedAt;
   // Durée min d'animation commune avant révélation (synchro tous joueurs).
-  // Courte (450ms) : l'anim 3D interne des dés suffit, le résultat doit
+  // Courte (300ms) : l'anim 3D interne des dés suffit, le résultat doit
   // arriver vite pour une sensation temps réel.
-  static const Duration _minRollAnim = Duration(milliseconds: 450);
+  static const Duration _minRollAnim = Duration(milliseconds: 300);
   Map<String, dynamic>? _pendingReveal;
   // Ma demande de lancer en vol (anti-double-tap). Séparé de _isRolling qui
   // est purement visuel (anim du tatami, y compris celle des autres) : le
@@ -120,6 +120,19 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   // Ordre des events serveur (seq monotone backend) — ignore les events stale/doublons
   int _lastSeq = -1;
   DateTime? _lastWsEventAt;
+  // Anti-rebuild : empreinte du dernier état serveur APPLIQUÉ à l'UI.
+  // turn_changed suit chaque dice_rolled avec le même contenu, le polling
+  // recoupe le WS : sans ça, chaque doublon = setState + rebuild complet
+  // (TurnTimer protégé par deadline, mais le reste de l'arbre rebuild).
+  String _lastAppliedFp = '';
+  // Anti-régression : plus grand numéro de set déjà affiché. Un sync SANS
+  // seq (REST/polling/fallback) plus ancien que le WS appliqué est jeté
+  // (évite set/tour qui reculent d'un écran).
+  int _appliedMaxSet = 0;
+  // Set suivant en cours de démarrage (anti-double-tap + état busy du
+  // bouton). Confirmé par le broadcast set_started, pas par un délai fixe.
+  bool _startingNextSet = false;
+  Timer? _nextSetConfirmTimer;
   // Id joueur résolu (auth prioritaire, jamais de fallback ambigu)
   String _resolvedMyId = '';
 
@@ -179,7 +192,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   Future<void> _fetchInitialState() async {
-    await Future.delayed(const Duration(milliseconds: 700));
+    await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted || _serverMatch != null) return;
     final match = await _fetchMatchState();
     if (match != null && mounted) {
@@ -199,7 +212,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       }
     }
     if (_serverMatch == null && mounted) {
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted || _serverMatch != null) return;
       final retry = await _fetchMatchState();
       if (retry != null && mounted) {
@@ -237,6 +250,67 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     }
   }
 
+  /// Empreinte de tout ce que `_syncFromServer` affiche : si deux syncs
+  /// successifs ont la même empreinte, le second est un doublon (même
+  /// contenu) et saute le rebuild. Couvre statuts, tour, lancers, votes,
+  /// scores, éliminés, gagnant, revanche, historique et paramètres.
+  String _syncFingerprint(Map<String, dynamic> match) {
+    final sb = StringBuffer();
+    sb.write(match['status']);
+    sb.write('|');
+    sb.write(match['current_set']);
+    sb.write('|');
+    final css = match['current_set_state'];
+    if (css is Map) {
+      sb.write(css['status']);
+      sb.write('|');
+      sb.write(css['current_turn_index']);
+      sb.write('|');
+      sb.write(css['current_player_id']);
+      sb.write('|');
+      final rolls = css['rolls'];
+      if (rolls is Map) {
+        final keys = rolls.keys.map((e) => e.toString()).toList()..sort();
+        sb.write(keys.length);
+        for (final k in keys) {
+          final r = rolls[k];
+          sb.write(',$k=');
+          sb.write(r is Map ? r['sum'] : '');
+        }
+      } else {
+        sb.write('0');
+      }
+      sb.write('|');
+      sb.write(css['target_value']);
+      sb.write('|');
+      final votes = css['votes'];
+      sb.write(votes is Map ? votes.length : 0);
+    }
+    sb.write('|');
+    sb.write(match['set_scores']);
+    sb.write('|');
+    final elim = match['eliminated_players'];
+    if (elim is List) {
+      final ids = elim.map((e) => e.toString()).toList()..sort();
+      sb.write(ids.join(','));
+    }
+    sb.write('|');
+    sb.write(match['winner_id']);
+    sb.write('|');
+    final rm = match['rematch'];
+    sb.write(rm is Map ? rm['status'] : '');
+    sb.write('|');
+    final sets = match['sets'];
+    sb.write(sets is List ? sets.length : 0);
+    sb.write('|');
+    sb.write(match['payout'] != null);
+    sb.write('|');
+    sb.write(match['dice_count']);
+    sb.write('|');
+    sb.write(match['sets_count']);
+    return sb.toString();
+  }
+
   void _syncFromServer(Map<String, dynamic> match, {int? seq}) {
     if (!mounted) return;
     // Garde-fou : ne jamais appliquer l'état d'UN AUTRE match (ex : le
@@ -253,6 +327,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     if (seq != null) {
       if (seq <= _lastSeq) return;
       _lastSeq = seq;
+    } else {
+      // Sync SANS seq (REST/polling/fallback/retry) : ne jamais reculer
+      // devant un état WS déjà appliqué (set/tour qui reculent d'un écran).
+      final incomingSet =
+          (match['current_set'] as num?)?.toInt() ?? _appliedMaxSet;
+      if (incomingSet < _appliedMaxSet) return;
     }
     _lastWsEventAt = DateTime.now();
     // Payloads compacts (events chauds, polling) omettent l'historique :
@@ -267,6 +347,15 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     if (effective['payout'] == null && _serverMatch?['payout'] != null) {
       effective['payout'] = _serverMatch!['payout'];
     }
+    // Anti-rebuild (sur l'état FUSIONNÉ : un compact et un complet du même
+    // état donnent la même empreinte) : contenu déjà affiché (ex :
+    // turn_changed qui suit chaque dice_rolled, polling qui recoupe le WS)
+    // → on saute le setState complet. Les animations vivent hors ce chemin.
+    final fp = _syncFingerprint(effective);
+    if (fp == _lastAppliedFp) return;
+    _lastAppliedFp = fp;
+    final fpSet = (effective['current_set'] as num?)?.toInt() ?? 0;
+    if (fpSet > _appliedMaxSet) _appliedMaxSet = fpSet;
     setState(() {
       _serverMatch = effective;
       _serverSetState = match['current_set_state'] as Map<String, dynamic>?;
@@ -528,8 +617,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _rollRevealTimer?.cancel();
         _pendingReveal = null;
         _rollingPlayerId = null;
+        // Confirmation du démarrage : le flag busy tombe (complète la
+        // boucle de confirmation de _nextSet si c'est moi qui ai cliqué).
+        _nextSetConfirmTimer?.cancel();
         _syncFromServer(match, seq: payload['seq'] as int?);
         setState(() {
+          _startingNextSet = false;
           _showSetResult = false;
           _showSetIntro = true;
           _currentDice = [];
@@ -540,7 +633,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           _isRolling = false;
         });
         _introCtrl.forward(from: 0);
-        Future.delayed(const Duration(milliseconds: 900), () {
+        Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) setState(() => _showSetIntro = false);
         });
       };
@@ -648,7 +741,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         }
         _resultCtrl.forward(from: 0);
         if (_checkMatchOver()) {
-          Future.delayed(const Duration(milliseconds: 400), () {
+          // Filet si match_result est perdu : la modale s'ouvre avec l'état
+          // serveur déjà synchronisé (jamais de contenu local deviné).
+          Future.delayed(const Duration(milliseconds: 150), () {
             if (mounted) setState(() => _showMatchResult = true);
           });
         }
@@ -847,7 +942,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   void _startSetIntro() {
     _introCtrl.forward(from: 0);
-    Future.delayed(const Duration(milliseconds: 900), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
       setState(() => _showSetIntro = false);
       // Timing serveur uniquement : la deadline arrive via _syncFromServer
@@ -894,6 +989,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollAnimTimer?.cancel();
     _rollFallbackTimer?.cancel();
     _rollRevealTimer?.cancel();
+    _nextSetConfirmTimer?.cancel();
     _syncPollTimer?.cancel();
     _resultScrollController.dispose();
     // Sortie d'interface de fin de partie : le joueur est exclu des
@@ -1232,7 +1328,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         ? _minRollAnim
         : DateTime.now().difference(_rollAnimStartedAt!);
     final wait = elapsed >= _minRollAnim
-        ? const Duration(milliseconds: 120)
+        ? const Duration(milliseconds: 80)
         : _minRollAnim - elapsed;
     _rollRevealTimer?.cancel();
     _rollRevealTimer = Timer(wait, _revealPendingRoll);
@@ -1244,8 +1340,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   void _startRollFlicker(int diceCount) {
     _rollAnimTimer?.cancel();
     // Garde-fou : si aucun reveal n'arrive (event perdu + WS muet), sortir
-    // de l'animation après 3s via réconciliation (le polling/REST suit).
-    _rollAnimTimer = Timer(const Duration(milliseconds: 3000), () {
+    // de l'animation après 2,5s via réconciliation (le polling/REST suit).
+    _rollAnimTimer = Timer(const Duration(milliseconds: 2500), () {
       if (!mounted) return;
       if (_isRolling && _pendingReveal == null) {
         setState(() => _isRolling = false);
@@ -2439,6 +2535,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                 NeonButton(
                   text: isTie ? 'Rejouer le set' : 'Set suivant',
                   onPressed: _nextSet,
+                  isLoading: _startingNextSet,
                   variant: NeonButtonVariant.primary,
                   icon: isTie
                       ? Icons.replay_rounded
@@ -3692,7 +3789,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       try {
         ws.rollDice(widget.matchId);
         _rollFallbackTimer =
-            Timer(const Duration(milliseconds: 3000), () async {
+            Timer(const Duration(milliseconds: 2500), () async {
           if (mounted && _isSendingRoll && _pendingReveal == null) {
             await _rollDiceRestFallback();
           }
@@ -3738,14 +3835,19 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _isSendingRoll = false;
         setState(() => _isRolling = false);
       }
+      // Le sync ci-dessus a déjà appliqué l'état post-action ; le WS
+      // (set_result/match_result) ouvre les overlays. Pas de 2e sync.
       if (match != null &&
           (match['status'] == 'set_ended' ||
               match['status'] == 'match_ended')) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted && !_showSetResult && !_showMatchResult) {
-            _syncFromServer(match);
-          }
-        });
+        if (mounted && match['status'] == 'match_ended' && !_showMatchResult) {
+          setState(() => _showMatchResult = true);
+        } else if (mounted &&
+            match['status'] == 'set_ended' &&
+            !_showSetResult &&
+            !_showMatchResult) {
+          setState(() => _showSetResult = true);
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -3811,10 +3913,14 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     // Serveur = source unique : start_set via WS ou REST, puis broadcast
     // set_started pour TOUS. Pas d'incrément local (évite désynchro).
     if (_useWebSocket) {
+      if (_startingNextSet) return; // anti-double-tap pendant l'envoi
+      final sentSet =
+          (_serverMatch?['current_set'] as num?)?.toInt() ?? _currentSet;
       try {
         ref.read(gameWebSocketServiceProvider).startSet(widget.matchId);
       } catch (_) {}
       setState(() {
+        _startingNextSet = true;
         _showSetResult = false;
         _showSetIntro = true;
         _currentDice = [];
@@ -3826,18 +3932,46 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _playerSums.clear();
       });
       _introCtrl.forward(from: 0);
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        if (mounted && _showSetIntro) {
-          setState(() => _showSetIntro = false);
-          // Deadline serveur via broadcast set_started (pas de timer local).
+      // Confirmation SERVEUR (broadcast set_started), pas délai fixe : le
+      // flag busy tombe dès que l'état appliqué quitte set_ended (ou que le
+      // numéro de set avance). Au-delà de ~4s sans confirmation : on revient
+      // sur l'overlay de résultat (bouton réessayable) + resynchro REST.
+      _nextSetConfirmTimer?.cancel();
+      var attempts = 0;
+      _nextSetConfirmTimer =
+          Timer.periodic(const Duration(milliseconds: 400), (t) {
+        if (!mounted) {
+          t.cancel();
+          return;
         }
-      });
-      // Réconciliation : si le broadcast tarde (>2s), forcer un refresh REST.
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        if (mounted &&
-            _showSetIntro &&
-            _serverMatch?['status'] == 'set_ended') {
-          _refreshFromServer();
+        attempts++;
+        final st = _serverMatch?['status']?.toString();
+        final cur = (_serverMatch?['current_set'] as num?)?.toInt() ?? sentSet;
+        final confirmed = (st != null &&
+                st != 'set_ended' &&
+                st != 'match_ended') ||
+            cur > sentSet;
+        if (confirmed || attempts >= 10) {
+          t.cancel();
+          if (!mounted) return;
+          if (confirmed) {
+            // set_started a pris le relais (intro du nouveau set gérée par
+            // son handler) : seul le flag busy tombe ici.
+            setState(() => _startingNextSet = false);
+          } else {
+            setState(() {
+              _startingNextSet = false;
+              _showSetIntro = false;
+              _showSetResult = true;
+            });
+            _refreshFromServer();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Démarrage lent — réessayez.'),
+                backgroundColor: NeonColors.warning,
+              ),
+            );
+          }
         }
       });
       return;
@@ -3870,7 +4004,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         await _refreshFromServer();
       }
       if (!mounted) return;
-      Future.delayed(const Duration(milliseconds: 900), () {
+      Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) setState(() => _showSetIntro = false);
         // Deadline serveur via _syncFromServer (pas de timer local).
       });

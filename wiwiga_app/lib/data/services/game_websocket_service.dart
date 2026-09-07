@@ -58,7 +58,19 @@ class GameWebSocketService extends ChangeNotifier {
   // Joins en attente de phx_reply (ref -> topic) : rejoue le join si refusé
   final Map<String, String> _pendingJoinRefs = {};
   final Map<String, int> _joinRetries = {};
-  static const int _maxJoinRetries = 2;
+  static const int _maxJoinRetries = 4;
+  // Coalescing des notifications : les events d'un même lancer
+  // (dice_rolled + turn_changed, voire set_result) arrivent en rafale du
+  // même GenServer → UNE seule notification aux listeners par fenêtre de
+  // 30ms au lieu d'une par event. L'écran affiche via callbacks directs
+  // (setState ciblés), pas via ces notifies : aucun délai visible.
+  Timer? _notifyCoalescedTimer;
+  void _notifyCoalesced() {
+    if (_notifyCoalescedTimer?.isActive ?? false) return;
+    _notifyCoalescedTimer = Timer(const Duration(milliseconds: 30), () {
+      notifyListeners();
+    });
+  }
 
   // Callbacks
   void Function(Map<String, dynamic>)? onGameMatched;
@@ -871,62 +883,62 @@ class GameWebSocketService extends ChangeNotifier {
         // Match events
         case WebSocketEvents.setStarted:
           onSetStarted?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case WebSocketEvents.diceRolling:
           onDiceRolling?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case WebSocketEvents.diceRolled:
           onDiceRolled?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case WebSocketEvents.turnChanged:
           onTurnChanged?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case WebSocketEvents.setResult:
           onSetResult?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case WebSocketEvents.matchResult:
           onMatchResult?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'target_voted':
         case 'target_calculated':
         case 'vote_progress':
           onTargetVoted?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'player_forfeited':
           onPlayerForfeited?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'match_forfeit':
           onMatchForfeit?.call(payload);
           onPlayerForfeited?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'match_state':
           onMatchState?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'rematch_proposed':
           onRematchProposed?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'rematch_updated':
           onRematchUpdated?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'rematch_ready':
           onRematchReady?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'rematch_cancelled':
           onRematchCancelled?.call(payload);
-          notifyListeners();
+          _notifyCoalesced();
           break;
         case 'presence_state':
           onPresenceState?.call({'topic': topic, 'presences': payload});
@@ -1099,6 +1111,7 @@ class GameWebSocketService extends ChangeNotifier {
   void dispose() {
     disconnect();
     _reconnectTimer?.cancel();
+    _notifyCoalescedTimer?.cancel();
     super.dispose();
   }
 }

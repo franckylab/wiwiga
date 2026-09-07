@@ -634,12 +634,20 @@ defmodule GameHub.GameMatch do
               end
 
             :ets.insert(state.table, {match_id, final_match})
-            broadcast_dice_rolled(match_id, roll, final_match)
+            # Sanitize calculé UNE seule fois et partagé entre les broadcasts
+            # du même lancer (évite 2-3 parcours complets par roll dans le
+            # GenServer global). Version compacte pour dice_rolled/turn_changed,
+            # complète pour set_result/match_result (historique + payouts).
+            sanitized_compact = sanitize_match(final_match, compact: true)
+            broadcast_dice_rolled(match_id, roll, final_match, sanitized_compact)
 
             if is_last_roll do
-              broadcast_set_result(match_id, final_match, set_result)
+              # set_result reçu AVANT match_result : ordre conservé, le frontend
+              # affiche le banner de set puis le modal de fin dans cet ordre.
+              sanitized_full = sanitize_match(final_match)
+              broadcast_set_result(match_id, final_match, set_result, sanitized_full)
               if final_match.status == :match_ended do
-                broadcast_match_result(match_id, final_match)
+                broadcast_match_result(match_id, final_match, sanitized_full)
                 # Persistance et stats (async, best effort)
                 Task.start(fn -> persist_match_result(final_match) end)
               else
@@ -650,7 +658,9 @@ defmodule GameHub.GameMatch do
               # Schedule timeout pour le prochain joueur
               next_player = Enum.at(set.turn_order, next_turn_index)
               if next_player, do: schedule_turn_timeout(match_id, next_player, turn_timeout_ms(match))
-              broadcast_turn_changed(match_id, final_match)
+              # turn_changed émis APRÈS dice_rolled avec la même version
+              # compacte : le frontend révèle le dé puis avance le tour.
+              broadcast_turn_changed(match_id, final_match, sanitized_compact)
             end
 
             {:reply, {:ok, %{match: final_match, roll: roll, set_result: set_result}}, state}
@@ -1945,12 +1955,17 @@ defmodule GameHub.GameMatch do
   defp next_seq, do: System.unique_integer([:positive, :monotonic])
 
   defp broadcast_set_started(match_id, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_started", match_id: match_id, seq: next_seq(), set: match.current_set_state, match: sanitize_match(match)})
+    # Compact : les clients fusionnent l'historique précédent (sets/payout),
+    # le payload chaud ne transporte que l'état courant du set.
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_started", match_id: match_id, seq: next_seq(), set: match.current_set_state, match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
-  defp broadcast_dice_rolled(match_id, roll, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolled", match_id: match_id, seq: next_seq(), roll: sanitize_roll(roll), match: sanitize_match(match, compact: true)})
+  # `sanitized` optionnel : le flux roll_dice le pré-calcule UNE fois et le
+  # partage entre dice_rolled / turn_changed / set_result (même match final).
+  # Évite 2-3 sanitize complets par lancer dans le GenServer global.
+  defp broadcast_dice_rolled(match_id, roll, match, sanitized \\ nil) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolled", match_id: match_id, seq: next_seq(), roll: sanitize_roll(roll), match: sanitized || sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
@@ -1962,7 +1977,7 @@ defmodule GameHub.GameMatch do
   rescue _ -> :ok
   end
 
-  defp broadcast_turn_changed(match_id, match) do
+  defp broadcast_turn_changed(match_id, match, sanitized \\ nil) do
     set = match.current_set_state
     Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{
       event: "turn_changed",
@@ -1972,24 +1987,24 @@ defmodule GameHub.GameMatch do
       current_turn_index: set.current_turn_index,
       turn_order: set.turn_order,
       turn_deadline: set.turn_deadline,
-      match: sanitize_match(match, compact: true)
+      match: sanitized || sanitize_match(match, compact: true)
     })
   rescue _ -> :ok
   end
 
-  defp broadcast_set_result(match_id, match, result) do
+  defp broadcast_set_result(match_id, match, result, sanitized \\ nil) do
     encoded = case result do {:winner, id} -> %{winner_id: id, result: "winner"}; :tie -> %{result: "tie"}; other -> %{result: inspect(other)} end
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_result", match_id: match_id, seq: next_seq(), result: encoded, match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "set_result", match_id: match_id, seq: next_seq(), result: encoded, match: sanitized || sanitize_match(match)})
   rescue _ -> :ok
   end
 
-  defp broadcast_match_result(match_id, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "match_result", match_id: match_id, seq: next_seq(), winner_id: match[:winner_id], match: sanitize_match(match)})
+  defp broadcast_match_result(match_id, match, sanitized \\ nil) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "match_result", match_id: match_id, seq: next_seq(), winner_id: match[:winner_id], match: sanitized || sanitize_match(match)})
   rescue _ -> :ok
   end
 
   defp broadcast_player_forfeited(match_id, player_id, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "player_forfeited", match_id: match_id, seq: next_seq(), player_id: player_id, match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "player_forfeited", match_id: match_id, seq: next_seq(), player_id: player_id, match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
@@ -1999,7 +2014,7 @@ defmodule GameHub.GameMatch do
   end
 
   defp broadcast_target_calculated(match_id, target, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "target_calculated", match_id: match_id, seq: next_seq(), target_value: target, match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "target_calculated", match_id: match_id, seq: next_seq(), target_value: target, match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
