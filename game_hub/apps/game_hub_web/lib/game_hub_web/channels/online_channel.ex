@@ -61,4 +61,13 @@ defmodule GameHubWeb.OnlineChannel do
         end
     end
   end
+
+  # Phoenix route les %Broadcast{} (dont nos propres broadcast!) vers
+  # handle_out/3 — sans elle, le channel CRASH au premier broadcast et le
+  # client ne reçoit plus rien (oblige à actualiser). On relaie tel quel.
+  @impl true
+  def handle_out(event, payload, socket) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
 end

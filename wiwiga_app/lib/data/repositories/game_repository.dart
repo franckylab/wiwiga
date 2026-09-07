@@ -264,10 +264,15 @@ class GameRepository {
     return res['data'] as Map<String, dynamic>? ?? {};
   }
 
-  /// Récupère l'état complet d'un match (REST)
-  Future<Map<String, dynamic>> getMatchStateRest(String matchId) async {
+  /// Récupère l'état complet d'un match (REST).
+  /// [compact] : sans l'historique des sets (polling haute fréquence).
+  Future<Map<String, dynamic>> getMatchStateRest(
+    String matchId, {
+    bool compact = false,
+  }) async {
     final res = await _apiService.get(
       '${ApiEndpoints.gameShow}/$matchId/state',
+      queryParams: compact ? const {'compact': '1'} : null,
       requiresAuth: true,
     );
     // fallback debug si state est room

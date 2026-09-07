@@ -32,6 +32,9 @@ defmodule GameHub.GameMatch do
   @cleanup_interval_ms 5 * 60 * 1000
   @turn_timeout_default 30_000 # 30s par tour (utilise GameTimeoutConfig si configuré)
   @grace_period_default 45 # secondes
+  # Délai de grâce avant de confirmer la sortie d'un joueur disparu du
+  # transport (drop WS) sans action explicite de quitter.
+  @grace_leave_ms 20_000
 
   # === Client API ===
 
@@ -178,6 +181,24 @@ defmodule GameHub.GameMatch do
   end
 
   @doc """
+  Signale une disparition transport (drop WS, mise en fond) SANS action
+  explicite de quitter. La sortie n'est confirmée qu'après un délai de
+  grâce : si le joueur revient (re-join) avant, rien ne se passe. Évite
+  d'exclure un joueur encore sur la page pour un simple trou réseau.
+  """
+  def player_gone(match_id, player_id) do
+    GenServer.call(__MODULE__, {:player_gone, match_id, to_string(player_id)})
+  end
+
+  @doc """
+  Signale le retour d'un joueur (re-join du channel). Annule une sortie
+  en délai de grâce encore pendante.
+  """
+  def player_back(match_id, player_id) do
+    GenServer.call(__MODULE__, {:player_back, match_id, to_string(player_id)})
+  end
+
+  @doc """
   Récupère le délai par tour en secondes (config admin ou défaut).
   """
   def turn_timeout_seconds(game_type \\ "dice") do
@@ -250,6 +271,7 @@ defmodule GameHub.GameMatch do
       rematch: nil,
       left_players: MapSet.new(),
       turn_timeout_ms: get_turn_timeout_ms(game_type),
+      commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
       turn_order: rc["turn_order"] || "rotating",
@@ -375,6 +397,8 @@ defmodule GameHub.GameMatch do
               ended = Map.merge(match, %{status: :match_ended, winner_id: winner_id, updated_at: DateTime.utc_now()})
               :ets.insert(state.table, {match_id, ended})
               broadcast_match_forfeit(match_id, nil, winner_id)
+              broadcast_match_result(match_id, ended)
+              Task.start(fn -> persist_match_result(ended) end)
               {:reply, {:ok, ended}, state}
             else
               set_state = %{
@@ -533,11 +557,13 @@ defmodule GameHub.GameMatch do
             }
 
             updated_rolls = Map.put(set.rolls, pid_str, roll)
-            next_turn_index = set.current_turn_index + 1
+            # Tour suivant = prochain joueur ACTIF (jamais un éliminé : sinon
+            # le tour annoncé serait injouable et bloquerait le set).
+            next_turn_index = next_active_turn_index(match, set.turn_order, set.current_turn_index + 1)
 
             # Calculer next player (skip éliminés) et vérifier fin de set
             active_players_count = length(match.players) - MapSet.size(match.eliminated_players)
-            is_last_roll = map_size(updated_rolls) >= active_players_count
+            is_last_roll = is_nil(next_turn_index) or map_size(updated_rolls) >= active_players_count
 
             {updated_set, set_result, final_match} =
               if is_last_roll do
@@ -648,11 +674,14 @@ defmodule GameHub.GameMatch do
           eliminated = MapSet.put(current_eliminated, pid_str)
           cur_forfeited = Map.get(match, :forfeited_players, []) || []
           forfeited = [pid_str | cur_forfeited]
-          # Avancer l'index si c'était son tour
+          # Avancer l'index si c'était son tour — vers le prochain joueur
+          # ACTIF (jamais un éliminé : tour injouable = set bloqué + UI
+          # qui désigne le mauvais joueur). Sentinelle = fin d'ordre.
           set = match.current_set_state
           updated_set =
             if set && set.status == :in_progress && is_current_turn(set, player_id) do
-              %{set | current_turn_index: set.current_turn_index + 1, turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)}
+              next_idx = next_active_turn_index(match, set.turn_order, set.current_turn_index + 1) || length(set.turn_order)
+              %{set | current_turn_index: next_idx, turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)}
             else
               set
             end
@@ -671,7 +700,8 @@ defmodule GameHub.GameMatch do
                 # Évaluer set avec rolls existants (sans le forfeited)
                 result = evaluate_set(interim, updated_set)
                 {scores, sets_list, _} = apply_set_result(interim, result, updated_set.rolls, updated_set.set_number, updated_set.target_value)
-                %{interim | set_scores: scores, sets: sets_list, current_set_state: %{updated_set | status: :evaluated, result: result}, status: :set_ended}
+                # Map.merge (pas %{|}) : :result n'existe pas encore sur un set en cours
+                %{interim | set_scores: scores, sets: sets_list, current_set_state: Map.merge(updated_set, %{status: :evaluated, result: result}), status: :set_ended}
               else
                 # Schedule next timeout + broadcast turn change (synchro UI)
                 if updated_set do
@@ -724,6 +754,8 @@ defmodule GameHub.GameMatch do
     case lookup_match(state.table, match_id) do
       {:ok, match} ->
         pid = to_string(player_id)
+        # Le joueur agit : annuler une sortie en délai de grâce éventuelle
+        state = cancel_leave_timer(state, match_id, pid)
         cond do
           match.status != :match_ended ->
             {:reply, {:error, :match_not_ended}, state}
@@ -733,6 +765,9 @@ defmodule GameHub.GameMatch do
 
           left_player?(match, pid) ->
             {:reply, {:error, :player_left}, state}
+
+          length(rematch_invited(match)) < 2 ->
+            {:reply, {:error, :no_opponents}, state}
 
           true ->
             case Map.get(match, :rematch) do
@@ -783,6 +818,8 @@ defmodule GameHub.GameMatch do
     case lookup_match(state.table, match_id) do
       {:ok, match} ->
         pid = to_string(player_id)
+        # Le joueur agit : annuler une sortie en délai de grâce éventuelle
+        state = cancel_leave_timer(state, match_id, pid)
 
         case Map.get(match, :rematch) do
           %{started: false} = lobby ->
@@ -885,64 +922,44 @@ defmodule GameHub.GameMatch do
 
   @impl true
   def handle_call({:leave_match, match_id, player_id}, _from, state) do
-    case lookup_match(state.table, match_id) do
-      {:ok, match} ->
-        pid = to_string(player_id)
+    pid = to_string(player_id)
+    state = cancel_leave_timer(state, match_id, pid)
 
-        if match.status != :match_ended do
-          {:reply, {:ok, %{left: false}}, state}
-        else
-          left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+    case do_apply_leave(state.table, match_id, pid) do
+      {:ok, final, event} ->
+        if event, do: broadcast_rematch(match_id, event, final)
+        {:reply, {:ok, %{left: true}}, state}
 
-          if MapSet.member?(left, pid) do
-            {:reply, {:ok, %{left: true}}, state}
-          else
-            updated_left = MapSet.put(left, pid)
-            interim = Map.put(match, :left_players, updated_left) |> Map.put(:updated_at, DateTime.utc_now())
-
-            # Si une revanche est proposée : le partant est retiré des acceptants.
-            # Si c'est le proposant, la proposition est annulée.
-            final =
-              case Map.get(interim, :rematch) do
-                %{started: false} = lobby ->
-                  if lobby.proposed_by == pid do
-                    Map.put(interim, :rematch, nil)
-                  else
-                    updated_lobby =
-                      Map.merge(lobby, %{
-                        accepted: MapSet.delete(lobby.accepted, pid),
-                        declined: MapSet.put(lobby.declined, pid),
-                        notice: nil
-                      })
-
-                    Map.put(interim, :rematch, updated_lobby)
-                  end
-
-                _ ->
-                  interim
-              end
-
-            :ets.insert(state.table, {match_id, final})
-
-            case Map.get(match, :rematch) do
-              %{started: false} = lobby when lobby.proposed_by == pid ->
-                broadcast_rematch(match_id, "rematch_cancelled", final)
-
-              %{started: false} ->
-                broadcast_rematch(match_id, "rematch_updated", final)
-
-              _ ->
-                :ok
-            end
-
-            {:reply, {:ok, %{left: true}}, state}
-          end
-        end
+      {:error, :already_left} ->
+        {:reply, {:ok, %{left: true}}, state}
 
       {:error, _} ->
-        # Idempotent pour les chemins dispose : match déjà nettoyé
         {:reply, {:ok, %{left: false}}, state}
     end
+  end
+
+  @impl true
+  def handle_call({:player_gone, match_id, player_id}, _from, state) do
+    pid = to_string(player_id)
+
+    case lookup_match(state.table, match_id) do
+      {:ok, match} when match.status == :match_ended ->
+        if match_player?(match, pid) and not left_player?(match, pid) do
+          state = cancel_leave_timer(state, match_id, pid)
+          ref = Process.send_after(self(), {:confirm_leave, match_id, pid}, @grace_leave_ms)
+          {:reply, :ok, put_leave_timer(state, match_id, pid, ref)}
+        else
+          {:reply, :ok, state}
+        end
+
+      _ ->
+        {:reply, :ok, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:player_back, match_id, player_id}, _from, state) do
+    {:reply, :ok, cancel_leave_timer(state, match_id, to_string(player_id))}
   end
 
   @impl true
@@ -1005,9 +1022,10 @@ defmodule GameHub.GameMatch do
               forfeited: true
             }
             updated_rolls = Map.put(set.rolls, pid_str, synthetic_roll)
-            next_turn_index = set.current_turn_index + 1
+            # Comme un lancer réel : avancer vers le prochain joueur ACTIF.
+            next_turn_index = next_active_turn_index(match, set.turn_order, set.current_turn_index + 1)
             active_count = length(match.players) - MapSet.size(match.eliminated_players || MapSet.new())
-            is_last = map_size(updated_rolls) >= active_count
+            is_last = is_nil(next_turn_index) or map_size(updated_rolls) >= active_count
             {updated_set, set_result, interim} =
               if is_last do
                 # Dernier joueur du set a expiré → évaluer le set (le forfeited a 0, perdra)
@@ -1109,6 +1127,26 @@ defmodule GameHub.GameMatch do
   end
 
   @impl true
+  def handle_info({:confirm_leave, match_id, pid}, state) do
+    # L'entrée n'existe que si aucun retour/annulation n'a eu lieu entre-temps
+    # (player_back et leave explicite la suppriment) : on confirme la sortie.
+    if Map.has_key?(leave_timers(state), {match_id, pid}) do
+      state = drop_leave_timer(state, match_id, pid)
+
+      case do_apply_leave(state.table, match_id, pid) do
+        {:ok, final, event} ->
+          if event, do: broadcast_rematch(match_id, event, final)
+          {:noreply, state}
+
+        _ ->
+          {:noreply, state}
+      end
+    else
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_info(:cleanup, state) do
     now = DateTime.utc_now()
     five_min_ago = DateTime.add(now, -300, :second)
@@ -1165,6 +1203,21 @@ defmodule GameHub.GameMatch do
       to_string(Enum.at(turn_order, index)) == to_string(player_id)
     else
       false
+    end
+  end
+
+  # Prochain index à partir de from_idx dont le joueur n'est PAS éliminé.
+  # nil si aucun (tous les suivants éliminés ou fin d'ordre) : l'appelant
+  # doit alors évaluer le set avec les lancers existants au lieu d'annoncer
+  # un tour à un joueur qui ne peut plus jouer. Les tours étant séquentiels,
+  # un non-éliminé après from_idx n'a pas encore lancé.
+  defp next_active_turn_index(match, turn_order, from_idx) do
+    if from_idx >= length(turn_order) do
+      nil
+    else
+      Enum.find((from_idx..(length(turn_order) - 1)//1), fn idx ->
+        not eliminated?(match, Enum.at(turn_order, idx))
+      end)
     end
   end
 
@@ -1273,6 +1326,14 @@ defmodule GameHub.GameMatch do
     Map.get(match, :turn_timeout_ms, @turn_timeout_default) || @turn_timeout_default
   end
 
+  # Taux de commission figé à la création (évite une requête DB par broadcast).
+  defp get_commission_rate(game_type, rule_type) do
+    rules = GameRules.get_rules_or_default(game_type, rule_type || "normal")
+    (rules.config["commission_rate"] || 0.05) |> to_string() |> Decimal.new() |> Decimal.to_float()
+  rescue
+    _ -> 0.05
+  end
+
   # === Revanche (opt-out lobby) ===
 
   defp match_player?(match, player_id) do
@@ -1285,6 +1346,74 @@ defmodule GameHub.GameMatch do
     case Map.get(match, :left_players) do
       %MapSet{} = set -> MapSet.member?(set, pid)
       _ -> false
+    end
+  end
+
+  # Timers de sortie en délai de grâce, stockés dans l'état GenServer
+  # (pas en ETS) : clé {match_id, player_id} → ref timer.
+  defp leave_timers(state), do: Map.get(state, :leave_timers, %{})
+
+  defp put_leave_timer(state, match_id, pid, ref) do
+    Map.put(state, :leave_timers, Map.put(leave_timers(state), {match_id, pid}, ref))
+  end
+
+  defp drop_leave_timer(state, match_id, pid) do
+    Map.put(state, :leave_timers, Map.delete(leave_timers(state), {match_id, pid}))
+  end
+
+  defp cancel_leave_timer(state, match_id, pid) do
+    case Map.get(leave_timers(state), {match_id, pid}) do
+      nil -> state
+      ref -> Process.cancel_timer(ref)
+             drop_leave_timer(state, match_id, pid)
+    end
+  end
+
+  # Applique une sortie de fin de partie (partagé leave explicite / confirmé).
+  # Retourne {:ok, match_final, event_à_diffuser | nil} | {:error, raison}.
+  defp do_apply_leave(table, match_id, pid) do
+    case lookup_match(table, match_id) do
+      {:ok, match} when match.status == :match_ended ->
+        left = Map.get(match, :left_players, MapSet.new()) || MapSet.new()
+
+        if MapSet.member?(left, pid) do
+          {:error, :already_left}
+        else
+          interim =
+            Map.put(match, :left_players, MapSet.put(left, pid))
+            |> Map.put(:updated_at, DateTime.utc_now())
+
+          # Si une revanche est proposée : le partant est retiré des acceptants.
+          # Si c'est le proposant, la proposition est annulée.
+          {final, event} =
+            case Map.get(interim, :rematch) do
+              %{started: false} = lobby ->
+                if lobby.proposed_by == pid do
+                  {Map.put(interim, :rematch, nil), "rematch_cancelled"}
+                else
+                  updated_lobby =
+                    Map.merge(lobby, %{
+                      accepted: MapSet.delete(lobby.accepted, pid),
+                      declined: MapSet.put(lobby.declined, pid),
+                      notice: nil
+                    })
+
+                  {Map.put(interim, :rematch, updated_lobby), "rematch_updated"}
+                end
+
+              _ ->
+                {interim, nil}
+            end
+
+          :ets.insert(table, {match_id, final})
+          {:ok, final, event}
+        end
+
+      {:ok, _} ->
+        {:error, :not_ended}
+
+      {:error, _} = err ->
+        err
     end
   end
 
@@ -1497,6 +1626,7 @@ defmodule GameHub.GameMatch do
       rematch: nil,
       left_players: MapSet.new(),
       turn_timeout_ms: get_turn_timeout_ms(game_type),
+      commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
       turn_order: rc["turn_order"] || "rotating",
@@ -1532,6 +1662,7 @@ defmodule GameHub.GameMatch do
   end
 
   # Gains nets du vainqueur (brut − commission), nil si non applicable.
+  # Taux lu depuis le match (figé à la création) : zéro requête par broadcast.
   defp payout_summary(match) do
     bet = Map.get(match, :bet_amount, 0) || 0
     winner = Map.get(match, :winner_id)
@@ -1539,15 +1670,7 @@ defmodule GameHub.GameMatch do
     if match.status == :match_ended and bet > 0 and not is_nil(winner) do
       n = length(Map.get(match, :players, []))
       gross = bet * n
-
-      rate =
-        try do
-          rules = GameRules.get_rules_or_default(match.game_type, match.rule_type || "normal")
-          (rules.config["commission_rate"] || 0.05) |> to_string() |> Decimal.new() |> Decimal.to_float()
-        rescue
-          _ -> 0.05
-        end
-
+      rate = Map.get(match, :commission_rate, 0.05) || 0.05
       commission = trunc(gross * rate)
 
       %{gross: gross, commission: commission, net: gross - commission, winner_id: to_string(winner)}
@@ -1714,8 +1837,62 @@ defmodule GameHub.GameMatch do
     end
   end
 
+  # Règlement financier de fin de partie (parties avec mise uniquement).
+  # - Vainqueur : crédité du net (pot − commission), clé idempotente.
+  # - Match nul : mises remboursées à tous (idempotent).
+  # Best effort : ne lève jamais (appelé depuis un Task async).
+  defp settle_match_payout(match) do
+    bet = Map.get(match, :bet_amount, 0) || 0
+
+    if bet <= 0 do
+      :ok
+    else
+      player_ints =
+        Map.get(match, :players, [])
+        |> Enum.map(fn p -> case Integer.parse(to_string(p.id)) do {i, _} -> i; :error -> nil end end)
+        |> Enum.reject(&is_nil/1)
+
+      case Map.get(match, :winner_id) do
+        nil ->
+          Enum.each(player_ints, fn int_id ->
+            try do
+              GameHub.Wallet.credit_winnings(int_id, bet, match.match_id, "tie_refund_#{match.match_id}_#{int_id}")
+            rescue
+              _ -> :ok
+            end
+          end)
+          :ok
+
+        winner ->
+          case Integer.parse(to_string(winner)) do
+            {winner_int, _} ->
+              net = case payout_summary(match) do %{net: n} -> n; _ -> 0 end
+
+              if net > 0 do
+                try do
+                  GameHub.Wallet.credit_winnings(winner_int, net, match.match_id, "win_#{match.match_id}_#{winner_int}")
+                rescue
+                  _ -> :ok
+                end
+              end
+
+              :ok
+
+            :error ->
+              :ok
+          end
+      end
+    end
+  rescue
+    _ -> :ok
+  end
+
   defp persist_match_result(match) do
     try do
+      # Règlement financier AVANT stats : le vainqueur est crédité (net),
+      # les mises sont remboursées en cas de match nul. Idempotent.
+      settle_match_payout(match)
+
       player_ids = Enum.map(match.players, fn p -> p.id end)
       winner_id = Map.get(match, :winner_id)
       # Normaliser winner_id en int si possible
@@ -1726,19 +1903,8 @@ defmodule GameHub.GameMatch do
         _ -> nil
       end
       bets = Map.new(player_ids, fn pid -> {pid, match.bet_amount || 0} end)
-      # Calcul commission si staked
-      net_winnings = if winner_int && match.bet_amount > 0 do
-        total_pot = match.bet_amount * length(player_ids)
-        # Commission depuis GameRules (défaut 5%)
-        commission_rate = try do
-          rules = GameHub.GameRules.get_rules_or_default(match.game_type, match.rule_type || "normal")
-          (rules.config["commission_rate"] || 0.05) |> to_string() |> Decimal.new() |> Decimal.to_float()
-        rescue _ -> 0.05 end
-        commission = trunc(total_pot * commission_rate)
-        total_pot - commission
-      else
-        0
-      end
+      # Net depuis la source unique (même calcul que `payout` exposé aux clients)
+      net_winnings = case payout_summary(match) do %{net: n} -> n; _ -> 0 end
       GameHub.GameStats.record_match_result(%{
         game_type: match.game_type || "dice",
         winner_id: winner_int,
@@ -1784,7 +1950,7 @@ defmodule GameHub.GameMatch do
   end
 
   defp broadcast_dice_rolled(match_id, roll, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolled", match_id: match_id, seq: next_seq(), roll: sanitize_roll(roll), match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolled", match_id: match_id, seq: next_seq(), roll: sanitize_roll(roll), match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
@@ -1792,7 +1958,7 @@ defmodule GameHub.GameMatch do
   # Les clients démarrent la même animation ensemble, puis révèlent le final
   # à la réception de `dice_rolled` (reveal synchronisé après durée min).
   defp broadcast_dice_rolling(match_id, roller_id, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolling", match_id: match_id, seq: next_seq(), roller_id: to_string(roller_id), dice_count: Map.get(match, :dice_count, 2), match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "dice_rolling", match_id: match_id, seq: next_seq(), roller_id: to_string(roller_id), dice_count: Map.get(match, :dice_count, 2), match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
@@ -1806,7 +1972,7 @@ defmodule GameHub.GameMatch do
       current_turn_index: set.current_turn_index,
       turn_order: set.turn_order,
       turn_deadline: set.turn_deadline,
-      match: sanitize_match(match)
+      match: sanitize_match(match, compact: true)
     })
   rescue _ -> :ok
   end
@@ -1838,12 +2004,12 @@ defmodule GameHub.GameMatch do
   end
 
   defp broadcast_target_voted(match_id, player_id, target_value, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "target_voted", match_id: match_id, seq: next_seq(), player_id: to_string(player_id), target_value: target_value, match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "target_voted", match_id: match_id, seq: next_seq(), player_id: to_string(player_id), target_value: target_value, match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
   defp broadcast_vote_progress(match_id, votes_count, total_needed, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "vote_progress", match_id: match_id, seq: next_seq(), votes_count: votes_count, total_needed: total_needed, match: sanitize_match(match)})
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "vote_progress", match_id: match_id, seq: next_seq(), votes_count: votes_count, total_needed: total_needed, match: sanitize_match(match, compact: true)})
   rescue _ -> :ok
   end
 
@@ -1857,7 +2023,10 @@ defmodule GameHub.GameMatch do
   rescue _ -> :ok
   end
 
-  defp sanitize_match(match) do
+  # compact?: omet l'historique des sets (events haute fréquence + polling).
+  # Le nécessaire temps réel reste : statut, tour, rolls du set, scores,
+  # dernier lancer, payout, revanche.
+  defp sanitize_match(match, opts \\ []) do
     css = Map.get(match, :current_set_state)
     sanitized_css = case css do
       nil -> nil
@@ -1896,11 +2065,16 @@ defmodule GameHub.GameMatch do
       other -> other
     end
     {last_roller_id, last_roll} = latest_roll(match)
-    sets = try do
-      match.sets |> Enum.map(&sanitize_set/1)
-    rescue
-      _ -> []
-    end
+    sets =
+      if Keyword.get(opts, :compact, false) do
+        []
+      else
+        try do
+          match.sets |> Enum.map(&sanitize_set/1)
+        rescue
+          _ -> []
+        end
+      end
     %{
       match_id: match.match_id,
       status: to_string(match.status),

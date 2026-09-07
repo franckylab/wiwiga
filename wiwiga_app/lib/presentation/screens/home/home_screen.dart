@@ -20,7 +20,13 @@ import '../../widgets/auth/auth_gate.dart';
 import '../../widgets/game/wiwiga_dice_icon.dart';
 import '../../widgets/neon/neon_widgets.dart';
 
-final _homeAmountFormat = (() { try { return NumberFormat('#,##0', 'fr_FR'); } catch (_) { return NumberFormat.decimalPattern(); } })();
+final _homeAmountFormat = (() {
+  try {
+    return NumberFormat('#,##0', 'fr_FR');
+  } catch (_) {
+    return NumberFormat.decimalPattern();
+  }
+})();
 
 /// Écran Accueil : dashboard avec solde, jeu vedette, raccourcis et activité
 class HomeScreen extends ConsumerStatefulWidget {
@@ -270,7 +276,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               gradient: NeonGradients.cta,
             ),
             child: game.type == 'dice'
-                ? const Center(child: WiwigaDiceIcon(size: 42, withShadow: false))
+                ? const Center(
+                    child: WiwigaDiceIcon(size: 42, withShadow: false))
                 : const Icon(
                     Icons.casino_outlined,
                     size: 32,
@@ -312,20 +319,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Row(
                   children: [
                     Flexible(
-                      child: Consumer(builder: (context, ref, _) {
-                        final realtime = ref.watch(perGameOnlineProvider(game.type));
-                        final display = realtime > 0 ? realtime : game.playersOnline;
-                        return Text(
-                          '$display joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: NeonColors.textSecondary,
-                          ),
-                        );
-                      }),
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final realtime =
+                              ref.watch(perGameOnlineProvider(game.type));
+                          final display =
+                              realtime > 0 ? realtime : game.playersOnline;
+                          return Text(
+                            '$display joueurs en ligne · Mise dès ${_homeAmountFormat.format(game.minBet.toInt())}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: NeonColors.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                     const SizedBox(width: 3),
                     const TokenCoin(

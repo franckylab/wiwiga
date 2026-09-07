@@ -108,6 +108,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isGuest = authState.isGuest || authState.isUnknown;
+    final isHome = widget.navigationShell.currentIndex == 0;
 
     return ResponsiveNavigation(
       currentIndex: widget.navigationShell.currentIndex,
@@ -115,51 +116,51 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
       destinations: _destinations,
       body: widget.navigationShell,
       appBarTitle: 'WIWIGA',
-      appBarActions: isGuest
-          ? [
-              // Mode guest : bouton de connexion
-              TextButton.icon(
-                icon: const Icon(Icons.login, color: NeonColors.primary, size: 18),
-                label: const Text(
-                  'Connexion',
-                  style: TextStyle(
-                    color: NeonColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Orbitron',
+      // Header principal (historique, profil, paramètres) uniquement sur /home
+      appBarActions: !isHome
+          ? null
+          : isGuest
+              ? [
+                  TextButton.icon(
+                    icon: const Icon(Icons.login, color: NeonColors.primary, size: 18),
+                    label: const Text(
+                      'Connexion',
+                      style: TextStyle(
+                        color: NeonColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Orbitron',
+                      ),
+                    ),
+                    onPressed: () {
+                      ref.read(authProvider.notifier).setRedirectTo('/home');
+                      context.go('/auth');
+                    },
                   ),
-                ),
-                onPressed: () {
-                  ref.read(authProvider.notifier).setRedirectTo('/home');
-                  context.go('/auth');
-                },
-              ),
-            ]
-          : [
-              // Bouton Admin (visible uniquement pour admins)
-              if (authState.isAdmin)
-                IconButton(
-                  icon: const Icon(Icons.admin_panel_settings, color: Color(0xFFFF6600)),
-                  tooltip: 'Administration',
-                  onPressed: () => context.go('/admin'),
-                ),
-              // Mode authentifié : actions complètes
-              IconButton(
-                icon: const Icon(Icons.receipt_long_outlined, color: NeonColors.primary),
-                tooltip: 'Historique des transactions',
-                onPressed: () => context.push('/transactions'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.person_outline, color: NeonColors.primary),
-                tooltip: 'Profil',
-                onPressed: () => context.push('/profile'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, color: NeonColors.primary),
-                tooltip: 'Paramètres',
-                onPressed: () => context.push('/settings'),
-              ),
-            ],
+                ]
+              : [
+                  if (authState.isAdmin)
+                    IconButton(
+                      icon: const Icon(Icons.admin_panel_settings, color: Color(0xFFFF6600)),
+                      tooltip: 'Administration',
+                      onPressed: () => context.go('/admin'),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.receipt_long_outlined, color: NeonColors.primary),
+                    tooltip: 'Historique des transactions',
+                    onPressed: () => context.push('/transactions'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: NeonColors.primary),
+                    tooltip: 'Profil',
+                    onPressed: () => context.push('/profile'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined, color: NeonColors.primary),
+                    tooltip: 'Paramètres',
+                    onPressed: () => context.push('/settings'),
+                  ),
+                ],
     );
   }
 }

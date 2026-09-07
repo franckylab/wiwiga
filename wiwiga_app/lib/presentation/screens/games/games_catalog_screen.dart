@@ -161,7 +161,7 @@ class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
+          const Text(
             'Choisissez votre jeu et défiez la communauté',
             style: TextStyle(
               fontSize: 14,
@@ -271,7 +271,13 @@ class GameCatalogCard extends ConsumerWidget {
 
   const GameCatalogCard({super.key, required this.game});
 
-  static final _amountFormat = (() { try { return NumberFormat('#,##0', 'fr_FR'); } catch (_) { return NumberFormat.decimalPattern(); } })();
+  static final _amountFormat = (() {
+    try {
+      return NumberFormat('#,##0', 'fr_FR');
+    } catch (_) {
+      return NumberFormat.decimalPattern();
+    }
+  })();
 
   IconData get _gameIcon {
     switch (game.type) {
@@ -292,8 +298,10 @@ class GameCatalogCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final comingSoon = game.comingSoon;
     // Temps réel : per-game online via Presence (fallback sur la valeur REST initiale)
-    final realtimeOnline = !comingSoon ? ref.watch(perGameOnlineProvider(game.type)) : 0;
-    final displayOnline = !comingSoon && realtimeOnline > 0 ? realtimeOnline : game.playersOnline;
+    final realtimeOnline =
+        !comingSoon ? ref.watch(perGameOnlineProvider(game.type)) : 0;
+    final displayOnline =
+        !comingSoon && realtimeOnline > 0 ? realtimeOnline : game.playersOnline;
 
     return Opacity(
       opacity: comingSoon ? 0.55 : 1,
@@ -315,7 +323,8 @@ class GameCatalogCard extends ConsumerWidget {
                     color: comingSoon ? NeonColors.border : null,
                   ),
                   child: game.type == 'dice' && !comingSoon
-                      ? Center(child: WiwigaDiceIcon(size: 38, withShadow: false))
+                      ? const Center(
+                          child: WiwigaDiceIcon(size: 38, withShadow: false))
                       : Icon(
                           _gameIcon,
                           size: 28,

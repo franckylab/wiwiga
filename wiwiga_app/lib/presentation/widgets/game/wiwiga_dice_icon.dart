@@ -87,8 +87,9 @@ class WiwigaDiceIcon extends StatelessWidget {
                         colors: [Color(0xFF0F3A2E), Color(0xFF0A2A1F)],
                       ),
                       border: Border.all(
-                          color: const Color(0xFF1A5C4A).withValues(alpha: 0.9),
-                          width: 1.1),
+                        color: const Color(0xFF1A5C4A).withValues(alpha: 0.9),
+                        width: 1.1,
+                      ),
                     ),
                   ),
                 ),
@@ -117,8 +118,9 @@ class WiwigaDiceIcon extends StatelessWidget {
                         colors: [Color(0xFF14B8A6), Color(0xFF0D7A6E)],
                       ),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          width: 1),
+                        color: Colors.white.withValues(alpha: 0.22),
+                        width: 1,
+                      ),
                     ),
                   ),
                 ),
@@ -139,26 +141,29 @@ class WiwigaDiceIcon extends StatelessWidget {
                       colors: [
                         Color(0xFFF8FAFC),
                         Color(0xFFE2E8F0),
-                        Color(0xFFCBD5E1)
+                        Color(0xFFCBD5E1),
                       ],
                     ),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.95),
-                        width: 1.2),
+                      color: Colors.white.withValues(alpha: 0.95),
+                      width: 1.2,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                          color:
-                              const Color(0xFF0F172A).withValues(alpha: 0.18),
-                          blurRadius: s * 0.18,
-                          offset: Offset(0, s * 0.08)),
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+                        blurRadius: s * 0.18,
+                        offset: Offset(0, s * 0.08),
+                      ),
                       BoxShadow(
-                          color: NeonColors.primary.withValues(alpha: 0.18),
-                          blurRadius: s * 0.22,
-                          spreadRadius: 0),
+                        color: NeonColors.primary.withValues(alpha: 0.18),
+                        blurRadius: s * 0.22,
+                        spreadRadius: 0,
+                      ),
                       BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.55),
-                          blurRadius: 1,
-                          offset: const Offset(-1, -1)),
+                        color: Colors.white.withValues(alpha: 0.55),
+                        blurRadius: 1,
+                        offset: const Offset(-1, -1),
+                      ),
                     ],
                   ),
                   child: ClipRRect(
@@ -178,7 +183,7 @@ class WiwigaDiceIcon extends StatelessWidget {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.white.withValues(alpha: 0.62),
-                                  Colors.transparent
+                                  Colors.transparent,
                                 ],
                               ),
                             ),
@@ -201,7 +206,7 @@ class WiwigaDiceIcon extends StatelessWidget {
                                 end: Alignment.topCenter,
                                 colors: [
                                   Colors.black.withValues(alpha: 0.08),
-                                  Colors.transparent
+                                  Colors.transparent,
                                 ],
                               ),
                             ),
@@ -216,12 +221,15 @@ class WiwigaDiceIcon extends StatelessWidget {
                           height: 2.2,
                           child: Container(
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [
-                                NeonColors.primary,
-                                NeonColors.accent
-                              ]),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  NeonColors.primary,
+                                  NeonColors.accent,
+                                ],
+                              ),
                               borderRadius: BorderRadius.vertical(
-                                  bottom: Radius.circular(radius)),
+                                bottom: Radius.circular(radius),
+                              ),
                             ),
                           ),
                         ),
@@ -232,22 +240,28 @@ class WiwigaDiceIcon extends StatelessWidget {
                           right: face * 0.08,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 3, vertical: 1),
+                              horizontal: 3,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: NeonColors.primary.withValues(alpha: 0.14),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: NeonColors.primary
-                                      .withValues(alpha: 0.35),
-                                  width: 0.7),
+                                color:
+                                    NeonColors.primary.withValues(alpha: 0.35),
+                                width: 0.7,
+                              ),
                             ),
-                            child: const Text('W',
-                                style: TextStyle(
-                                    color: NeonColors.primary,
-                                    fontSize: 7,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                    fontFamily: 'Orbitron')),
+                            child: const Text(
+                              'W',
+                              style: TextStyle(
+                                color: NeonColors.primary,
+                                fontSize: 7,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                                fontFamily: 'Orbitron',
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -282,7 +296,7 @@ class WiwigaDiceIcon extends StatelessWidget {
                 gradient: RadialGradient(
                   colors: [
                     NeonColors.primary.withValues(alpha: 0.10),
-                    Colors.transparent
+                    Colors.transparent,
                   ],
                   radius: 0.85,
                 ),
@@ -327,13 +341,15 @@ class _FiveFace extends StatelessWidget {
             Border.all(color: Colors.white.withValues(alpha: 0.18), width: 0.7),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 1.5,
-              offset: const Offset(0, 1)),
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 1.5,
+            offset: const Offset(0, 1),
+          ),
           BoxShadow(
-              color: Colors.white.withValues(alpha: 0.35),
-              blurRadius: 0.5,
-              offset: const Offset(-0.5, -0.5)),
+            color: Colors.white.withValues(alpha: 0.35),
+            blurRadius: 0.5,
+            offset: const Offset(-0.5, -0.5),
+          ),
         ],
       ),
       child: Center(
@@ -412,9 +428,10 @@ class _WiwigaDiceHeroState extends State<WiwigaDiceHero>
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-                color: NeonColors.primary
-                    .withValues(alpha: 0.18 + _ctrl.value * 0.10),
-                blurRadius: 18 + _ctrl.value * 6)
+              color: NeonColors.primary
+                  .withValues(alpha: 0.18 + _ctrl.value * 0.10),
+              blurRadius: 18 + _ctrl.value * 6,
+            ),
           ],
         ),
         child: child,
@@ -425,14 +442,18 @@ class _WiwigaDiceHeroState extends State<WiwigaDiceHero>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const RadialGradient(
-              colors: [Color(0xFF0F172A), Color(0xFF020617)],
-              center: Alignment.center,
-              radius: 0.85),
+            colors: [Color(0xFF0F172A), Color(0xFF020617)],
+            center: Alignment.center,
+            radius: 0.85,
+          ),
           border: Border.all(
-              color: NeonColors.primary.withValues(alpha: 0.35), width: 1.2),
+            color: NeonColors.primary.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
         ),
         child: Center(
-            child: WiwigaDiceIcon(size: widget.size * 0.78, withShadow: false)),
+          child: WiwigaDiceIcon(size: widget.size * 0.78, withShadow: false),
+        ),
       ),
     );
   }

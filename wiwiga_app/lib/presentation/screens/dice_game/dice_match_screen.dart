@@ -1,13 +1,13 @@
 // ============================================================
 // Fichier: dice_match_screen.dart
 // Description: Écran de match de dés refactorisé — tatami central + zones joueurs
-//              Joueur "Moi", tour actif/verrouillé, icône dé cliquable, score/niveau/mise,
+//              Joueur "Vous", tour actif/verrouillé, icône dé cliquable, score/niveau/mise,
 //              délai forfait 30s, animations 3D, responsive extrême
 // Auteur: WIWIGA Team - Refactor 2026-08-31
 // ============================================================
 
 import 'dart:async';
-import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +16,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
 import '../../widgets/neon/token_coin.dart';
+import '../../widgets/game/match_result_layout.dart';
 import '../../widgets/game/reality_check_overlay.dart';
 import '../../widgets/game/dice_tatami.dart';
 import '../../widgets/game/dice_3d.dart';
@@ -71,7 +72,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   // Animations
   late AnimationController _introCtrl;
   late AnimationController _resultCtrl;
-  late AnimationController _boardGlowCtrl;
   List<int> _currentDice = [];
   final Map<String, List<int>> _playerDice = {};
   final Map<String, int> _playerSums = {};
@@ -91,8 +91,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   String? _lastRollerId;
   int? _lastRollSum;
   DateTime? _rollAnimStartedAt;
-  // Durée min d'animation commune avant révélation (synchro tous joueurs)
-  static const Duration _minRollAnim = Duration(milliseconds: 950);
+  // Durée min d'animation commune avant révélation (synchro tous joueurs).
+  // Courte (450ms) : l'anim 3D interne des dés suffit, le résultat doit
+  // arriver vite pour une sensation temps réel.
+  static const Duration _minRollAnim = Duration(milliseconds: 450);
   Map<String, dynamic>? _pendingReveal;
   // Ma demande de lancer en vol (anti-double-tap). Séparé de _isRolling qui
   // est purement visuel (anim du tatami, y compris celle des autres) : le
@@ -108,6 +110,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   // Modale de résultat : fermable (X), réouvrable. Fermer ≠ quitter :
   // le joueur reste dans l'interface donc toujours compté.
   bool _resultModalOpen = true;
+  // Contrôleur dédié au défilement de la modale de résultat (partagé avec
+  // sa Scrollbar : même instance exigée, sinon pas de pouce visible).
+  final ScrollController _resultScrollController = ScrollController();
 
   // Serveur source de vérité
   Map<String, dynamic>? _serverMatch;
@@ -133,9 +138,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _boardGlowCtrl =
-        AnimationController(duration: const Duration(seconds: 2), vsync: this)
-          ..repeat(reverse: true);
 
     for (var p in widget.players) {
       _setWins[p['id'].toString()] = 0;
@@ -179,46 +181,73 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   Future<void> _fetchInitialState() async {
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted || _serverMatch != null) return;
-    try {
-      final repo = ref.read(gameRepositoryProvider);
-      final data = await repo.getMatchStateRest(widget.matchId);
-      if (data.isNotEmpty && mounted) {
-        if (data.containsKey('match_id')) {
-          _syncFromServer(data);
-        } else if (data['data'] is Map) {
-          _syncFromServer(Map<String, dynamic>.from(data['data'] as Map));
-        }
-        final status =
-            data['status']?.toString() ?? _serverMatch?['status']?.toString();
-        if (status == 'set_ended') {
-          setState(() {
-            _showSetIntro = false;
-            _showSetResult = true;
-          });
-        } else if (status == 'match_ended') {
-          setState(() {
-            _showSetIntro = false;
-            _showSetResult = false;
-            _showMatchResult = true;
-          });
-        }
+    final match = await _fetchMatchState();
+    if (match != null && mounted) {
+      _syncFromServer(match);
+      final status = match['status']?.toString();
+      if (status == 'set_ended') {
+        setState(() {
+          _showSetIntro = false;
+          _showSetResult = true;
+        });
+      } else if (status == 'match_ended') {
+        setState(() {
+          _showSetIntro = false;
+          _showSetResult = false;
+          _showMatchResult = true;
+        });
       }
-    } catch (_) {}
+    }
     if (_serverMatch == null && mounted) {
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted || _serverMatch != null) return;
-      try {
-        final repo = ref.read(gameRepositoryProvider);
-        final data = await repo.getMatchStateRest(widget.matchId);
-        if (data.isNotEmpty && data.containsKey('match_id')) {
-          _syncFromServer(data);
-        }
-      } catch (_) {}
+      final retry = await _fetchMatchState();
+      if (retry != null && mounted) {
+        _syncFromServer(retry);
+      }
+    }
+  }
+
+  int _restToken = 0;
+
+  /// Fetch d'état ordonné : seule la requête la PLUS RÉCENTE applique son
+  /// résultat. Deux fetches qui se chevauchent (réseau lent) peuvent se
+  /// terminer dans le désordre ; sans garde, l'ancien écrase le récent →
+  /// tours qui reculent, manches/gains qui disparaissent d'un écran.
+  /// (Les réponses d'ACTIONS — lancer/vote/set — s'appliquent toujours :
+  /// elles portent l'état post-action, causalement le plus frais.)
+  Future<Map<String, dynamic>?> _fetchMatchState({
+    bool compact = false,
+  }) async {
+    final token = ++_restToken;
+    try {
+      final repo = ref.read(gameRepositoryProvider);
+      final data = await repo.getMatchStateRest(
+        widget.matchId,
+        compact: compact,
+      );
+      if (!mounted || token != _restToken) return null;
+      if (data.containsKey('match_id')) return data;
+      if (data['data'] is Map) {
+        return Map<String, dynamic>.from(data['data'] as Map);
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
   void _syncFromServer(Map<String, dynamic> match, {int? seq}) {
     if (!mounted) return;
+    // Garde-fou : ne jamais appliquer l'état d'UN AUTRE match (ex : le
+    // nouveau match joint à `rematch_ready`). Sans ça, scores/gains de la
+    // modale sont écrasés par un match vide avant/après navigation.
+    final incomingId = match['match_id']?.toString();
+    if (incomingId != null &&
+        incomingId.isNotEmpty &&
+        incomingId != widget.matchId) {
+      return;
+    }
     // Ignore les events stale/doublons (double broadcast backend supprimé,
     // mais PubSub + polling peuvent encore se chevaucher).
     if (seq != null) {
@@ -226,8 +255,20 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       _lastSeq = seq;
     }
     _lastWsEventAt = DateTime.now();
+    // Payloads compacts (events chauds, polling) omettent l'historique :
+    // ne jamais perdre `sets`/`payout` déjà connus (modale de fin).
+    final effective = Map<String, dynamic>.from(match);
+    final oldSets = _serverMatch?['sets'];
+    if ((effective['sets'] is! List || (effective['sets'] as List).isEmpty) &&
+        oldSets is List &&
+        oldSets.isNotEmpty) {
+      effective['sets'] = oldSets;
+    }
+    if (effective['payout'] == null && _serverMatch?['payout'] != null) {
+      effective['payout'] = _serverMatch!['payout'];
+    }
     setState(() {
-      _serverMatch = match;
+      _serverMatch = effective;
       _serverSetState = match['current_set_state'] as Map<String, dynamic>?;
       final scores = match['set_scores'] as Map?;
       if (scores != null) {
@@ -395,10 +436,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           // émis juste après dice_rolled, tuerait l'anim avant révélation).
         }
         if (status == 'set_ended') {
-          // Ne pas couper un reveal en cours : le résultat du set s'affiche
-          // après la révélation (voir _scheduleReveal -> set_result).
+          // Piloté par le STATUT serveur (pas seulement l'event set_result) :
+          // si l'event est perdu, le polling réconcilie quand même l'overlay
+          // et aucune zone ne reste active à tort. En cours de reveal, on
+          // laisse l'animation finir (le reveal affichera l'overlay).
           if (_pendingReveal == null && !_isRolling) {
             _isRolling = false;
+            _showSetIntro = false;
+            if (!_showSetResult) {
+              _showSetResult = true;
+              _backfillSetResult();
+            }
           }
         }
       }
@@ -541,8 +589,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             seq: payload['seq'] as int?,
           );
         } else {
-          if (match != null)
+          if (match != null) {
             _syncFromServer(match, seq: payload['seq'] as int?);
+          }
           _rollRevealTimer?.cancel();
           _pendingReveal = null;
           // Ne lever l'anti-double-tap que si ce n'est pas l'anim d'un autre.
@@ -844,6 +893,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollFallbackTimer?.cancel();
     _rollRevealTimer?.cancel();
     _syncPollTimer?.cancel();
+    _resultScrollController.dispose();
     // Sortie d'interface de fin de partie : le joueur est exclu des
     // revanches (le nombre de participants s'ajuste). Best effort, idempotent.
     if (_showMatchResult || _serverMatch?['status'] == 'match_ended') {
@@ -856,7 +906,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     }
     _introCtrl.dispose();
     _resultCtrl.dispose();
-    _boardGlowCtrl.dispose();
     super.dispose();
   }
 
@@ -889,22 +938,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         }
         // Vérifier une dernière fois si une revanche vient d'être proposée
         // avant de couper (évite de rater une proposition sans WS).
-        try {
-          final repo = ref.read(gameRepositoryProvider);
-          final data = await repo.getMatchStateRest(widget.matchId);
-          if (!mounted) return;
-          final match = data.containsKey('match_id')
-              ? data
-              : data['data'] is Map
-                  ? Map<String, dynamic>.from(data['data'] as Map)
-                  : null;
-          final rm = match?['rematch'];
+        final postMatch = await _fetchMatchState();
+        if (!mounted) return;
+        if (postMatch != null) {
+          final rm = postMatch['rematch'];
           if (rm is Map && rm['status']?.toString() == 'proposed') {
             _postMatchEmptyPolls = 0;
-            _syncFromServer(match!);
+            _syncFromServer(postMatch);
             return;
           }
-        } catch (_) {}
+        }
         _syncPollTimer?.cancel();
         return;
       }
@@ -920,55 +963,47 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           return;
         }
       } catch (_) {}
-      try {
-        final repo = ref.read(gameRepositoryProvider);
-        final data = await repo.getMatchStateRest(widget.matchId);
-        if (!mounted) return;
-        Map<String, dynamic>? match;
-        if (data.containsKey('match_id')) {
-          match = data;
-        } else if (data['data'] is Map) {
-          match = Map<String, dynamic>.from(data['data'] as Map);
-        } else if (data.isNotEmpty) {
-          match = data;
+      // Poll compact : sans l'historique des sets (léger, parse rapide).
+      // Garde anti-régression : un fetch dépassé est jeté (pas de retour
+      // en arrière du tour). L'historique est préservé par fusion.
+      final match = await _fetchMatchState(compact: true);
+      if (!mounted || match == null) return;
+      {
+        final css = match['current_set_state'] as Map<String, dynamic>?;
+        final newIdx = css?['current_turn_index'] as int?;
+        final oldIdx = _serverSetState?['current_turn_index'] as int?;
+        final newStatus = match['status']?.toString();
+        final oldStatus = _serverMatch?['status']?.toString();
+        final newRollsCount =
+            css?['rolls'] is Map ? (css!['rolls'] as Map).length : 0;
+        final oldRollsCount = _serverSetState?['rolls'] is Map
+            ? (_serverSetState!['rolls'] as Map).length
+            : 0;
+        final newTarget = css?['target_value'];
+        final oldTarget = _serverSetState?['target_value'];
+        final newVotesCount =
+            css?['votes'] is Map ? (css!['votes'] as Map).length : 0;
+        final oldVotesCount = _serverSetState?['votes'] is Map
+            ? (_serverSetState!['votes'] as Map).length
+            : 0;
+        final newScores = match['set_scores'].toString();
+        final oldScores = _serverMatch?['set_scores'].toString();
+        final newRematch = match['rematch']?.toString() ?? '';
+        final oldRematch = _serverMatch?['rematch']?.toString() ?? '';
+        final shouldSync = newIdx != oldIdx ||
+            newStatus != oldStatus ||
+            newRollsCount != oldRollsCount ||
+            newTarget != oldTarget ||
+            newVotesCount != oldVotesCount ||
+            newScores != oldScores ||
+            newRematch != oldRematch;
+        // Sans changement : ne rien faire (préserve deadline + timers zones).
+        if (!shouldSync) return;
+        _syncFromServer(match);
+        if (newStatus == 'match_ended' && !_showMatchResult) {
+          setState(() => _showMatchResult = true);
         }
-        if (match != null && match.containsKey('match_id')) {
-          final css = match['current_set_state'] as Map<String, dynamic>?;
-          final newIdx = css?['current_turn_index'] as int?;
-          final oldIdx = _serverSetState?['current_turn_index'] as int?;
-          final newStatus = match['status']?.toString();
-          final oldStatus = _serverMatch?['status']?.toString();
-          final newRollsCount =
-              css?['rolls'] is Map ? (css!['rolls'] as Map).length : 0;
-          final oldRollsCount = _serverSetState?['rolls'] is Map
-              ? (_serverSetState!['rolls'] as Map).length
-              : 0;
-          final newTarget = css?['target_value'];
-          final oldTarget = _serverSetState?['target_value'];
-          final newVotesCount =
-              css?['votes'] is Map ? (css!['votes'] as Map).length : 0;
-          final oldVotesCount = _serverSetState?['votes'] is Map
-              ? (_serverSetState!['votes'] as Map).length
-              : 0;
-          final newScores = match['set_scores'].toString();
-          final oldScores = _serverMatch?['set_scores'].toString();
-          final newRematch = match['rematch']?.toString() ?? '';
-          final oldRematch = _serverMatch?['rematch']?.toString() ?? '';
-          final shouldSync = newIdx != oldIdx ||
-              newStatus != oldStatus ||
-              newRollsCount != oldRollsCount ||
-              newTarget != oldTarget ||
-              newVotesCount != oldVotesCount ||
-              newScores != oldScores ||
-              newRematch != oldRematch;
-          // Sans changement : ne rien faire (préserve deadline + timers zones).
-          if (!shouldSync) return;
-          _syncFromServer(match);
-          if (newStatus == 'match_ended' && !_showMatchResult) {
-            setState(() => _showMatchResult = true);
-          }
-        }
-      } catch (_) {}
+      }
     });
   }
 
@@ -1003,16 +1038,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   /// Recharge l'état serveur via REST (fallback + réconciliation).
   Future<void> _refreshFromServer() async {
     if (!mounted) return;
-    try {
-      final repo = ref.read(gameRepositoryProvider);
-      final data = await repo.getMatchStateRest(widget.matchId);
-      if (!mounted) return;
-      if (data.containsKey('match_id')) {
-        _syncFromServer(data);
-      } else if (data['data'] is Map) {
-        _syncFromServer(Map<String, dynamic>.from(data['data'] as Map));
-      }
-    } catch (_) {}
+    final match = await _fetchMatchState();
+    if (!mounted || match == null) return;
+    _syncFromServer(match);
   }
 
   // === Revanche opt-out : synchronisation lobby ===
@@ -1125,7 +1153,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _openRematchMatch(newId, data);
       } else if (data['data'] is Map) {
         _openRematchMatch(
-            newId, Map<String, dynamic>.from(data['data'] as Map));
+          newId,
+          Map<String, dynamic>.from(data['data'] as Map),
+        );
       }
     } catch (_) {}
   }
@@ -1205,19 +1235,19 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollRevealTimer = Timer(wait, _revealPendingRoll);
   }
 
-  /// Animation commune : dés qui fluctuent (même visuel partout).
+  /// Animation commune : les dés s'animent EUX-MÊMES en interne (Dice3D,
+  /// isolés par RepaintBoundary). Aucun rebuild périodique ici : un seul
+  /// setState à l'allumage/extinction (fluidité 60fps, zéro jank).
   void _startRollFlicker(int diceCount) {
     _rollAnimTimer?.cancel();
-    final random = Random();
-    final count = diceCount.clamp(1, 6);
-    _rollAnimTimer = Timer.periodic(const Duration(milliseconds: 90), (_) {
-      if (!mounted || !_isRolling) {
-        _rollAnimTimer?.cancel();
-        return;
+    // Garde-fou : si aucun reveal n'arrive (event perdu + WS muet), sortir
+    // de l'animation après 3s via réconciliation (le polling/REST suit).
+    _rollAnimTimer = Timer(const Duration(milliseconds: 3000), () {
+      if (!mounted) return;
+      if (_isRolling && _pendingReveal == null) {
+        setState(() => _isRolling = false);
+        _refreshFromServer();
       }
-      setState(() {
-        _currentDice = List.generate(count, (_) => random.nextInt(6) + 1);
-      });
     });
   }
 
@@ -1248,7 +1278,49 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // On ne touche au flag que pour mon propre final : le reveal d'un autre
       // joueur ne doit pas réactiver un envoi que je n'ai pas fait.
       if (isMine) _isSendingRoll = false;
+      // Fin d'animation = fin de set côté serveur ? Afficher le résultat
+      // (données serveur via backfill, jamais de sommes vides).
+      if (_serverMatch?['status']?.toString() == 'set_ended' &&
+          !_showSetResult) {
+        _showSetIntro = false;
+        _showSetResult = true;
+        _backfillSetResult();
+      }
     });
+  }
+
+  /// Garantit une entrée de résultat pour le set courant depuis les données
+  /// SERVEUR (sommes/vainqueur autoritaires). Évite les sommes vides quand
+  /// l'overlay se déclenche avant la fin du reveal local.
+  void _backfillSetResult() {
+    final sets = _matchSets;
+    if (sets.isEmpty) return;
+    final last = sets.last;
+    final setNum = (last['set_number'] as num?)?.toInt() ?? _displaySet;
+    if (_setResults.isNotEmpty && _setResults.last['set_number'] == setNum) {
+      return;
+    }
+    final winnerId = last['winner_id']?.toString();
+    final sums = last['sums'] is Map
+        ? (last['sums'] as Map).map(
+            (k, v) => MapEntry(k.toString(), (v as num).toInt()),
+          )
+        : Map<String, int>.from(_playerSums);
+    _setResults.add({
+      'set_number': setNum,
+      'result': winnerId == null ? 'tie' : 'winner',
+      'winner_id': winnerId,
+      'sums': sums,
+      'dice': last['dice'] is Map
+          ? (last['dice'] as Map).map(
+              (k, v) => MapEntry(
+                k.toString(),
+                v is List ? List<int>.from(v) : <int>[],
+              ),
+            )
+          : <String, List<int>>{},
+    });
+    _resultCtrl.forward(from: 0);
   }
 
   // Source de vérité: serveur si disponible, sinon local
@@ -1283,13 +1355,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     return _eliminated;
   }
 
-  List<Map<String, dynamic>> get _activePlayers {
-    final elim = _displayEliminated;
-    return _displayPlayers
-        .where((p) => !elim.contains(p['id'].toString()))
-        .toList();
-  }
-
   List<String> get _turnOrder {
     final serverOrder = _serverSetState?['turn_order'] as List?;
     if (serverOrder != null && serverOrder.isNotEmpty) {
@@ -1309,34 +1374,36 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   String get _currentPlayerId {
     final order = _turnOrder;
     final idx = _displayTurnIndex;
-    if (order.isEmpty) return '';
-    if (idx >= order.length) return order.isNotEmpty ? order.last : '';
-    final pid = order[idx];
-    final elim = _displayEliminated;
-    if (elim.contains(pid)) {
-      int nxt = idx + 1;
-      while (nxt < order.length && elim.contains(order[nxt])) {
-        nxt++;
-      }
-      if (nxt < order.length) return order[nxt];
-      final active = _activePlayers;
-      return active.isNotEmpty ? active.first['id'].toString() : pid;
-    }
-    return pid;
+    if (order.isEmpty || idx < 0 || idx >= order.length) return '';
+    // Tour EXACT du serveur : aucun skip local. Sauter un éliminé ici
+    // activerait le mauvais joueur (tour affiché ≠ tour réel, tap rejeté).
+    // Le serveur n'assigne le tour qu'à un joueur actif.
+    return order[idx];
   }
 
   String get _currentPlayerName {
     final pid = _currentPlayerId;
+    if (pid.isEmpty) return '…';
     final p = _displayPlayers.firstWhere(
       (e) => e['id'].toString() == pid,
       orElse: () => {'name': 'Joueur'},
     );
-    if (pid == _myId) return 'Moi';
+    if (pid == _myId) return 'Vous';
     return p['name']?.toString() ?? 'Joueur';
   }
 
+  /// Garde-fou serveur : un tour n'est jouable que si le match est en cours
+  /// de set côté serveur. Sans état serveur (démarrage), on laisse le flux
+  /// local (intro) décider. Empêche toute zone active/bouton sur un set clos,
+  /// un match fini ou une phase de vote, même si un event est perdu/retardé.
+  bool get _isServerSetLive =>
+      _serverMatch == null ||
+      _serverMatch?['status']?.toString() == 'set_in_progress';
+
   bool get _isMyTurn =>
+      _isServerSetLive &&
       _currentPlayerId == _myId &&
+      _myId.isNotEmpty &&
       !_displayEliminated.contains(_myId) &&
       !_showSetIntro &&
       !_showSetResult &&
@@ -1895,11 +1962,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   Widget _buildTurnHint() {
-    // AnimatedSwitcher keyed par joueur courant : le changement de tour est
-    // visible/instantané chez TOUS les joueurs (pas de texte figé).
-    final turnKey = _isEliminatedMe
-        ? 'elim'
-        : (_isMyTurn ? 'me' : 'wait_$_currentPlayerId');
+    // AnimatedSwitcher keyed par joueur en attente : le changement de tour
+    // reste visible/instantané chez TOUS les joueurs. Pas de bandeau pour
+    // le tour local : la zone du joueur (bouton dé actif + timer) suffit.
+    final turnKey = _isEliminatedMe ? 'elim' : 'wait_$_currentPlayerId';
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
       switchInCurve: Curves.easeInOut,
@@ -1937,41 +2003,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       );
     }
     if (_isMyTurn) {
-      return AnimatedBuilder(
-        animation: _boardGlowCtrl,
-        builder: (context, child) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: NeonColors.success
-                .withValues(alpha: 0.14 + _boardGlowCtrl.value * 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border:
-                Border.all(color: NeonColors.success.withValues(alpha: 0.45)),
-            boxShadow: [
-              BoxShadow(
-                color: NeonColors.success.withValues(alpha: 0.22),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: child,
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.casino_rounded, size: 16, color: NeonColors.success),
-            SizedBox(width: 6),
-            Text(
-              'À toi — clique sur le dé dans ta zone pour lancer',
-              style: TextStyle(
-                color: NeonColors.success,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      );
+      // Aucun bandeau : la zone du joueur (dé actif + timer) indique le tour.
+      return const SizedBox.shrink();
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -2008,9 +2041,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       orElse: () => {'id': playerId, 'name': 'Joueur'},
     );
     final name = raw['name']?.toString() ?? 'Joueur';
-    final displayName = isMe ? 'Moi' : name;
+    final displayName = isMe ? 'Vous' : name;
     final pid = playerId;
-    final isActive = pid == _currentPlayerId &&
+    final isActive = _isServerSetLive &&
+        pid == _currentPlayerId &&
         !_displayEliminated.contains(pid) &&
         !_showSetIntro &&
         !_showSetResult &&
@@ -2057,7 +2091,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final showTimerForZone = isActive && !_isRolling;
     return PlayerZone(
       key: ValueKey(
-          'pz_${pid}_${isActive ? 'active' : 'idle'}_${isEliminated ? 'out' : 'in'}_t${_displayTurnIndex}_s$_displaySet'),
+        'pz_${pid}_${isActive ? 'active' : 'idle'}_${isEliminated ? 'out' : 'in'}_t${_displayTurnIndex}_s$_displaySet',
+      ),
       data: data,
       isMe: isMyZone,
       compact: !isMe,
@@ -2242,7 +2277,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             Text(
               isTie
                   ? 'SET NUL !'
-                  : '${isMeWinner ? 'Moi' : winnerName} gagne le set !',
+                  : '${isMeWinner ? 'Vous' : winnerName} gagne le set !',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isTie
@@ -2289,7 +2324,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                           child: Center(
                             child: Text(
                               (isMeP
-                                  ? 'M'
+                                  ? 'V'
                                   : p['name'].toString()[0].toUpperCase()),
                               style: TextStyle(
                                 color: isWinner
@@ -2304,7 +2339,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            isMeP ? 'Moi' : p['name'].toString(),
+                            isMeP ? 'Vous' : p['name'].toString(),
                             style: const TextStyle(
                               color: NeonColors.textPrimary,
                               fontSize: 13,
@@ -2375,7 +2410,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             ),
             const SizedBox(height: 14),
             Text(
-              'Score: ${_displayPlayers.map((p) => '${p['id'].toString() == _myId ? 'Moi' : p['name']}: ${_displayWins[p['id'].toString()] ?? 0}').join('  •  ')}',
+              'Score: ${_displayPlayers.map((p) => '${p['id'].toString() == _myId ? 'Vous' : p['name']}: ${_displayWins[p['id'].toString()] ?? 0}').join('  •  ')}',
               style: const TextStyle(
                 color: NeonColors.textSecondary,
                 fontSize: 12,
@@ -2411,7 +2446,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             if (_displayEliminated.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
-                'Éliminés: ${_displayEliminated.map((id) => id == _myId ? 'Moi' : _findPlayerName(id) ?? id).join(', ')}',
+                'Éliminés: ${_displayEliminated.map((id) => id == _myId ? 'Vous' : _findPlayerName(id) ?? id).join(', ')}',
                 style: const TextStyle(
                   color: NeonColors.error,
                   fontSize: 11,
@@ -2465,9 +2500,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                   )
                 : <String, int>{},
             'dice': (r['dice'] is Map)
-                ? (r['dice'] as Map).map((k, v) => MapEntry(
-                    k.toString(),
-                    v is List ? List<int>.from(v) : <int>[]))
+                ? (r['dice'] as Map).map(
+                    (k, v) => MapEntry(
+                      k.toString(),
+                      v is List ? List<int>.from(v) : <int>[],
+                    ),
+                  )
                 : <String, List<int>>{},
           },
         )
@@ -2524,7 +2562,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final isTie = winnerId == null;
     final winnerName = isTie
         ? 'Match nul'
-        : (isMeWinner ? 'Moi' : _findPlayerName(winnerId) ?? 'Joueur');
+        : (isMeWinner ? 'Vous' : _findPlayerName(winnerId) ?? 'Joueur');
     final outcomeColor = isMeWinner
         ? NeonColors.success
         : (isTie ? NeonColors.warning : NeonColors.error);
@@ -2535,152 +2573,189 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             : Icons.sentiment_dissatisfied_rounded);
     final forfeitDecided = _displayEliminated.isNotEmpty;
 
+    // Contraintes déduites de l'espace DISPONIBLE (LayoutBuilder), jamais du
+    // plein écran : 88% de la hauteur totale dépassait la zone utile
+    // (AppBar + en-tête), surtout sur desktop aux fenêtres peu hautes, et
+    // coupait le bas de la fenêtre (boutons Revanche/Quitter) sans recours.
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.62),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 430,
-              maxHeight: MediaQuery.of(context).size.height * 0.88,
-            ),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: NeonColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: outcomeColor.withValues(alpha: 0.45),
-                  width: 1.5,
+        color: NeonColors.surface.withValues(alpha: 0.82),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availW = constraints.maxWidth;
+            final availH = constraints.maxHeight;
+            // En-tête compact si étroit (>300px inclus) ou peu haut :
+            // chaque pixel gagné laisse la place aux manches et gains.
+            final trophy = MatchResultLayout.trophySize(
+              availWidth: availW,
+              availHeight: availH,
+            );
+            final titleSize = MatchResultLayout.titleFontSize(availW);
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MatchResultLayout.dialogMaxWidth(availW),
+                  maxHeight: MatchResultLayout.dialogMaxHeight(availH),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: outcomeColor.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    spreadRadius: 1,
+                child: Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: NeonColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: outcomeColor.withValues(alpha: 0.45),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: outcomeColor.withValues(alpha: 0.22),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // En-tête compact : trophée + titre + sous-titre + fermer
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: outcomeColor.withValues(alpha: 0.14),
-                            border: Border.all(color: outcomeColor, width: 1.5),
-                          ),
-                          child: Icon(
-                            outcomeIcon,
-                            size: 26,
-                            color: outcomeColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
+                  // Barre de défilement visible sur desktop : le contenu
+                  // (manches, score, gains, revanche) dépasse souvent la
+                  // hauteur utile, et le défilement molette est indécouvrable
+                  // sans pouce visible. Même contrôleur exigé des deux côtés.
+                  child: Scrollbar(
+                    controller: _resultScrollController,
+                    thumbVisibility: MatchResultLayout.showScrollbar(
+                      isWeb: kIsWeb,
+                      platform: defaultTargetPlatform,
+                      width: availW,
+                    ),
+                    thickness: 8,
+                    radius: const Radius.circular(8),
+                    child: SingleChildScrollView(
+                      controller: _resultScrollController,
+                      padding: MatchResultLayout.dialogPadding(
+                        availWidth: availW,
+                        availHeight: availH,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // En-tête compact : trophée + titre + sous-titre + fermer
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                isMeWinner
-                                    ? 'VICTOIRE !'
-                                    : (isTie ? 'MATCH NUL' : 'DÉFAITE'),
-                                style: TextStyle(
+                              Container(
+                                width: trophy,
+                                height: trophy,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: outcomeColor.withValues(alpha: 0.14),
+                                  border: Border.all(
+                                      color: outcomeColor, width: 1.5),
+                                ),
+                                child: Icon(
+                                  outcomeIcon,
+                                  size: trophy / 2,
                                   color: outcomeColor,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.8,
-                                  fontFamily: 'Orbitron',
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                forfeitDecided
-                                    ? (isMeWinner
-                                        ? 'Adversaire forfait — tu gagnes !'
-                                        : (_isEliminatedMe
-                                            ? 'Forfait — temps écoulé'
-                                            : '$winnerName gagne par forfait'))
-                                    : (isTie
-                                        ? 'Égalité parfaite'
-                                        : '$winnerName gagne !'),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: NeonColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isMeWinner
+                                          ? 'VICTOIRE !'
+                                          : (isTie ? 'MATCH NUL' : 'DÉFAITE'),
+                                      style: TextStyle(
+                                        color: outcomeColor,
+                                        fontSize: titleSize,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.8,
+                                        fontFamily: 'Orbitron',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      forfeitDecided
+                                          ? (isMeWinner
+                                              ? 'Adversaire forfait — tu gagnes !'
+                                              : (_isEliminatedMe
+                                                  ? 'Forfait — temps écoulé'
+                                                  : '$winnerName gagne par forfait'))
+                                          : (isTie
+                                              ? 'Égalité parfaite'
+                                              : '$winnerName gagne !'),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: NeonColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              // Fermer : masque la fenêtre SANS quitter la partie
+                              // (le joueur reste compté pour les revanches).
+                              IconButton(
+                                tooltip: 'Fermer',
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  size: 20,
+                                  color: NeonColors.textSecondary,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _resultModalOpen = false),
                               ),
                             ],
                           ),
-                        ),
-                        // Fermer : masque la fenêtre SANS quitter la partie
-                        // (le joueur reste compté pour les revanches).
-                        IconButton(
-                          tooltip: 'Fermer',
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
+                          const SizedBox(height: 12),
+                          _resultSectionLabel('Manches'),
+                          const SizedBox(height: 6),
+                          ..._matchSets.map(_buildSetRow),
+                          const SizedBox(height: 10),
+                          _resultSectionLabel('Score global'),
+                          const SizedBox(height: 6),
+                          _buildGlobalScoreRow(),
+                          if (_displayBet > 0) ...[
+                            const SizedBox(height: 10),
+                            _resultSectionLabel('Gains'),
+                            const SizedBox(height: 6),
+                            _buildNetPayoutCard(
+                              winnerId: winnerId,
+                              isMeWinner: isMeWinner,
+                              isTie: isTie,
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          _buildRematchZone(),
+                          const SizedBox(height: 4),
+                          TextButton.icon(
+                            onPressed: _rematchBusy ? null : _sendFriendRequest,
+                            icon:
+                                const Icon(Icons.person_add_outlined, size: 16),
+                            label: const Text(
+                              'Ajouter comme ami',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: NeonColors.textSecondary,
+                            ),
                           ),
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 20,
-                            color: NeonColors.textSecondary,
-                          ),
-                          onPressed: () =>
-                              setState(() => _resultModalOpen = false),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _resultSectionLabel('Manches'),
-                    const SizedBox(height: 6),
-                    ..._matchSets.map(_buildSetRow),
-                    const SizedBox(height: 10),
-                    _resultSectionLabel('Score global'),
-                    const SizedBox(height: 6),
-                    _buildGlobalScoreRow(),
-                    if (_displayBet > 0) ...[
-                      const SizedBox(height: 10),
-                      _resultSectionLabel('Gains'),
-                      const SizedBox(height: 6),
-                      _buildNetPayoutCard(
-                        winnerId: winnerId,
-                        isMeWinner: isMeWinner,
-                        isTie: isTie,
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    _buildRematchZone(),
-                    const SizedBox(height: 4),
-                    TextButton.icon(
-                      onPressed:
-                          _rematchBusy ? null : _sendFriendRequest,
-                      icon: const Icon(Icons.person_add_outlined, size: 16),
-                      label: const Text(
-                        'Ajouter comme ami',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: NeonColors.textSecondary,
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -2697,6 +2772,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       ),
     );
   }
+
   /// Ligne manche compacte : `S1` + lancers de chaque joueur
   /// (mini-dés + somme) + résultat. Toujours visible par tous.
   Widget _buildSetRow(Map<String, dynamic> set) {
@@ -2723,8 +2799,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: NeonColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
@@ -2757,7 +2832,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               final pid = p['id'].toString();
               final isWinner = pid == winner;
               final label =
-                  pid == _myId ? 'Moi' : (p['name']?.toString() ?? 'J');
+                  pid == _myId ? 'Vous' : (p['name']?.toString() ?? 'J');
               final sum = sums[pid]?.toString() ?? '–';
               final dice = diceByPlayer[pid] is List
                   ? List<int>.from(diceByPlayer[pid] as List)
@@ -2772,8 +2847,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                           ? NeonColors.success
                           : NeonColors.textSecondary,
                       fontSize: 11,
-                      fontWeight:
-                          isWinner ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: isWinner ? FontWeight.w800 : FontWeight.w600,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -2815,7 +2889,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final parts = _displayPlayers
         .map(
           (p) =>
-              '${p['id'].toString() == _myId ? 'Moi' : p['name']}: ${_displayWins[p['id'].toString()] ?? 0}',
+              '${p['id'].toString() == _myId ? 'Vous' : p['name']}: ${_displayWins[p['id'].toString()] ?? 0}',
         )
         .join('  —  ');
     return Container(
@@ -2961,6 +3035,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     if (raw is num) return raw.toInt();
     return _lobbyIds('accepted').length;
   }
+
   /// Zone revanche : un seul tap propose (sans confirmation),
   /// puis lobby (invitation / attente / démarrage auto).
   Widget _buildRematchZone() {
@@ -3144,8 +3219,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (notice != null && notice.isNotEmpty) ...[
           const SizedBox(height: 8),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               color: NeonColors.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
@@ -3166,7 +3240,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         ],
         const SizedBox(height: 8),
         ...invited.map((pid) {
-          final name = pid == _myId ? 'Moi' : _findPlayerName(pid) ?? 'Joueur';
+          final name = pid == _myId ? 'Vous' : _findPlayerName(pid) ?? 'Joueur';
           final isProposerRow = pid == proposer;
           final stateIcon = accepted.contains(pid)
               ? const Icon(
@@ -3371,7 +3445,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           : <String>[];
       if (excluded.isNotEmpty) {
         final names = excluded
-            .map((id) => id == _myId ? 'Moi' : _findPlayerName(id) ?? id)
+            .map((id) => id == _myId ? 'Vous' : _findPlayerName(id) ?? id)
             .join(', ');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3457,7 +3531,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final isConflict = e.isConflict;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isConflict ? e.userMessage : 'Erreur lors de l\'envoi'),
+            content:
+                Text(isConflict ? e.userMessage : 'Erreur lors de l\'envoi'),
             backgroundColor: isConflict ? NeonColors.warning : NeonColors.error,
           ),
         );
@@ -3716,11 +3791,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         ),
       );
       if (userMsg.contains('réseau')) {
-        try {
-          final repo = ref.read(gameRepositoryProvider);
-          final state = await repo.getMatchStateRest(widget.matchId);
-          if (state.isNotEmpty && mounted) _syncFromServer(state);
-        } catch (_) {}
+        final state = await _fetchMatchState();
+        if (state != null && mounted) _syncFromServer(state);
       }
     }
   }
@@ -3833,10 +3905,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   String? _findPlayerName(String? playerId) {
     if (playerId == null) return null;
-    if (playerId == _myId) return 'Moi';
+    if (playerId == _myId) return 'Vous';
     // Source serveur d'abord (synchrone pour tous), fallback widget.
-    final p = _displayPlayers.firstWhere((e) => e['id'].toString() == playerId,
-        orElse: () => {});
+    final p = _displayPlayers.firstWhere(
+      (e) => e['id'].toString() == playerId,
+      orElse: () => {},
+    );
     return p.isNotEmpty ? p['name']?.toString() : 'Joueur';
   }
 

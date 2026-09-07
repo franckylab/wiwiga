@@ -34,12 +34,9 @@ defmodule GameHubWeb.GameChannel do
   """
   @impl true
   def join("game:" <> game_id, _params, socket) do
-    # S'abonner aux broadcasts PubSub du match (GameMatch)
-    try do
-      Phoenix.PubSub.subscribe(GameHub.PubSub, "game:#{game_id}")
-    rescue
-      _ -> :ok
-    end
+    # PAS de subscribe manuel ici : Phoenix souscrit déjà le channel à son
+    # propre topic (fastlane). Un doublon livrerait chaque event 2×.
+    # Les broadcasts GameMatch (maps) arrivent via handle_info/2.
 
     user_id = get_user_id(socket)
     
@@ -53,19 +50,25 @@ defmodule GameHubWeb.GameChannel do
       # Si c'est un match GameMatch, pousser l'état actuel pour synchro
       if String.contains?(game_id, "match") do
         case GameHub.GameMatch.get_match(game_id) do
-          {:ok, match} -> 
+          {:ok, match} ->
             send(self(), {:push_match_state, match})
           _ -> :ok
         end
+        # Retour confirmé (re-join après drop) : annuler une sortie en grâce
+        try do
+          GameHub.GameMatch.player_back(to_string(game_id), to_string(user_id))
+        rescue
+          _ -> :ok
+        end
       end
-      
+
       {:ok, socket}
     else
       # Dev mode: accepter sans auth
       dev_id = "dev_#{System.unique_integer([:positive])}"
       socket = assign(socket, :user_id, dev_id)
       socket = assign(socket, :game_id, game_id)
-      
+
       send(self(), {:after_join, dev_id})
 
       if String.contains?(game_id, "match") do
@@ -73,8 +76,13 @@ defmodule GameHubWeb.GameChannel do
           {:ok, match} -> send(self(), {:push_match_state, match})
           _ -> :ok
         end
+        try do
+          GameHub.GameMatch.player_back(to_string(game_id), to_string(dev_id))
+        rescue
+          _ -> :ok
+        end
       end
-      
+
       {:ok, socket}
     end
   end
@@ -353,6 +361,16 @@ defmodule GameHubWeb.GameChannel do
   @impl true
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  # Phoenix route les %Broadcast{} (dont nos propres broadcast!) vers
+  # handle_out/3 — sans elle, le channel CRASH au premier broadcast et le
+  # client ne reçoit plus rien (oblige à actualiser). On relaie tel quel.
+  @impl true
+  def handle_out(event, payload, socket) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+
   defp sanitize_match(match) do
     css = Map.get(match, :current_set_state)
     sanitized_css = case css do
@@ -379,7 +397,7 @@ defmodule GameHubWeb.GameChannel do
         Map.put(base, :turn_remaining_seconds, remaining)
       other -> other
     end
-    timeout_ms = try do GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000 rescue _ -> 30000 end
+    timeout_ms = Map.get(match, :turn_timeout_ms) || try do GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000 rescue _ -> 30000 end
     {last_roller_id, last_roll} = latest_roll(match)
     %{
       match_id: match.match_id,
@@ -469,11 +487,12 @@ defmodule GameHubWeb.GameChannel do
     game_id = socket.assigns[:game_id]
 
     if user_id && game_id do
-      # Fin de partie : quitter l'interface = exclu des revanches (best effort).
-      # leave_match est sans effet avant la fin du match (connexions instables).
+      # Disparition transport SANS action de quitter : délai de grâce côté
+      # GameMatch (20s). Seule la fermeture explicite (leave_match) sort
+      # immédiatement. Sans effet avant la fin du match.
       if String.contains?(to_string(game_id), "match") do
         try do
-          GameHub.GameMatch.leave_match(to_string(game_id), to_string(user_id))
+          GameHub.GameMatch.player_gone(to_string(game_id), to_string(user_id))
         rescue
           _ -> :ok
         end

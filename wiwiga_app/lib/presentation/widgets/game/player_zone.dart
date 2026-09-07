@@ -16,7 +16,7 @@ import 'turn_timer.dart';
 class PlayerZoneData {
   final String id;
   final String name;
-  final String displayName; // "Moi" pour self
+  final String displayName; // "Vous" pour self
   final int score; // sets gagnés — toujours visible par tous
   final int level; // niveau joueur (greffé sur l'avatar)
   final int xpProgress; // 0-100 (non affiché : version compacte)

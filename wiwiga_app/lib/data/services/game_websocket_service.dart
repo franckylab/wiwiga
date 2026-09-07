@@ -47,12 +47,18 @@ class GameWebSocketService extends ChangeNotifier {
   final Set<String> _pendingGameJoins = {};
   final Set<String> _pendingUserChannels = {};
   final Set<String> _pendingPresenceChannels = {};
-  // Protocole Phoenix V2 : ref + join_ref monotones (évite joins rejetés)
+  // Protocole Phoenix V2 : ref monotone + join_ref stable par topic.
   int _refCounter = 0;
-  int _joinRefCounter = 0;
   final Map<String, String> _joinRefs = {};
   // Dernier ref envoyé par topic/event pour corréler les phx_reply d'erreur
   final Map<String, String> _lastRefByTopicEvent = {};
+  // Heartbeat V2 (garde la connexion en vie derrière proxies/inactivité)
+  Timer? _heartbeatTimer;
+  static const Duration _heartbeatInterval = Duration(seconds: 25);
+  // Joins en attente de phx_reply (ref -> topic) : rejoue le join si refusé
+  final Map<String, String> _pendingJoinRefs = {};
+  final Map<String, int> _joinRetries = {};
+  static const int _maxJoinRetries = 2;
 
   // Callbacks
   void Function(Map<String, dynamic>)? onGameMatched;
@@ -137,16 +143,22 @@ class GameWebSocketService extends ChangeNotifier {
     _setConnectionStatus(GameConnectionStatus.connecting);
 
     try {
+      // Phoenix V2 OBLIGATOIRE (vsn=2.0.0) : sans lui le serveur négocie en
+      // V1 (frames tableau) et ignore nos frames map → joins jamais aboutis,
+      // zéro event temps réel (tout tombait en fallback REST/polling).
       final wsUrl = '${AppConfig.websocketUrl}/socket/websocket';
-      final uri = _authToken != null
-          ? Uri.parse('$wsUrl?token=$_authToken')
-          : Uri.parse(wsUrl);
+      final query = {
+        'vsn': '2.0.0',
+        if (_authToken != null) 'token': _authToken!,
+      };
+      final uri = Uri.parse(wsUrl).replace(queryParameters: query);
 
       _channel = WebSocketChannel.connect(uri);
       await _channel!.ready;
 
       _setConnectionStatus(GameConnectionStatus.connected);
       _reconnectAttempts = 0;
+      _startHeartbeat();
 
       _channel!.stream.listen(
         _handleMessage,
@@ -195,6 +207,7 @@ class GameWebSocketService extends ChangeNotifier {
   /// Déconnecte proprement
   void disconnect() {
     _reconnectTimer?.cancel();
+    _stopHeartbeat();
     _channel?.sink.close(status.normalClosure);
     _channel = null;
     _currentGameId = null;
@@ -664,7 +677,8 @@ class GameWebSocketService extends ChangeNotifier {
 
   void leavePresenceChannel(String topic) {
     if (isConnected) {
-      _sendToChannel(topic: topic, event: WebSocketEvents.phxLeave, payload: {});
+      _sendToChannel(
+          topic: topic, event: WebSocketEvents.phxLeave, payload: {});
     }
     _pendingPresenceChannels.remove(topic);
   }
@@ -678,39 +692,60 @@ class GameWebSocketService extends ChangeNotifier {
   }) {
     if (_channel == null) return;
 
-    // Protocole Phoenix V2 : join_ref stable par topic, ref monotone par message.
-    // Sans join_ref le serveur peut ignorer le join → aucun event temps réel.
+    // Protocole Phoenix V2 (ce serveur) : frames TABLEAU
+    // [join_ref, ref, topic, event, payload] dans les DEUX sens.
+    // Les frames map font crasher le décodeur serveur (1011) : aucun event
+    // temps réel n'est jamais arrivé, tout tombait en polling/refresh.
+    // join_ref stable par topic (== ref du join, comme phoenix.js).
     final isJoin = event == WebSocketEvents.phxJoin;
-    if (isJoin) {
-      _joinRefCounter++;
-      _joinRefs[topic] = '$_joinRefCounter';
-    }
     _refCounter++;
     final ref = '$_refCounter';
-    final joinRef = _joinRefs[topic];
+    late final String joinRef;
+    if (isJoin) {
+      joinRef = ref;
+      _joinRefs[topic] = joinRef;
+    } else {
+      joinRef = _joinRefs[topic] ?? ref;
+    }
     _lastRefByTopicEvent['$topic:$event'] = ref;
+    if (isJoin) {
+      // Suivi du join pour corréler le phx_reply (ok → rejoint, error → retry)
+      _pendingJoinRefs[ref] = topic;
+    } else if (event == WebSocketEvents.phxLeave) {
+      _joinRefs.remove(topic);
+      _joinRetries.remove(topic);
+      _pendingJoinRefs.removeWhere((_, t) => t == topic);
+    }
 
-    final message = jsonEncode({
-      'topic': topic,
-      'event': event,
-      'payload': payload ?? {},
-      'ref': ref,
-      if (joinRef != null) 'join_ref': joinRef,
-    });
+    final message = jsonEncode([joinRef, ref, topic, event, payload ?? {}]);
 
-    _channel!.sink.add(message);
+    // Sur web, sink.add LÈVE si le socket est en CLOSING/CLOSED (ex : chute
+    // réseau entre le check et l'envoi). Ne jamais laisser fuiter : bascule
+    // propre en reconnect au lieu de spam d'exceptions.
+    try {
+      _channel!.sink.add(message);
+    } catch (e) {
+      debugPrint('✗ Game WS send raté ($topic:$event): $e');
+      _handleDisconnect();
+      return;
+    }
     debugPrint('→ Game WS: $topic:$event');
   }
 
   void _handleMessage(dynamic data) {
     try {
       final decoded = jsonDecode(data as String);
-      // Supporte Phoenix V2 (map) ET V1 (array [join_ref, ref, topic, event, payload])
+      // Ce serveur (Phoenix V2 array) envoie des TABLEAUX
+      // [join_ref, ref, topic, event, payload] ; on garde le parsing map
+      // en repli défensif.
       String? event;
       Map<String, dynamic> payload = {};
       String? topic;
+      String? ref;
 
       if (decoded is List && decoded.length >= 5) {
+        // V1 : [join_ref, ref, topic, event, payload]
+        ref = decoded[1]?.toString();
         topic = decoded[2]?.toString();
         event = decoded[3]?.toString();
         final rawPayload = decoded[4];
@@ -721,6 +756,7 @@ class GameWebSocketService extends ChangeNotifier {
         final msg = decoded;
         event = msg['event'] as String?;
         topic = msg['topic'] as String?;
+        ref = msg['ref']?.toString();
         final rawPayload = msg['payload'];
         if (rawPayload is Map) {
           payload = Map<String, dynamic>.from(rawPayload);
@@ -729,6 +765,7 @@ class GameWebSocketService extends ChangeNotifier {
         final msg = Map<String, dynamic>.from(decoded);
         event = msg['event']?.toString();
         topic = msg['topic']?.toString();
+        ref = msg['ref']?.toString();
         final rawPayload = msg['payload'];
         if (rawPayload is Map) {
           payload = Map<String, dynamic>.from(rawPayload);
@@ -747,7 +784,18 @@ class GameWebSocketService extends ChangeNotifier {
       // Dispatch events
       switch (event) {
         case 'phx_reply':
-          _handleReply(payload);
+          _handleReply(payload, topic, ref);
+          break;
+        case 'heartbeat':
+          // Réponse éventuelle au heartbeat : rien à faire
+          break;
+        case 'phx_close':
+          // Topic fermé côté serveur : rejoue le join si on le veut toujours
+          _handleRemoteClose(topic);
+          break;
+        case 'phx_error':
+          // Erreur channel : rejoue le join (une fois, backoff via retry)
+          _handleRemoteClose(topic);
           break;
         case WebSocketEvents.gameMatched:
           _currentGameId = payload['game_id'] as String?;
@@ -905,19 +953,48 @@ class GameWebSocketService extends ChangeNotifier {
     }
   }
 
-  void _handleReply(Map<String, dynamic> payload) {
+  void _handleReply(
+    Map<String, dynamic> payload,
+    String? topic,
+    String? ref,
+  ) {
     // Phoenix phx_reply : {status: ok|error, response: {...}}
+    // Le ref (top-level) égale celui du message d'origine : on retrouve le
+    // topic du join en attente (nettoyé à chaque réponse).
     final status = payload['status']?.toString();
     final response = payload['response'];
+    final joinedTopic =
+        (ref != null ? _pendingJoinRefs.remove(ref) : null) ?? topic;
     if (status == 'error') {
       final err = response is Map
           ? Map<String, dynamic>.from(response)
           : {'reason': response?.toString() ?? 'unknown'};
       debugPrint('✗ Game WS reply error: $err');
+      // Join refusé (topic inconnu, match fini…) : réessaie une fois, puis
+      // bascule en REST plutôt que de rester sourd silencieusement.
+      if (joinedTopic != null && joinedTopic.isNotEmpty) {
+        final retries = (_joinRetries[joinedTopic] ?? 0) + 1;
+        _joinRetries[joinedTopic] = retries;
+        if (retries <= _maxJoinRetries && isConnected) {
+          debugPrint('↻ Game WS: retry join $joinedTopic ($retries)');
+          Future.delayed(const Duration(seconds: 1), () {
+            if (isConnected) {
+              _sendToChannel(
+                topic: joinedTopic,
+                event: WebSocketEvents.phxJoin,
+                payload: {},
+              );
+            }
+          });
+          return;
+        }
+      }
       onChannelError?.call(err);
       notifyListeners();
       return;
     }
+    // Join accepté : plus besoin de retry pour ce topic
+    if (joinedTopic != null) _joinRetries.remove(joinedTopic);
     if (response is Map) {
       final respMap = Map<String, dynamic>.from(response);
       _gameState = {...?_gameState, ...respMap};
@@ -925,14 +1002,67 @@ class GameWebSocketService extends ChangeNotifier {
     }
   }
 
+  /// Rejoue le join d'un topic fermé/erreur côté serveur s'il est toujours
+  /// désiré (rejoint explicitement et jamais quitté).
+  void _handleRemoteClose(String? topic) {
+    if (topic == null || topic.isEmpty || !isConnected) return;
+    final wanted = _pendingGameJoins
+            .any((gid) => '${WebSocketChannels.gamePrefix}$gid' == topic) ||
+        _pendingUserChannels.any(
+            (uid) => 'user:$uid' == topic || 'user:$uid:wallet' == topic) ||
+        _pendingPresenceChannels.contains(topic) ||
+        topic == WebSocketChannels.matchmaking ||
+        topic == WebSocketChannels.friendNotif ||
+        topic.startsWith('matchmaking:') ||
+        topic.startsWith('qm:lobby:') ||
+        topic.startsWith(WebSocketChannels.roomPrefix);
+    if (!wanted) return;
+    debugPrint('↻ Game WS: rejoin après fermeture $topic');
+    _sendToChannel(topic: topic, event: WebSocketEvents.phxJoin, payload: {});
+  }
+
+  /// Heartbeat V2 périodique : garde la connexion en vie (proxies qui
+  /// coupent les sockets inactives = cause classique du « faut actualiser »).
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
+      if (!isConnected || _channel == null) return;
+      _refCounter++;
+      // Heartbeat V2 : join_ref null, comme phoenix.js
+      try {
+        _channel!.sink.add(
+          jsonEncode([
+            null,
+            '$_refCounter',
+            'phoenix',
+            'heartbeat',
+            <String, dynamic>{},
+          ]),
+        );
+      } catch (e) {
+        debugPrint('✗ Game WS heartbeat raté: $e');
+        _handleDisconnect();
+      }
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
   void _handleError(error) {
+    if (_connectionStatus == GameConnectionStatus.disconnected) return;
     debugPrint('✗ Game WS error: $error');
+    _stopHeartbeat();
     _setConnectionStatus(GameConnectionStatus.fallbackRest);
     _scheduleReconnect();
   }
 
   void _handleDisconnect() {
+    if (_connectionStatus == GameConnectionStatus.disconnected) return;
     debugPrint('⚠ Game WS disconnected');
+    _stopHeartbeat();
     _setConnectionStatus(GameConnectionStatus.fallbackRest);
     _scheduleReconnect();
   }

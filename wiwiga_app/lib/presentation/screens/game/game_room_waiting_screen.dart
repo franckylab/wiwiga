@@ -832,7 +832,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
                           children: [
                             Flexible(
                               child: Text(
-                                isMe ? 'Moi' : player.name,
+                                isMe ? 'Vous' : player.name,
                                 style: TextStyle(
                                   color: isMe
                                       ? NeonColors.primary
@@ -905,7 +905,7 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
                           ),
                         if (isMe)
                           const Text(
-                            'Toi',
+                            'Vous',
                             style: TextStyle(
                               color: NeonColors.textSecondary,
                               fontSize: 11,

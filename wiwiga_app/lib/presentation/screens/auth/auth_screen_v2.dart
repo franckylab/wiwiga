@@ -689,9 +689,15 @@ class _AuthScreenV2State extends ConsumerState<AuthScreenV2>
         'password': 'Wiwiga@Test2026!',
       },
       {
-        'label': 'Joueur',
-        'phone': '+237666666666',
+        'label': 'Joueur Pro',
+        'phone': '+237655555555',
         'email': 'joueur1@wiwiga.com',
+        'password': 'Wiwiga@Joueur2026!',
+      },
+      {
+        'label': 'Gamer Dude',
+        'phone': '+237644444444',
+        'email': 'joueur2@wiwiga.com',
         'password': 'Wiwiga@Joueur2026!',
       },
     ];

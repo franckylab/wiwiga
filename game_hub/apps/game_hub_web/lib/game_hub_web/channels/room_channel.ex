@@ -39,11 +39,8 @@ defmodule GameHubWeb.RoomChannel do
   def join("room:" <> room_id, _params, socket) do
     case GameRoom.get_room(room_id) do
       {:ok, _room} ->
-        try do
-          Phoenix.PubSub.subscribe(GameHub.PubSub, "room:#{room_id}")
-        rescue
-          _ -> :ok
-        end
+        # PAS de subscribe manuel : le framework couvre déjà le topic propre
+        # (un doublon livrerait chaque event 2×).
         socket = assign(socket, :room_id, room_id)
         send(self(), :after_join)
         {:ok, socket}
@@ -162,5 +159,14 @@ defmodule GameHubWeb.RoomChannel do
 
   defp generate_temp_id do
     "temp_#{System.unique_integer([:positive])}"
+  end
+
+  # Phoenix route les %Broadcast{} (dont nos propres broadcast!) vers
+  # handle_out/3 — sans elle, le channel CRASH au premier broadcast et le
+  # client ne reçoit plus rien (oblige à actualiser). On relaie tel quel.
+  @impl true
+  def handle_out(event, payload, socket) do
+    push(socket, event, payload)
+    {:noreply, socket}
   end
 end

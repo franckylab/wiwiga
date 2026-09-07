@@ -223,11 +223,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   }
 
   Widget _buildHero(GameModel game) {
-    // Temps réel : per-game online via Presence (fallback sur la valeur REST initiale)
     final realtimeOnline = ref.watch(perGameOnlineProvider(widget.gameType));
     final displayOnline = realtimeOnline > 0 ? realtimeOnline : game.playersOnline;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: const BoxDecoration(
         color: NeonColors.background,
         border: Border(bottom: BorderSide(color: NeonColors.border)),
@@ -235,67 +234,50 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: NeonColors.primary),
-            tooltip: 'Retour au catalogue',
+            icon: const Icon(Icons.arrow_back, color: NeonColors.primary, size: 20),
+            tooltip: 'Retour',
             onPressed: () => context.go('/games'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
+          const SizedBox(width: 6),
           Container(
-            width: 64,
-            height: 64,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: NeonGradients.cta,
               boxShadow: [
                 BoxShadow(
-                  color: NeonColors.primary
-                      .withValues(alpha: NeonGlow.opacityMedium),
+                  color: NeonColors.primary.withValues(alpha: NeonGlow.opacityMedium),
                   blurRadius: NeonGlow.blurSmall,
                 ),
               ],
             ),
             child: game.type == 'dice'
-                ? const Center(
-                    child: WiwigaDiceIcon(size: 42, withShadow: false))
-                : const Icon(
-                    Icons.casino_outlined,
-                    size: 34,
-                    color: NeonColors.background,
-                  ),
+                ? const Center(child: WiwigaDiceIcon(size: 30, withShadow: false))
+                : const Icon(Icons.casino_outlined, size: 24, color: NeonColors.background),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   game.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontFamily: 'Orbitron',
-                    fontSize: 22,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: NeonColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    GlowBadge(
-                      text: '$displayOnline en ligne',
-                      color: NeonColors.success,
-                    ),
-                    GlowBadge(
-                      text:
-                          'Mise ${_tokenFormat.format(game.minBet.toInt())} - ${_tokenFormat.format(game.maxBet.toInt())} wiga',
-                      color: NeonColors.secondary,
-                    ),
-                    GlowBadge(
-                      text:
-                          'Commission ${(game.houseEdge * 100).toStringAsFixed(0)}%',
-                      color: NeonColors.info,
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                GlowBadge(
+                  text: '$displayOnline en ligne',
+                  color: NeonColors.success,
                 ),
               ],
             ),

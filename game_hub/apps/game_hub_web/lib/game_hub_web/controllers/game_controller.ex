@@ -231,8 +231,11 @@ defmodule GameHubWeb.GameController do
   @doc """
   GET /api/games/:game_id/state
   """
-  def game_state(conn, %{"game_id" => game_id}) do
+  def game_state(conn, %{"game_id" => game_id} = params) do
     game_key = "game:#{game_id}"
+    # Mode compact (?compact=1) : sans l'historique des sets — pour le polling
+    # haute fréquence (payloads légers, parse rapide côté client).
+    compact? = Map.get(params, "compact") in [true, "1", "true", 1]
     
     case Redix.command(GameHub.Redis, ["HGETALL", game_key]) do
       {:ok, []} ->
@@ -260,9 +263,10 @@ defmodule GameHubWeb.GameController do
             case GameMatch.get_match(game_id) do
               {:ok, match} ->
                 # Retour complet pour reload page (tout le state, pas juste résumé)
+                # Compact pour le polling : historique sets omis (allège ~60%).
                 conn |> put_status(200) |> json(%{
                   success: true,
-                  data: sanitize_debug_match(match),
+                  data: sanitize_debug_match(match, compact?),
                   meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
                 })
               _ ->
@@ -617,7 +621,8 @@ defmodule GameHubWeb.GameController do
   end
 
   # Debug: inspect match (pour test tours) — sanitize pour JSON
-  defp sanitize_debug_match(match) do
+  # compact? : omet l'historique des sets (polling haute fréquence).
+  defp sanitize_debug_match(match, compact? \\ false) do
     css = Map.get(match, :current_set_state)
     sanitized_css = case css do
       nil -> nil
@@ -643,7 +648,11 @@ defmodule GameHubWeb.GameController do
       other -> other
     end
     {last_roller_id, last_roll} = latest_roll(match)
-    sets = try do Enum.map(Map.get(match, :sets, []), &sanitize_set/1) rescue _ -> [] end
+    sets = if compact? do
+      []
+    else
+      try do Enum.map(Map.get(match, :sets, []), &sanitize_set/1) rescue _ -> [] end
+    end
     %{
       match_id: match.match_id,
       status: to_string(match.status),
@@ -665,7 +674,7 @@ defmodule GameHubWeb.GameController do
       left_players: (Map.get(match, :left_players, MapSet.new()) || MapSet.new()) |> MapSet.to_list() |> Enum.map(&to_string/1),
       eliminated_players: match.eliminated_players |> MapSet.to_list() |> Enum.map(&to_string/1),
       winner_id: Map.get(match, :winner_id) |> then(fn nil -> nil; v -> to_string(v) end),
-      turn_timeout_ms: GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000,
+      turn_timeout_ms: Map.get(match, :turn_timeout_ms) || GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000,
       last_roller_id: last_roller_id,
       last_roll: last_roll
     }
@@ -698,7 +707,8 @@ defmodule GameHubWeb.GameController do
     if match.status == :match_ended and bet > 0 and not is_nil(winner) do
       n = length(Map.get(match, :players, []))
       gross = bet * n
-      rate = try do
+      # Taux figé dans le match si présent, sinon requête (repli matchs anciens)
+      rate = Map.get(match, :commission_rate) || try do
         rules = GameHub.GameRules.get_rules_or_default(match.game_type, match.rule_type || "normal")
         (rules.config["commission_rate"] || 0.05) |> to_string() |> Decimal.new() |> Decimal.to_float()
       rescue _ -> 0.05 end
@@ -850,6 +860,7 @@ defmodule GameHubWeb.GameController do
 
       {:error, :match_not_found} -> conn |> put_status(404) |> json(Errors.error("Partie introuvable ou expirée", 404, "MATCH_NOT_FOUND"))
       {:error, :match_not_ended} -> conn |> put_status(409) |> json(Errors.error("La partie n'est pas terminée", 409, "MATCH_NOT_ENDED"))
+      {:error, :no_opponents} -> conn |> put_status(409) |> json(Errors.error("Tous les autres joueurs ont quitté la partie", 409, "NO_OPPONENTS"))
       {:error, :not_a_player} -> conn |> put_status(403) |> json(Errors.error("Vous ne faites pas partie de cette partie", 403, "NOT_A_PLAYER"))
       {:error, :player_left} -> conn |> put_status(409) |> json(Errors.error("Vous avez quitté cette partie", 409, "PLAYER_LEFT"))
       {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "REMATCH_ERROR"))

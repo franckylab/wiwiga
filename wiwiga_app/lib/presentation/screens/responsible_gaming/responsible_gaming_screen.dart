@@ -60,8 +60,7 @@ class _ResponsibleGamingScreenState
                 children: [
                   if (state.isSelfExcluded || state.isCoolingOff)
                     _buildPauseBanner(state),
-                  if (state.hasPendingIncrease)
-                    _buildPendingBanner(state),
+                  if (state.hasPendingIncrease) _buildPendingBanner(state),
                   _buildSectionTitle('Aujourd\'hui', Icons.today_outlined),
                   _buildUsageCard(state),
                   const SizedBox(height: 16),
@@ -180,7 +179,8 @@ class _ResponsibleGamingScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildSectionTitle('Pause & Exclusion', Icons.shield_outlined),
+                  _buildSectionTitle(
+                      'Pause & Exclusion', Icons.shield_outlined),
                   _buildCoolingOffCard(state),
                   const SizedBox(height: 12),
                   _buildSelfExclusionCard(state),
@@ -468,9 +468,13 @@ class _ResponsibleGamingScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: NeonColors.surface,
-        title: Text(title,
-            style: const TextStyle(
-                color: NeonColors.textPrimary, fontSize: 16)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: NeonColors.textPrimary,
+            fontSize: 16,
+          ),
+        ),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
@@ -489,18 +493,23 @@ class _ResponsibleGamingScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler',
-                style: TextStyle(color: NeonColors.textSecondary)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
               final parsed = int.tryParse(controller.text.trim());
               Navigator.pop(ctx, parsed);
             },
-            child: const Text('Définir',
-                style: TextStyle(
-                    color: NeonColors.primary,
-                    fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Définir',
+              style: TextStyle(
+                color: NeonColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -515,9 +524,11 @@ class _ResponsibleGamingScreenState
         .read(responsibleGamingProvider.notifier)
         .updateLimits({field: value});
     if (mounted) {
-      _snack(success
-          ? 'Limite mise à jour (hausse effective sous 24h)'
-          : 'Erreur lors de la mise à jour');
+      _snack(
+        success
+            ? 'Limite mise à jour (hausse effective sous 24h)'
+            : 'Erreur lors de la mise à jour',
+      );
     }
   }
 
@@ -537,8 +548,10 @@ class _ResponsibleGamingScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler',
-                style: TextStyle(color: NeonColors.textSecondary)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: NeonColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -547,15 +560,18 @@ class _ResponsibleGamingScreenState
                   .read(responsibleGamingProvider.notifier)
                   .startCoolingOff(days: days);
               if (mounted) {
-                _snack(success
-                    ? 'Pause activée'
-                    : 'Erreur lors de l’activation');
+                _snack(
+                  success ? 'Pause activée' : 'Erreur lors de l’activation',
+                );
               }
             },
-            child: const Text('Confirmer',
-                style: TextStyle(
-                    color: NeonColors.secondary,
-                    fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Confirmer',
+              style: TextStyle(
+                color: NeonColors.secondary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -597,7 +613,9 @@ class _ResponsibleGamingScreenState
               const Text(
                 'Irréversible pendant la durée choisie.',
                 style: TextStyle(
-                    color: NeonColors.textSecondary, fontSize: 12),
+                  color: NeonColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -609,8 +627,7 @@ class _ResponsibleGamingScreenState
                     selected: isSelected,
                     onSelected: (_) =>
                         setSheetState(() => selected = entry.key),
-                    selectedColor:
-                        NeonColors.error.withValues(alpha: 0.25),
+                    selectedColor: NeonColors.error.withValues(alpha: 0.25),
                     labelStyle: TextStyle(
                       color: isSelected
                           ? NeonColors.error
@@ -625,8 +642,7 @@ class _ResponsibleGamingScreenState
                 style: const TextStyle(color: NeonColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Motif (min. 3 caractères)',
-                  labelStyle:
-                      TextStyle(color: NeonColors.textSecondary),
+                  labelStyle: TextStyle(color: NeonColors.textSecondary),
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: NeonColors.border),
                   ),
@@ -655,9 +671,11 @@ class _ResponsibleGamingScreenState
                           reason: reasonCtrl.text.trim(),
                         );
                     if (mounted) {
-                      _snack(success
-                          ? 'Auto-exclusion activée'
-                          : 'Erreur lors de l’auto-exclusion');
+                      _snack(
+                        success
+                            ? 'Auto-exclusion activée'
+                            : 'Erreur lors de l’auto-exclusion',
+                      );
                     }
                   },
                 ),

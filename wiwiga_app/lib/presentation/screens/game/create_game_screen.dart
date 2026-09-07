@@ -563,7 +563,7 @@ class _CreateGameScreenState extends ConsumerState<CreateGameScreen> {
                 ? (_setsRandomMin == _setsRandomMax
                     ? 'BO$_setsRandomMin (tirage serveur)'
                     : 'Aléatoire $_setsRandomMin–$_setsRandomMax (tirage serveur)')
-                : '$_setsCount (majorité: ${(_setsCount ~/ 2) + 1})',
+                : '$_setsCount',
           ),
           _summaryRow('Dés', '$_diceCount dé${_diceCount > 1 ? 's' : ''}'),
           _summaryRow('Joueurs', '$_maxPlayers max'),

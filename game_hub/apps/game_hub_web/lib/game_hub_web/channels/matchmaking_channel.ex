@@ -37,8 +37,8 @@ defmodule GameHubWeb.MatchmakingChannel do
     user_id = get_user_id(socket) || "dev_user_#{System.unique_integer([:positive])}"
     socket = assign(socket, :user_id, user_id)
     socket = assign(socket, :game_type, game_type)
+    # Topic propre déjà couvert par le framework ; seul user:{id} est croisé.
     try do
-      Phoenix.PubSub.subscribe(GameHub.PubSub, "matchmaking:#{game_type}")
       Phoenix.PubSub.subscribe(GameHub.PubSub, "user:#{user_id}")
     rescue _ -> :ok end
     {:ok, socket}
@@ -58,7 +58,7 @@ defmodule GameHubWeb.MatchmakingChannel do
       |> assign(:rule_type, rule_type)
       |> assign(:bet_amount, bet_str)
     try do
-      Phoenix.PubSub.subscribe(GameHub.PubSub, "qm:lobby:#{lobby_suffix}")
+      # qm:lobby + matchmaking croisés (le topic propre est déjà couvert).
       Phoenix.PubSub.subscribe(GameHub.PubSub, "user:#{user_id}")
       Phoenix.PubSub.subscribe(GameHub.PubSub, "matchmaking:#{game_type}")
     rescue _ -> :ok end
@@ -178,6 +178,16 @@ defmodule GameHubWeb.MatchmakingChannel do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # Phoenix route les %Broadcast{} (dont nos propres broadcast!) vers
+  # handle_out/3 — sans elle, le channel CRASH au premier broadcast et le
+  # client ne reçoit plus rien (oblige à actualiser). On relaie tel quel.
+  @impl true
+  def handle_out(event, payload, socket) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
 
   @impl true
   def terminate(_reason, socket) do
