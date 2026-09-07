@@ -324,7 +324,8 @@ class GameCatalogCard extends ConsumerWidget {
                   ),
                   child: game.type == 'dice' && !comingSoon
                       ? const Center(
-                          child: WiwigaDiceIcon(size: 38, withShadow: false))
+                          child: WiwigaDiceIcon(size: 38, withShadow: false),
+                        )
                       : Icon(
                           _gameIcon,
                           size: 28,

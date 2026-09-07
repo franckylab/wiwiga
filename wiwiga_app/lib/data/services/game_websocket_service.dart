@@ -678,7 +678,10 @@ class GameWebSocketService extends ChangeNotifier {
   void leavePresenceChannel(String topic) {
     if (isConnected) {
       _sendToChannel(
-          topic: topic, event: WebSocketEvents.phxLeave, payload: {});
+        topic: topic,
+        event: WebSocketEvents.phxLeave,
+        payload: {},
+      );
     }
     _pendingPresenceChannels.remove(topic);
   }
@@ -1009,7 +1012,8 @@ class GameWebSocketService extends ChangeNotifier {
     final wanted = _pendingGameJoins
             .any((gid) => '${WebSocketChannels.gamePrefix}$gid' == topic) ||
         _pendingUserChannels.any(
-            (uid) => 'user:$uid' == topic || 'user:$uid:wallet' == topic) ||
+          (uid) => 'user:$uid' == topic || 'user:$uid:wallet' == topic,
+        ) ||
         _pendingPresenceChannels.contains(topic) ||
         topic == WebSocketChannels.matchmaking ||
         topic == WebSocketChannels.friendNotif ||

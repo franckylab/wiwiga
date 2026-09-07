@@ -277,7 +277,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             child: game.type == 'dice'
                 ? const Center(
-                    child: WiwigaDiceIcon(size: 42, withShadow: false))
+                    child: WiwigaDiceIcon(size: 42, withShadow: false),
+                  )
                 : const Icon(
                     Icons.casino_outlined,
                     size: 32,

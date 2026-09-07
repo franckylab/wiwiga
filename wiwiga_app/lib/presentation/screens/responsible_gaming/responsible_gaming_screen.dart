@@ -180,7 +180,9 @@ class _ResponsibleGamingScreenState
                   ),
                   const SizedBox(height: 16),
                   _buildSectionTitle(
-                      'Pause & Exclusion', Icons.shield_outlined),
+                    'Pause & Exclusion',
+                    Icons.shield_outlined,
+                  ),
                   _buildCoolingOffCard(state),
                   const SizedBox(height: 12),
                   _buildSelfExclusionCard(state),

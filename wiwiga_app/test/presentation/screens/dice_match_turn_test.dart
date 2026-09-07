@@ -81,9 +81,9 @@ void main() {
     mockApi = MockApiService();
     mockRepo = MockGameRepository();
     when(() => mockApi.getAccessToken()).thenAnswer((_) async => null);
-    when(() =>
-            mockRepo.getMatchStateRest(any(), compact: any(named: 'compact')))
-        .thenAnswer((_) async => serverMatch(turnIndex: 0));
+    when(
+      () => mockRepo.getMatchStateRest(any(), compact: any(named: 'compact')),
+    ).thenAnswer((_) async => serverMatch(turnIndex: 0));
     final authNotifier = AuthNotifier(MockAuthRepository())
       ..state = AuthState(
         status: AuthStatus.authenticated,
@@ -149,7 +149,7 @@ void main() {
         '111': {
           'player_id': '111',
           'dice': [5, 1],
-          'sum': 6
+          'sum': 6,
         },
       },
     );
@@ -158,7 +158,7 @@ void main() {
       'roll': {
         'player_id': '111',
         'dice': [5, 1],
-        'sum': 6
+        'sum': 6,
       },
       'match': match,
     });
@@ -230,7 +230,7 @@ void main() {
       'roll': {
         'player_id': '111',
         'dice': [5, 1],
-        'sum': 6
+        'sum': 6,
       },
       'match': serverMatch(
         turnIndex: 1,
@@ -238,7 +238,7 @@ void main() {
           '111': {
             'player_id': '111',
             'dice': [5, 1],
-            'sum': 6
+            'sum': 6,
           },
         },
       ),
@@ -276,7 +276,7 @@ void main() {
       'roll': {
         'player_id': '111',
         'dice': [5, 1],
-        'sum': 6
+        'sum': 6,
       },
       'match': serverMatch(
         turnIndex: 1,
@@ -284,7 +284,7 @@ void main() {
           '111': {
             'player_id': '111',
             'dice': [5, 1],
-            'sum': 6
+            'sum': 6,
           },
         },
       ),

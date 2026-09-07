@@ -438,15 +438,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (status == 'set_ended') {
           // Piloté par le STATUT serveur (pas seulement l'event set_result) :
           // si l'event est perdu, le polling réconcilie quand même l'overlay
-          // et aucune zone ne reste active à tort. En cours de reveal, on
-          // laisse l'animation finir (le reveal affichera l'overlay).
-          if (_pendingReveal == null && !_isRolling) {
-            _isRolling = false;
-            _showSetIntro = false;
-            if (!_showSetResult) {
-              _showSetResult = true;
-              _backfillSetResult();
-            }
+          // et aucune zone ne reste active à tort.
+          // L'overlay s'affiche IMMÉDIATEMENT (pas après le reveal) pour que
+          // tous les écrans convergent au même moment : le panneau de
+          // résultat (dés + sommes serveur) remplace le tatami, et le reveal
+          // termine silencieusement la mise à jour des cartes.
+          _isRolling = false;
+          _rollingPlayerId = null;
+          _showSetIntro = false;
+          if (!_showSetResult) {
+            _showSetResult = true;
+            _backfillSetResult();
           }
         }
       }
@@ -957,9 +959,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final lastWsAge = _lastWsEventAt == null
             ? null
             : DateTime.now().difference(_lastWsEventAt!);
-        // Fenêtre courte (2s) : laisse le WS propager d'abord, puis vérifie.
-        // Avant : 10s → UI figée 10s si un event était ignoré (filtre seq).
-        if (wsLive && lastWsAge != null && lastWsAge.inSeconds < 2) {
+        // Fenêtre courte (1s) : laisse le WS propager d'abord, puis vérifie.
+        // Le WS reste la voie rapide ; le REST compact n'est qu'un filet.
+        // Au-delà d'1s sans event, on réconcilie (réseaux avec pertes).
+        if (wsLive && lastWsAge != null && lastWsAge.inSeconds < 1) {
           return;
         }
       } catch (_) {}
@@ -2649,7 +2652,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                                   shape: BoxShape.circle,
                                   color: outcomeColor.withValues(alpha: 0.14),
                                   border: Border.all(
-                                      color: outcomeColor, width: 1.5),
+                                    color: outcomeColor,
+                                    width: 1.5,
+                                  ),
                                 ),
                                 child: Icon(
                                   outcomeIcon,
