@@ -33,6 +33,8 @@ import '../../presentation/screens/admin/admin_settings_screen.dart';
 import '../../presentation/screens/admin/admin_shell_screen.dart';
 import '../../presentation/screens/admin/admin_game_config_screen.dart';
 import '../../presentation/screens/admin/admin_game_rules_screen.dart';
+import '../../presentation/screens/admin/admin_game_timeout_screen.dart';
+import '../../presentation/screens/admin/admin_games_overview_screen.dart';
 import '../../presentation/screens/admin/admin_bonuses_screen.dart';
 import '../../presentation/screens/admin/admin_reports_screen.dart';
 import '../../presentation/screens/admin/admin_platform_config_screen.dart';
@@ -94,8 +96,8 @@ const _adminRoutes = {
   '/admin/reconciliation', '/admin/settings',
   '/admin/analytics/revenue', '/admin/analytics/players', '/admin/analytics/games',
   '/admin/analytics/monetary-flow', '/admin/analytics/wealth',
-  '/admin/game-config', '/admin/game-rules', '/admin/bonuses', '/admin/reports',
-  '/admin/platform-config', '/admin/player-progression', '/admin/xp-rules',
+  '/admin/game-config', '/admin/game-rules', '/admin/game-timeouts', '/admin/bonuses', '/admin/reports',
+  '/admin/platform-config', '/admin/player-progression', '/admin/xp-rules', '/admin/games-overview',
 };
 
 bool _isAdminRoute(String path) {
@@ -280,6 +282,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // --- Management (V3) ---
       GoRoute(
+        path: '/admin/games-overview',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) =>
+            const AdminShellScreen(child: AdminGamesOverviewScreen()),
+      ),
+      GoRoute(
         path: '/admin/game-config',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AdminShellScreen(child: AdminGameConfigScreen()),
@@ -288,6 +296,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/admin/game-rules',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AdminShellScreen(child: AdminGameRulesScreen()),
+      ),
+      GoRoute(
+        path: '/admin/game-timeouts',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminGameTimeoutScreen()),
       ),
       GoRoute(
         path: '/admin/bonuses',

@@ -595,3 +595,88 @@ class AdminXPRulesNotifier extends StateNotifier<AdminXPRulesState> {
 final adminXPRulesProvider = StateNotifierProvider<AdminXPRulesNotifier, AdminXPRulesState>((ref) {
   return AdminXPRulesNotifier(ref);
 });
+// ========================================
+// TIMEOUTS GLOBAUX — repli des règles (GameTimeoutConfig)
+// ========================================
+
+/// État timeouts globaux (game_timeout_configs)
+class AdminGameTimeoutState {
+  final bool isLoading;
+  final String? error;
+  final List<dynamic> timeouts;
+  final bool isSaving;
+
+  const AdminGameTimeoutState({
+    this.isLoading = false,
+    this.error,
+    this.timeouts = const [],
+    this.isSaving = false,
+  });
+
+  AdminGameTimeoutState copyWith({
+    bool? isLoading,
+    String? error,
+    List<dynamic>? timeouts,
+    bool? isSaving,
+    bool clearError = false,
+  }) {
+    return AdminGameTimeoutState(
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+      timeouts: timeouts ?? this.timeouts,
+      isSaving: isSaving ?? this.isSaving,
+    );
+  }
+}
+
+/// StateNotifier pour les timeouts globaux (grâce, action, reconnexion).
+class AdminGameTimeoutNotifier extends StateNotifier<AdminGameTimeoutState> {
+  final Ref _ref;
+
+  AdminGameTimeoutNotifier(this._ref) : super(const AdminGameTimeoutState());
+
+  Future<void> loadTimeouts() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final repo = _ref.read(adminRepositoryProvider);
+      final timeouts = await repo.getGameTimeouts();
+      state = state.copyWith(isLoading: false, timeouts: timeouts);
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameTimeoutNotifier.loadTimeouts');
+      state = state.copyWith(isLoading: false, error: ErrorHandler.userMessage(e));
+    }
+  }
+
+  Future<bool> updateTimeout(String gameType, Map<String, dynamic> patch) async {
+    state = state.copyWith(isSaving: true, clearError: true);
+    try {
+      final repo = _ref.read(adminRepositoryProvider);
+      await repo.updateGameTimeout(gameType, patch);
+      await loadTimeouts();
+      state = state.copyWith(isSaving: false);
+      return true;
+    } catch (e, st) {
+      ErrorHandler.logError(e, st, context: 'AdminGameTimeoutNotifier.updateTimeout');
+      state = state.copyWith(isSaving: false, error: ErrorHandler.userMessage(e));
+      return false;
+    }
+  }
+}
+
+final adminGameTimeoutManagementProvider =
+    StateNotifierProvider<AdminGameTimeoutNotifier, AdminGameTimeoutState>((ref) {
+  return AdminGameTimeoutNotifier(ref);
+});
+
+// ========================================
+// CONFIG EFFECTIVE — vue centrale lecture seule
+// (fusion game_rules + game_configs + timeouts + xp)
+// ========================================
+
+/// Configurations effectives de tous les couples jeu × règle, chaque valeur
+/// annotée de sa source. Point d'entrée du hub « Jeux — Vue d'ensemble ».
+final adminEffectiveGameConfigsProvider =
+    FutureProvider<List<dynamic>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return repo.getEffectiveGameConfigs();
+});

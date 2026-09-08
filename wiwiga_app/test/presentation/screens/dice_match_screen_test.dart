@@ -88,6 +88,104 @@ void main() {
 
         expect(distA, equals(distB));
       });
+
+      test('bornes du vote = [dés, dés × faces] (cohérent backend)', () {
+        int voteMin(int diceCount) => diceCount < 1 ? 1 : diceCount;
+        int voteMax(int diceCount, int faces) =>
+            voteMin(diceCount) * (faces < 1 ? 6 : faces);
+
+        expect(voteMin(2), equals(2));
+        expect(voteMax(2, 6), equals(12));
+        expect(voteMax(1, 6), equals(6));
+        expect(voteMax(3, 6), equals(18));
+      });
+
+      test('vote auto = milieu de l’intervalle (toujours valide)', () {
+        int middleVote(int diceCount, int faces) {
+          final min = diceCount < 1 ? 1 : diceCount;
+          final max = min * (faces < 1 ? 6 : faces);
+          return (min + max) ~/ 2;
+        }
+
+        expect(middleVote(2, 6), equals(7));
+        expect(middleVote(1, 6), equals(3));
+        // Le milieu reste dans [min, max] (jamais :invalid_target)
+        for (var dice = 1; dice <= 5; dice++) {
+          final middle = middleVote(dice, 6);
+          expect(middle, greaterThanOrEqualTo(dice));
+          expect(middle, lessThanOrEqualTo(dice * 6));
+        }
+      });
+
+      test('moyenne arrondie moitié supérieure (4+7)/2 = 6', () {
+        final votes = {'1': 4, '2': 7};
+        final sum = votes.values.fold<int>(0, (a, b) => a + b);
+        final target = (sum / votes.length).round();
+        expect(target, equals(6));
+      });
+
+      test('bornes admin vote : timeout 5–120s, délai 2–30s', () {
+        int clampTimeout(int v) => v.clamp(5, 120);
+        int clampDelay(int v) => v.clamp(2, 30);
+
+        expect(clampTimeout(20), equals(20));
+        expect(clampTimeout(3), equals(5));
+        expect(clampTimeout(200), equals(120));
+        expect(clampDelay(5), equals(5));
+        expect(clampDelay(1), equals(2));
+        expect(clampDelay(60), equals(30));
+      });
+
+      test('compteur de reprise borné à zéro', () {
+        int countdown(int delaySec, int elapsedSec) =>
+            (delaySec - elapsedSec).clamp(0, 3600);
+
+        expect(countdown(5, 2), equals(3));
+        expect(countdown(5, 5), equals(0));
+        expect(countdown(5, 9), equals(0));
+      });
+
+      test('bornes admin timings : tour 10–300, set 2–15, grâce 5–120', () {
+        int clampTurn(int v) => v.clamp(10, 300);
+        int clampNext(int v) => v.clamp(2, 15);
+        int clampGrace(int v) => v.clamp(5, 120);
+
+        expect(clampTurn(120), equals(120));
+        expect(clampTurn(5), equals(10));
+        expect(clampTurn(400), equals(300));
+        expect(clampNext(4), equals(4));
+        expect(clampNext(1), equals(2));
+        expect(clampNext(60), equals(15));
+        expect(clampGrace(20), equals(20));
+        expect(clampGrace(1), equals(5));
+        expect(clampGrace(500), equals(120));
+      });
+
+      test('tour vide = null envoyé, clé supprimée serveur (héritage)', () {
+        // Contrat client → serveur : null explicite = retour à l'héritage.
+        final patch = <String, dynamic>{
+          'min_sets': 1,
+          'auto_next_set_delay_seconds': 4,
+          'turn_timeout_seconds': null,
+        };
+        expect(patch.containsKey('turn_timeout_seconds'), isTrue);
+        expect(patch['turn_timeout_seconds'], isNull);
+        // Miroir du traitement serveur : les marqueurs null suppriment la clé.
+        final merged = Map<String, dynamic>.from({
+          'min_sets': 3,
+          'turn_timeout_seconds': 45,
+        });
+        patch.forEach((key, value) {
+          if (value == null) {
+            merged.remove(key);
+          } else {
+            merged[key] = value;
+          }
+        });
+        expect(merged.containsKey('turn_timeout_seconds'), isFalse);
+        expect(merged['min_sets'], equals(1));
+        expect(merged['auto_next_set_delay_seconds'], equals(4));
+      });
     });
 
     group('MatchResult', () {

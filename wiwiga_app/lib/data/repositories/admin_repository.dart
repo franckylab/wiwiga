@@ -921,8 +921,9 @@ class AdminRepository {
     return {};
   }
 
-  /// Met à jour les sets d'une règle (patch partiel : min/max/défaut,
-  /// sets_mode, sets_random_min/max). Retourne la règle à jour.
+  /// Met à jour une règle (patch partiel : sets, timings de jeu,
+  /// vote cible — `turn_timeout_seconds: null` = retour à l'héritage).
+  /// Retourne la règle à jour.
   Future<Map<String, dynamic>> updateGameRule(
     String gameType,
     String ruleType,
@@ -937,6 +938,57 @@ class AdminRepository {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
     return {};
+  }
+
+  // ========================================
+  // TIMEOUTS GLOBAUX — repli des règles (GameTimeoutConfig)
+  // ========================================
+
+  /// Liste les timeouts globaux par type de jeu.
+  Future<List<dynamic>> getGameTimeouts() async {
+    final response = await _apiService.get(
+      ApiEndpoints.adminGameTimeouts,
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Crée ou met à jour le timeout global d'un type de jeu
+  /// (patch partiel : grace_period_seconds, action_on_timeout,
+  /// forfeit_distribution, reconnect_allowed, max_reconnect_attempts).
+  Future<Map<String, dynamic>> updateGameTimeout(
+    String gameType,
+    Map<String, dynamic> patch,
+  ) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminGameTimeouts}/$gameType',
+      body: patch,
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  // ========================================
+  // CONFIG EFFECTIVE — vue centrale lecture seule
+  // (fusion game_rules + game_configs + timeouts + xp)
+  // ========================================
+
+  /// Configurations effectives de tous les couples jeu × règle, chaque
+  /// valeur étant annotée de sa source (`{value, source}`).
+  Future<List<dynamic>> getEffectiveGameConfigs({String? gameType}) async {
+    var url = ApiEndpoints.adminGamesEffectiveConfig;
+    if (gameType != null && gameType.isNotEmpty) {
+      url += '?game_type=${Uri.encodeComponent(gameType)}';
+    }
+    final response = await _apiService.get(url, requiresAuth: true);
+    final data = response['data'];
+    if (data is List) return data;
+    return [];
   }
 
   // ========================================

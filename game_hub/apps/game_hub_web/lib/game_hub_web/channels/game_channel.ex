@@ -218,6 +218,9 @@ defmodule GameHubWeb.GameChannel do
         {:error, :voting_phase_active} ->
           {:reply, {:error, %{reason: "voting_phase_active"}}, socket}
 
+        {:error, :vote_result_pending} ->
+          {:reply, {:error, %{reason: "vote_result_pending"}}, socket}
+
         {:error, reason} ->
           {:reply, {:error, %{reason: to_string(reason)}}, socket}
       end
@@ -408,7 +411,15 @@ defmodule GameHubWeb.GameChannel do
           %DateTime{} = dl -> try do max(0, DateTime.diff(dl, DateTime.utc_now(), :second)) rescue _ -> nil end
           _ -> nil
         end
-        Map.put(base, :turn_remaining_seconds, remaining)
+        # Timer global de vote (deadline unique serveur + remaining) : les
+        # clients affichent le même décompte sans dérive horloge.
+        vote_remaining = case Map.get(base, :vote_deadline) do
+          %DateTime{} = dl -> try do max(0, DateTime.diff(dl, DateTime.utc_now(), :second)) rescue _ -> nil end
+          _ -> nil
+        end
+        base
+        |> Map.put(:turn_remaining_seconds, remaining)
+        |> Map.put(:vote_remaining_seconds, vote_remaining)
       other -> other
     end
     timeout_ms = Map.get(match, :turn_timeout_ms) || try do GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000 rescue _ -> 30000 end
@@ -430,6 +441,12 @@ defmodule GameHubWeb.GameChannel do
       eliminated_players: match.eliminated_players |> MapSet.to_list(),
       winner_id: Map.get(match, :winner_id) |> to_string_if_present(),
       turn_timeout_ms: timeout_ms,
+      dice_faces: Map.get(match, :dice_faces, 6),
+      vote_timeout_ms: Map.get(match, :vote_timeout_ms, 20_000),
+      vote_result_delay_ms: Map.get(match, :vote_result_delay_ms, 5_000),
+      auto_next_set_delay_ms: Map.get(match, :auto_next_set_delay_ms, 4_000),
+      leave_grace_ms: Map.get(match, :leave_grace_ms, 20_000),
+      target_vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
       last_roller_id: last_roller_id,
       last_roll: last_roll,
       players: Enum.map(Map.get(match, :players, []), fn p -> %{id: to_string(p.id), name: Map.get(p, :name, "Joueur")} end)

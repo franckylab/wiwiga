@@ -438,7 +438,12 @@ defmodule GameHub.GameRules do
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,
         "min_players" => 2, "max_players" => 5,
-        "tie_rule" => "replay", "turn_order" => "rotating"
+        "tie_rule" => "replay", "turn_order" => "rotating",
+        # Délais de jeu (secondes). `turn_timeout_seconds` est VOLONTAIREMENT
+        # absent : sans valeur par règle, on hérite du global existant
+        # (GameTimeoutConfig) puis 30s — aucun changement de comportement
+        # tant que l'admin ne fige pas une valeur par règle.
+        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20
       },
       is_active: true
     }
@@ -457,7 +462,11 @@ defmodule GameHub.GameRules do
         "dice_faces" => 6, "commission_rate" => 0.05,
         "min_bet" => 100, "max_bet" => 500_000,
         "min_players" => 2, "max_players" => 5,
-        "tie_rule" => "replay", "target_vote_mode" => "average"
+        "tie_rule" => "replay", "target_vote_mode" => "average",
+        # Timer global de vote (deadline serveur unique, synchrone) et
+        # fenêtre d'affichage du résultat avant reprise auto (secondes).
+        "vote_timeout_seconds" => 20, "vote_result_delay_seconds" => 5,
+        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20
       },
       is_active: true
     }

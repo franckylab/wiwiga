@@ -106,7 +106,7 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _GamesConfigTab(),
+          const _GamesConfigTab(),
           _PaymentsConfigTab(),
           _ThemeConfigTab(),
           _FeaturesConfigTab(),
@@ -237,333 +237,116 @@ class _AdminConfigScreenState extends ConsumerState<AdminConfigScreen>
 }
 
 // ============================================================
-// Tab: Configuration Jeux (éditable)
+// Tab: Configuration Jeux — hub central (lecture seule + liens)
 // ============================================================
+// L'édition directe a été retirée : elle écrivait dans une table
+// orpheline (`game_specific_configs`) que le moteur ne lit jamais, via
+// un endpoint inexistant (PUT /api/admin/config/games → 404).
+// Source unique d'édition : les écrans spécialisés ci-dessous, et la
+// vue d'ensemble des valeurs réellement appliquées en partie.
 class _GamesConfigTab extends ConsumerWidget {
+  const _GamesConfigTab();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final gamesConfig = ref.watch(gamesConfigProvider);
-
-    return gamesConfig.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF00FF88)),
-      ),
-      error: (e, _) => WiwigaErrorView(
-        error: e,
-        onRetry: () => ref.invalidate(gamesConfigProvider),
-      ),
-      data: (config) {
-        final gameTypes = config.gameTypes;
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const _SectionHeader(
-              title: 'Paramètres des jeux',
-              icon: Icons.casino,
-            ),
-            const SizedBox(height: 16),
-            // Cartes de chaque type de jeu
-            ...gameTypes.entries.map((entry) {
-              final game = entry.value;
-              return _GameTypeEditor(
-                gameType: game,
-                onSave: (updates) {
-                  _showConfirmDialog(
-                      context, 'Sauvegarder la configuration de ${game.type} ?',
-                      () {
-                    ref
-                        .read(gamesConfigProvider.notifier)
-                        .updateGameType(game.type, updates);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Configuration jeu mise à jour'),
-                        backgroundColor: Color(0xFF00FF88),
-                      ),
-                    );
-                  });
-                },
-              );
-            }),
-            const SizedBox(height: 16),
-            // Matchmaking timeouts
-            _ConfigCard(
-              title: 'Matchmaking',
-              subtitle: 'Paramètres de mise en relation',
-              fields: [
-                _ConfigField(
-                  label: 'Timeout création',
-                  value: '${config.matchmakingCreateTimeout}s',
-                  icon: Icons.timer,
-                ),
-                _ConfigField(
-                  label: 'Timeout join',
-                  value: '${config.matchmakingJoinTimeout}s',
-                  icon: Icons.timer,
-                ),
-                _ConfigField(
-                  label: 'Timeout tour',
-                  value: '${config.turnTimeout}s',
-                  icon: Icons.timer,
-                ),
-                _ConfigField(
-                  label: 'Inactivité jeu',
-                  value: '${config.inactivityTimeout}s',
-                  icon: Icons.timer_off,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const _InfoBanner(
-              message:
-                  'Les modifications prennent effet immédiatement pour les nouvelles parties.',
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showConfirmDialog(
-    BuildContext context,
-    String message,
-    VoidCallback onConfirm,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Confirmer', style: TextStyle(color: Colors.white)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Annuler',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00FF88),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              onConfirm();
-            },
-            child: const Text(
-              'Confirmer',
-              style: TextStyle(color: Color(0xFF0A0A1A)),
-            ),
-          ),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        _SectionHeader(
+          title: 'Paramètres des jeux',
+          icon: Icons.casino,
+        ),
+        SizedBox(height: 8),
+        _InfoBanner(
+          message:
+              'Valeurs réellement appliquées en partie, avec leur source. '
+              'La modification se fait dans les écrans spécialisés.',
+        ),
+        SizedBox(height: 16),
+        _GameHubLink(
+          title: "Vue d'ensemble",
+          subtitle: 'Config effective + source de chaque valeur',
+          icon: Icons.dashboard_outlined,
+          path: '/admin/games-overview',
+        ),
+        _GameHubLink(
+          title: 'Sets & règles moteur',
+          subtitle: 'Sets, dés, vote, délais par règle',
+          icon: Icons.casino_outlined,
+          path: '/admin/game-rules',
+        ),
+        _GameHubLink(
+          title: 'Catalogue & mises',
+          subtitle: 'Mises, commission, affichage par jeu',
+          icon: Icons.tune,
+          path: '/admin/game-config',
+        ),
+        _GameHubLink(
+          title: 'Timeouts globaux',
+          subtitle: 'Repli quand la règle ne fige pas de délai',
+          icon: Icons.timer_outlined,
+          path: '/admin/game-timeouts',
+        ),
+        _GameHubLink(
+          title: 'Règles XP',
+          subtitle: 'Gains d’expérience par jeu',
+          icon: Icons.stars,
+          path: '/admin/xp-rules',
+        ),
+      ],
     );
   }
 }
 
-/// Éditeur pour un type de jeu (sliders + inputs)
-class _GameTypeEditor extends StatefulWidget {
-  final GameTypeConfigModel gameType;
-  final ValueChanged<Map<String, dynamic>> onSave;
+/// Carte de lien vers un écran spécialisé de paramétrage jeux.
+class _GameHubLink extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String path;
 
-  const _GameTypeEditor({required this.gameType, required this.onSave});
-
-  @override
-  State<_GameTypeEditor> createState() => _GameTypeEditorState();
-}
-
-class _GameTypeEditorState extends State<_GameTypeEditor> {
-  late int _minBet;
-  late int _maxBet;
-  late double _commission;
-  late bool _isActive;
-  late int _maxPlayers;
-
-  @override
-  void initState() {
-    super.initState();
-    // Backend désormais en wiga purs (migration 20260830000003)
-    _minBet = widget.gameType.minBet;
-    _maxBet = widget.gameType.maxBet;
-    _commission = widget.gameType.commissionPercent;
-    _isActive = widget.gameType.isActive;
-    _maxPlayers = widget.gameType.maxPlayers;
-  }
+  const _GameHubLink({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.path,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _isActive
-              ? const Color(0xFF00FF88).withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.08),
+          color: const Color(0xFF00FF88).withValues(alpha: 0.25),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.casino, color: Color(0xFF00FF88), size: 20),
-              const SizedBox(width: 8),
-              Text(
-                widget.gameType.type.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isActive
-                      ? const Color(0xFF00FF88).withValues(alpha: 0.2)
-                      : Colors.redAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _isActive ? 'Actif' : 'Inactif',
-                  style: TextStyle(
-                    color:
-                        _isActive ? const Color(0xFF00FF88) : Colors.redAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF00FF88)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 12),
-          // Toggle actif/inactif
-          Row(
-            children: [
-              Text(
-                'Jeu actif',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13,
-                ),
-              ),
-              const Spacer(),
-              Switch(
-                value: _isActive,
-                onChanged: (v) => setState(() => _isActive = v),
-                activeThumbColor: const Color(0xFF00FF88),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Slider mise min (wiga)
-          Text(
-            'Mise minimum: $_minBet wiga',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          Slider(
-            value: _minBet.toDouble(),
-            min: 1,
-            max: 100,
-            divisions: 99,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _minBet = v.round()),
-          ),
-          // Slider mise max (wiga)
-          Text(
-            'Mise maximum: $_maxBet wiga',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          Slider(
-            value: _maxBet.toDouble(),
-            min: 10,
-            max: 5000,
-            divisions: 100,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _maxBet = v.round()),
-          ),
-          // Slider commission
-          Text(
-            'Commission: ${_commission.toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          Slider(
-            value: _commission,
-            min: 0,
-            max: 20,
-            divisions: 40,
-            activeColor: const Color(0xFF00FF88),
-            onChanged: (v) => setState(() => _commission = v),
-          ),
-          // Max joueurs
-          Text(
-            'Max joueurs: $_maxPlayers',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-            ),
-          ),
-          Row(
-            children: [1, 2, 3, 4, 6]
-                .map(
-                  (n) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text('$n'),
-                      selected: _maxPlayers == n,
-                      selectedColor:
-                          const Color(0xFF00FF88).withValues(alpha: 0.3),
-                      backgroundColor: Colors.white.withValues(alpha: 0.05),
-                      labelStyle: TextStyle(
-                        color: _maxPlayers == n
-                            ? const Color(0xFF00FF88)
-                            : Colors.white54,
-                        fontSize: 12,
-                      ),
-                      onSelected: (sel) => setState(() => _maxPlayers = n),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          // Bouton Sauvegarder
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.save, size: 16),
-              label: const Text('Sauvegarder'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00FF88),
-              ),
-              onPressed: () => widget.onSave({
-                'min_bet': _minBet,
-                'max_bet': _maxBet,
-                'commission_percent': _commission,
-                'is_active': _isActive,
-                'max_players': _maxPlayers,
-              }),
-            ),
-          ),
-        ],
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          color: Colors.white54,
+          size: 16,
+        ),
+        onTap: () => context.go(path),
       ),
     );
   }
 }
+
 
 // ============================================================
 // Tab: Configuration Paiements (éditable)

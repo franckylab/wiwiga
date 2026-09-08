@@ -218,6 +218,14 @@ class ApiEndpoints {
   // Admin - Règles moteur (sets/dés, source GameRules)
   static const String adminGameRules = '/api/admin/game-rules';
 
+  // Admin - Timeouts globaux (repli des règles, source GameTimeoutConfig)
+  static const String adminGameTimeouts = '/api/admin/game-timeouts';
+
+  // Admin - Config effective (vue centrale lecture seule : game_rules +
+  // game_configs + timeouts + xp, chaque valeur annotée de sa source)
+  static const String adminGamesEffectiveConfig =
+      '/api/admin/games/effective-config';
+
   // Admin - Bonuses & Promotions (V3)
   static const String adminBonuses = '/api/admin/bonuses';
 

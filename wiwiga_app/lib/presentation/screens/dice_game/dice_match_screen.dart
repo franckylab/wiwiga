@@ -21,6 +21,7 @@ import '../../widgets/game/reality_check_overlay.dart';
 import '../../widgets/game/dice_tatami.dart';
 import '../../widgets/game/dice_3d.dart';
 import '../../widgets/game/player_zone.dart';
+import '../../widgets/game/turn_timer.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/friend_provider.dart';
@@ -68,6 +69,25 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   final Map<String, int> _targetVotes = {};
   bool _isVotingPhase = false;
   int? _targetValue;
+  // Position LOCALE du sélecteur (jamais écrasée par les syncs serveur :
+  // un sync entre le geste et l'envoi ne doit pas perdre le choix).
+  int? _mySelectorValue;
+  // Timer global de vote : deadline SERVEUR unique (synchrone tous joueurs).
+  DateTime? _voteDeadline;
+  int _voteTimeoutSeconds = 20;
+  int _voteResultDelaySeconds = 5;
+  int _diceFaces = 6;
+  String _voteMode = 'average';
+  bool _hasVoted = false;
+  // Résultat du vote affiché dans le bloc avant reprise auto de la partie.
+  Map<String, dynamic>? _voteResult;
+  bool _showVoteResult = false;
+  int _voteSetNumber = 0;
+  bool _wasVoting = false;
+  bool _autoVoteSent = false;
+  Timer? _voteTickTimer;
+  Timer? _voteResultTimer;
+  DateTime? _voteResultEndsAt;
 
   // Animations
   late AnimationController _introCtrl;
@@ -183,7 +203,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       final gamesCfg = ref.read(gamesConfigProvider);
       gamesCfg.whenData((cfg) {
         if (cfg.turnTimeout > 0) {
-          _turnSeconds = cfg.turnTimeout.clamp(15, 90);
+          // Bornes miroir du backend (turn_timeout_seconds 10..300).
+          _turnSeconds = cfg.turnTimeout.clamp(10, 300);
           _turnRemaining = _turnSeconds;
         }
       });
@@ -285,8 +306,23 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       sb.write('|');
       sb.write(css['target_value']);
       sb.write('|');
+      sb.write(css['vote_phase']);
+      sb.write('|');
       final votes = css['votes'];
-      sb.write(votes is Map ? votes.length : 0);
+      if (votes is Map) {
+        // Contenu des votes (pas seulement le compteur) : chaque vote
+        // individuel doit reconstruire l'affichage live des autres joueurs.
+        final keys = votes.keys.map((e) => e.toString()).toList()..sort();
+        sb.write(keys.length);
+        for (final k in keys) {
+          sb.write(',$k=${votes[k]}');
+        }
+      } else {
+        sb.write('0');
+      }
+      sb.write('|');
+      final voteResult = css['vote_result'];
+      sb.write(voteResult is Map ? voteResult['target'] : '');
     }
     sb.write('|');
     sb.write(match['set_scores']);
@@ -358,6 +394,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _lastAppliedFp = fp;
     final fpSet = (effective['current_set'] as num?)?.toInt() ?? 0;
     if (fpSet > _appliedMaxSet) _appliedMaxSet = fpSet;
+    // Captures pour les effets post-setState (transitions de vote).
+    Map<String, dynamic>? voteClosedCss;
+    int? voteClosedTarget;
+    bool? votePhaseAfterSync;
     setState(() {
       _serverMatch = effective;
       _serverSetState = match['current_set_state'] as Map<String, dynamic>?;
@@ -427,6 +467,57 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             _targetVotes[e.key.toString()] = (e.value as num).toInt();
           }
         }
+        // Paramètres de vote (serveur = source unique, configurables admin).
+        final faces = match['dice_faces'] as int?;
+        if (faces != null && faces >= 4 && faces <= 20) _diceFaces = faces;
+        final voteTimeoutMs = match['vote_timeout_ms'] as int?;
+        if (voteTimeoutMs != null && voteTimeoutMs > 0) {
+          _voteTimeoutSeconds = (voteTimeoutMs ~/ 1000).clamp(5, 120);
+        }
+        final resultDelayMs = match['vote_result_delay_ms'] as int?;
+        if (resultDelayMs != null && resultDelayMs > 0) {
+          _voteResultDelaySeconds = (resultDelayMs ~/ 1000).clamp(2, 30);
+        }
+        final voteModeRaw = match['target_vote_mode']?.toString();
+        _voteMode =
+            (voteModeRaw == 'mode') ? 'mode' : 'average';
+        // Deadline globale du vote (synchrone tous joueurs) : remaining
+        // serveur prioritaire (pas de dérive horloge), sinon ISO.
+        final voteRem = css['vote_remaining_seconds'] as int?;
+        final voteDlStr = css['vote_deadline']?.toString();
+        if (_isVotingPhase) {
+          if (voteRem != null) {
+            _voteDeadline =
+                DateTime.now().add(Duration(seconds: voteRem.clamp(0, 600)));
+          } else if (voteDlStr != null) {
+            try {
+              _voteDeadline = DateTime.parse(voteDlStr);
+            } catch (_) {}
+          }
+        }
+        _hasVoted = _targetVotes.containsKey(_myId);
+        // Transitions de phase de vote (nouveau vote / clôture). Les effets
+        // (timers, résultat) sont appliqués APRÈS le setState ci-dessous
+        // (pas de setState imbriqué ni de Timer créé dans le closure).
+        final setNum = (match['current_set'] as num?)?.toInt() ?? _currentSet;
+        if (_isVotingPhase && (!_wasVoting || setNum != _voteSetNumber)) {
+          // Nouveau vote : réinitialiser l'UI locale (sélecteur au milieu
+          // de l'intervalle serveur, pas de reliquat du set précédent).
+          _voteSetNumber = setNum;
+          _voteResult = null;
+          _showVoteResult = false;
+          _voteResultEndsAt = null;
+          _voteResultTimer?.cancel();
+          _autoVoteSent = false;
+          _mySelectorValue = _middleVote;
+        }
+        if (!_isVotingPhase && _wasVoting && tv != null) {
+          // Vote clôturé sans passer par l'event (polling/REST/reconnexion) :
+          // résultat reconstruit après le setState (voir ci-dessous).
+          voteClosedCss = css;
+          voteClosedTarget = tv;
+        }
+        votePhaseAfterSync = _isVotingPhase;
         // Synchroniser les lancers déjà effectués dans le set courant.
         // IMPORTANT : on met à jour les zones individuelles par clé (déterministe),
         // mais JAMAIS le tatami depuis l'ordre d'itération de la map (non
@@ -490,7 +581,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final timeoutMs =
             match['turn_timeout_ms'] as int? ?? css['turn_timeout_ms'] as int?;
         if (timeoutMs != null && timeoutMs > 0) {
-          _turnSeconds = (timeoutMs ~/ 1000).clamp(15, 180);
+          _turnSeconds = (timeoutMs ~/ 1000).clamp(10, 300);
         }
         // Timing serveur : on stocke deadline + remaining SANS ticker parent.
         // Chaque PlayerZone fait son propre décompte via TurnTimer (source unique).
@@ -509,7 +600,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               final diff = _turnDeadline!.difference(DateTime.now()).inSeconds;
               _turnRemaining = diff.clamp(0, _turnSeconds);
               if (diff > _turnSeconds) {
-                _turnSeconds = diff.clamp(15, 180);
+                _turnSeconds = diff.clamp(10, 300);
                 _turnRemaining = diff.clamp(0, _turnSeconds);
               }
             } catch (_) {}
@@ -556,6 +647,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _turnDeadline = null;
       }
     });
+    // Effets post-sync (hors closure setState) : transitions de vote.
+    // (Copies locales : les captures mutées dans le closure ne promotent pas.)
+    final phaseAfterSync = votePhaseAfterSync;
+    if (phaseAfterSync != null) _wasVoting = phaseAfterSync;
+    final closedCss = voteClosedCss;
+    final closedTarget = voteClosedTarget;
+    if (closedCss != null && closedTarget != null && mounted) {
+      _buildVoteResultFromServer(closedCss, match, closedTarget);
+    }
+    _ensureVoteTick();
   }
 
   // Supprimé : _startTurnCountdownFromDeadline (ticker parent).
@@ -805,19 +906,40 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       };
       ws.onTargetVoted = (payload) {
         if (!mounted) return;
+        final event = payload['event']?.toString() ?? '';
         final match = payload['match'] as Map<String, dynamic>?;
         if (match != null) _syncFromServer(match, seq: payload['seq'] as int?);
+        // Cohérence : SEUL `target_calculated` clôt le vote (cible finale).
+        // `target_voted` / `vote_progress` ne transportent que des votes
+        // individuels → le sync ci-dessus suffit (affichage live).
+        if (event != 'target_calculated') return;
         final target = payload['target_value'] as int? ??
             payload['target'] as int? ??
-            _serverSetState?['target_value'] as int?;
-        if (target != null) {
-          setState(() {
-            _targetValue = target;
-            _isVotingPhase = false;
-          });
-        } else {
-          setState(() {});
-        }
+            _targetValue;
+        if (target == null) return;
+        final css =
+            (match?['current_set_state'] as Map?) ?? _serverSetState;
+        final votes = css?['votes'] is Map
+            ? Map<String, dynamic>.from(css!['votes'] as Map)
+            : Map<String, dynamic>.from(_targetVotes);
+        var mode = payload['vote_mode']?.toString() ??
+            match?['target_vote_mode']?.toString() ??
+            _voteMode;
+        if (mode != 'average' && mode != 'mode') mode = 'average';
+        final autoRaw = payload['auto_voted'];
+        final auto = autoRaw is List
+            ? autoRaw.map((e) => e.toString()).toList()
+            : <String>[];
+        final delayMs = payload['result_delay_ms'] as int? ??
+            match?['vote_result_delay_ms'] as int? ??
+            5000;
+        _showVoteResultData(
+          target: target,
+          votes: votes,
+          mode: mode,
+          autoVoted: auto,
+          delayMs: delayMs,
+        );
       };
       ws.onPlayerForfeited = (payload) {
         if (!mounted) return;
@@ -952,6 +1074,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           userMsg = 'Le vote est terminé';
         } else if (reason.contains('invalid_target')) {
           userMsg = 'Cible invalide';
+        } else if (reason.contains('vote_result_pending')) {
+          userMsg = 'Résultat affiché — reprise dans quelques secondes';
         } else if (reason.contains('voting_phase')) {
           userMsg = 'Phase de vote en cours';
         } else if (reason.contains('eliminated')) {
@@ -993,7 +1117,11 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // Timing serveur uniquement : la deadline arrive via _syncFromServer
       // (WS match_state/turn_changed ou polling). Pas de deadline locale.
       if (_isCibleMode && _targetValue == null) {
-        setState(() => _isVotingPhase = true);
+        setState(() {
+          _isVotingPhase = true;
+          _mySelectorValue ??= _middleVote;
+        });
+        _ensureVoteTick();
       }
     });
   }
@@ -1035,6 +1163,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollFallbackTimer?.cancel();
     _rollRevealTimer?.cancel();
     _nextSetConfirmTimer?.cancel();
+    _voteTickTimer?.cancel();
+    _voteResultTimer?.cancel();
     _syncPollTimer?.cancel();
     _resultScrollController.dispose();
     // Sortie d'interface de fin de partie : le joueur est exclu des
@@ -1130,6 +1260,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final oldVotesCount = _serverSetState?['votes'] is Map
             ? (_serverSetState!['votes'] as Map).length
             : 0;
+        final newVotesContent = css?['votes']?.toString() ?? '';
+        final oldVotesContent = _serverSetState?['votes']?.toString() ?? '';
+        final newVotePhase = css?['vote_phase'] == true;
+        final oldVotePhase = _serverSetState?['vote_phase'] == true;
         final newScores = match['set_scores'].toString();
         final oldScores = _serverMatch?['set_scores'].toString();
         final newRematch = match['rematch']?.toString() ?? '';
@@ -1139,6 +1273,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             newRollsCount != oldRollsCount ||
             newTarget != oldTarget ||
             newVotesCount != oldVotesCount ||
+            newVotesContent != oldVotesContent ||
+            newVotePhase != oldVotePhase ||
             newScores != oldScores ||
             newRematch != oldRematch;
         // Sans changement : ne rien faire (préserve deadline + timers zones).
@@ -1584,7 +1720,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             return Column(
               children: [
                 _buildMatchHeader(),
-                if (_isVotingPhase)
+                if (_isVotingPhase || _showVoteResult)
                   Expanded(child: _buildVotingPhase())
                 else if (_showMatchResult)
                   Expanded(child: _buildMatchResult())
@@ -3697,6 +3833,14 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   Widget _buildVotingPhase() {
+    // Résultat calculé : affiché dans le bloc avant reprise auto.
+    if (_showVoteResult && _voteResult != null) {
+      return _buildVoteResult();
+    }
+    final isDone = _hasVoted;
+    final selector = (_mySelectorValue ?? _middleVote).clamp(_voteMin, _voteMax);
+    final voters = _activeVoters;
+    final voteCount = voters.where((p) => _targetVotes.containsKey(p['id'].toString())).length;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -3732,9 +3876,48 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            // Timer GLOBAL synchrone : deadline serveur unique, même
+            // décompte pour tous les joueurs. À expiration, le sélecteur
+            // est envoyé automatiquement (jamais de vote bloqué).
+            if (_voteDeadline != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TurnTimer(
+                    totalSeconds: _voteTimeoutSeconds,
+                    deadline: _voteDeadline,
+                    size: 64,
+                    activeColor: NeonColors.secondary,
+                    warningColor: NeonColors.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _voteRemainingText,
+                        style: const TextStyle(
+                          color: NeonColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'Orbitron',
+                        ),
+                      ),
+                      const Text(
+                        'Vote auto à expiration',
+                        style: TextStyle(
+                          color: NeonColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            const SizedBox(height: 8),
             Text(
-              'Cible entre $_displayDiceCount et ${_displayDiceCount * 6}',
+              'Cible entre $_voteMin et $_voteMax',
               style: const TextStyle(
                 color: NeonColors.textSecondary,
                 fontSize: 12,
@@ -3753,25 +3936,20 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                         thumbColor: NeonColors.secondary,
                       ),
                       child: Slider(
-                        value: (_targetVotes[_myId] ??
-                                ((_targetVotes[_currentPlayerId] ?? 7)))
-                            .toDouble()
-                            .clamp(
-                              _displayDiceCount.toDouble(),
-                              (_displayDiceCount * 6).toDouble(),
-                            ),
-                        min: _displayDiceCount.toDouble(),
-                        max: (_displayDiceCount * 6).toDouble(),
-                        divisions: (_displayDiceCount * 6) - _displayDiceCount,
-                        label: '${_targetVotes[_myId] ?? 7}',
-                        onChanged: _isEliminatedMe
+                        value: selector.toDouble(),
+                        min: _voteMin.toDouble(),
+                        max: _voteMax.toDouble(),
+                        divisions: _voteMax - _voteMin,
+                        label: '$selector',
+                        onChanged: (_isEliminatedMe || isDone)
                             ? null
-                            : (v) =>
-                                setState(() => _targetVotes[_myId] = v.round()),
+                            : (v) => setState(
+                                  () => _mySelectorValue = v.round(),
+                                ),
                       ),
                     ),
                     Text(
-                      '${_targetVotes[_myId] ?? 7}',
+                      '$selector',
                       style: const TextStyle(
                         color: NeonColors.secondary,
                         fontSize: 36,
@@ -3781,20 +3959,50 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                     ),
                     const SizedBox(height: 8),
                     NeonButton(
-                      text: 'Voter',
-                      onPressed: _isEliminatedMe ? () {} : _submitVote,
+                      text: isDone ? 'Vote enregistré' : 'Voter',
+                      onPressed:
+                          (_isEliminatedMe || isDone) ? () {} : _submitVote,
                       variant: NeonButtonVariant.secondary,
-                      icon: Icons.check_rounded,
-                      isEnabled: !_isEliminatedMe,
+                      icon: isDone
+                          ? Icons.check_circle_rounded
+                          : Icons.check_rounded,
+                      isEnabled: !_isEliminatedMe && !isDone,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${_targetVotes.length}/${_displayPlayers.length} votes',
+                      '$voteCount/${voters.length} votes',
                       style: const TextStyle(
                         color: NeonColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Votes des autres joueurs EN TEMPS RÉEL (chaque vote est
+            // diffusé dès réception serveur, < fraction de seconde).
+            SizedBox(
+              width: 320,
+              child: NeonCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Votes en direct',
+                      style: TextStyle(
+                        color: NeonColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final p in voters)
+                      _buildVoteRow(
+                        playerId: p['id'].toString(),
+                        value: _targetVotes[p['id'].toString()],
+                      ),
                   ],
                 ),
               ),
@@ -3811,6 +4019,174 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         ),
       ),
     );
+  }
+
+  /// Texte du décompte global de vote (deadline serveur unique).
+  String get _voteRemainingText {
+    final dl = _voteDeadline;
+    if (dl == null) return '--';
+    final secs =
+        dl.difference(DateTime.now()).inSeconds.clamp(0, 3600);
+    return '${secs}s';
+  }
+
+  /// Ligne de vote d'un joueur : valeur votée ou attente (temps réel).
+  Widget _buildVoteRow({required String playerId, required int? value}) {
+    final name = _findPlayerName(playerId) ?? 'Joueur';
+    final isMe = playerId == _myId;
+    final voted = value != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: voted ? NeonColors.success : NeonColors.secondary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              name,
+              style: TextStyle(
+                color: isMe
+                    ? NeonColors.secondary
+                    : NeonColors.textPrimary,
+                fontSize: 13,
+                fontWeight: isMe ? FontWeight.w800 : FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            voted ? '$value' : 'en attente…',
+            style: TextStyle(
+              color: voted
+                  ? NeonColors.success
+                  : NeonColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              fontFamily: voted ? 'Orbitron' : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Résultat du vote affiché dans le bloc avant reprise automatique.
+  Widget _buildVoteResult() {
+    final result = _voteResult ?? {};
+    final target = result['target'] as int? ?? _targetValue ?? _middleVote;
+    final mode = result['mode']?.toString() ?? _voteMode;
+    final votes = result['votes'] is Map
+        ? Map<String, dynamic>.from(result['votes'] as Map)
+        : <String, dynamic>{};
+    final auto = result['auto_voted'] is List
+        ? (result['auto_voted'] as List).map((e) => e.toString()).toSet()
+        : <String>{};
+    final voters = _activeVoters;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: NeonColors.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: NeonColors.success.withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.how_to_vote_rounded,
+                    color: NeonColors.success,
+                    size: 18,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'CIBLE DÉCIDÉE',
+                    style: TextStyle(
+                      color: NeonColors.success,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '$target',
+              style: const TextStyle(
+                color: NeonColors.secondary,
+                fontSize: 64,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'Orbitron',
+              ),
+            ),
+            Text(
+              mode == 'mode' ? 'Valeur la plus votée' : 'Moyenne des votes',
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 320,
+              child: NeonCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final p in voters)
+                      _buildVoteRow(
+                        playerId: p['id'].toString(),
+                        value: (votes[p['id'].toString()] as num?)?.toInt(),
+                      ),
+                    if (auto.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Votes auto (délai expiré) : ${auto.map((id) => _findPlayerName(id) ?? id).join(', ')}',
+                          style: const TextStyle(
+                            color: NeonColors.warning,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Reprise dans $_voteResultCountdown s',
+              style: const TextStyle(
+                color: NeonColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Secondes restantes avant reprise auto (fenêtre serveur).
+  int get _voteResultCountdown {
+    final endsAt = _voteResultEndsAt;
+    if (endsAt == null) return _voteResultDelaySeconds;
+    return endsAt.difference(DateTime.now()).inSeconds.clamp(0, 3600);
   }
 
   // === Actions ===
@@ -4056,12 +4432,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   Future<void> _submitVote() async {
-    final myVote = _targetVotes[_myId] ?? 7;
-    setState(() => _targetVotes[_myId] = myVote);
-    // Transport unique (pas de double WS+REST) : chaque vote = un seul appel
-    // GenServer, sinon la file globale se remplit et tous les joueurs
-    // attendent. WS si live (broadcast cible à tous), REST sinon.
-    // Pas de calcul local : le serveur diffuse target_calculated (synchrone).
+    if (_hasVoted || _isEliminatedMe) return;
+    final myVote = (_mySelectorValue ?? _middleVote).clamp(_voteMin, _voteMax);
+    setState(() => _mySelectorValue = myVote);
+    await _sendVote(myVote);
+  }
+
+  /// Envoi transport unique (pas de double WS+REST) : chaque vote = un seul
+  /// appel GenServer, sinon la file globale se remplit et tous les joueurs
+  /// attendent. WS si live (broadcast cible à tous), REST sinon.
+  /// Pas de calcul local : le serveur diffuse target_calculated (synchrone).
+  Future<void> _sendVote(int myVote) async {
     if (_useWebSocket) {
       try {
         ref
@@ -4074,6 +4455,133 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       return;
     }
     await _voteRestFallback(myVote);
+  }
+
+  /// Expiration du timer global : envoi automatique de la valeur sur
+  /// laquelle se trouve le sélecteur (une seule fois). Si le serveur a déjà
+  /// clôturé, l'erreur est silencieuse + resynchro (jamais de blocage).
+  Future<void> _autoSubmitVote() async {
+    if (_hasVoted || _isEliminatedMe || !_isVotingPhase) return;
+    final myVote = (_mySelectorValue ?? _middleVote).clamp(_voteMin, _voteMax);
+    try {
+      await _sendVote(myVote);
+    } catch (_) {
+      await _refreshFromServer();
+    }
+  }
+
+  /// Bornes du vote = intervalle serveur [dés, dés × faces] (cohérent avec
+  /// la validation backend : aucun vote impossible).
+  int get _voteMin => _displayDiceCount < 1 ? 1 : _displayDiceCount;
+  int get _voteMax => _voteMin * (_diceFaces < 1 ? 6 : _diceFaces);
+  int get _middleVote => (_voteMin + _voteMax) ~/ 2;
+
+  /// Joueurs actifs devant voter (non éliminés), dans l'ordre d'affichage.
+  List<Map<String, dynamic>> get _activeVoters => _displayPlayers
+      .where((p) => !_displayEliminated.contains(p['id'].toString()))
+      .toList();
+
+  /// Ticker local 500ms UNIQUEMENT pendant vote/résultat : décompte textuel
+  /// + auto-envoi à expiration. Les TurnTimer affichent seuls via deadline.
+  void _ensureVoteTick() {
+    final need = _isVotingPhase || _showVoteResult;
+    if (need && _voteTickTimer == null) {
+      _voteTickTimer =
+          Timer.periodic(const Duration(milliseconds: 500), (_) => _onVoteTick());
+    } else if (!need) {
+      _voteTickTimer?.cancel();
+      _voteTickTimer = null;
+    }
+  }
+
+  void _onVoteTick() {
+    if (!mounted) return;
+    if (_isVotingPhase &&
+        !_hasVoted &&
+        !_autoVoteSent &&
+        !_isEliminatedMe &&
+        _voteDeadline != null &&
+        !DateTime.now().isBefore(_voteDeadline!)) {
+      _autoVoteSent = true;
+      _autoSubmitVote();
+    }
+    // Reprise auto : masquer le résultat à la fin du délai serveur.
+    if (mounted && (_isVotingPhase || _showVoteResult)) setState(() {});
+  }
+
+  /// Affiche le résultat du vote dans le bloc (avant reprise auto).
+  /// Idempotent : même set + même cible → pas de redémarrage du timer.
+  void _showVoteResultData({
+    required int target,
+    required Map<String, dynamic> votes,
+    required String mode,
+    required List<String> autoVoted,
+    required int delayMs,
+  }) {
+    if (_voteResult != null &&
+        _voteResult!['target'] == target &&
+        _voteSetNumber == _currentSet) {
+      return;
+    }
+    _voteResultTimer?.cancel();
+    final delaySec = (delayMs ~/ 1000).clamp(2, 30);
+    _voteResultDelaySeconds = delaySec;
+    _voteResultEndsAt = DateTime.now().add(Duration(seconds: delaySec));
+    setState(() {
+      _voteResult = {
+        'target': target,
+        'votes': votes,
+        'mode': mode,
+        'auto_voted': autoVoted,
+      };
+      _showVoteResult = true;
+      _hasVoted = true;
+    });
+    _voteResultTimer = Timer(Duration(seconds: delaySec), () {
+      if (!mounted) return;
+      setState(() {
+        _showVoteResult = false;
+        _voteResult = null;
+      });
+      _ensureVoteTick();
+    });
+    _ensureVoteTick();
+  }
+
+  /// Reconstruction du résultat depuis l'état serveur (chemin sans event :
+  /// polling/REST/reconnexion) pour un affichage cohérent partout.
+  void _buildVoteResultFromServer(
+    Map<String, dynamic> css,
+    Map<String, dynamic> match,
+    int target,
+  ) {
+    final rawVotes = css['votes'];
+    final votes = rawVotes is Map
+        ? Map<String, dynamic>.from(rawVotes)
+        : <String, dynamic>{};
+    List<String> auto = const [];
+    String mode = match['target_vote_mode']?.toString() ?? _voteMode;
+    final stored = css['vote_result'];
+    if (stored is Map) {
+      final storedMap = Map<String, dynamic>.from(stored);
+      final storedMode = storedMap['mode']?.toString();
+      if (storedMode == 'average' || storedMode == 'mode') {
+        mode = storedMode!;
+      }
+      final storedAuto = storedMap['auto_voted'];
+      if (storedAuto is List) {
+        auto = storedAuto.map((e) => e.toString()).toList();
+      }
+    }
+    if (mode != 'average' && mode != 'mode') mode = 'average';
+    final delayMs = match['vote_result_delay_ms'] as int? ?? 5000;
+    _showVoteResultData(
+      target: target,
+      votes: votes,
+      mode: mode,
+      autoVoted: auto,
+      delayMs: delayMs,
+    );
   }
 
   /// Envoi du vote via REST (repli + mode sans WS).

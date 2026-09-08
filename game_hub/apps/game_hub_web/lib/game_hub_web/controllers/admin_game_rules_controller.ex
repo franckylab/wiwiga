@@ -19,9 +19,25 @@ defmodule GameHubWeb.AdminGameRulesController do
   alias GameHub.{GameRules, Errors, AuditLog}
 
   @valid_rules ~w(normal cible)
-  # Clés administrables ici (nombre de sets). Le reste de la config
-  # (dés, mises, timeouts) reste géré par les endpoints existants.
+  # Clés administrables ici : nombre de sets, timings de jeu (tour, vote,
+  # enchaînement, grâce) et mode de vote cible. Le reste de la config (dés,
+  # mises, commissions) reste géré par les endpoints existants.
   @allowed_sets_keys ~w(min_sets max_sets default_sets sets_mode sets_random_min sets_random_max)
+  @allowed_timing_keys ~w(turn_timeout_seconds auto_next_set_delay_seconds leave_grace_seconds)
+  @allowed_vote_keys ~w(target_vote_mode vote_timeout_seconds vote_result_delay_seconds)
+  @allowed_keys @allowed_sets_keys ++ @allowed_timing_keys ++ @allowed_vote_keys
+  # Bornes miroir du changeset GameRule (rejetées aussi côté validation).
+  @turn_timeout_min 10
+  @turn_timeout_max 300
+  @auto_next_set_min 2
+  @auto_next_set_max 15
+  @leave_grace_min 5
+  @leave_grace_max 120
+  @vote_timeout_min 5
+  @vote_timeout_max 120
+  @vote_result_delay_min 2
+  @vote_result_delay_max 30
+  @valid_vote_modes ~w(average mode)
 
   @doc """
   GET /api/admin/game-rules — liste les règles moteur actives.
@@ -65,11 +81,18 @@ defmodule GameHubWeb.AdminGameRulesController do
   end
 
   @doc """
-  PUT /api/admin/game-rules/:game_type/:rule_type — met à jour les sets.
+  PUT /api/admin/game-rules/:game_type/:rule_type — met à jour sets + timings.
 
   Body (clés optionnelles) : `%{min_sets, max_sets, default_sets,
-  sets_mode ("fixed"|"random"), sets_random_min, sets_random_max}`.
+  sets_mode ("fixed"|"random"), sets_random_min, sets_random_max,
+  turn_timeout_seconds (10..300),
+  auto_next_set_delay_seconds (2..15), leave_grace_seconds (5..120),
+  target_vote_mode ("average"|"mode", cible uniquement),
+  vote_timeout_seconds (5..120, cible uniquement),
+  vote_result_delay_seconds (2..30, cible uniquement)}`.
   Fusionné avec la config existante, validé (changeset), cache ETS invalidé.
+  Les matchs en cours gardent leurs valeurs gelées ; les nouveaux matchs
+  appliquent la nouvelle config.
   """
   def update(conn, %{"game_type" => game_type, "rule_type" => rule_type} = params) do
     admin_id = get_admin_id(conn)
@@ -77,13 +100,21 @@ defmodule GameHubWeb.AdminGameRulesController do
     with :ok <- validate_rule_type(rule_type),
          {:ok, rule} <- GameRules.get_rules(game_type, rule_type),
          {:ok, sets_patch} <- extract_sets_patch(params),
-         merged = Map.merge(rule.config || %{}, sets_patch),
+         # `nil` explicite (ex : retour à l'héritage global du tour) :
+         # la clé est SUPPRIMÉE de la config au lieu d'être mise à jour.
+         {deletes, updates} = Enum.split_with(sets_patch, fn {_k, v} -> v == :__delete__ end),
+         merged =
+           Map.merge(rule.config || %{}, Map.new(updates))
+           |> Map.drop(Enum.map(deletes, &elem(&1, 0))),
          {:ok, updated} <- GameRules.update_config(game_type, rule_type, merged) do
       try do
         AuditLog.log("game_rules_updated", admin_id, "game_rule", "#{game_type}/#{rule_type}", %{
-          sets_patch: sets_patch,
+          sets_patch: Map.new(updates),
+          deleted_keys: Enum.map(deletes, &elem(&1, 0)),
           sets_mode: merged["sets_mode"],
-          default_sets: merged["default_sets"]
+          default_sets: merged["default_sets"],
+          timing_patch: Map.take(Map.new(updates), @allowed_timing_keys),
+          vote_patch: Map.take(Map.new(updates), @allowed_vote_keys)
         })
       rescue
         _ -> :ok
@@ -141,13 +172,19 @@ defmodule GameHubWeb.AdminGameRulesController do
   defp validate_rule_type(rule_type) when rule_type in @valid_rules, do: :ok
   defp validate_rule_type(_), do: {:error, :invalid_rule_type}
 
-  # N'accepte que les clés sets + valeurs typées (normalisation stricte).
+  # N'accepte que les clés sets + timings + vote cible, valeurs typées
+  # (normalisation stricte). Les clés de vote ne s'appliquent qu'au
+  # rule_type "cible" (rejetées ailleurs : vote inexistant en normal).
   defp extract_sets_patch(params) do
+    rule_type = Map.get(params, "rule_type")
     body = Map.drop(params, ["game_type", "rule_type", "controller", "action"])
 
     Enum.reduce_while(body, {:ok, %{}}, fn {key, val}, {:ok, acc} ->
       cond do
-        key not in @allowed_sets_keys ->
+        key in @allowed_vote_keys and rule_type != "cible" ->
+          {:halt, {:error, :invalid_key, key}}
+
+        key not in @allowed_keys ->
           {:halt, {:error, :invalid_key, key}}
 
         key == "sets_mode" and val not in ["fixed", "random"] ->
@@ -155,6 +192,57 @@ defmodule GameHubWeb.AdminGameRulesController do
 
         key == "sets_mode" ->
           {:cont, {:ok, Map.put(acc, key, val)}}
+
+        key == "target_vote_mode" and val not in @valid_vote_modes ->
+          {:halt, {:error, :invalid_value, key}}
+
+        key == "target_vote_mode" ->
+          {:cont, {:ok, Map.put(acc, key, val)}}
+
+        key == "turn_timeout_seconds" ->
+          # `null` explicite = retour à l'héritage global (clé supprimée).
+          if is_nil(val) do
+            {:cont, {:ok, Map.put(acc, key, :__delete__)}}
+          else
+            case parse_int(val) do
+              n when is_integer(n) and n >= @turn_timeout_min and n <= @turn_timeout_max ->
+                {:cont, {:ok, Map.put(acc, key, n)}}
+              _ ->
+                {:halt, {:error, :invalid_value, key}}
+            end
+          end
+
+        key == "auto_next_set_delay_seconds" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @auto_next_set_min and n <= @auto_next_set_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "leave_grace_seconds" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @leave_grace_min and n <= @leave_grace_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "vote_timeout_seconds" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @vote_timeout_min and n <= @vote_timeout_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "vote_result_delay_seconds" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @vote_result_delay_min and n <= @vote_result_delay_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
 
         true ->
           case parse_int(val) do

@@ -847,6 +847,7 @@ defmodule GameHubWeb.GameController do
       {:error, :player_eliminated} -> conn |> put_status(403) |> json(Errors.error("Vous êtes éliminé", 403, "PLAYER_ELIMINATED"))
       {:error, :set_not_in_progress} -> conn |> put_status(409) |> json(Errors.error("Set non en cours", 409, "SET_NOT_IN_PROGRESS"))
       {:error, :voting_phase_active} -> conn |> put_status(409) |> json(Errors.error("Phase de vote en cours", 409, "VOTING_PHASE"))
+      {:error, :vote_result_pending} -> conn |> put_status(409) |> json(Errors.error("Résultat du vote affiché — reprise dans quelques secondes", 409, "VOTE_RESULT_PENDING"))
       {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "ROLL_ERROR"))
     end
   end

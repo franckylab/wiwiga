@@ -30,11 +30,32 @@ defmodule GameHub.GameMatch do
 
   @table :game_matches
   @cleanup_interval_ms 5 * 60 * 1000
-  @turn_timeout_default 30_000 # 30s par tour (utilise GameTimeoutConfig si configuré)
-  @grace_period_default 45 # secondes
+  # Dernier recours si AUCUNE source configurée (ni game_rules ni
+  # GameTimeoutConfig) : 30s par tour.
+  @turn_timeout_default 30_000 # 30s par tour
+  @turn_timeout_min 10_000
+  @turn_timeout_max 300_000
+  # Enchaînement auto des sets (configurable `auto_next_set_delay_seconds`).
+  @auto_next_set_default 4_000
+  @auto_next_set_min 2_000
+  @auto_next_set_max 15_000
   # Délai de grâce avant de confirmer la sortie d'un joueur disparu du
   # transport (drop WS) sans action explicite de quitter.
-  @grace_leave_ms 20_000
+  # Configurable `leave_grace_seconds`.
+  @leave_grace_default 20_000
+  @leave_grace_min 5_000
+  @leave_grace_max 120_000
+  # Vote cible : timer global synchrone pour tous les joueurs (deadline
+  # serveur unique diffusée). Configurable via `vote_timeout_seconds`
+  # (règle dice/cible, admin). Clamp 5s..120s.
+  @vote_timeout_default 20_000
+  @vote_timeout_min 5_000
+  @vote_timeout_max 120_000
+  # Fenêtre d'affichage du résultat du vote avant reprise auto du jeu.
+  # Configurable via `vote_result_delay_seconds` (défaut 5s, clamp 2s..30s).
+  @vote_result_delay_default 5_000
+  @vote_result_delay_min 2_000
+  @vote_result_delay_max 30_000
 
   # === Client API ===
 
@@ -270,12 +291,19 @@ defmodule GameHub.GameMatch do
       # Revanche opt-out : proposition active + joueurs ayant quitté l'interface
       rematch: nil,
       left_players: MapSet.new(),
-      turn_timeout_ms: get_turn_timeout_ms(game_type),
+      turn_timeout_ms: get_turn_timeout_ms(game_type, rc),
+      # Délais configurables (admin, gelés à la création comme le reste).
+      auto_next_set_delay_ms: get_auto_next_set_delay_ms(rc),
+      leave_grace_ms: get_leave_grace_ms(rc),
       commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
       turn_order: rc["turn_order"] || "rotating",
       target_vote_mode: rc["target_vote_mode"] || "average",
+      # Timer global de vote (figés à la création comme le reste de la
+      # config : zéro requête par broadcast, cohérent création → fin).
+      vote_timeout_ms: get_vote_timeout_ms(rc),
+      vote_result_delay_ms: get_vote_result_delay_ms(rc),
       created_at: DateTime.utc_now(),
       updated_at: DateTime.utc_now()
     }
@@ -410,6 +438,9 @@ defmodule GameHub.GameMatch do
                 target_value: nil,
                 votes: %{},
                 vote_phase: match.rule_type == "cible",
+                vote_deadline: vote_deadline_for(match),
+                vote_result: nil,
+                vote_result_until: nil,
                 started_at: DateTime.utc_now(),
                 turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)
               }
@@ -424,7 +455,13 @@ defmodule GameHub.GameMatch do
 
               :ets.insert(state.table, {match_id, updated})
               Logger.info("Match #{match_id}: Set #{set_number} started (order #{inspect(turn_order)})")
-              schedule_turn_timeout(match_id, updated.current_set_state.turn_order |> List.first(), turn_timeout_ms(match))
+              # Phase de vote : le timer GLOBAL de vote pilote (pas de turn
+              # timeout — il forfeiterait pendant le vote). Sinon turn normal.
+              if updated.current_set_state.vote_phase do
+                schedule_vote_timeout(match_id, set_number, vote_timeout_ms(match))
+              else
+                schedule_turn_timeout(match_id, updated.current_set_state.turn_order |> List.first(), turn_timeout_ms(match))
+              end
               broadcast_set_started(match_id, updated)
 
               {:reply, {:ok, updated}, state}
@@ -455,32 +492,35 @@ defmodule GameHub.GameMatch do
           Map.has_key?(set.votes, to_string(player_id)) or Map.has_key?(set.votes, player_id) ->
             {:reply, {:error, :already_voted}, state}
 
+          # Garde de type : un non-entier (string, float, nil) planterait les
+          # comparaisons ci-dessous et ferait crasher le GenServer (perte de
+          # TOUS les matchs en ETS). Rejet propre côté arbitre.
+          not is_integer(target_value) ->
+            {:reply, {:error, :invalid_target}, state}
+
           true ->
-            # Valider la valeur du vote
-            max_possible = match.dice_count * match.dice_faces
-            if target_value < 1 or target_value > max_possible do
+            # Valider la valeur du vote (plage du set : jamais de vote
+            # impossible — le slider client est borné pareil côté serveur).
+            min_possible = max(match.dice_count, 1)
+            max_possible = match.dice_count * (Map.get(match, :dice_faces, 6) || 6)
+            if target_value < min_possible or target_value > max_possible do
               {:reply, {:error, :invalid_target}, state}
             else
               pid_str = to_string(player_id)
               updated_votes = Map.put(set.votes, pid_str, target_value)
               updated_set = %{set | votes: updated_votes}
 
-              # Si tous les joueurs actifs ont voté → calculer la cible (filtrer éliminés)
+              # Si tous les joueurs actifs ont voté → clôturer (même chemin
+              # que l'expiration du timer : résultat + reprise auto).
               active_count = length(match.players) - MapSet.size(match.eliminated_players || MapSet.new())
               {updated_set, vote_event} = if map_size(updated_votes) >= active_count do
-                target = calculate_target(updated_votes, match.target_vote_mode)
-                # Délai de vote terminé → relancer deadline de tour pour premier lanceur
-                new_deadline = DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)
-                updated_with_target = %{updated_set | target_value: target, vote_phase: false, turn_deadline: new_deadline}
-                # Reprogrammer timeout pour premier joueur
-                first_player = List.first(updated_with_target.turn_order)
-                if first_player, do: schedule_turn_timeout(match_id, first_player, turn_timeout_ms(match))
-                {updated_with_target, {:calculated, target}}
+                {closed_set, target} = close_voting(match_id, match, updated_set, updated_votes, [])
+                {closed_set, {:calculated, target}}
               else
                 {updated_set, {:progress, map_size(updated_votes), active_count}}
               end
 
-              updated_match = %{match | current_set_state: updated_set, updated_at: DateTime.utc_now()}
+              updated_match = %{match | current_set_state: updated_set, turn_deadline: updated_set.turn_deadline, updated_at: DateTime.utc_now()}
               :ets.insert(state.table, {match_id, updated_match})
 
               # Broadcasts temps réel synchrones pour TOUS les joueurs (y compris vote via REST) :
@@ -488,7 +528,7 @@ defmodule GameHub.GameMatch do
               case vote_event do
                 {:calculated, target} ->
                   broadcast_target_voted(match_id, pid_str, target_value, updated_match)
-                  broadcast_target_calculated(match_id, target, %{updated_match | current_set_state: updated_set})
+                  broadcast_target_calculated(match_id, target, %{updated_match | current_set_state: updated_set}, result_meta(updated_match, []))
                 {:progress, votes_count, total_needed} ->
                   broadcast_target_voted(match_id, pid_str, target_value, updated_match)
                   broadcast_vote_progress(match_id, votes_count, total_needed, updated_match)
@@ -518,6 +558,9 @@ defmodule GameHub.GameMatch do
 
           set.vote_phase ->
             {:reply, {:error, :voting_phase_active}, state}
+
+          vote_result_pending?(set) ->
+            {:reply, {:error, :vote_result_pending}, state}
 
           not is_current_turn(set, player_id) ->
             {:reply, {:error, :not_your_turn}, state}
@@ -651,8 +694,9 @@ defmodule GameHub.GameMatch do
                 # Persistance et stats (async, best effort)
                 Task.start(fn -> persist_match_result(final_match) end)
               else
-                # Auto-démarrage du set suivant après 4s si personne ne clique (synchro garantie pour tous)
-                schedule_auto_next_set(match_id, 4000)
+                # Auto-démarrage du set suivant après le délai configuré si
+                # personne ne clique (synchro garantie pour tous).
+                schedule_auto_next_set(match_id, auto_next_set_delay_ms(final_match))
               end
             else
               # Schedule timeout pour le prochain joueur
@@ -747,7 +791,7 @@ defmodule GameHub.GameMatch do
                 broadcast_match_result(match_id, ended)
                 Task.start(fn -> persist_match_result(ended) end)
               true ->
-                schedule_auto_next_set(match_id, 4000)
+                schedule_auto_next_set(match_id, auto_next_set_delay_ms(final))
             end
           end
 
@@ -956,7 +1000,7 @@ defmodule GameHub.GameMatch do
       {:ok, match} when match.status == :match_ended ->
         if match_player?(match, pid) and not left_player?(match, pid) do
           state = cancel_leave_timer(state, match_id, pid)
-          ref = Process.send_after(self(), {:confirm_leave, match_id, pid}, @grace_leave_ms)
+          ref = Process.send_after(self(), {:confirm_leave, match_id, pid}, leave_grace_ms(match))
           {:reply, :ok, put_leave_timer(state, match_id, pid, ref)}
         else
           {:reply, :ok, state}
@@ -1009,6 +1053,17 @@ defmodule GameHub.GameMatch do
         set = match.current_set_state
         cond do
           match.status != :set_in_progress or is_nil(set) or set.status != :in_progress ->
+            {:noreply, state}
+
+          # Phase de vote : le timer GLOBAL de vote est seul pilote (un turn
+          # timeout ici forfeiterait pendant le vote — incohérence corrigée).
+          set.vote_phase == true ->
+            {:noreply, state}
+
+          # Fenêtre d'affichage du résultat du vote : la partie reprend
+          # automatiquement après ; le turn timeout frais (programmé à la
+          # clôture) est le seul valable, pas un résiduel antérieur.
+          vote_result_pending?(set) ->
             {:noreply, state}
 
           eliminated?(match, player_id) ->
@@ -1079,13 +1134,53 @@ defmodule GameHub.GameMatch do
                 broadcast_match_result(match_id, interim)
                 Task.start(fn -> persist_match_result(interim) end)
               else
-                schedule_auto_next_set(match_id, 4000)
+                schedule_auto_next_set(match_id, auto_next_set_delay_ms(interim))
               end
             else
               next_player = Enum.at(updated_set.turn_order, updated_set.current_turn_index)
               if next_player, do: schedule_turn_timeout(match_id, next_player, turn_timeout_ms(match))
               broadcast_turn_changed(match_id, interim)
             end
+            {:noreply, state}
+        end
+      _ ->
+        {:noreply, state}
+    end
+  end
+
+  @impl true
+  def handle_info({:vote_timeout, match_id, set_number}, state) do
+    case lookup_match(state.table, match_id) do
+      {:ok, match} ->
+        set = match.current_set_state
+        cond do
+          # Périmé ou déjà clôturé : ignorer (idempotent, pas de double calcul).
+          match.status != :set_in_progress or is_nil(set) or set.status != :in_progress ->
+            {:noreply, state}
+
+          set.set_number != set_number ->
+            {:noreply, state}
+
+          set.vote_phase != true ->
+            {:noreply, state}
+
+          true ->
+            Logger.info("Match #{match_id}: vote set #{set_number} expiré — clôture automatique")
+            actives = voting_players(match)
+            voted = set.votes |> Map.keys() |> Enum.map(&to_string/1) |> MapSet.new()
+            missing = Enum.reject(actives, &MapSet.member?(voted, &1))
+            auto_value = default_auto_vote(match.dice_count, Map.get(match, :dice_faces, 6))
+            auto_votes = Map.new(missing, fn pid -> {pid, auto_value} end)
+            final_votes = Map.merge(set.votes, auto_votes)
+            {closed_set, target} = close_voting(match_id, match, set, final_votes, missing)
+            updated_match = %{match | current_set_state: closed_set, turn_deadline: closed_set.turn_deadline, updated_at: DateTime.utc_now()}
+            :ets.insert(state.table, {match_id, updated_match})
+            # Chaque auto-vote est diffusé (les joueurs voient qui a été
+            # complété), puis le résultat calculé — même séquence qu'en manuel.
+            Enum.each(missing, fn pid ->
+              broadcast_target_voted(match_id, pid, auto_value, updated_match)
+            end)
+            broadcast_target_calculated(match_id, target, updated_match, result_meta(updated_match, missing))
             {:noreply, state}
         end
       _ ->
@@ -1120,9 +1215,13 @@ defmodule GameHub.GameMatch do
                 {:ok, updated} ->
                   :ets.insert(state.table, {match_id, updated})
                   broadcast_set_started(match_id, updated)
-                  # Programmer timeout pour premier joueur du nouveau set
-                  first_player = updated.current_set_state.turn_order |> List.first()
-                  if first_player, do: schedule_turn_timeout(match_id, first_player, turn_timeout_ms(updated))
+                  # Phase de vote : timer global de vote, sinon turn normal.
+                  if updated.current_set_state.vote_phase do
+                    schedule_vote_timeout(match_id, updated.current_set, vote_timeout_ms(updated))
+                  else
+                    first_player = updated.current_set_state.turn_order |> List.first()
+                    if first_player, do: schedule_turn_timeout(match_id, first_player, turn_timeout_ms(updated))
+                  end
                   {:noreply, state}
                 _ ->
                   {:noreply, state}
@@ -1335,6 +1434,16 @@ defmodule GameHub.GameMatch do
   defp turn_timeout_ms(match) do
     Map.get(match, :turn_timeout_ms, @turn_timeout_default) || @turn_timeout_default
   end
+
+  # Fenêtre d'affichage du résultat du vote encore active : les lancers sont
+  # refusés (`:vote_result_pending`) jusqu'à la reprise automatique.
+  defp vote_result_pending?(set) when is_map(set) do
+    case Map.get(set, :vote_result_until) do
+      %DateTime{} = until -> DateTime.compare(DateTime.utc_now(), until) == :lt
+      _ -> false
+    end
+  end
+  defp vote_result_pending?(_), do: false
 
   # Taux de commission figé à la création (évite une requête DB par broadcast).
   defp get_commission_rate(game_type, rule_type) do
@@ -1635,12 +1744,17 @@ defmodule GameHub.GameMatch do
       forfeited_players: [],
       rematch: nil,
       left_players: MapSet.new(),
-      turn_timeout_ms: get_turn_timeout_ms(game_type),
+      turn_timeout_ms: get_turn_timeout_ms(game_type, rc),
+      # Délais configurables (admin, gelés à la création comme le reste).
+      auto_next_set_delay_ms: get_auto_next_set_delay_ms(rc),
+      leave_grace_ms: get_leave_grace_ms(rc),
       commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
       turn_order: rc["turn_order"] || "rotating",
       target_vote_mode: rc["target_vote_mode"] || "average",
+      vote_timeout_ms: get_vote_timeout_ms(rc),
+      vote_result_delay_ms: get_vote_result_delay_ms(rc),
       created_at: DateTime.utc_now(),
       updated_at: DateTime.utc_now()
     }
@@ -1661,8 +1775,12 @@ defmodule GameHub.GameMatch do
       {:ok, started} ->
         :ets.insert(table, {match_id, started})
         Logger.info("Match #{match_id} created (revanche, #{length(player_ids)} joueurs)")
-        first = started.current_set_state.turn_order |> List.first()
-        if first, do: schedule_turn_timeout(match_id, first, turn_timeout_ms(started))
+        if started.current_set_state.vote_phase do
+          schedule_vote_timeout(match_id, started.current_set, vote_timeout_ms(started))
+        else
+          first = started.current_set_state.turn_order |> List.first()
+          if first, do: schedule_turn_timeout(match_id, first, turn_timeout_ms(started))
+        end
         broadcast_set_started(match_id, started)
         {:ok, started}
 
@@ -1751,6 +1869,115 @@ defmodule GameHub.GameMatch do
     Process.send_after(self(), {:auto_next_set, match_id}, delay_ms)
   end
 
+  # Timer global de vote : UNE deadline serveur par set, identique pour tous
+  # les joueurs (synchrone). Le message porte le numéro de set : un timeout
+  # périmé (set déjà clôturé/avancé) est ignoré par le handler.
+  defp schedule_vote_timeout(match_id, set_number, timeout_ms) do
+    Process.send_after(self(), {:vote_timeout, match_id, set_number}, timeout_ms)
+  end
+
+  # Deadline de vote posée à l'ouverture d'un set cible (nil sinon).
+  defp vote_deadline_for(match) do
+    if match.rule_type == "cible" do
+      DateTime.add(DateTime.utc_now(), div(vote_timeout_ms(match), 1000), :second)
+    else
+      nil
+    end
+  end
+
+  # Résolution des paramètres de vote depuis la config de règle (figés dans
+  # le match à la création). Bornés pour éviter une config qui bloquerait
+  # (timeout trop court) ou figerait (délai trop long) la partie.
+  defp get_vote_timeout_ms(rc) when is_map(rc) do
+    rc |> Map.get("vote_timeout_seconds", 20) |> to_bounded_ms(@vote_timeout_min, @vote_timeout_max, @vote_timeout_default)
+  end
+  defp get_vote_timeout_ms(_), do: @vote_timeout_default
+
+  defp get_vote_result_delay_ms(rc) when is_map(rc) do
+    rc |> Map.get("vote_result_delay_seconds", 5) |> to_bounded_ms(@vote_result_delay_min, @vote_result_delay_max, @vote_result_delay_default)
+  end
+  defp get_vote_result_delay_ms(_), do: @vote_result_delay_default
+
+  defp to_bounded_ms(val, min, max, _default) when is_integer(val), do: val * 1000 |> max(min) |> min(max)
+  defp to_bounded_ms(val, min, max, _default) when is_float(val), do: trunc(val * 1000) |> max(min) |> min(max)
+  defp to_bounded_ms(val, min, max, default) when is_binary(val) do
+    case Integer.parse(String.trim(val)) do
+      {n, ""} -> to_bounded_ms(n, min, max, default)
+      _ -> default
+    end
+  end
+  defp to_bounded_ms(_, _, _, default), do: default
+
+  defp vote_timeout_ms(match) do
+    Map.get(match, :vote_timeout_ms, @vote_timeout_default) || @vote_timeout_default
+  end
+
+  defp vote_result_delay_ms(match) do
+    Map.get(match, :vote_result_delay_ms, @vote_result_delay_default) || @vote_result_delay_default
+  end
+
+  # Vote automatique (filet serveur) : milieu de l'intervalle possible
+  # [dice_count, dice_count * dice_faces], ex. 2 dés → 7. Valeur toujours
+  # valide (jamais hors plage → jamais :invalid_target).
+  defp default_auto_vote(dice_count, dice_faces) do
+    min = max((dice_count || 2), 1)
+    max_possible = min * max((dice_faces || 6), 1)
+    div(min + max_possible, 2)
+  end
+
+  # Clôture du vote (dernier vote manuel OU expiration du timer) : calcule
+  # la cible, fige le résultat pour affichage (`vote_result`), puis décale
+  # la deadline de tour APRÈS la fenêtre d'affichage — la partie reprend
+  # automatiquement sans manger le temps du premier lanceur.
+  # `auto_voted` : ids des joueurs dont le vote a été posé par le serveur.
+  defp close_voting(match_id, match, set, votes, auto_voted) do
+    target =
+      if map_size(votes) == 0 do
+        default_auto_vote(match.dice_count, Map.get(match, :dice_faces, 6))
+      else
+        calculate_target(votes, match.target_vote_mode)
+      end
+    result_delay = vote_result_delay_ms(match)
+    now = DateTime.utc_now()
+    result_until = DateTime.add(now, div(result_delay, 1000), :second)
+    new_deadline = DateTime.add(result_until, div(turn_timeout_ms(match), 1000), :second)
+    updated_set = %{set |
+      votes: votes,
+      target_value: target,
+      vote_phase: false,
+      vote_deadline: nil,
+      turn_deadline: new_deadline,
+      vote_result: %{
+        target: target,
+        votes: votes,
+        mode: Map.get(match, :target_vote_mode, "average") || "average",
+        auto_voted: auto_voted,
+        calculated_at: now
+      },
+      vote_result_until: result_until
+    }
+    first_player = List.first(updated_set.turn_order)
+    if first_player, do: schedule_turn_timeout(match_id, first_player, turn_timeout_ms(match) + result_delay)
+    {updated_set, target}
+  end
+
+  # Joueurs actifs (non éliminés) devant voter, dans l'ordre du set.
+  defp voting_players(match) do
+    match.players
+    |> Enum.map(fn p -> to_string(p.id) end)
+    |> Enum.reject(fn pid -> eliminated?(match, pid) end)
+  end
+
+  # Métadonnées du résultat jointes à `target_calculated` : mode de calcul,
+  # votes posés par le serveur (timeout) et délai d'affichage avant reprise.
+  defp result_meta(match, auto_voted) do
+    %{
+      vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
+      auto_voted: Enum.map(auto_voted, &to_string/1),
+      result_delay_ms: vote_result_delay_ms(match)
+    }
+  end
+
   # Logique interne pour démarrer un set (réutilisable par handle_call et auto_next_set)
   defp do_start_set_internal(_table, match) do
     # Vérifier qu'on peut démarrer
@@ -1777,6 +2004,9 @@ defmodule GameHub.GameMatch do
             target_value: nil,
             votes: %{},
             vote_phase: match.rule_type == "cible",
+            vote_deadline: vote_deadline_for(match),
+            vote_result: nil,
+            vote_result_until: nil,
             started_at: DateTime.utc_now(),
             turn_deadline: DateTime.add(DateTime.utc_now(), div(turn_timeout_ms(match), 1000), :second)
           }
@@ -1793,16 +2023,53 @@ defmodule GameHub.GameMatch do
     end
   end
 
-  defp get_turn_timeout_ms(game_type) do
+  defp get_turn_timeout_ms(game_type, rc \\ nil) do
+    # Ordre de priorité : 1. `turn_timeout_seconds` de la règle (admin, par
+    # type de règle), 2. `GameTimeoutConfig.grace_period_seconds` (global
+    # existant, compatibilité), 3. 30s par défaut.
+    rc_bounded_ms(rc, "turn_timeout_seconds", @turn_timeout_min, @turn_timeout_max) ||
+      global_turn_timeout_ms(game_type)
+  end
+
+  defp global_turn_timeout_ms(game_type) do
     # Essaie GameTimeoutConfig (grace_period) sinon fallback 30s
     try do
       case GameHub.Repo.get_by(GameHub.Games.GameTimeoutConfig, game_type: game_type, is_active: true) do
-        %{grace_period_seconds: secs} when is_integer(secs) and secs > 0 -> secs * 1000
+        %{grace_period_seconds: secs} when is_integer(secs) and secs > 0 ->
+          secs * 1000 |> max(@turn_timeout_min) |> min(@turn_timeout_max)
         _ -> @turn_timeout_default
       end
     rescue
       _ -> @turn_timeout_default
     end
+  end
+
+  # Lecture d'un paramètre de délai (secondes) depuis la config de règle →
+  # millisecondes bornées, nil si absent (laisse le fallback décider).
+  defp rc_bounded_ms(rc, key, min, max) when is_map(rc) do
+    case Map.get(rc, key) do
+      nil -> nil
+      val -> to_bounded_ms(val, min, max, nil)
+    end
+  end
+  defp rc_bounded_ms(_, _, _, _), do: nil
+
+  defp get_auto_next_set_delay_ms(rc) when is_map(rc) do
+    rc_bounded_ms(rc, "auto_next_set_delay_seconds", @auto_next_set_min, @auto_next_set_max) || @auto_next_set_default
+  end
+  defp get_auto_next_set_delay_ms(_), do: @auto_next_set_default
+
+  defp get_leave_grace_ms(rc) when is_map(rc) do
+    rc_bounded_ms(rc, "leave_grace_seconds", @leave_grace_min, @leave_grace_max) || @leave_grace_default
+  end
+  defp get_leave_grace_ms(_), do: @leave_grace_default
+
+  defp auto_next_set_delay_ms(match) do
+    Map.get(match, :auto_next_set_delay_ms, @auto_next_set_default) || @auto_next_set_default
+  end
+
+  defp leave_grace_ms(match) do
+    Map.get(match, :leave_grace_ms, @leave_grace_default) || @leave_grace_default
   end
 
   defp get_turn_timeout(game_type), do: div(get_turn_timeout_ms(game_type), 1000)
@@ -2032,8 +2299,17 @@ defmodule GameHub.GameMatch do
   rescue _ -> :ok
   end
 
-  defp broadcast_target_calculated(match_id, target, match) do
-    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "target_calculated", match_id: match_id, seq: next_seq(), target_value: target, match: sanitize_match(match, compact: true)})
+  defp broadcast_target_calculated(match_id, target, match, meta) do
+    Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{
+      event: "target_calculated",
+      match_id: match_id,
+      seq: next_seq(),
+      target_value: target,
+      vote_mode: Map.get(meta, :vote_mode, "average"),
+      auto_voted: Map.get(meta, :auto_voted, []),
+      result_delay_ms: Map.get(meta, :result_delay_ms, @vote_result_delay_default),
+      match: sanitize_match(match, compact: true)
+    })
   rescue _ -> :ok
   end
 
@@ -2087,7 +2363,8 @@ defmodule GameHub.GameMatch do
             _ -> base
           end
         rescue _ -> base end
-        # Ajouter remaining calculé côté serveur pour éviter dérive horloge client
+        # Ajouter remainings calculés côté serveur pour éviter dérive horloge
+        # client (tour + timer global de vote : deadline unique → synchrone).
         remaining = case Map.get(base, :turn_deadline) do
           %DateTime{} = dl ->
             try do
@@ -2095,7 +2372,17 @@ defmodule GameHub.GameMatch do
             rescue _ -> nil end
           _ -> nil
         end
-        Map.put(with_rolls, :turn_remaining_seconds, remaining)
+        vote_remaining = case Map.get(base, :vote_deadline) do
+          %DateTime{} = dl ->
+            try do
+              max(0, DateTime.diff(dl, DateTime.utc_now(), :second))
+            rescue _ -> nil end
+          _ -> nil
+        end
+        with_rolls
+        |> Map.put(:turn_remaining_seconds, remaining)
+        |> Map.put(:vote_remaining_seconds, vote_remaining)
+        |> Map.update(:vote_result, nil, &sanitize_vote_result/1)
       other -> other
     end
     {last_roller_id, last_roll} = latest_roll(match)
@@ -2130,6 +2417,12 @@ defmodule GameHub.GameMatch do
       eliminated_players: MapSet.to_list(match.eliminated_players || MapSet.new()),
       winner_id: Map.get(match, :winner_id),
       turn_timeout_ms: turn_timeout_ms(match),
+      dice_faces: Map.get(match, :dice_faces, 6),
+      vote_timeout_ms: vote_timeout_ms(match),
+      vote_result_delay_ms: vote_result_delay_ms(match),
+      auto_next_set_delay_ms: auto_next_set_delay_ms(match),
+      leave_grace_ms: leave_grace_ms(match),
+      target_vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
       last_roller_id: last_roller_id,
       last_roll: last_roll,
       players: Enum.map(Map.get(match, :players, []), fn p -> %{id: to_string(p.id), name: Map.get(p, :name, "Joueur")} end)
@@ -2137,6 +2430,23 @@ defmodule GameHub.GameMatch do
   rescue
     _ -> %{match_id: match.match_id, status: to_string(match.status)}
   end
+
+  # Résultat du vote sérialisable JSON : votes en clés string, auto-votés en
+  # strings, calculated_at → ISO8601. nil (pas encore calculé) reste nil.
+  defp sanitize_vote_result(%{target: target, votes: votes, mode: mode, auto_voted: auto, calculated_at: at}) do
+    %{
+      target: target,
+      votes: Map.new(votes || %{}, fn {k, v} -> {to_string(k), v} end),
+      mode: mode || "average",
+      auto_voted: Enum.map(auto || [], &to_string/1),
+      calculated_at: case at do
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        v when is_binary(v) -> v
+        _ -> nil
+      end
+    }
+  end
+  defp sanitize_vote_result(_), do: nil
 
   # Roll sérialisable JSON : rolled_at → ISO8601, player_id → string.
   defp sanitize_roll(%{dice: dice, sum: sum} = roll) do

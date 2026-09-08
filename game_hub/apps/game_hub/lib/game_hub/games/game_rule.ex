@@ -22,12 +22,16 @@ defmodule GameHub.Games.GameRule do
     - `min_players`, `max_players`
     - `tie_rule` ("replay" | "no_winner")
     - `turn_order` ("rotating" | "random" | "creator_first")
-    - `turn_timeout_seconds`, `set_timeout_seconds`
+    - `turn_timeout_seconds` (10..300, optionnel : défaut = global existant)
+    - `set_timeout_seconds`
+    - `auto_next_set_delay_seconds` (2..15 : enchaînement auto des sets)
+    - `leave_grace_seconds` (5..120 : confirmation sortie transport)
 
   ## Config Keys (dice/cible)
     - Mêmes clés que normal +
     - `target_vote_mode` ("average" | "mode")
-    - `vote_timeout_seconds`
+    - `vote_timeout_seconds` (5..120 : timer global de vote synchrone)
+    - `vote_result_delay_seconds` (2..30 : affichage résultat avant reprise)
   """
 
   use Ecto.Schema
@@ -151,8 +155,33 @@ defmodule GameHub.Games.GameRule do
     |> validate_config_range(config, "max_bet", 0, 10_000_000)
     |> validate_config_range(config, "min_players", 2, 10)
     |> validate_config_range(config, "max_players", 2, 10)
+    |> validate_config_range(config, "turn_timeout_seconds", 10, 300)
+    |> validate_config_range(config, "auto_next_set_delay_seconds", 2, 15)
+    |> validate_config_range(config, "leave_grace_seconds", 5, 120)
+    |> validate_config_range(config, "vote_timeout_seconds", 5, 120)
+    |> validate_config_range(config, "vote_result_delay_seconds", 2, 30)
+    |> validate_target_vote_mode(config)
     |> validate_sets_mode(config)
     |> validate_sets_coherence(config)
+  end
+
+  @valid_target_vote_modes ~w(average mode)
+
+  defp validate_target_vote_mode(changeset, config) do
+    case Map.get(config, "target_vote_mode") do
+      nil ->
+        changeset
+
+      mode when mode in @valid_target_vote_modes ->
+        changeset
+
+      other ->
+        add_error(
+          changeset,
+          :config,
+          "target_vote_mode invalide (#{inspect(other)}) : attendu average ou mode"
+        )
+    end
   end
 
   defp validate_sets_mode(changeset, config) do

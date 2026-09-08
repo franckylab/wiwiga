@@ -37,7 +37,7 @@ class _AdminGameConfigScreenState extends ConsumerState<AdminGameConfigScreen> {
     return Scaffold(
       backgroundColor: NeonColors.background,
       appBar: AppBar(
-        title: const Text('Règles & Config. Jeux'),
+        title: const Text('Catalogue & Mises'),
         backgroundColor: NeonColors.surface,
         foregroundColor: NeonColors.textPrimary,
         elevation: 0,

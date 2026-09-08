@@ -418,6 +418,19 @@ defmodule GameHubWeb.Router do
     get "/game-rules", AdminGameRulesController, :index
     get "/game-rules/:game_type/:rule_type", AdminGameRulesController, :show
     put "/game-rules/:game_type/:rule_type", AdminGameRulesController, :update
+
+    # ========================================
+    # Timeouts Globaux — repli des règles (source GameTimeoutConfig)
+    # ========================================
+    get "/game-timeouts", AdminGameTimeoutController, :index
+    put "/game-timeouts/:game_type", AdminGameTimeoutController, :update
+
+    # ========================================
+    # Config Effective — vue centralisée lecture seule
+    # (fusion game_rules + game_configs + timeouts + xp)
+    # ========================================
+    get "/games/effective-config", AdminGameEffectiveConfigController, :index
+    get "/games/effective-config/:game_type/:rule_type", AdminGameEffectiveConfigController, :show
     
     # ========================================
     # Bonuses & Promotions (V3)

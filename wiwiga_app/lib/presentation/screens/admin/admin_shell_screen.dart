@@ -114,7 +114,12 @@ const List<_NavSection> _navSections = [
     icon: Icons.tune,
     items: [
       _NavItem(
-        label: 'Règles Jeux',
+        label: "Vue d'ensemble",
+        path: '/admin/games-overview',
+        icon: Icons.dashboard_outlined,
+      ),
+      _NavItem(
+        label: 'Catalogue & Mises',
         path: '/admin/game-config',
         icon: Icons.tune,
       ),
@@ -122,6 +127,11 @@ const List<_NavSection> _navSections = [
         label: 'Sets Moteur',
         path: '/admin/game-rules',
         icon: Icons.casino_outlined,
+      ),
+      _NavItem(
+        label: 'Timeouts Globaux',
+        path: '/admin/game-timeouts',
+        icon: Icons.timer_outlined,
       ),
       _NavItem(
         label: 'Services App',

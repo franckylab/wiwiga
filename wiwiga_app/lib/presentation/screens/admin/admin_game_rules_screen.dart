@@ -90,6 +90,74 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     );
   }
 
+  /// Timings de jeu par règle (secondes) : tour, enchaînement auto des
+  /// sets, grâce de sortie transport. `turn_timeout_seconds` absent (null)
+  /// = héritage du global existant (GameTimeoutConfig) — affiché « Auto ».
+  Map<String, dynamic> _timingOf(Map<String, dynamic> rule) {
+    final config = rule['config'];
+    final cfg = config is Map<String, dynamic>
+        ? config
+        : config is Map
+            ? Map<String, dynamic>.from(config)
+            : <String, dynamic>{};
+    int? intOrNull(String key, int min, int max) {
+      final value = cfg[key];
+      int? parsed;
+      if (value is int) {
+        parsed = value;
+      } else if (value is num) {
+        parsed = value.toInt();
+      } else if (value is String) {
+        parsed = int.tryParse(value.trim());
+      }
+      if (parsed == null) return null;
+      return parsed.clamp(min, max);
+    }
+
+    return {
+      'turn_timeout_seconds': intOrNull('turn_timeout_seconds', 10, 300),
+      'auto_next_set_delay_seconds':
+          intOrNull('auto_next_set_delay_seconds', 2, 15) ?? 4,
+      'leave_grace_seconds': intOrNull('leave_grace_seconds', 5, 120) ?? 20,
+    };
+  }
+
+  /// Paramètres de vote cible (règle cible uniquement) : timer global
+  /// synchrone, délai d'affichage du résultat, mode de calcul.
+  /// Valeurs miroir des défauts backend (20s / 5s / average).
+  Map<String, dynamic> _voteOf(Map<String, dynamic> rule) {
+    final config = rule['config'];
+    final cfg = config is Map<String, dynamic>
+        ? config
+        : config is Map
+            ? Map<String, dynamic>.from(config)
+            : <String, dynamic>{};
+    int intOf(String key, int fallback, int min, int max) {
+      final value = cfg[key];
+      int parsed;
+      if (value is int) {
+        parsed = value;
+      } else if (value is num) {
+        parsed = value.toInt();
+      } else if (value is String) {
+        parsed = int.tryParse(value.trim()) ?? fallback;
+      } else {
+        parsed = fallback;
+      }
+      return parsed.clamp(min, max);
+    }
+
+    final mode = cfg['target_vote_mode']?.toString() == 'mode'
+        ? 'mode'
+        : 'average';
+    return {
+      'vote_timeout_seconds': intOf('vote_timeout_seconds', 20, 5, 120),
+      'vote_result_delay_seconds':
+          intOf('vote_result_delay_seconds', 5, 2, 30),
+      'target_vote_mode': mode,
+    };
+  }
+
   Map<String, dynamic> _setsOf(Map<String, dynamic> rule) {
     final sets = rule['sets'];
     if (sets is Map<String, dynamic>) return sets;
@@ -128,6 +196,12 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     final ruleType = rule['rule_type']?.toString() ?? '';
     final name = rule['name']?.toString() ?? ruleType;
     final sets = _setsOf(rule);
+    final isCible = ruleType == 'cible';
+    final timing = _timingOf(rule);
+    final turnLabel = timing['turn_timeout_seconds'] == null
+        ? 'Auto'
+        : '${timing['turn_timeout_seconds']}s';
+    final vote = isCible ? _voteOf(rule) : <String, dynamic>{};
     final isRandom = sets['mode'] == 'random';
     final accent = isRandom ? NeonColors.secondary : NeonColors.primary;
     final setsLabel = isRandom
@@ -232,6 +306,34 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   NeonColors.secondary,
                 ),
               ],
+              _buildChip('Tour', turnLabel, NeonColors.primary),
+              _buildChip(
+                'Set suivant',
+                '${timing['auto_next_set_delay_seconds']}s',
+                NeonColors.textSecondary,
+              ),
+              _buildChip(
+                'Grâce sortie',
+                '${timing['leave_grace_seconds']}s',
+                NeonColors.textSecondary,
+              ),
+              if (isCible) ...[
+                _buildChip(
+                  'Vote',
+                  '${vote['vote_timeout_seconds']}s',
+                  NeonColors.secondary,
+                ),
+                _buildChip(
+                  'Résultat',
+                  '${vote['vote_result_delay_seconds']}s',
+                  NeonColors.secondary,
+                ),
+                _buildChip(
+                  'Mode',
+                  '${vote['target_vote_mode']}',
+                  NeonColors.primary,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -283,7 +385,10 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
   void _showEditDialog(Map<String, dynamic> rule, Map<String, dynamic> sets) {
     final gameType = rule['game_type']?.toString() ?? '';
     final ruleType = rule['rule_type']?.toString() ?? '';
+    final isCible = ruleType == 'cible';
+    final vote = isCible ? _voteOf(rule) : <String, dynamic>{};
     var isRandom = sets['mode'] == 'random';
+    var voteIsMode = vote['target_vote_mode'] == 'mode';
 
     final minCtrl =
         TextEditingController(text: '${sets['min_sets']}');
@@ -295,6 +400,24 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
         TextEditingController(text: '${sets['random_min']}');
     final randMaxCtrl =
         TextEditingController(text: '${sets['random_max']}');
+    final voteTimeoutCtrl = TextEditingController(
+      text: '${vote['vote_timeout_seconds'] ?? 20}',
+    );
+    final voteDelayCtrl = TextEditingController(
+      text: '${vote['vote_result_delay_seconds'] ?? 5}',
+    );
+    final timing = _timingOf(rule);
+    final turnTimeoutCtrl = TextEditingController(
+      text: timing['turn_timeout_seconds'] == null
+          ? ''
+          : '${timing['turn_timeout_seconds']}',
+    );
+    final autoNextCtrl = TextEditingController(
+      text: '${timing['auto_next_set_delay_seconds']}',
+    );
+    final leaveGraceCtrl = TextEditingController(
+      text: '${timing['leave_grace_seconds']}',
+    );
 
     showDialog(
       context: context,
@@ -381,6 +504,114 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                     fontSize: 11,
                   ),
                 ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Temps de jeu (secondes)',
+                  style: TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(
+                  turnTimeoutCtrl,
+                  'Tour par joueur (10–300, vide = auto)',
+                  Icons.timer_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(
+                  autoNextCtrl,
+                  'Set suivant auto (2–15)',
+                  Icons.skip_next_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(
+                  leaveGraceCtrl,
+                  'Grâce sortie transport (5–120)',
+                  Icons.wifi_off_outlined,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Vide = héritage du global (écran « Timeouts Globaux »). '
+                  'Les matchs en cours gardent leurs valeurs gelées ; les '
+                  'nouveaux matchs appliquent la nouvelle config.',
+                  style: TextStyle(
+                    color: NeonColors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+                if (isCible) ...[
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Vote cible (timer global synchrone)',
+                    style: TextStyle(
+                      color: NeonColors.secondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Mode de calcul',
+                    style: TextStyle(
+                      color: NeonColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        label: Text('Moyenne'),
+                        icon: Icon(Icons.functions_outlined, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Mode'),
+                        icon: Icon(Icons.bar_chart_outlined, size: 16),
+                      ),
+                    ],
+                    selected: {voteIsMode},
+                    onSelectionChanged: (selection) =>
+                        setDialogState(() => voteIsMode = selection.first),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
+                            ? NeonColors.secondary.withValues(alpha: 0.2)
+                            : Colors.transparent,
+                      ),
+                      foregroundColor: WidgetStateProperty.all(
+                        NeonColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildNumberField(
+                    voteTimeoutCtrl,
+                    'Timer de vote (secondes, 5–120)',
+                    Icons.timer_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildNumberField(
+                    voteDelayCtrl,
+                    'Affichage résultat (secondes, 2–30)',
+                    Icons.visibility_outlined,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'À expiration du timer, les joueurs sans vote se voient '
+                    'attribuer automatiquement leur position de sélecteur '
+                    '(filet serveur : valeur médiane). Le résultat reste '
+                    'affiché le temps configuré avant reprise auto.',
+                    style: TextStyle(
+                      color: NeonColors.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -411,6 +642,39 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   context.showError(error);
                   return;
                 }
+                int? voteTimeout;
+                int? voteDelay;
+                if (isCible) {
+                  voteTimeout = int.tryParse(voteTimeoutCtrl.text.trim());
+                  voteDelay = int.tryParse(voteDelayCtrl.text.trim());
+                  final voteError = _validateVote(
+                    timeout: voteTimeout,
+                    delay: voteDelay,
+                  );
+                  if (voteError != null) {
+                    context.showError(voteError);
+                    return;
+                  }
+                }
+                // Tour vide = héritage global (clé omise du patch).
+                final turnText = turnTimeoutCtrl.text.trim();
+                final int? turnTimeout =
+                    turnText.isEmpty ? null : int.tryParse(turnText);
+                if (turnText.isNotEmpty && turnTimeout == null) {
+                  context.showError('Le tour doit être un entier ou vide');
+                  return;
+                }
+                final autoNext = int.tryParse(autoNextCtrl.text.trim());
+                final leaveGrace = int.tryParse(leaveGraceCtrl.text.trim());
+                final timingError = _validateTimings(
+                  turnTimeout: turnTimeout,
+                  autoNext: autoNext,
+                  leaveGrace: leaveGrace,
+                );
+                if (timingError != null) {
+                  context.showError(timingError);
+                  return;
+                }
                 Navigator.pop(ctx);
                 final patch = <String, dynamic>{
                   'min_sets': min!,
@@ -419,6 +683,16 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   if (!isRandom) 'default_sets': def!,
                   if (isRandom) 'sets_random_min': rmin!,
                   if (isRandom) 'sets_random_max': rmax!,
+                  // null = retour à l'héritage global (clé supprimée côté
+                  // serveur). Toujours envoyé pour permettre la réinitialisation.
+                  'turn_timeout_seconds': turnTimeout,
+                  'auto_next_set_delay_seconds': autoNext!,
+                  'leave_grace_seconds': leaveGrace!,
+                  if (isCible) ...{
+                    'target_vote_mode': voteIsMode ? 'mode' : 'average',
+                    'vote_timeout_seconds': voteTimeout!,
+                    'vote_result_delay_seconds': voteDelay!,
+                  },
                 };
                 final success = await ref
                     .read(adminGameRulesManagementProvider.notifier)
@@ -471,6 +745,40 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
         return 'L’intervalle doit rester dans [Min, Max]';
       }
       if (rmin > rmax) return 'Tirage min doit être <= Tirage max';
+    }
+    return null;
+  }
+
+  /// Validation locale du vote cible, miroir du backend (5–120s / 2–30s).
+  String? _validateVote({required int? timeout, required int? delay}) {
+    if (timeout == null) return 'Le timer de vote doit être un entier';
+    if (timeout < 5 || timeout > 120) {
+      return 'Le timer de vote doit être entre 5 et 120 secondes';
+    }
+    if (delay == null) return 'Le délai résultat doit être un entier';
+    if (delay < 2 || delay > 30) {
+      return 'Le délai résultat doit être entre 2 et 30 secondes';
+    }
+    return null;
+  }
+
+  /// Validation locale des timings, miroir du backend. `turnTimeout` null
+  /// = héritage global (valide, clé omise du patch).
+  String? _validateTimings({
+    required int? turnTimeout,
+    required int? autoNext,
+    required int? leaveGrace,
+  }) {
+    if (turnTimeout != null && (turnTimeout < 10 || turnTimeout > 300)) {
+      return 'Le tour doit être entre 10 et 300 secondes (ou vide = auto)';
+    }
+    if (autoNext == null) return 'Le délai set suivant doit être un entier';
+    if (autoNext < 2 || autoNext > 15) {
+      return 'Le délai set suivant doit être entre 2 et 15 secondes';
+    }
+    if (leaveGrace == null) return 'La grâce sortie doit être un entier';
+    if (leaveGrace < 5 || leaveGrace > 120) {
+      return 'La grâce sortie doit être entre 5 et 120 secondes';
     }
     return null;
   }
