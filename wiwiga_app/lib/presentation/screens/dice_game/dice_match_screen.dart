@@ -92,9 +92,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   int? _lastRollSum;
   DateTime? _rollAnimStartedAt;
   // Durée min d'animation commune avant révélation (synchro tous joueurs).
-  // Courte (300ms) : l'anim 3D interne des dés suffit, le résultat doit
-  // arriver vite pour une sensation temps réel.
-  static const Duration _minRollAnim = Duration(milliseconds: 300);
+  // Courte (220ms) : l'anim 3D interne des dés suffit, le résultat doit
+  // arriver vite pour une sensation temps réel (< fraction de seconde).
+  static const Duration _minRollAnim = Duration(milliseconds: 220);
   Map<String, dynamic>? _pendingReveal;
   // Ma demande de lancer en vol (anti-double-tap). Séparé de _isRolling qui
   // est purement visuel (anim du tatami, y compris celle des autres) : le
@@ -192,7 +192,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   Future<void> _fetchInitialState() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Fetch immédiat (pas de délai artificiel) : chaque centaine de ms compte
+    // pour que les deux écrans affichent le même état dès l'ouverture.
     if (!mounted || _serverMatch != null) return;
     final match = await _fetchMatchState();
     if (match != null && mounted) {
@@ -212,7 +213,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       }
     }
     if (_serverMatch == null && mounted) {
-      await Future.delayed(const Duration(milliseconds: 900));
+      // Seconde tentative rapprochée si le premier fetch a échoué.
+      await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted || _serverMatch != null) return;
       final retry = await _fetchMatchState();
       if (retry != null && mounted) {
@@ -564,12 +566,15 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     try {
       final ws = ref.read(gameWebSocketServiceProvider);
       final api = ref.read(apiServiceProvider);
-      // Listener reconnexion : re-join game channel automatiquement (synchro tour)
+      // Listener reconnexion : re-join game channel UNIQUEMENT sur transition
+      // déconnecté → connecté. Rejoindre à chaque notification WS créait une
+      // boucle (join → phx_reply → notify → join…) qui saturait le GenServer
+      // et retardait tous les events de plusieurs secondes (désynchro écrans).
       _wsListener = () {
         if (!mounted) return;
         final live = ws.isConnected;
         final reconnected = live && !_useWebSocket;
-        if (live) {
+        if (reconnected) {
           try {
             ws.joinGame(widget.matchId);
           } catch (_) {}
@@ -633,7 +638,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           _isRolling = false;
         });
         _introCtrl.forward(from: 0);
-        Future.delayed(const Duration(milliseconds: 600), () {
+        Future.delayed(const Duration(milliseconds: 450), () {
           if (mounted) setState(() => _showSetIntro = false);
         });
       };
@@ -714,16 +719,50 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (!mounted) return;
         final match = payload['match'] as Map<String, dynamic>?;
         if (match != null) _syncFromServer(match, seq: payload['seq'] as int?);
-        final result = payload['result'] ?? payload['set_result'];
-        String? winnerId;
-        if (payload['winner_id'] != null) {
-          winnerId = payload['winner_id'].toString();
-        } else if (result is Map && result['winner_id'] != null) {
-          winnerId = result['winner_id'].toString();
-        } else if (match != null && match['winner_id'] != null) {
-          winnerId = match['winner_id'].toString();
+        // Données SERVEUR en priorité (identiques sur tous les écrans) : le
+        // dernier set du payload porte sommes/dés/vainqueur autoritaires.
+        // Le local (_playerSums) n'est qu'un repli si le payload est incomplet.
+        final serverSets = match?['sets'];
+        Map<String, dynamic>? serverLast;
+        if (serverSets is List && serverSets.isNotEmpty) {
+          final raw = serverSets.last;
+          if (raw is Map) serverLast = Map<String, dynamic>.from(raw);
         }
-        final lastSetNum = _serverMatch?['current_set'] as int? ?? _currentSet;
+        final lastSetNum = serverLast?['set_number'] as int? ??
+            _serverMatch?['current_set'] as int? ??
+            _currentSet;
+        String? winnerId = serverLast?['winner_id']?.toString();
+        Map<String, int> sums;
+        Map<String, List<int>> diceByPlayer;
+        if (serverLast != null) {
+          final sRaw = serverLast['sums'];
+          sums = sRaw is Map
+              ? sRaw.map((k, v) => MapEntry(k.toString(), (v as num).toInt()))
+              : Map<String, int>.from(_playerSums);
+          final dRaw = serverLast['dice'];
+          diceByPlayer = dRaw is Map
+              ? dRaw.map(
+                  (k, v) => MapEntry(
+                    k.toString(),
+                    v is List ? List<int>.from(v) : <int>[],
+                  ),
+                )
+              : Map<String, List<int>>.from(_playerDice);
+          winnerId ??= (serverLast['result']?.toString() == 'tie')
+              ? null
+              : winnerId;
+        } else {
+          final result = payload['result'] ?? payload['set_result'];
+          if (payload['winner_id'] != null) {
+            winnerId = payload['winner_id'].toString();
+          } else if (result is Map && result['winner_id'] != null) {
+            winnerId = result['winner_id'].toString();
+          } else if (match != null && match['winner_id'] != null) {
+            winnerId = match['winner_id'].toString();
+          }
+          sums = Map<String, int>.from(_playerSums);
+          diceByPlayer = Map<String, List<int>>.from(_playerDice);
+        }
         if (_setResults.isEmpty ||
             _setResults.last['set_number'] != lastSetNum) {
           setState(() {
@@ -731,8 +770,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               'set_number': lastSetNum,
               'result': winnerId == null ? 'tie' : 'winner',
               'winner_id': winnerId,
-              'sums': Map<String, int>.from(_playerSums),
-              'dice': Map<String, List<int>>.from(_playerDice),
+              'sums': sums,
+              'dice': diceByPlayer,
             });
             _showSetResult = true;
           });
@@ -907,6 +946,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           userMsg = "Ce n'est pas votre tour";
         } else if (reason.contains('already_rolled')) {
           userMsg = 'Vous avez déjà lancé ce tour';
+        } else if (reason.contains('already_voted')) {
+          userMsg = 'Vote déjà enregistré';
+        } else if (reason.contains('not_voting_phase')) {
+          userMsg = 'Le vote est terminé';
+        } else if (reason.contains('invalid_target')) {
+          userMsg = 'Cible invalide';
         } else if (reason.contains('voting_phase')) {
           userMsg = 'Phase de vote en cours';
         } else if (reason.contains('eliminated')) {
@@ -942,7 +987,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   void _startSetIntro() {
     _introCtrl.forward(from: 0);
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       setState(() => _showSetIntro = false);
       // Timing serveur uniquement : la deadline arrive via _syncFromServer
@@ -1010,12 +1055,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   void _startSyncPolling() {
     _syncPollTimer?.cancel();
     // Réconciliation REST : filet de sécurité si un event WS est perdu.
-    // WS = temps réel (<1s), REST = garantie (toutes les 2s).
+    // WS = temps réel (<1s), REST = garantie (toutes les 1,2s).
     // On ne re-synchronise QUE si quelque chose a changé (index, status,
     // rolls, cible, votes) : sinon on garderait une deadline recréée à chaque
     // polling et les TurnTimer des zones seraient sans cesse réinitialisés.
     _syncPollTimer =
-        Timer.periodic(const Duration(milliseconds: 2000), (_) async {
+        Timer.periodic(const Duration(milliseconds: 1200), (_) async {
       if (!mounted) return;
       // Après fin de partie, le polling continue tant qu'une revanche est
       // active (filet pour clients sans WS) ; sinon il s'arrête.
@@ -1055,10 +1100,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final lastWsAge = _lastWsEventAt == null
             ? null
             : DateTime.now().difference(_lastWsEventAt!);
-        // Fenêtre courte (1s) : laisse le WS propager d'abord, puis vérifie.
+        // Fenêtre courte (700ms) : laisse le WS propager d'abord, puis vérifie.
         // Le WS reste la voie rapide ; le REST compact n'est qu'un filet.
-        // Au-delà d'1s sans event, on réconcilie (réseaux avec pertes).
-        if (wsLive && lastWsAge != null && lastWsAge.inSeconds < 1) {
+        // Au-delà de ~700ms sans event, on réconcilie (réseaux avec pertes).
+        if (wsLive && lastWsAge != null && lastWsAge.inMilliseconds < 700) {
           return;
         }
       } catch (_) {}
@@ -1340,8 +1385,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   void _startRollFlicker(int diceCount) {
     _rollAnimTimer?.cancel();
     // Garde-fou : si aucun reveal n'arrive (event perdu + WS muet), sortir
-    // de l'animation après 2,5s via réconciliation (le polling/REST suit).
-    _rollAnimTimer = Timer(const Duration(milliseconds: 2500), () {
+    // de l'animation après 1,5s via réconciliation (le polling/REST suit).
+    _rollAnimTimer = Timer(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
       if (_isRolling && _pendingReveal == null) {
         setState(() => _isRolling = false);
@@ -3789,7 +3834,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       try {
         ws.rollDice(widget.matchId);
         _rollFallbackTimer =
-            Timer(const Duration(milliseconds: 2500), () async {
+            Timer(const Duration(milliseconds: 1500), () async {
           if (mounted && _isSendingRoll && _pendingReveal == null) {
             await _rollDiceRestFallback();
           }
@@ -3919,19 +3964,11 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       try {
         ref.read(gameWebSocketServiceProvider).startSet(widget.matchId);
       } catch (_) {}
-      setState(() {
-        _startingNextSet = true;
-        _showSetResult = false;
-        _showSetIntro = true;
-        _currentDice = [];
-        _lastRollerId = null;
-        _lastRollSum = null;
-        _rollingPlayerId = null;
-        _pendingReveal = null;
-        _playerDice.clear();
-        _playerSums.clear();
-      });
-      _introCtrl.forward(from: 0);
+      // Pas d'effacement optimiste : le cliqueur reste sur l'overlay de
+      // résultat (bouton en loading) jusqu'au broadcast set_started qui
+      // bascule TOUS les écrans ensemble (évite un écran en jeu pendant
+      // que l'autre affiche encore le résultat).
+      setState(() => _startingNextSet = true);
       // Confirmation SERVEUR (broadcast set_started), pas délai fixe : le
       // flag busy tombe dès que l'état appliqué quitte set_ended (ou que le
       // numéro de set avance). Au-delà de ~4s sans confirmation : on revient
@@ -3978,11 +4015,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     }
     // Fallback REST : demande serveur, pas d'état local deviné.
     () async {
-      setState(() {
-        _showSetResult = false;
-        _showSetIntro = true;
-      });
-      _introCtrl.forward(from: 0);
+      // Pas d'effacement optimiste : tous les écrans restent sur l'overlay
+      // de résultat jusqu'au broadcast set_started (synchro garantie).
+      setState(() => _startingNextSet = true);
       try {
         final repo = ref.read(gameRepositoryProvider);
         final data = await repo.startSet(matchId: widget.matchId);
@@ -3990,7 +4025,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final match = data['match'] as Map<String, dynamic>? ?? data;
         if (match.containsKey('match_id')) {
           _syncFromServer(match);
+          // Sans WS, aucun broadcast set_started n'arrivera : bascule locale
+          // (l'adversaire converge via son polling REST sous ~1,2s).
           setState(() {
+            _startingNextSet = false;
+            _showSetResult = false;
+            _showSetIntro = true;
             _currentDice = [];
             _lastRollerId = null;
             _lastRollSum = null;
@@ -3999,12 +4039,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             _playerDice.clear();
             _playerSums.clear();
           });
+          _introCtrl.forward(from: 0);
+        } else {
+          if (mounted) setState(() => _startingNextSet = false);
         }
       } catch (_) {
+        if (mounted) setState(() => _startingNextSet = false);
         await _refreshFromServer();
       }
       if (!mounted) return;
-      Future.delayed(const Duration(milliseconds: 600), () {
+      Future.delayed(const Duration(milliseconds: 450), () {
         if (mounted) setState(() => _showSetIntro = false);
         // Deadline serveur via _syncFromServer (pas de timer local).
       });
@@ -4014,16 +4058,26 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   Future<void> _submitVote() async {
     final myVote = _targetVotes[_myId] ?? 7;
     setState(() => _targetVotes[_myId] = myVote);
-    // Transport WS si live, TOUJOURS complété par REST pour garantie serveur.
-    // Pas de calcul local ni de votes adverses simulés : le serveur calcule
-    // la cible et diffuse target_calculated à tous (synchrone).
+    // Transport unique (pas de double WS+REST) : chaque vote = un seul appel
+    // GenServer, sinon la file globale se remplit et tous les joueurs
+    // attendent. WS si live (broadcast cible à tous), REST sinon.
+    // Pas de calcul local : le serveur diffuse target_calculated (synchrone).
     if (_useWebSocket) {
       try {
         ref
             .read(gameWebSocketServiceProvider)
             .voteTarget(widget.matchId, myVote);
-      } catch (_) {}
+      } catch (_) {
+        // Envoi WS raté : repli REST immédiat.
+        await _voteRestFallback(myVote);
+      }
+      return;
     }
+    await _voteRestFallback(myVote);
+  }
+
+  /// Envoi du vote via REST (repli + mode sans WS).
+  Future<void> _voteRestFallback(int myVote) async {
     try {
       final repo = ref.read(gameRepositoryProvider);
       final data =

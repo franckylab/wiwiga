@@ -47,19 +47,27 @@ defmodule GameHubWeb.GameChannel do
       # Notifier différé pour éviter broadcast avant join complet
       send(self(), {:after_join, user_id})
 
-      # Si c'est un match GameMatch, pousser l'état actuel pour synchro
+      # Si c'est un match GameMatch, pousser l'état actuel pour synchro.
+      # Tout en async (zéro GenServer.call bloquant) : le join répond en une
+      # fraction de seconde même si le GenServer est chargé, et l'état suit
+      # en quelques ms via push. Sinon chaque (re-)join retarde les
+      # roll/vote/start_set en file derrière lui (désynchro des écrans).
       if String.contains?(game_id, "match") do
-        case GameHub.GameMatch.get_match(game_id) do
-          {:ok, match} ->
-            send(self(), {:push_match_state, match})
-          _ -> :ok
-        end
-        # Retour confirmé (re-join après drop) : annuler une sortie en grâce
-        try do
-          GameHub.GameMatch.player_back(to_string(game_id), to_string(user_id))
-        rescue
-          _ -> :ok
-        end
+        parent = self()
+
+        Task.start(fn ->
+          case GameHub.GameMatch.get_match(game_id) do
+            {:ok, match} -> send(parent, {:push_match_state, match})
+            _ -> :ok
+          end
+
+          # Retour confirmé (re-join après drop) : annuler une sortie en grâce.
+          try do
+            GameHub.GameMatch.player_back(to_string(game_id), to_string(user_id))
+          rescue
+            _ -> :ok
+          end
+        end)
       end
 
       {:ok, socket}
@@ -72,15 +80,21 @@ defmodule GameHubWeb.GameChannel do
       send(self(), {:after_join, dev_id})
 
       if String.contains?(game_id, "match") do
-        case GameHub.GameMatch.get_match(game_id) do
-          {:ok, match} -> send(self(), {:push_match_state, match})
-          _ -> :ok
-        end
-        try do
-          GameHub.GameMatch.player_back(to_string(game_id), to_string(dev_id))
-        rescue
-          _ -> :ok
-        end
+        parent = self()
+
+        # Async : voir commentaire branche authentifiée ci-dessus.
+        Task.start(fn ->
+          case GameHub.GameMatch.get_match(game_id) do
+            {:ok, match} -> send(parent, {:push_match_state, match})
+            _ -> :ok
+          end
+
+          try do
+            GameHub.GameMatch.player_back(to_string(game_id), to_string(dev_id))
+          rescue
+            _ -> :ok
+          end
+        end)
       end
 
       {:ok, socket}

@@ -978,13 +978,23 @@ class GameWebSocketService extends ChangeNotifier {
     // topic du join en attente (nettoyé à chaque réponse).
     final status = payload['status']?.toString();
     final response = payload['response'];
-    final joinedTopic =
-        (ref != null ? _pendingJoinRefs.remove(ref) : null) ?? topic;
+    // Seul un ref de phx_join en attente identifie une réponse de join.
+    // Les erreurs d'ACTIONS (vote/lancer : already_voted, not_your_turn…)
+    // ne doivent JAMAIS déclencher de re-join : elles remontent aussitôt à
+    // l'écran (feedback < fraction de seconde, zéro trafic inutile).
+    final pendingJoinTopic = ref != null ? _pendingJoinRefs.remove(ref) : null;
+    final isJoinReply = pendingJoinTopic != null;
+    final joinedTopic = pendingJoinTopic ?? topic;
     if (status == 'error') {
       final err = response is Map
           ? Map<String, dynamic>.from(response)
           : {'reason': response?.toString() ?? 'unknown'};
       debugPrint('✗ Game WS reply error: $err');
+      if (!isJoinReply) {
+        onChannelError?.call(err);
+        notifyListeners();
+        return;
+      }
       // Join refusé (topic inconnu, match fini…) : réessaie une fois, puis
       // bascule en REST plutôt que de rester sourd silencieusement.
       if (joinedTopic != null && joinedTopic.isNotEmpty) {
