@@ -183,6 +183,7 @@ class _QuickMatchSearchScreenState extends ConsumerState<QuickMatchSearchScreen>
           final active = await repo.getActiveGame();
           if (active['has_active'] == true &&
               active['type'] == 'match' &&
+              active['status']?.toString() != 'match_ended' &&
               active['match_id'] != null) {
             _onMatched({'game_id': active['match_id'], 'players': []});
             return;

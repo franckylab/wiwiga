@@ -17,7 +17,7 @@ class GameRoomModel {
   final String gameType;
   final String ruleType;
   final String mode; // 'free' (Partie sans mise) | 'staked' (Partie avec mise) — betting supprimé
-  final String status; // 'waiting' | 'starting' | 'in_progress' | 'ended' | 'cancelled'
+  final String status; // 'waiting' | 'starting' | 'in_progress' | 'finished' | 'cancelled'
   final int betAmount;
   final int setsCount;
   final int diceCount;

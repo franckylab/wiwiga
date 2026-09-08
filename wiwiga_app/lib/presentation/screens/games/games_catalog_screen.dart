@@ -52,6 +52,11 @@ class _GamesCatalogScreenState extends ConsumerState<GamesCatalogScreen> {
   String? _activeRedirectPath(Map<String, dynamic> active) {
     final type = active['type'] as String?;
     final gameType = active['game_type'] as String? ?? 'dice';
+    // Garde : ne jamais rediriger vers une partie déjà terminée (le backend
+    // ne doit plus en retourner, mais on ne navigue pas sur un doute).
+    if (type == 'match' && active['status']?.toString() == 'match_ended') {
+      return null;
+    }
     switch (type) {
       case 'match':
         final matchId = active['match_id'] as String?;

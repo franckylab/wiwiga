@@ -540,78 +540,107 @@ defmodule GameHubWeb.GameController do
         # 2) Salle active (GameRoom)
         case GameRoom.get_active_room_for_player(user_id) do
           {:ok, room} ->
-            room_type = case room.status do
-              :waiting -> "room_waiting"
-              _ -> "room_in_progress"
+            # Anti-course : si la salle pointe vers un match terminé (clôture
+            # async pas encore propagée), clôturer et continuer comme si la
+            # salle n'existait pas — jamais de redirection vers une partie
+            # déjà terminée.
+            if room_match_over?(room) do
+              GameRoom.finish_room_for_match(room.match_id || "")
+              quick_lobby_or_none(conn, uid_str, user_id)
+            else
+              room_type = case room.status do
+                :waiting -> "room_waiting"
+                _ -> "room_in_progress"
+              end
+              conn |> put_status(200) |> json(%{
+                success: true,
+                data: %{
+                  has_active: true,
+                  type: room_type,
+                  game_type: room.game_type,
+                  room_id: room.room_id,
+                  room_code: room.room_code,
+                  rule_type: room.rule_type,
+                  status: to_string(room.status),
+                  bet_amount: room.bet_amount,
+                  players_count: length(room.players),
+                  max_players: room.max_players,
+                  match_id: room.match_id
+                },
+                meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+              })
             end
+
+          {:error, _} ->
+            # 3) Quick lobby (Matchmaking)
+            quick_lobby_or_none(conn, uid_str, user_id)
+        end
+    end
+  end
+
+  # Étape 3 de `/active` : quick lobby, sinon aucune partie active.
+  defp quick_lobby_or_none(conn, uid_str, user_id) do
+    case Matchmaking.find_active_quick_lobby_for_player(uid_str) do
+      {:ok, lobby} ->
+        conn |> put_status(200) |> json(%{
+          success: true,
+          data: %{
+            has_active: true,
+            type: "quick_lobby",
+            game_type: lobby.game_type,
+            rule_type: lobby.rule_type,
+            bet_amount: lobby.bet_amount,
+            status: lobby.status,
+            players_count: lobby.players_count,
+            max_players: lobby.max_players,
+            lobby: serialize_lobby(lobby)
+          },
+          meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+        })
+
+      {:error, _} ->
+        # Fallback: vérifier aussi avec int id si uid_str différent
+        case Matchmaking.find_active_quick_lobby_for_player(user_id) do
+          {:ok, lobby} ->
             conn |> put_status(200) |> json(%{
               success: true,
               data: %{
                 has_active: true,
-                type: room_type,
-                game_type: room.game_type,
-                room_id: room.room_id,
-                room_code: room.room_code,
-                rule_type: room.rule_type,
-                status: to_string(room.status),
-                bet_amount: room.bet_amount,
-                players_count: length(room.players),
-                max_players: room.max_players,
-                match_id: room.match_id
+                type: "quick_lobby",
+                game_type: lobby.game_type,
+                rule_type: lobby.rule_type,
+                bet_amount: lobby.bet_amount,
+                status: lobby.status,
+                players_count: lobby.players_count,
+                max_players: lobby.max_players,
+                lobby: serialize_lobby(lobby)
               },
               meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
             })
-
-          {:error, _} ->
-            # 3) Quick lobby (Matchmaking)
-            case Matchmaking.find_active_quick_lobby_for_player(uid_str) do
-              {:ok, lobby} ->
-                conn |> put_status(200) |> json(%{
-                  success: true,
-                  data: %{
-                    has_active: true,
-                    type: "quick_lobby",
-                    game_type: lobby.game_type,
-                    rule_type: lobby.rule_type,
-                    bet_amount: lobby.bet_amount,
-                    status: lobby.status,
-                    players_count: lobby.players_count,
-                    max_players: lobby.max_players,
-                    lobby: serialize_lobby(lobby)
-                  },
-                  meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-                })
-
-              {:error, _} ->
-                # Fallback: vérifier aussi avec int id si uid_str différent
-                case Matchmaking.find_active_quick_lobby_for_player(user_id) do
-                  {:ok, lobby} ->
-                    conn |> put_status(200) |> json(%{
-                      success: true,
-                      data: %{
-                        has_active: true,
-                        type: "quick_lobby",
-                        game_type: lobby.game_type,
-                        rule_type: lobby.rule_type,
-                        bet_amount: lobby.bet_amount,
-                        status: lobby.status,
-                        players_count: lobby.players_count,
-                        max_players: lobby.max_players,
-                        lobby: serialize_lobby(lobby)
-                      },
-                      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-                    })
-                  _ ->
-                    conn |> put_status(200) |> json(%{
-                      success: true,
-                      data: %{has_active: false, type: "none"},
-                      meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
-                    })
-                end
-            end
+          _ ->
+            conn |> put_status(200) |> json(%{
+              success: true,
+              data: %{has_active: false, type: "none"},
+              meta: %{timestamp: DateTime.utc_now() |> DateTime.to_iso8601()}
+            })
         end
     end
   end
+
+  # Vrai si la salle pointe vers un match terminé ou introuvable (jamais
+  # une redirection valide). Fail-safe : en cas de doute, faux.
+  defp room_match_over?(%{match_id: nil}), do: false
+  defp room_match_over?(%{match_id: ""}), do: false
+  defp room_match_over?(%{match_id: match_id}) do
+    case GameMatch.get_match(match_id) do
+      {:ok, %{status: :match_ended}} -> true
+      {:error, :match_not_found} -> true
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
+  defp room_match_over?(_), do: false
 
   def debug_start_set(conn, %{"game_id" => game_id}) do
     case GameMatch.start_set(game_id) do

@@ -47,6 +47,8 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
   bool _wsListening = false;
   int _autoStartCountdown = 0;
   Timer? _autoStartTimer;
+  // Garde : navigation unique quand la salle est terminée.
+  bool _hasLeftFinished = false;
 
   @override
   void initState() {
@@ -101,6 +103,10 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
             }
           });
           _checkAutoStart();
+          if (updated.status == 'finished') {
+            _handleFinishedRoom();
+            return;
+          }
           if (updated.matchId != null &&
               (updated.status == 'starting' ||
                   updated.status == 'in_progress')) {
@@ -224,6 +230,10 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
         }
       });
       _checkAutoStart();
+      if (updatedRoom.status == 'finished') {
+        _handleFinishedRoom();
+        return;
+      }
       if (updatedRoom.matchId != null &&
           (updatedRoom.status == 'starting' ||
               updatedRoom.status == 'in_progress')) {
@@ -234,6 +244,24 @@ class _GameRoomWaitingScreenState extends ConsumerState<GameRoomWaitingScreen>
         // ignore
       }
     }
+  }
+
+  /// Salle terminée (partie clôturée côté serveur) : on ne reste jamais
+  /// bloqué sur une salle morte — retour au salon de jeu, création à
+  /// nouveau possible immédiatement.
+  void _handleFinishedRoom() {
+    if (_hasLeftFinished || !mounted) return;
+    _hasLeftFinished = true;
+    _refreshTimer?.cancel();
+    _countdownTimer?.cancel();
+    _autoStartTimer?.cancel();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Cette partie est terminée — vous pouvez en créer une nouvelle'),
+        backgroundColor: NeonColors.info,
+      ),
+    );
+    context.go('/games/${_room.gameType}');
   }
 
   void _goToMatch(String matchId) {

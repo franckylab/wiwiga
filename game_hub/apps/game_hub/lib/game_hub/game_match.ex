@@ -2000,7 +2000,26 @@ defmodule GameHub.GameMatch do
 
   defp broadcast_match_result(match_id, match, sanitized \\ nil) do
     Phoenix.PubSub.broadcast(GameHub.PubSub, "game:#{match_id}", %{event: "match_result", match_id: match_id, seq: next_seq(), winner_id: match[:winner_id], match: sanitized || sanitize_match(match)})
+    # Clôture en cascade : la salle liée passe à :finished pour que personne
+    # ne soit redirigé vers cette partie terminée (création, `/active`).
+    # Async + best effort : la fin de match ne dépend jamais des salles.
+    close_room_for_match(match_id)
   rescue _ -> :ok
+  end
+
+  # Notifie GameRoom de la fin du match (couplage faible au runtime : jamais
+  # de GenServer.call synchrone ici, pour ne pas ralentir le chemin critique
+  # du lancer qui diffuse déjà le résultat aux joueurs).
+  defp close_room_for_match(match_id) do
+    Task.start(fn ->
+      try do
+        GameHub.GameRoom.finish_room_for_match(match_id)
+      rescue
+        _ -> :ok
+      end
+    end)
+  rescue
+    _ -> :ok
   end
 
   defp broadcast_player_forfeited(match_id, player_id, match) do

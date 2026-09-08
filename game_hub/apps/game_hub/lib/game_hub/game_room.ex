@@ -14,8 +14,15 @@ defmodule GameHub.GameRoom do
   - **Partie avec mise** (`:staked`) : créée avec mise fixe, démarrage manuel si 2 joueurs, enjeu en jetons. `betting` supprimé.
 
   ## State Machine Room
-      :waiting → :starting → :in_progress → :ended
+      :waiting → :starting → :in_progress → :finished
                         ↘ :cancelled (timeout ou départ créateur)
+
+  ## Clôture
+  Une salle passe à `:finished` dès que son match est terminé (appel
+  `finish_room_for_match/1` depuis `GameHub.GameMatch`, en async). Une garde
+  paresseuse dans `find_active_room_for_player/2` clôture aussi les salles
+  dont le match a disparu ou est terminé : une partie terminée n'est donc
+  jamais retournée comme « active » (ni à la création, ni à `/active`).
   """
 
   use GenServer
@@ -27,6 +34,8 @@ defmodule GameHub.GameRoom do
   @table :game_rooms
   @cleanup_interval_ms 60_000
   @room_ttl_seconds 1800  # 30 min max par room
+  # Salle terminée : conservée 5 min pour l'affichage, puis nettoyée.
+  @finished_ttl_seconds 300
 
   # === Client API ===
 
@@ -96,6 +105,22 @@ defmodule GameHub.GameRoom do
   """
   def leave_room(room_id, player_id) do
     GenServer.call(__MODULE__, {:leave_room, room_id, player_id})
+  end
+
+  @doc """
+  Clôture les salles dont le match est terminé.
+
+  Appelé par `GameHub.GameMatch` (en async) à chaque passage en
+  `:match_ended`. Les salles `:starting`/`:in_progress` liées à `match_id`
+  passent à `:finished` (conservées 5 min pour l'affichage, puis nettoyées
+  par TTL). Idempotent : sans salle liée, retourne `{:ok, 0}`.
+
+  ## Returns
+    - `{:ok, count}` — nombre de salles clôturées
+  """
+  @spec finish_room_for_match(String.t()) :: {:ok, non_neg_integer()}
+  def finish_room_for_match(match_id) do
+    GenServer.call(__MODULE__, {:finish_for_match, to_string(match_id)})
   end
 
   @doc """
@@ -316,6 +341,21 @@ defmodule GameHub.GameRoom do
   @impl true
   def handle_call({:leave_room, room_id, player_id}, _from, state) do
     case lookup_room(state.table, room_id) do
+      {:ok, %{status: :finished} = room} ->
+        # Salle terminée : sortie libre (ne bloque jamais la création suivante).
+        # Retire le joueur et supprime la salle vide (libère l'état).
+        updated_players = Enum.reject(room.players, fn p -> p.id == player_id end)
+
+        if updated_players == [] do
+          :ets.delete(state.table, room_id)
+          :ets.delete(state.table, {:code, room.room_code})
+          Logger.info("Room #{room_id} removed (finished, empty)")
+        else
+          :ets.insert(state.table, {room_id, %{room | players: updated_players}})
+        end
+
+        {:reply, {:ok, :room_finished}, state}
+
       {:ok, room} ->
         if room.status in [:waiting] do
           updated_players = Enum.reject(room.players, fn p -> p.id == player_id end)
@@ -510,6 +550,31 @@ defmodule GameHub.GameRoom do
   end
 
   @impl true
+  def handle_call({:finish_for_match, match_id}, _from, state) do
+    finished =
+      :ets.tab2list(state.table)
+      |> Enum.filter(fn
+        {{:code, _}, _} -> false
+        {_id, room} -> Map.get(room, :match_id) == match_id and room.status in [:starting, :in_progress]
+      end)
+
+    Enum.each(finished, fn {room_id, room} ->
+      closed = %{room |
+        status: :finished,
+        updated_at: DateTime.utc_now(),
+        # TTL court : l'historique reste visible 5 min, puis cleanup.
+        expires_at: DateTime.add(DateTime.utc_now(), @finished_ttl_seconds)
+      }
+
+      :ets.insert(state.table, {room_id, closed})
+      Logger.info("Room #{room_id} finished (match #{match_id} ended)")
+      broadcast_room_update(room_id, closed)
+    end)
+
+    {:reply, {:ok, length(finished)}, state}
+  end
+
+  @impl true
   def handle_info(:cleanup, state) do
     now = DateTime.utc_now()
 
@@ -552,9 +617,52 @@ defmodule GameHub.GameRoom do
     |> Enum.find_value(fn
       {{:code, _}, _} -> nil
       {_id, room} when room.status in [:waiting, :starting, :in_progress] ->
-        if Enum.any?(room.players, fn p -> p.id == player_id end), do: {:ok, room}, else: nil
+        cond do
+          not Enum.any?(room.players, fn p -> p.id == player_id end) ->
+            nil
+
+          # Garde paresseuse : une salle dont le match est terminé (ou a
+          # disparu) n'est plus active. On la clôture au passage pour que la
+          # création suivante et `/active` ne redirigent jamais vers une
+          # partie déjà terminée.
+          room.status in [:starting, :in_progress] and match_over?(room) ->
+            close_finished_room(table, room)
+            nil
+
+          true ->
+            {:ok, room}
+        end
       _ -> nil
     end) || {:error, :not_found}
+  end
+
+  # Vrai si la salle pointe vers un match terminé ou introuvable.
+  # Fail-safe : en cas de doute (GenServer indisponible), la salle reste
+  # active plutôt que de libérer à tort.
+  defp match_over?(%{match_id: nil}), do: false
+  defp match_over?(%{match_id: match_id}) do
+    case GameMatch.get_match(match_id) do
+      {:ok, %{status: :match_ended}} -> true
+      {:error, :match_not_found} -> true
+      _ -> false
+    end
+  rescue
+    _ -> false
+  end
+
+  # Bascule une salle en :finished (appelée par la garde paresseuse).
+  defp close_finished_room(table, room) do
+    closed = %{room |
+      status: :finished,
+      updated_at: DateTime.utc_now(),
+      expires_at: DateTime.add(DateTime.utc_now(), @finished_ttl_seconds)
+    }
+
+    :ets.insert(table, {room.room_id, closed})
+    Logger.info("Room #{room.room_id} finished (lazy close, match #{room.match_id} over)")
+    broadcast_room_update(room.room_id, closed)
+  rescue
+    _ -> :ok
   end
 
   # Auto-start interne (sans vérification créateur) — utilisé quand full
