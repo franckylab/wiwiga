@@ -89,12 +89,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: (v) => ref.read(preferencesProvider.notifier).updateBool('vibration_enabled', v),
                       color: NeonColors.warning,
                     ),
-                    _buildBoolToggleTile(
+                    _SettingsTile(
                       icon: Icons.notifications,
                       title: 'Notifications',
-                      value: prefs.notificationsEnabled,
-                      onChanged: (v) => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', v),
+                      subtitle: 'Canaux par catégorie (push, SMS, email)',
                       color: NeonColors.warning,
+                      onTap: () => context.push('/notifications/preferences'),
                     ),
                   ]),
                   const SizedBox(height: 16),

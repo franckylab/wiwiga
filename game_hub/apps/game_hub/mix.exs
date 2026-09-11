@@ -36,7 +36,13 @@ defmodule GameHub.MixProject do
       {:guardian, "~> 2.3"},
       {:phoenix, "~> 1.7"},
       {:phoenix_pubsub, "~> 2.1"},
-      {:pbkdf2_elixir, "~> 2.0"}
+      {:pbkdf2_elixir, "~> 2.0"},
+      # Notifications multi-canal (Phase 1)
+      # FCM v1 : client Finch direct (credentials depuis la DB, pas au boot)
+      {:oban, "~> 2.17"},
+      {:swoosh, "~> 1.16"},
+      {:gen_smtp, "~> 1.0"},
+      {:finch, "~> 0.18"}
     ]
   end
 end

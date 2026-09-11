@@ -89,7 +89,6 @@ class _AdminPlayerProgressionScreenState extends ConsumerState<AdminPlayerProgre
     final color = _parseColor(colorStr);
 
     final cashback = ((benefits['cashback_rate'] as num?)?.toDouble() ?? 0) * 100;
-    const withdrawBonus = 0.0;
     final betDiscount = ((benefits['bet_discount'] as num?)?.toDouble() ?? 0) * 100;
     final dailyMult = (benefits['daily_bonus_multiplier'] as num?)?.toDouble() ?? 1.0;
     final label = benefits['label'] as String? ?? name;
@@ -179,8 +178,6 @@ class _AdminPlayerProgressionScreenState extends ConsumerState<AdminPlayerProgre
             Row(
               children: [
                 Expanded(child: _buildBenefitChip('Bonus Journalier', 'x${dailyMult.toStringAsFixed(1)}', Icons.card_giftcard, color)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildBenefitChip('Bonus Retrait', '${(withdrawBonus * 100).toStringAsFixed(0)}%', Icons.account_balance, color)),
               ],
             ),
             const SizedBox(height: 12),

@@ -4,18 +4,20 @@ defmodule GameHub.GameStateManagerTest do
   Couvre le flow complet 1v1 Dice : create → bet → roll → end.
   """
   
-  use ExUnit.Case, async: true
-  
+  use ExUnit.Case, async: false
+
   alias GameHub.GameStateManager
-  
+
   # Setup: s'assurer que le GenServer est démarré
   setup do
+    GameHub.TestHelpers.cleanup_test_data()
+
     # Le GenServer est démarré dans le supervision tree
     # Pour les tests async, on démarre un instance locale si nécessaire
     if Process.whereis(GameStateManager) == nil do
       start_supervised!(GameStateManager)
     end
-    
+
     :ok
   end
   
@@ -120,19 +122,22 @@ defmodule GameHub.GameStateManagerTest do
   describe "end_game/1 - détermination du gagnant" do
     test "joueur avec prédiction exacte gagne" do
       game_id = "test_win_#{System.unique_integer()}"
-      players = [%{id: 1}, %{id: 2}]
-      
+      user1 = GameHub.TestHelpers.create_test_user()
+      user2 = GameHub.TestHelpers.create_test_user()
+      players = [%{id: user1.id}, %{id: user2.id}]
+
       {:ok, _} = GameStateManager.create_game(game_id, players)
-      {:ok, _} = GameStateManager.place_bet(game_id, 1, 500, 7)
-      {:ok, _} = GameStateManager.place_bet(game_id, 2, 500, 3)
-      
+      {:ok, _} = GameStateManager.place_bet(game_id, user1.id, 500, 7)
+      {:ok, _} = GameStateManager.place_bet(game_id, user2.id, 500, 3)
+
       {:ok, _} = GameStateManager.execute_turn(game_id)
       {:ok, result} = GameStateManager.end_game(game_id)
-      
-      # Le résultat dépend du lancer, mais on vérifie la structure
+
+      # Le résultat dépend du lancer (aléatoire côté serveur) : on vérifie
+      # la structure (determine_winner/1 : game_id, winner, dice_results...)
       assert result.game_id == game_id
-      assert result.status == :ended
-      assert is_map(result.dice_results) or is_list(result.dice_results)
+      assert is_list(result.dice_results)
+      assert result.winner == nil or result.winner in [user1.id, user2.id]
     end
     
     test "pas de gagnant si aucun ne prédit juste" do

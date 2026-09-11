@@ -6,8 +6,11 @@
 // ============================================================
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../../core/config/app_config.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/errors/api_exception.dart';
 
@@ -560,6 +563,353 @@ class AdminRepository {
       requiresAuth: true,
     );
     return response['data']?['unread_count'] as int? ?? 0;
+  }
+
+  // ========================================
+  // NOTIFICATIONS MULTI-CANAL (config centralisée)
+  // ========================================
+
+  /// Liste les providers multi-canaux
+  Future<List<Map<String, dynamic>>> listNotificationProviders({String? channel}) async {
+    final endpoint = channel == null
+        ? ApiEndpoints.adminNotificationProviders
+        : '${ApiEndpoints.adminNotificationProviders}?channel=$channel';
+    final response = await _apiService.get(endpoint, requiresAuth: true);
+    final raw = response['data'];
+    if (raw == null) return [];
+    return (raw as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Crée un provider
+  Future<Map<String, dynamic>> createNotificationProvider(Map<String, dynamic> body) async {
+    final response = await _apiService.post(
+      ApiEndpoints.adminNotificationProviders,
+      body: body,
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Met à jour un provider (activation, priorité, config)
+  Future<Map<String, dynamic>> updateNotificationProvider(int id, Map<String, dynamic> body) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminNotificationProviders}/$id',
+      body: body,
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Teste la connexion d'un provider
+  Future<Map<String, dynamic>> testNotificationProvider(int id, String recipient) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationProviders}/$id/test',
+      body: {'recipient': recipient},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Config assainie d'un provider (secrets masqués)
+  Future<Map<String, dynamic>> getNotificationProviderConfig(int id) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationProviders}/$id/config',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Fusionne une config partielle (secrets vides = conserver)
+  Future<Map<String, dynamic>> updateNotificationProviderConfig(
+    int id,
+    Map<String, dynamic> config,
+  ) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminNotificationProviders}/$id/config',
+      body: {'config': config},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Vérifie la santé d'un provider SANS envoyer de message
+  Future<Map<String, dynamic>> checkNotificationProviderHealth(int id) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationProviders}/$id/health',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Liste les templates
+  Future<List<Map<String, dynamic>>> listNotificationTemplates({String? key, String? channel}) async {
+    final params = <String>[];
+    if (key != null) params.add('key=$key');
+    if (channel != null) params.add('channel=$channel');
+    final suffix = params.isEmpty ? '' : '?${params.join('&')}';
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationTemplates}$suffix',
+      requiresAuth: true,
+    );
+    final raw = response['data'];
+    if (raw == null) return [];
+    return (raw as List<dynamic>).map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  /// Crée un template
+  Future<Map<String, dynamic>> createNotificationTemplate(Map<String, dynamic> body) async {
+    final response = await _apiService.post(
+      ApiEndpoints.adminNotificationTemplates,
+      body: body,
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Met à jour un template
+  Future<Map<String, dynamic>> updateNotificationTemplate(int id, Map<String, dynamic> body) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminNotificationTemplates}/$id',
+      body: body,
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Prévisualise un template avec des variables de test
+  Future<Map<String, dynamic>> previewNotificationTemplate(int id, Map<String, dynamic> variables) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationTemplates}/$id/preview',
+      body: {'variables': variables},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Règles de routage événements → canaux (lignes DB + défauts).
+  Future<List<Map<String, dynamic>>> getNotificationRouting() async {
+    final response = await _apiService.get(
+      ApiEndpoints.adminNotificationRouting,
+      requiresAuth: true,
+    );
+    final raw = response['data'];
+    if (raw == null) return [];
+    return (raw as List<dynamic>).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Met à jour la règle d'un événement (canaux + kill-switch).
+  Future<Map<String, dynamic>> updateNotificationRouting(
+    String eventKey, {
+    required List<String> channels,
+    required bool isActive,
+  }) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminNotificationRouting}/$eventKey',
+      body: {'channels': channels, 'is_active': isActive},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Prévisualise un corps non sauvegardé (édition).
+  Future<Map<String, dynamic>> previewNotificationBody({
+    required String channel,
+    required String bodyTpl,
+    required Map<String, dynamic> variables,
+  }) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationTemplates}/preview-body',
+      body: {'channel': channel, 'body_tpl': bodyTpl, 'variables': variables},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Variables requises (union tous canaux) pour une clé d'événement.
+  Future<List<String>> getNotificationTemplateVariables(String key) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationTemplates}/variables/$key',
+      requiresAuth: true,
+    );
+    final raw = response['data'];
+    if (raw == null) return [];
+    return ((raw as Map<String, dynamic>)['variables'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+  }
+
+  /// Logs des notifications envoyées
+  Future<Map<String, dynamic>> getNotificationLogs({
+    int page = 1,
+    int limit = 20,
+    String? status,
+    String? eventType,
+    String? userId,
+    String? query,
+  }) async {
+    final params = <String>['page=$page', 'limit=$limit'];
+    if (status != null) params.add('status=$status');
+    if (eventType != null) params.add('event_type=$eventType');
+    if (userId != null) params.add('user_id=$userId');
+    if (query != null && query.trim().isNotEmpty) {
+      params.add('q=${Uri.encodeQueryComponent(query.trim())}');
+    }
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationLogs}?${params.join('&')}',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Statistiques par statut et canal
+  Future<Map<String, dynamic>> getNotificationStats() async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationLogs}/stats',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Série quotidienne (total, envoyées, échouées, attente).
+  Future<List<Map<String, dynamic>>> getNotificationTimeseries({int days = 14}) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationLogs}/timeseries?days=$days',
+      requiresAuth: true,
+    );
+    final raw = response['data'];
+    if (raw == null) return [];
+    return (raw as List<dynamic>).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Règles de routage événements → canaux
+  Future<List<Map<String, dynamic>>> listNotificationRouting() async {
+    final response = await _apiService.get(
+      ApiEndpoints.adminNotificationRouting,
+      requiresAuth: true,
+    );
+    final raw = response['data'];
+    if (raw == null) return [];
+    return (raw as List<dynamic>).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// Crée/met à jour le routage d'un événement
+  Future<Map<String, dynamic>> upsertNotificationRouting(
+    String eventKey, {
+    required List<String> channels,
+    required bool isActive,
+  }) async {
+    final response = await _apiService.put(
+      '${ApiEndpoints.adminNotificationRouting}/$eventKey',
+      body: {'channels': channels, 'is_active': isActive},
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Détail d'une notification + tentatives
+  Future<Map<String, dynamic>> getNotificationLog(int id) async {
+    final response = await _apiService.get(
+      '${ApiEndpoints.adminNotificationLogs}/$id',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Rejoue une notification
+  Future<Map<String, dynamic>> replayNotification(int id) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationLogs}/$id/replay',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Installe les providers et templates par défaut
+  Future<Map<String, dynamic>> seedNotificationDefaults() async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationLogs}/seed-defaults',
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Diffuse une annonce à tous les utilisateurs actifs (lots async).
+  /// category : transactional (défaut) | marketing (opt-out + heures creuses).
+  /// scheduledAt : envoi planifié (UTC), null = immédiat.
+  Future<Map<String, dynamic>> broadcastToAllUsers(
+    String title,
+    String message, {
+    String category = 'transactional',
+    DateTime? scheduledAt,
+  }) async {
+    final response = await _apiService.post(
+      '${ApiEndpoints.adminNotificationLogs}/broadcast',
+      body: {
+        'title': title,
+        'message': message,
+        'category': category,
+        if (scheduledAt != null) 'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+      },
+      requiresAuth: true,
+    );
+    return response['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Supprime un provider
+  Future<void> deleteNotificationProvider(int id) async {
+    await _apiService.delete(
+      '${ApiEndpoints.adminNotificationProviders}/$id',
+      requiresAuth: true,
+    );
+  }
+
+  /// Supprime un template
+  Future<void> deleteNotificationTemplate(int id) async {
+    await _apiService.delete(
+      '${ApiEndpoints.adminNotificationTemplates}/$id',
+      requiresAuth: true,
+    );
+  }
+
+  /// Exporte les logs notifications en CSV (contenu brut, max 5000 lignes).
+  /// Le téléchargement fichier est géré par l'appelant (web vs mobile).
+  Future<({String filename, String csv})> exportNotificationLogsCsv({
+    String? status,
+    String? eventType,
+  }) async {
+    final params = <String>[];
+    if (status != null) params.add('status=$status');
+    if (eventType != null) params.add('event_type=$eventType');
+    final suffix = params.isEmpty ? '' : '?${params.join('&')}';
+
+    final token = await _apiService.getAccessToken();
+    final uri = Uri.parse('${AppConfig.baseUrl}/api/admin/export/notifications$suffix');
+
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            uri,
+            headers: {
+              if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+              'Accept': 'text/csv',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      throw ApiException.network('Export impossible : ${e.toString()}');
+    }
+
+    if (response.statusCode == 401) {
+      throw ApiException.unauthorized(message: 'Session expirée');
+    }
+    if (response.statusCode != 200) {
+      throw ApiException.serverError(message: 'Export échoué (HTTP ${response.statusCode})');
+    }
+
+    final filename = 'wiwiga_notifications_${DateTime.now().toIso8601String().substring(0, 10)}.csv';
+    return (filename: filename, csv: utf8.decode(response.bodyBytes));
   }
 
   // ========================================

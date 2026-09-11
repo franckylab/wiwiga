@@ -94,6 +94,15 @@ class ApiEndpoints {
   static const String responsibleGamingSelfExclude =
       '/api/responsible-gaming/self-exclude';
 
+  // Notifications joueur (inbox multi-canal)
+  static const String notifications = '/api/notifications';
+  static const String notificationsUnreadCount =
+      '/api/notifications/unread-count';
+  static const String notificationsPreferences =
+      '/api/notifications/preferences';
+  static const String notificationsDeviceToken =
+      '/api/notifications/device-token';
+
   // Webhooks
   static const String campayWebhook = '/api/webhooks/campay';
 
@@ -152,6 +161,15 @@ class ApiEndpoints {
       '/api/admin/notifications/broadcast';
   static const String adminNotificationsUnreadCount =
       '/api/admin/notifications/unread-count';
+
+  // Admin - Notifications multi-canal (config centralisée)
+  static const String adminNotificationProviders =
+      '/api/admin/notification-providers';
+  static const String adminNotificationTemplates =
+      '/api/admin/notification-templates';
+  static const String adminNotificationLogs = '/api/admin/notification-logs';
+  static const String adminNotificationRouting =
+      '/api/admin/notification-routing';
 
   // Admin - Config historique & rollback
   static const String adminConfigHistory = '/api/admin/config/history';

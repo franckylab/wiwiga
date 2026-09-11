@@ -26,7 +26,10 @@ import '../../presentation/screens/admin/admin_alerts_screen.dart';
 import '../../presentation/screens/admin/admin_games_live_screen.dart';
 import '../../presentation/screens/admin/admin_security_screen.dart';
 import '../../presentation/screens/admin/admin_responsible_gaming_screen.dart';
-import '../../presentation/screens/admin/admin_notifications_screen.dart';
+import '../../presentation/screens/admin/admin_notification_providers_screen.dart';
+import '../../presentation/screens/admin/admin_notification_templates_screen.dart';
+import '../../presentation/screens/admin/admin_notification_logs_screen.dart';
+import '../../presentation/screens/admin/admin_notification_routing_screen.dart';
 import '../../presentation/screens/admin/admin_crm_screen.dart';
 import '../../presentation/screens/admin/admin_reconciliation_screen.dart';
 import '../../presentation/screens/admin/admin_settings_screen.dart';
@@ -63,6 +66,8 @@ import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/responsible_gaming/responsible_gaming_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/transaction_history/transaction_history_screen.dart';
+import '../../presentation/screens/notifications/notifications_screen.dart';
+import '../../presentation/screens/notifications/notification_preferences_screen.dart';
 import '../../presentation/screens/wallet/wallet_screen_neon.dart';
 import '../../presentation/screens/debug/token_showcase_screen.dart';
 import '../theme/neon_theme.dart';
@@ -75,6 +80,7 @@ const _protectedRoutes = {
   '/profile',
   '/settings',
   '/transactions',
+  '/notifications',
   '/tokens',
   '/wallet',
   '/friends',
@@ -92,7 +98,8 @@ bool _isProtectedRoute(String path) {
 const _adminRoutes = {
   '/admin', '/admin/users', '/admin/config', '/admin/audit', '/admin/monitoring',
   '/admin/metrics', '/admin/alerts', '/admin/games-live', '/admin/security',
-  '/admin/responsible-gaming', '/admin/notifications', '/admin/crm',
+  '/admin/responsible-gaming', '/admin/notifications', '/admin/notification-providers',
+  '/admin/notification-templates', '/admin/notification-logs', '/admin/notification-routing', '/admin/crm',
   '/admin/reconciliation', '/admin/settings',
   '/admin/analytics/revenue', '/admin/analytics/players', '/admin/analytics/games',
   '/admin/analytics/monetary-flow', '/admin/analytics/wealth',
@@ -234,10 +241,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const AdminShellScreen(child: AdminResponsibleGamingScreen()),
       ),
+      // Legacy supprimé (doublon de /admin/alerts) : redirection brutale vers le hub.
       GoRoute(
         path: '/admin/notifications',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const AdminShellScreen(child: AdminNotificationsScreen()),
+        redirect: (context, state) => '/admin/notification-logs',
+      ),
+      GoRoute(
+        path: '/admin/notification-providers',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationProvidersScreen()),
+      ),
+      GoRoute(
+        path: '/admin/notification-routing',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationRoutingScreen()),
+      ),
+      GoRoute(
+        path: '/admin/notification-templates',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationTemplatesScreen()),
+      ),
+      GoRoute(
+        path: '/admin/notification-logs',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationLogsScreen()),
+      ),
+      GoRoute(
+        path: '/admin/notification-routing',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AdminShellScreen(child: AdminNotificationRoutingScreen()),
       ),
       GoRoute(
         path: '/admin/crm',
@@ -356,6 +389,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/transactions',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const TransactionHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/notifications/preferences',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationPreferencesScreen(),
       ),
       GoRoute(
         path: '/tokens',

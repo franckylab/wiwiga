@@ -29,11 +29,11 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> with 
   bool _isLoading = true;
   String? _error;
 
+  // Onglets email/notification SUPPRIMÉS : doublons historiques non lus
+  // par l'envoi (voir section NOTIFICATIONS). Données conservées en base.
   static const _categories = [
     ('general', 'Général', Icons.settings),
-    ('email', 'Email', Icons.email),
     ('storage', 'Stockage', Icons.storage),
-    ('notification', 'Notifications', Icons.notifications),
     ('security', 'Sécurité', Icons.security),
   ];
 
@@ -106,7 +106,6 @@ class _CategoryTab extends ConsumerStatefulWidget {
 
 class _CategoryTabState extends ConsumerState<_CategoryTab> {
   final Map<String, TextEditingController> _controllers = {};
-
   @override
   void initState() {
     super.initState();

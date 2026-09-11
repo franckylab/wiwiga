@@ -29,9 +29,9 @@ defmodule GameHub.TestHelpers do
     }
     
     final_attrs = Map.merge(defaults, Map.new(attrs))
-    
+
     %GameHub.Users.User{}
-    |> GameHub.Users.User.registration_changeset(Map.from_struct(final_attrs))
+    |> GameHub.Users.User.registration_changeset(final_attrs)
     |> GameHub.Repo.insert!()
   end
   
@@ -60,13 +60,45 @@ defmodule GameHub.TestHelpers do
   end
   
   @doc """
-  Nettoie toutes les données de test.
+  Nettoie toutes les données de test (ordre FK-safe : enfants d'abord).
+  À appeler en tête de chaque `setup` — la base wiwiga_test est partagée
+  entre fichiers sans sandbox, et les écritures réussissent réellement
+  (les inserts partiels d'hier masquaient les nettoyages incomplets).
   """
   def cleanup_test_data do
     import Ecto.Query
-    
-    GameHub.Repo.delete_all(GameHub.Wallet.WalletTransaction)
-    GameHub.Repo.delete_all(GameHub.Users.User)
-    GameHub.Repo.delete_all(GameHub.Games.GameConfig)
+    alias GameHub.Repo
+
+    # Notifications (enfants d'abord)
+    Repo.delete_all(GameHub.Notifications.Delivery)
+    Repo.delete_all(GameHub.Notifications.Notification)
+    Repo.delete_all(GameHub.Notifications.DeviceToken)
+    Repo.delete_all(GameHub.Notifications.Preference)
+    Repo.delete_all(GameHub.Notifications.Suppression)
+    Repo.delete_all(GameHub.Notifications.Provider)
+    Repo.delete_all(GameHub.Notifications.Template)
+    Repo.delete_all(GameHub.Notifications.RoutingRule)
+    # Social
+    Repo.delete_all(GameHub.Friends.FriendMessage)
+    Repo.delete_all(GameHub.Friends.FriendActivity)
+    Repo.delete_all(GameHub.Friends.Friendship)
+    # Jetons + monétaire
+    Repo.delete_all(GameHub.Tokens.UserPromoToken)
+    Repo.delete_all(GameHub.Tokens.TokenTransaction)
+    Repo.delete_all(GameHub.Wallet.WalletTransaction)
+    # Auth / sessions / progression
+    Repo.delete_all(GameHub.Auth.RefreshToken)
+    Repo.delete_all(GameHub.Users.UserSession)
+    Repo.delete_all(GameHub.Users.UserAchievement)
+    Repo.delete_all(GameHub.Users.UserStat)
+    Repo.delete_all(GameHub.ResponsibleGaming.ResponsibleGamingLimit)
+    # Modération + audit (tables brutes, pas de schéma)
+    Repo.delete_all("user_bans")
+    Repo.delete_all(GameHub.Audit.AuditLog)
+    # Jeux (lignes enfants des users)
+    Repo.delete_all(GameHub.Games.GameConfig)
+    # Utilisateurs en dernier
+    Repo.delete_all(GameHub.Users.User)
+    :ok
   end
 end

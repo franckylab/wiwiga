@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/neon_theme.dart';
 import '../../providers/admin_management_provider.dart';
 import '../../widgets/admin/empty_state.dart';
@@ -65,16 +66,36 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
     });
   }
 
-  void _ensureTabController(int length) {
+  /// Catégories masquées : doublons historiques non lus par le code
+  /// (`notification` → section NOTIFICATIONS : canaux, routage, templates).
+  /// Données conservées côté serveur, simplement non affichées.
+  static const _hiddenCategories = {'notification'};
+
+  /// Clés pilotées par l'écran Jeu Responsable (maître) : masquées ici
+  /// pour éviter la double édition (même PUT, risque d'écrasement).
+  static const _delegatedKeys = {
+    'default_daily_loss_limit',
+    'default_daily_deposit_limit',
+    'default_daily_wager_limit',
+    'default_daily_matches_limit',
+    'default_session_time_minutes',
+    'max_bet_per_round',
+    'reality_check_interval_minutes',
+  };
+
+  List<String> _visibleCategories(AdminPlatformConfigState state) {
+    return state.categories.where((c) => !_hiddenCategories.contains(c)).toList();
+  }
+
+  void _ensureTabController(int length, List<String> categories) {
     if (length <= 0) return;
     if (_tabController == null || _tabController!.length != length) {
       _tabController?.dispose();
       _tabController = TabController(length: length, vsync: this);
       _tabController!.addListener(() {
         if (!_tabController!.indexIsChanging) {
-          final state = ref.read(adminPlatformConfigProvider);
-          if (_tabController!.index < state.categories.length) {
-            final cat = state.categories[_tabController!.index];
+          if (_tabController!.index < categories.length) {
+            final cat = categories[_tabController!.index];
             ref.read(adminPlatformConfigProvider.notifier).loadCategory(cat);
           }
         }
@@ -122,7 +143,8 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
   }
 
   Widget _buildCategoryTabs(List<String> categories) {
-    _ensureTabController(categories.length);
+    final visible = categories.where((c) => !_hiddenCategories.contains(c)).toList();
+    _ensureTabController(visible.length, visible);
     final controller = _tabController;
     if (controller == null) {
       return const SizedBox.shrink();
@@ -136,7 +158,7 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
         indicatorColor: NeonColors.primary,
         labelColor: NeonColors.primary,
         unselectedLabelColor: NeonColors.textSecondary,
-        tabs: categories.map((cat) {
+        tabs: visible.map((cat) {
           return Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -154,11 +176,17 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
 
   Widget _buildCategoryContent(AdminPlatformConfigState state) {
     final controller = _tabController;
-    if (controller == null || controller.index >= state.categories.length) {
+    final visible = _visibleCategories(state);
+    if (controller == null || controller.index >= visible.length) {
       return const SizedBox.shrink();
     }
-    final category = state.categories[controller.index];
-    final configs = state.configs[category] ?? [];
+    final category = visible[controller.index];
+    final allConfigs = state.configs[category] ?? [];
+    // Clés déléguées masquées (éditées dans leur écran maître).
+    final configs = allConfigs.where((c) {
+      final key = (c as Map<String, dynamic>)['key']?.toString() ?? '';
+      return !(category == 'gaming' && _delegatedKeys.contains(key));
+    }).toList();
     final color = _categoryColors[category] ?? NeonColors.primary;
 
     if (configs.isEmpty) {
@@ -170,11 +198,44 @@ class _AdminPlatformConfigScreenState extends ConsumerState<AdminPlatformConfigS
       onRefresh: () => ref.read(adminPlatformConfigProvider.notifier).loadAll(),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: configs.length,
+        itemCount: configs.length + ((category == 'gaming') ? 1 : 0),
         itemBuilder: (context, index) {
-          final config = configs[index];
+          // Bandeau maître : les limites RG vivent dans leur écran dédié.
+          if (category == 'gaming' && index == 0) {
+            return _buildGamingMasterBanner();
+          }
+          final config = configs[category == 'gaming' ? index - 1 : index];
           return _buildConfigItem(config, category, color);
         },
+      ),
+    );
+  }
+
+  /// Bandeau vers l'écran maître des limites (évite la double édition).
+  Widget _buildGamingMasterBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: NeonColors.info.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: NeonColors.info.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.shield_outlined, color: NeonColors.info, size: 20),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Limites jeu responsable : gérées dans Jeu Responsable',
+              style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+            ),
+          ),
+          TextButton(
+            onPressed: () => context.go('/admin/responsible-gaming'),
+            child: const Text('Ouvrir', style: TextStyle(fontSize: 12)),
+          ),
+        ],
       ),
     );
   }

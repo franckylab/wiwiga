@@ -81,6 +81,7 @@ defmodule GameHub.Friends do
         |> case do
           {:ok, friendship} ->
             notify_friend(to_id, "friend_request", %{from_user_id: from_id})
+            notify_friend_request_inbox(to_id, from_id)
             {:ok, friendship}
           {:error, changeset} -> {:error, changeset}
         end
@@ -126,6 +127,7 @@ defmodule GameHub.Friends do
         |> case do
           {:ok, updated} ->
             notify_friend(friendship.user_id, "friend_accepted", %{from_user_id: user_id})
+            notify_friend_accepted_inbox(friendship.user_id, user_id)
             record_activity(user_id, "friend_added", %{friend_id: friendship.user_id})
             {:ok, updated}
           {:error, changeset} -> {:error, changeset}
@@ -430,8 +432,12 @@ defmodule GameHub.Friends do
     sender_id = to_integer(sender_id)
     receiver_id = to_integer(receiver_id)
 
-    # Vérifier que le chat est activé via PlatformConfig
-    unless PlatformConfig.get_bool("social", "chat_enabled", true) do
+    # Vérifier que le chat est activé via PlatformConfig.
+    # Clé seedée : enable_friend_chat (repli legacy chat_enabled).
+    chat_enabled? =
+      PlatformConfig.get_bool("social", "enable_friend_chat", PlatformConfig.get_bool("social", "chat_enabled", true))
+
+    unless chat_enabled? do
       {:error, :chat_disabled}
     else
       %FriendMessage{}
@@ -518,6 +524,44 @@ defmodule GameHub.Friends do
     )
   rescue
     _ -> :ok
+  end
+
+  # Inbox persistante best-effort pour les demandes d'amis.
+  defp notify_friend_request_inbox(to_id, from_id) do
+    try do
+      pseudo =
+        case Repo.get(User, from_id) do
+          %{username: username} when is_binary(username) and username != "" -> username
+          _ -> "Un joueur"
+        end
+
+      GameHub.Notifications.dispatch("friend_request", to_id, %{"pseudo" => pseudo})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
+
+  # Inbox persistante best-effort pour les acceptations (au demandeur).
+  defp notify_friend_accepted_inbox(requester_id, accepter_id) do
+    try do
+      pseudo =
+        case Repo.get(User, accepter_id) do
+          %{username: username} when is_binary(username) and username != "" -> username
+          _ -> "Un joueur"
+        end
+
+      GameHub.Notifications.dispatch("friend_accepted", requester_id, %{"pseudo" => pseudo})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
 
   defp broadcast_activity(user_id, action, metadata) do

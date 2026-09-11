@@ -158,8 +158,58 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     };
   }
 
-  Map<String, dynamic> _setsOf(Map<String, dynamic> rule) {
-    final sets = rule['sets'];
+  /// Paramètres gameplay moteur lus depuis `config` (dés, joueurs,
+  /// mises règle, commission, égalité). Miroir des défauts backend.
+  Map<String, dynamic> _gameplayOf(Map<String, dynamic> rule) {
+    final config = rule['config'];
+    final cfg = config is Map<String, dynamic>
+        ? config
+        : config is Map
+            ? Map<String, dynamic>.from(config)
+            : <String, dynamic>{};
+    int intOf(String key, int fallback, int min, int max) {
+      final value = cfg[key];
+      int parsed;
+      if (value is int) {
+        parsed = value;
+      } else if (value is num) {
+        parsed = value.toInt();
+      } else if (value is String) {
+        parsed = int.tryParse(value.trim()) ?? fallback;
+      } else {
+        parsed = fallback;
+      }
+      return parsed.clamp(min, max);
+    }
+
+    double doubleOf(String key, double fallback, double min, double max) {
+      final value = cfg[key];
+      double parsed;
+      if (value is num) {
+        parsed = value.toDouble();
+      } else if (value is String) {
+        parsed = double.tryParse(value.trim()) ?? fallback;
+      } else {
+        parsed = fallback;
+      }
+      return parsed.clamp(min, max);
+    }
+
+    return {
+      'min_dice': intOf('min_dice', 1, 1, 10),
+      'max_dice': intOf('max_dice', 2, 1, 10),
+      'default_dice': intOf('default_dice', 2, 1, 10),
+      'dice_faces': intOf('dice_faces', 6, 4, 20),
+      'min_players': intOf('min_players', 2, 2, 10),
+      'max_players': intOf('max_players', 5, 2, 10),
+      'min_bet': intOf('min_bet', 100, 0, 10000000),
+      'max_bet': intOf('max_bet', 50000, 0, 10000000),
+      'commission_rate': doubleOf('commission_rate', 0.05, 0.0, 1.0),
+      'tie_rule': cfg['tie_rule']?.toString() == 'no_winner' ? 'no_winner' : 'replay',
+    };
+  }
+
+  Map<String, dynamic> _setsOf(Map<String, dynamic> rule) {    final sets = rule['sets'];
     if (sets is Map<String, dynamic>) return sets;
     if (sets is Map) return Map<String, dynamic>.from(sets);
     final config = rule['config'];
@@ -418,6 +468,21 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     final leaveGraceCtrl = TextEditingController(
       text: '${timing['leave_grace_seconds']}',
     );
+    // Gameplay moteur (dés, joueurs, mises règle, commission, égalité).
+    // Miroir des bornes backend (changeset GameRule + endpoint admin).
+    final gameplay = _gameplayOf(rule);
+    var tieIsReplay = (gameplay['tie_rule']?.toString() ?? 'replay') != 'no_winner';
+    final minDiceCtrl = TextEditingController(text: '${gameplay['min_dice']}');
+    final maxDiceCtrl = TextEditingController(text: '${gameplay['max_dice']}');
+    final defDiceCtrl = TextEditingController(text: '${gameplay['default_dice']}');
+    final facesCtrl = TextEditingController(text: '${gameplay['dice_faces']}');
+    final minPlayersCtrl = TextEditingController(text: '${gameplay['min_players']}');
+    final maxPlayersCtrl = TextEditingController(text: '${gameplay['max_players']}');
+    final minBetCtrl = TextEditingController(text: '${gameplay['min_bet']}');
+    final maxBetCtrl = TextEditingController(text: '${gameplay['max_bet']}');
+    final commissionCtrl = TextEditingController(
+      text: '${((gameplay['commission_rate'] as num?)?.toDouble() ?? 0.05) * 100}',
+    );
 
     showDialog(
       context: context,
@@ -539,6 +604,89 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   style: TextStyle(
                     color: NeonColors.textMuted,
                     fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Dés & joueurs (moteur)',
+                  style: TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(minDiceCtrl, 'Dés min (1–10)', Icons.arrow_downward),
+                const SizedBox(height: 12),
+                _buildNumberField(maxDiceCtrl, 'Dés max (1–10)', Icons.arrow_upward),
+                const SizedBox(height: 12),
+                _buildNumberField(defDiceCtrl, 'Dés par défaut', Icons.casino_outlined),
+                const SizedBox(height: 12),
+                _buildNumberField(facesCtrl, 'Faces par dé (4–20)', Icons.hexagon_outlined),
+                const SizedBox(height: 12),
+                _buildNumberField(minPlayersCtrl, 'Joueurs min (2–10)', Icons.person_outline),
+                const SizedBox(height: 12),
+                _buildNumberField(maxPlayersCtrl, 'Joueurs max (2–10)', Icons.people_outline),
+                const SizedBox(height: 20),
+                const Text(
+                  'Mises & commission (moteur)',
+                  style: TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(minBetCtrl, 'Mise min règle (jetons)', Icons.arrow_downward),
+                const SizedBox(height: 12),
+                _buildNumberField(maxBetCtrl, 'Mise max règle (jetons)', Icons.arrow_upward),
+                const SizedBox(height: 12),
+                _buildNumberField(commissionCtrl, 'Commission règle (% 0–100)', Icons.percent_outlined),
+                const SizedBox(height: 8),
+                const Text(
+                  'Moteur : ces bornes valident la création des matchs ; le '
+                  'catalogue (écran Config. Jeux) reste l\u2019affichage. La '
+                  'commission est gelée par match au démarrage.',
+                  style: TextStyle(
+                    color: NeonColors.textMuted,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Set nul (égalité)',
+                  style: TextStyle(
+                    color: NeonColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Rejouer'),
+                      icon: Icon(Icons.replay_outlined, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Sans gagnant'),
+                      icon: Icon(Icons.block_outlined, size: 16),
+                    ),
+                  ],
+                  selected: {tieIsReplay},
+                  onSelectionChanged: (selection) =>
+                      setDialogState(() => tieIsReplay = selection.first),
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.resolveWith(
+                      (states) => states.contains(WidgetState.selected)
+                          ? NeonColors.primary.withValues(alpha: 0.2)
+                          : Colors.transparent,
+                    ),
+                    foregroundColor: WidgetStateProperty.all(
+                      NeonColors.textPrimary,
+                    ),
                   ),
                 ),
                 if (isCible) ...[
@@ -675,6 +823,30 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   context.showError(timingError);
                   return;
                 }
+                final minDice = int.tryParse(minDiceCtrl.text.trim());
+                final maxDice = int.tryParse(maxDiceCtrl.text.trim());
+                final defDice = int.tryParse(defDiceCtrl.text.trim());
+                final faces = int.tryParse(facesCtrl.text.trim());
+                final minPlayers = int.tryParse(minPlayersCtrl.text.trim());
+                final maxPlayers = int.tryParse(maxPlayersCtrl.text.trim());
+                final minBet = int.tryParse(minBetCtrl.text.trim());
+                final maxBet = int.tryParse(maxBetCtrl.text.trim());
+                final commissionPct = double.tryParse(commissionCtrl.text.trim().replaceAll(',', '.'));
+                final gameplayError = _validateGameplay(
+                  minDice: minDice,
+                  maxDice: maxDice,
+                  defDice: defDice,
+                  faces: faces,
+                  minPlayers: minPlayers,
+                  maxPlayers: maxPlayers,
+                  minBet: minBet,
+                  maxBet: maxBet,
+                  commissionPct: commissionPct,
+                );
+                if (gameplayError != null) {
+                  context.showError(gameplayError);
+                  return;
+                }
                 Navigator.pop(ctx);
                 final patch = <String, dynamic>{
                   'min_sets': min!,
@@ -688,6 +860,16 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   'turn_timeout_seconds': turnTimeout,
                   'auto_next_set_delay_seconds': autoNext!,
                   'leave_grace_seconds': leaveGrace!,
+                  'min_dice': minDice!,
+                  'max_dice': maxDice!,
+                  'default_dice': defDice!,
+                  'dice_faces': faces!,
+                  'min_players': minPlayers!,
+                  'max_players': maxPlayers!,
+                  'min_bet': minBet!,
+                  'max_bet': maxBet!,
+                  'commission_rate': commissionPct! / 100,
+                  'tie_rule': tieIsReplay ? 'replay' : 'no_winner',
                   if (isCible) ...{
                     'target_vote_mode': voteIsMode ? 'mode' : 'average',
                     'vote_timeout_seconds': voteTimeout!,
@@ -716,9 +898,45 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     );
   }
 
+  /// Validation gameplay moteur, miroir du backend.
+  String? _validateGameplay({
+    required int? minDice,
+    required int? maxDice,
+    required int? defDice,
+    required int? faces,
+    required int? minPlayers,
+    required int? maxPlayers,
+    required int? minBet,
+    required int? maxBet,
+    required double? commissionPct,
+  }) {
+    if (minDice == null || maxDice == null || minDice < 1 || maxDice > 10) {
+      return 'Dés : 1–10';
+    }
+    if (minDice > maxDice) return 'Dés min doit être <= max';
+    if (defDice == null || defDice < minDice || defDice > maxDice) {
+      return 'Dés par défaut dans [Min, Max]';
+    }
+    if (faces == null || faces < 4 || faces > 20) return 'Faces : 4–20';
+    if (minPlayers == null ||
+        maxPlayers == null ||
+        minPlayers < 2 ||
+        maxPlayers > 10) {
+      return 'Joueurs : 2–10';
+    }
+    if (minPlayers > maxPlayers) return 'Joueurs min doit être <= max';
+    if (minBet == null || maxBet == null || minBet < 0 || maxBet > 10000000) {
+      return 'Mises : 0–10 000 000';
+    }
+    if (minBet > maxBet) return 'Mise min doit être <= max';
+    if (commissionPct == null || commissionPct < 0 || commissionPct > 100) {
+      return 'Commission : 0–100 %';
+    }
+    return null;
+  }
+
   /// Validation locale miroir du backend (le serveur revalide toujours).
-  String? _validateSets({
-    required bool isRandom,
+  String? _validateSets({    required bool isRandom,
     required int? min,
     required int? max,
     required int? def,

@@ -242,6 +242,7 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
 
     // Configs clés pour le jeu responsable (jetons purs + minutes).
     // Mêmes clés canoniques que celles lues par le moteur (ResponsibleGaming).
+    // Voir aussi : timeout matchmaking (platform-config/Jeux, autre domaine).
     final rgKeys = {
       'default_daily_loss_limit': {'label': 'Perte nette / jour défaut (jetons)', 'icon': Icons.money_off, 'default': '500000'},
       'default_daily_deposit_limit': {'label': 'Dépôt / jour défaut (jetons)', 'icon': Icons.savings_outlined, 'default': '1000000'},
@@ -250,7 +251,6 @@ class _AdminResponsibleGamingScreenState extends ConsumerState<AdminResponsibleG
       'default_session_time_minutes': {'label': 'Durée session max (min)', 'icon': Icons.timer_off, 'default': '120'},
       'max_bet_per_round': {'label': 'Mise max par coup (jetons)', 'icon': Icons.casino, 'default': '10000'},
       'reality_check_interval_minutes': {'label': 'Intervalle rappel réalité (min)', 'icon': Icons.notifications_active, 'default': '30'},
-      'fallback_timeout_seconds': {'label': 'Timeout matchmaking (s)', 'icon': Icons.hourglass_empty, 'default': '30'},
     };
 
     return SingleChildScrollView(

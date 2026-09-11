@@ -24,6 +24,117 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
   List<Map<String, dynamic>> _results = [];
   bool _isSearching = false;
 
+  /// Index statique des pages admin (la recherche serveur ne couvre que les utilisateurs).
+  /// Permet de retrouver les écrans par mots-clés, sans appel réseau.
+  static const _pageIndex = [
+    {
+      'title': 'Notifications — Vue d\u2019ensemble',
+      'keywords': 'notifications logs envois stats broadcast diffusion',
+      'route': '/admin/notification-logs',
+      'icon': Icons.mark_email_read_outlined,
+    },
+    {
+      'title': 'Notifications — Canaux',
+      'keywords':
+          'notifications providers canaux sms push email fcm smtp sendgrid ses',
+      'route': '/admin/notification-providers',
+      'icon': Icons.hub_outlined,
+    },
+    {
+      'title': 'Notifications — Templates',
+      'keywords': 'notifications templates modèles email sms push variables',
+      'route': '/admin/notification-templates',
+      'icon': Icons.description_outlined,
+    },
+    {
+      'title': 'Notifications — Routage',
+      'keywords': 'notifications routage événements canaux kill-switch routing',
+      'route': '/admin/notification-routing',
+      'icon': Icons.alt_route_outlined,
+    },
+    {
+      'title': 'Tableau de bord',
+      'keywords': 'dashboard accueil pilotage',
+      'route': '/admin',
+      'icon': Icons.dashboard_outlined,
+    },
+    {
+      'title': 'Métriques',
+      'keywords': 'métriques metrics stats',
+      'route': '/admin/metrics',
+      'icon': Icons.bar_chart,
+    },
+    {
+      'title': 'Utilisateurs',
+      'keywords': 'utilisateurs users joueurs',
+      'route': '/admin/users',
+      'icon': Icons.people,
+    },
+    {
+      'title': 'CRM',
+      'keywords': 'crm segments vip joueurs',
+      'route': '/admin/crm',
+      'icon': Icons.people_alt,
+    },
+    {
+      'title': 'Jeu Responsable',
+      'keywords': 'jeu responsable limites exclusion rgpd',
+      'route': '/admin/responsible-gaming',
+      'icon': Icons.shield,
+    },
+    {
+      'title': 'Réconciliation',
+      'keywords': 'réconciliation finance comptabilité',
+      'route': '/admin/reconciliation',
+      'icon': Icons.account_balance,
+    },
+    {
+      'title': 'Audit',
+      'keywords': 'audit historique logs actions',
+      'route': '/admin/audit',
+      'icon': Icons.history,
+    },
+    {
+      'title': 'Rapports',
+      'keywords': 'rapports reports export',
+      'route': '/admin/reports',
+      'icon': Icons.assessment,
+    },
+    {
+      'title': 'Supervision',
+      'keywords': 'supervision monitoring santé système',
+      'route': '/admin/monitoring',
+      'icon': Icons.monitor_heart,
+    },
+    {
+      'title': 'Sécurité',
+      'keywords': 'sécurité ip whitelist ban',
+      'route': '/admin/security',
+      'icon': Icons.security,
+    },
+  ];
+
+  List<Map<String, dynamic>> _matchPages(String query) {
+    final q = query.toLowerCase().trim();
+    if (q.length < 2) return [];
+    return _pageIndex
+        .where(
+          (p) =>
+              (p['title'] as String).toLowerCase().contains(q) ||
+              (p['keywords'] as String).toLowerCase().contains(q),
+        )
+        .map(
+          (p) => {
+            'type': 'page',
+            'title': p['title'] as String,
+            'subtitle': p['route'] as String,
+            'route': p['route'] as String,
+            'icon': p['icon'] as IconData,
+          },
+        )
+        .toList();
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -37,6 +148,9 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
     }
 
     setState(() => _isSearching = true);
+
+    // Pages d'abord (instantané, sans réseau), puis utilisateurs.
+    final pages = _matchPages(query);
 
     try {
       final repo = ref.read(adminRepositoryProvider);
@@ -54,11 +168,16 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
       }).toList();
 
       setState(() {
-        _results = users.cast<Map<String, dynamic>>();
+        _results =
+            [...pages, ...users.cast<Map<String, dynamic>>()].take(10).toList();
         _isSearching = false;
       });
     } catch (e) {
-      setState(() => _isSearching = false);
+      // Repli : au moins les pages (trouvées sans réseau)
+      setState(() {
+        _results = pages;
+        _isSearching = false;
+      });
     }
   }
 
@@ -76,24 +195,55 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
             autofocus: true,
             style: const TextStyle(color: NeonColors.textPrimary),
             decoration: InputDecoration(
-              hintText: 'Rechercher utilisateurs, parties, transactions...',
-              hintStyle: const TextStyle(color: NeonColors.textMuted, fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: NeonColors.primary, size: 20),
+              hintText: 'Rechercher pages, utilisateurs… (ex. routage, canaux)',
+              hintStyle:
+                  const TextStyle(color: NeonColors.textMuted, fontSize: 13),
+              prefixIcon:
+                  const Icon(Icons.search, color: NeonColors.primary, size: 20),
               suffixIcon: _controller.text.isNotEmpty
-                  ? IconButton(icon: const Icon(Icons.clear, color: NeonColors.textSecondary, size: 18), onPressed: () { _controller.clear(); setState(() => _results = []); })
+                  ? IconButton(
+                      icon: const Icon(
+                        Icons.clear,
+                        color: NeonColors.textSecondary,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        _controller.clear();
+                        setState(() => _results = []);
+                      },
+                    )
                   : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.border)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: NeonColors.primary)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: NeonColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: NeonColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: NeonColors.primary),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             onChanged: _search,
           ),
           const SizedBox(height: 12),
           if (_isSearching)
-            const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: NeonColors.primary))
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: NeonColors.primary),
+            )
           else if (_results.isEmpty && _controller.text.length >= 2)
-            const Padding(padding: EdgeInsets.all(16), child: Text('Aucun résultat', style: TextStyle(color: NeonColors.textSecondary)))
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Aucun résultat',
+                style: TextStyle(color: NeonColors.textSecondary),
+              ),
+            )
           else
             SizedBox(
               height: 300,
@@ -103,9 +253,25 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
                 itemBuilder: (context, index) {
                   final result = _results[index];
                   return ListTile(
-                    leading: Icon(result['icon'] as IconData, color: NeonColors.primary, size: 20),
-                    title: Text(result['title'] as String, style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13)),
-                    subtitle: Text(result['subtitle'] as String, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                    leading: Icon(
+                      result['icon'] as IconData,
+                      color: NeonColors.primary,
+                      size: 20,
+                    ),
+                    title: Text(
+                      result['title'] as String,
+                      style: const TextStyle(
+                        color: NeonColors.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    subtitle: Text(
+                      result['subtitle'] as String,
+                      style: const TextStyle(
+                        color: NeonColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
                     onTap: () {
                       Navigator.of(context).pop();
                       context.go(result['route'] as String);
@@ -122,5 +288,8 @@ class _AdminSearchCommandState extends ConsumerState<AdminSearchCommand> {
 
 /// Affiche le dialog de recherche
 void showAdminSearch(BuildContext context) {
-  showDialog(context: context, builder: (context) => const AdminSearchCommand());
+  showDialog(
+    context: context,
+    builder: (context) => const AdminSearchCommand(),
+  );
 }

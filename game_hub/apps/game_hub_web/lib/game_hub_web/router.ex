@@ -85,6 +85,14 @@ defmodule GameHubWeb.Router do
     
     # Webhooks paiement (signature vérification interne)
     post "/webhooks/campay", PaymentWebhookController, :campay_callback
+
+    # Webhooks DLR SMS (accusés providers, toujours 200)
+    post "/webhooks/sms/:provider", SmsWebhookController, :callback
+    # SMS entrants (STOP/START/HELP, suppression immédiate)
+    post "/webhooks/sms/:provider/inbound", SmsWebhookController, :inbound
+
+    # SES via SNS (bounce/plainte → suppression, signature vérifiée)
+    post "/webhooks/ses", SesWebhookController, :callback
   end
   
   ## ========================================
@@ -215,6 +223,17 @@ defmodule GameHubWeb.Router do
     get "/responsible-gaming/limits", ResponsibleGamingController, :get_my_limits
     put "/responsible-gaming/limits", ResponsibleGamingController, :update_my_limits
     post "/responsible-gaming/self-exclude", ResponsibleGamingController, :self_exclude
+
+    # Notifications joueur (inbox multi-canal)
+    get "/notifications", NotificationController, :index
+    get "/notifications/unread-count", NotificationController, :unread_count
+    put "/notifications/read-all", NotificationController, :mark_all_read
+    put "/notifications/:id/read", NotificationController, :mark_read
+    delete "/notifications/:id", NotificationController, :delete
+    get "/notifications/preferences", NotificationController, :list_preferences
+    put "/notifications/preferences", NotificationController, :upsert_preference
+    post "/notifications/device-token", NotificationController, :register_token
+    delete "/notifications/device-token", NotificationController, :unregister_token
   end
   
   ## WebSocket
@@ -345,6 +364,7 @@ defmodule GameHubWeb.Router do
     get "/export/users", AdminExportController, :export_users
     get "/export/transactions", AdminExportController, :export_transactions
     get "/export/games", AdminExportController, :export_games
+    get "/export/notifications", AdminExportController, :export_notifications
     
     # ========================================
     # Historique et Rollback Configuration
@@ -475,5 +495,39 @@ defmodule GameHubWeb.Router do
     get "/platform-config/:category", AdminPlatformConfigController, :show
     put "/platform-config/:category/:key", AdminPlatformConfigController, :update
     put "/platform-config/:category/batch", AdminPlatformConfigController, :batch_update
+
+    # ========================================
+    # Notifications Multi-Canal (config centralisée)
+    # ========================================
+    get "/notification-providers", AdminNotificationProviderController, :index
+    post "/notification-providers", AdminNotificationProviderController, :create
+    put "/notification-providers/:id", AdminNotificationProviderController, :update
+    delete "/notification-providers/:id", AdminNotificationProviderController, :delete
+    get "/notification-providers/:id/config", AdminNotificationProviderController, :show_config
+    put "/notification-providers/:id/config", AdminNotificationProviderController, :update_config
+    post "/notification-providers/:id/test", AdminNotificationProviderController, :test_connection
+    post "/notification-providers/:id/health", AdminNotificationProviderController, :check_health
+
+    get "/notification-templates", AdminNotificationTemplateController, :index
+    post "/notification-templates", AdminNotificationTemplateController, :create
+    post "/notification-templates/preview-body", AdminNotificationTemplateController, :preview_body
+    get "/notification-templates/variables/:key", AdminNotificationTemplateController, :variables
+    put "/notification-templates/:id", AdminNotificationTemplateController, :update
+    delete "/notification-templates/:id", AdminNotificationTemplateController, :delete
+    post "/notification-templates/:id/preview", AdminNotificationTemplateController, :preview
+
+    get "/notification-logs/stats", AdminNotificationLogController, :stats
+    get "/notification-logs/timeseries", AdminNotificationLogController, :timeseries
+    get "/notification-routing", AdminNotificationRoutingController, :index
+    put "/notification-routing/:key", AdminNotificationRoutingController, :upsert
+    get "/notification-logs", AdminNotificationLogController, :index
+    get "/notification-logs/:id", AdminNotificationLogController, :show
+    post "/notification-logs/:id/replay", AdminNotificationLogController, :replay
+    post "/notification-logs/seed-defaults", AdminNotificationLogController, :seed_defaults
+    post "/notification-logs/broadcast", AdminNotificationLogController, :broadcast
+
+    # Routage événements → canaux (règles administrables, repli inbox sans ligne DB)
+    get "/notification-routing", AdminNotificationRoutingController, :index
+    put "/notification-routing/:key", AdminNotificationRoutingController, :upsert
   end
 end

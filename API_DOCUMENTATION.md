@@ -446,6 +446,138 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 ---
 
+## 🔔 Notifications Multi-Canal
+
+### Inbox Joueur
+```http
+GET /api/notifications?page=1&limit=20
+GET /api/notifications/unread-count
+PUT /api/notifications/:id/read
+PUT /api/notifications/read-all
+DELETE /api/notifications/:id
+Authorization: Bearer <TOKEN>
+```
+> Inbox paginée (bouton « Charger plus »), suppression avec confirmation.
+> Tap sur une carte → écran concerné (amis, transactions, jeux).
+
+**Response 200 (liste):**
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {"id": 5, "event_type": "wallet_credit", "title": "Jetons reçus",
+       "body": "+1000 jetons : bonus de bienvenue", "category": "transactional",
+       "status": "sent", "is_read": false}
+    ],
+    "total": 1, "page": 1, "limit": 20
+  }
+}
+```
+
+### Préférences (matrice catégorie × canal, `security` non-désactivable)
+```http
+GET /api/notifications/preferences
+PUT /api/notifications/preferences
+Content-Type: application/json
+{"category": "marketing", "channel": "push", "enabled": false}
+```
+
+### Token Push (FCM)
+```http
+POST /api/notifications/device-token
+{"platform": "android", "token": "<FCM_TOKEN>", "app_version": "1.0.0"}
+DELETE /api/notifications/device-token?token=<FCM_TOKEN>
+```
+Enregistrement auto au login, suppression au logout. Écran : `/notifications/preferences`.
+
+### Admin — Providers (config centralisée persistante)
+```http
+GET /api/admin/notification-providers?channel=sms
+POST /api/admin/notification-providers
+{"channel": "sms", "name": "orange_cm", "display_name": "Orange SMS Cameroun",
+ "is_active": false, "priority": 20, "config": {}}
+PUT /api/admin/notification-providers/:id
+{"is_active": true}
+GET /api/admin/notification-providers/:id/config
+PUT /api/admin/notification-providers/:id/config
+{"config": {"sender_id": "WIWIGA", "api_key": "nouvelle-clé"}}
+```
+
+> Config assainie : secrets jamais exposés (`set: true/false`, vide =
+> conserver). Champs guidés par schéma selon le provider.
+POST /api/admin/notification-providers/:id/test
+{"recipient": "+2376XXXXXXXX"}
+```
+
+> Envoi réel : le test expédie un vrai message via le provider (SMS/email/push).
+> Secrets (`api_key`, `secret`, `password`...) chiffrés AES-256-GCM
+> (`NOTIFICATION_CONFIG_KEY`). Failover automatique par priorité.
+
+### Admin — Templates (`{{variables}}` + preview)
+```http
+GET /api/admin/notification-templates?channel=in_app
+POST /api/admin/notification-templates
+{"key": "wallet_credit", "channel": "in_app", "locale": "fr", "version": 1,
+ "subject": "Jetons reçus", "body_tpl": "+{{montant}} jetons : {{motif}}",
+ "category": "transactional", "is_active": true}
+PUT /api/admin/notification-templates/:id
+POST /api/admin/notification-templates/:id/preview
+{"variables": {"montant": "500", "motif": "gain de partie"}}
+```
+> SMS : la réponse inclut `segments` (`chars`, `segments`, `encoding`).
+
+```http
+POST /api/admin/notification-templates/preview-body
+{"channel": "sms", "body_tpl": "+{{montant}} jetons", "variables": {}}
+
+GET /api/admin/notification-templates/variables/:key
+```
+> Variables requises (union tous canaux) + aperçu live dans l'éditeur.
+
+### Admin — Logs, stats, replay
+```http
+GET /api/admin/notification-logs?status=sent&event_type=wallet_credit
+GET /api/admin/notification-logs/stats
+GET /api/admin/notification-logs/:id
+POST /api/admin/notification-logs/:id/replay
+POST /api/admin/notification-logs/seed-defaults
+POST /api/admin/notification-logs/broadcast
+{"title": "Annonce", "message": "Bonjour à tous"}
+```
+> Broadcast : diffusion à tous les actifs par lots async (202 + `event_id`).
+
+### Webhooks entrants (toujours 200)
+```http
+POST /api/webhooks/sms/:provider/inbound
+{"from": "+2376XXXXXXXX", "text": "STOP"}
+# STOP/QUIT/... (FR+EN, mot entier) → suppression immédiate + marketing
+# coupé (sms/email/push). START/YES → réinscription. OTP jamais bloqué.
+
+POST /api/webhooks/ses
+# SNS SES : confirmation d'abonnement auto, bounce permanent / plainte →
+# suppression + marketing email coupé, signature RSA vérifiée.
+```
+
+DELETE /api/admin/notification-providers/:id
+DELETE /api/admin/notification-templates/:id
+```
+
+### Files Async (Oban — 1 queue par canal)
+
+`sms → notifications_sms (5), push → notifications_push (5), email → notifications_email (10)`.
+Enqueue transactionnel au dispatch, backoff exponentiel (8 tentatives),
+`429 → snooze 120s`, erreurs permanentes → `cancel`. Statuts par tentative
+visibles dans les logs (`queued → processing → sent → delivered / failed`).
+
+### Webhook DLR SMS (accusés providers, toujours 200)
+```http
+POST /api/webhooks/sms/:provider
+{"message_id": "...", "status": "delivered"}
+```
+
+---
+
 ## 🔌 WebSocket
 
 ### Connexion

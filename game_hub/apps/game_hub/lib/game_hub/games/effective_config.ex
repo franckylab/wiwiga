@@ -181,21 +181,31 @@ defmodule GameHub.Games.EffectiveConfig do
   defp xp_block(game_type) do
     case XPRules.get_xp_rules(game_type) do
       rules when is_map(rules) ->
+        src = "xp_rules.#{game_type}"
+
         %{
-          win: %{value: Map.get(rules, :win_xp), source: "xp_rules.#{game_type}"},
-          loss: %{value: Map.get(rules, :loss_xp), source: "xp_rules.#{game_type}"},
-          participation: %{value: Map.get(rules, :participation_xp), source: "xp_rules.#{game_type}"},
-          active: %{value: Map.get(rules, :is_active, true), source: "xp_rules.#{game_type}"}
+          win: %{value: Map.get(rules, :win_xp), source: src},
+          loss: %{value: Map.get(rules, :loss_xp), source: src},
+          draw: %{value: Map.get(rules, :draw_xp), source: src},
+          participation: %{value: Map.get(rules, :participation_xp), source: src},
+          streak_bonus: %{value: Map.get(rules, :streak_bonus), source: src},
+          max_streak_bonus: %{value: Map.get(rules, :max_streak_bonus), source: src},
+          xp_multiplier: %{value: Map.get(rules, :xp_multiplier), source: src},
+          active: %{value: Map.get(rules, :is_active, true), source: src}
         }
 
       _ ->
         %{win: %{value: nil, source: "absent"}, loss: %{value: nil, source: "absent"},
-          participation: %{value: nil, source: "absent"}, active: %{value: nil, source: "absent"}}
+          draw: %{value: nil, source: "absent"}, participation: %{value: nil, source: "absent"},
+          streak_bonus: %{value: nil, source: "absent"}, max_streak_bonus: %{value: nil, source: "absent"},
+          xp_multiplier: %{value: nil, source: "absent"}, active: %{value: nil, source: "absent"}}
     end
   rescue
     _ ->
       %{win: %{value: nil, source: "absent"}, loss: %{value: nil, source: "absent"},
-        participation: %{value: nil, source: "absent"}, active: %{value: nil, source: "absent"}}
+        draw: %{value: nil, source: "absent"}, participation: %{value: nil, source: "absent"},
+        streak_bonus: %{value: nil, source: "absent"}, max_streak_bonus: %{value: nil, source: "absent"},
+        xp_multiplier: %{value: nil, source: "absent"}, active: %{value: nil, source: "absent"}}
   end
 
   # === Accès sources (nil-safe) ===

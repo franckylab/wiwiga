@@ -10,12 +10,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/config/app_config.dart';
 import 'core/errors/error_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/neon_theme.dart';
 import 'core/widgets/wiwiga_error_view.dart';
 import 'data/providers/app_providers.dart';
+import 'data/providers/notification_provider.dart';
+import 'presentation/widgets/neon/neon_widgets.dart';
 
 void main() async {
   // Zoneguarded pour capter les erreurs hors Flutter callbacks (ex: Timer, Future)
@@ -104,12 +108,21 @@ class WiwigaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
+    // Push FCM : init unique (permissions + token + tap → inbox).
+    // Silencieux si Firebase non configuré (inbox in_app en repli).
+    ref.watch(pushInitProvider);
+
     // Écoute session expirée → feedback humain immédiat (pas de technique exposée)
     ref.listen<AuthStatus>(
       authProvider.select((s) => s.status),
       (prev, next) {
+        // Login : explicatif push (une seule fois) puis enregistrement token
+        if (prev != AuthStatus.authenticated && next == AuthStatus.authenticated) {
+          Future.microtask(() => _maybeAskPushOptIn(ref));
+        }
         // prev/next sont AuthStatus, on veut détecter authenticated -> guest
         if (prev == AuthStatus.authenticated && next == AuthStatus.guest) {
+          Future.microtask(() => unregisterPushToken(ref));
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final ctx = rootNavigatorKey.currentContext;
             if (ctx != null && ctx.mounted) {
@@ -141,5 +154,88 @@ class WiwigaApp extends ConsumerWidget {
         return child ?? const SizedBox.shrink();
       },
     );
+  }
+}
+
+/// Opt-in push au premier login : explique le bénéfice AVANT le prompt OS
+/// (bonne pratique store), une seule fois (flag SharedPreferences).
+/// Sans Firebase configuré : silencieux, inbox in_app en repli.
+Future<void> _maybeAskPushOptIn(WidgetRef ref) async {
+  try {
+    await ref.read(pushInitProvider.future);
+    final service = ref.read(pushNotificationServiceProvider);
+    if (!service.isAvailable) {
+      await registerPushToken(ref);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('push_optin_asked') == true) {
+      await registerPushToken(ref);
+      return;
+    }
+
+    await prefs.setBool('push_optin_asked', true);
+
+    final context = rootNavigatorKey.currentContext;
+    if (context == null || !context.mounted) {
+      await registerPushToken(ref);
+      return;
+    }
+
+    final accepted = await NeonModal.show<bool>(
+      context: context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.notifications_active_rounded, color: NeonColors.primary, size: 28),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Rester informé',
+                  style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Recevez vos gains, résultats de matchs et alertes de sécurité '
+            'même quand l\u2019application est fermée. Modifiable à tout moment '
+            'dans Notifications > Préférences.',
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 14),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: NeonButton(
+                  text: 'Plus tard',
+                  onPressed: () => Navigator.pop(context, false),
+                  variant: NeonButtonVariant.outline,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: NeonButton(
+                  text: 'Activer',
+                  onPressed: () => Navigator.pop(context, true),
+                  variant: NeonButtonVariant.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (accepted == true) {
+      await registerPushToken(ref);
+    }
+  } catch (_) {
+    // Push optionnel : jamais bloquant pour le login
   }
 }

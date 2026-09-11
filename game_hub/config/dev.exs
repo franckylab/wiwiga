@@ -42,8 +42,9 @@ config :game_hub_web, GameHubWeb.Endpoint,
     ]
   ]
 
-# Logger
-config :logger, :console, format: "[$level] $message\n"
+# Logger (level :info pour éviter le flood des "QUERY OK" en debug —
+# les vraies erreurs restent visibles ; remettre :debug si besoin de tracer les requêtes)
+config :logger, :console, format: "[$level] $message\n", level: :info
 
 # CORS: accepter toutes les origines en développement
 config :game_hub_web, allow_all_origins: true

@@ -1,0 +1,30 @@
+{
+  "_comment": "WIWIGA — Exemple google-services.json (placeholders). Ne jamais commiter le vrai fichier. Copier vers google-services.json puis remplacer chaque FIREBASE_* par la console Firebase (Paramètres projet → Applications Android). Le package_name doit correspondre à l'app Android déclarée.",
+  "project_info": {
+    "project_number": "660834792043",
+    "project_id": "wiwiga-d9a7e",
+    "storage_bucket": "wiwiga-d9a7e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "FIREBASE_APP_ID_ANDROID",
+        "android_client_info": {
+          "package_name": "com.wiwiga.wiwiga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "FIREBASE_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

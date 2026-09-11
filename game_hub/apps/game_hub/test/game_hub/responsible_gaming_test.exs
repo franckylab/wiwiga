@@ -18,6 +18,8 @@ defmodule GameHub.ResponsibleGamingTest do
   import Ecto.Query
 
   setup do
+    # Ordre FK-safe : les transactions (wallet + jetons) référencent les users.
+    Repo.delete_all(GameHub.Wallet.WalletTransaction)
     Repo.delete_all(TokenTransaction)
     Repo.delete_all(ResponsibleGamingLimit)
     Repo.delete_all(User)
@@ -25,6 +27,7 @@ defmodule GameHub.ResponsibleGamingTest do
     user =
       Repo.insert!(%User{
         phone: "+237699000001",
+        username: "rg_#{System.unique_integer([:positive])}",
         name: "Test RG",
         balance: 100_000,
         token_balance: 1_000_000,

@@ -137,6 +137,20 @@ defmodule GameHub.FeatureFlags do
         |> Repo.update()
     end
   end
+
+  @doc """
+  Coupe immédiatement un flag (kill switch) : désactivé + rollout à 0,
+  quel que soit son état précédent. Alias métier de `disable_flag/1`.
+
+  ## Parameters
+    - `flag_name`: Nom du flag
+
+  ## Returns
+    - `{:ok, flag}`: Flag coupé
+    - `{:error, :not_found}`: Flag inexistant
+  """
+  @spec kill_switch(String.t()) :: {:ok, FeatureFlag.t()} | {:error, atom()}
+  def kill_switch(flag_name) when is_binary(flag_name), do: disable_flag(flag_name)
   
   # === Fonctions Privées ===
   

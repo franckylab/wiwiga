@@ -5,9 +5,14 @@
 # Description: Tests unitaires pour module validation
 
 defmodule GameHub.ValidatorsTest do
-  use ExUnit.Case, async: true
-  
+  use ExUnit.Case, async: false
+
   alias GameHub.Validators
+
+  setup do
+    GameHub.TestHelpers.cleanup_test_data()
+    :ok
+  end
   
   describe "validate_bet_amount/1" do
     test "accepts valid positive integer" do
@@ -75,12 +80,21 @@ defmodule GameHub.ValidatorsTest do
   
   describe "validate_resource_ownership/3" do
     test "returns true when user owns resource" do
-      # Mock test - implementation depends on Repo
-      assert Validators.validate_resource_ownership(1, "transaction", 100)
+      user = GameHub.TestHelpers.create_test_user()
+      {:ok, tx} = GameHub.Wallet.deposit(user.id, 100_000, "own_#{System.unique_integer()}")
+
+      assert Validators.validate_resource_ownership(user.id, "transaction", tx.id)
+      assert Validators.validate_resource_ownership(user.id, "user", user.id)
     end
-    
+
     test "returns false when user doesn't own resource" do
-      refute Validators.validate_resource_ownership(1, "transaction", 100)
+      owner = GameHub.TestHelpers.create_test_user()
+      stranger = GameHub.TestHelpers.create_test_user()
+      {:ok, tx} = GameHub.Wallet.deposit(owner.id, 100_000, "str_#{System.unique_integer()}")
+
+      refute Validators.validate_resource_ownership(stranger.id, "transaction", tx.id)
+      refute Validators.validate_resource_ownership(owner.id, "transaction", -1)
+      refute Validators.validate_resource_ownership(owner.id, "unknown_type", tx.id)
     end
   end
 end

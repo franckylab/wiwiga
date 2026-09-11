@@ -1008,34 +1008,6 @@ class _FeaturesConfigTab extends ConsumerWidget {
               _showSaveConfirmation(context, ref);
             },
           ),
-          const _InteractiveFeatureToggle(
-            title: 'PvP activé',
-            description: 'Active les parties entre joueurs',
-            isEnabled: true,
-            color: Color(0xFF00FF88),
-            onChanged: null, // Lecture seule pour l'instant
-          ),
-          const _InteractiveFeatureToggle(
-            title: 'Tournois',
-            description: 'Active les tournois et compétitions',
-            isEnabled: false,
-            color: Color(0xFFFF6600),
-            onChanged: null,
-          ),
-          const _InteractiveFeatureToggle(
-            title: 'Chat en jeu',
-            description: 'Active le chat pendant les parties',
-            isEnabled: true,
-            color: Color(0xFF00FFFF),
-            onChanged: null,
-          ),
-          const _InteractiveFeatureToggle(
-            title: 'Transferts de wiga',
-            description: 'Permet aux joueurs de se transférer des wiga',
-            isEnabled: true,
-            color: Color(0xFFAA00FF),
-            onChanged: null,
-          ),
           const SizedBox(height: 16),
           // Limites éditables
           const _SectionHeader(title: 'Limites financières', icon: Icons.money),
@@ -1315,11 +1287,6 @@ class _TokensConfigTab extends ConsumerWidget {
                 value: '${config.exchangeRate} wiga/FCFA',
                 icon: Icons.swap_horiz,
               ),
-              _ConfigField(
-                label: 'Frais cadeau',
-                value: '${config.giftFeePercent.toStringAsFixed(1)}%',
-                icon: Icons.card_giftcard,
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1347,11 +1314,6 @@ class _TokensConfigTab extends ConsumerWidget {
                 value: '${config.dailyGiftLimit} wiga',
                 icon: Icons.card_giftcard,
               ),
-              _ConfigField(
-                label: 'Frais cadeau',
-                value: '${config.giftFeePercent.toStringAsFixed(1)}%',
-                icon: Icons.percent,
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1367,7 +1329,9 @@ class _TokensConfigTab extends ConsumerWidget {
             value: config.dailyGiftLimit,
             suffix: ' wiga',
             onSave: (v) async {
-              // Stockage effectif en PlatformConfig payment.daily_gift_limit
+              // Source unique : PlatformConfig payment.daily_gift_limit
+              // (lu par Tokens.send_gift ; l'écriture tokens est ignorée
+              // côté backend car hors changeset).
               try {
                 final api = ref.read(apiServiceProvider);
                 await api.put(
@@ -1375,10 +1339,8 @@ class _TokensConfigTab extends ConsumerWidget {
                   body: {'value': v.toString()},
                   requiresAuth: true,
                 );
-                // Compat tokensConfigProvider pour affichage local
-                await ref.read(tokensConfigProvider.notifier).updateConfig(
-                  {'daily_gift_limit': v, 'daily_transfer_limit': v},
-                );
+                // Relecture (merge platform en source de vérité)
+                ref.invalidate(tokensConfigProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1617,179 +1579,6 @@ class _ConfigField {
     this.color,
   });
 }
-
-class _PaymentProviderCard extends StatelessWidget {
-  final String name;
-  final bool isEnabled;
-  final List<_ConfigField> details;
-
-  const _PaymentProviderCard({
-    required this.name,
-    required this.isEnabled,
-    required this.details,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isEnabled
-              ? const Color(0xFF00FF88).withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.payment,
-                color: isEnabled ? const Color(0xFF00FF88) : Colors.white38,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                name,
-                style: TextStyle(
-                  color: isEnabled ? Colors.white : Colors.white38,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isEnabled
-                      ? const Color(0xFF00FF88).withValues(alpha: 0.2)
-                      : Colors.redAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  isEnabled ? 'Actif' : 'Inactif',
-                  style: TextStyle(
-                    color:
-                        isEnabled ? const Color(0xFF00FF88) : Colors.redAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (isEnabled) ...[
-            const SizedBox(height: 12),
-            ...details.map(
-              (f) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  children: [
-                    Icon(f.icon, color: const Color(0xFF00FF88), size: 14),
-                    const SizedBox(width: 8),
-                    Text(
-                      f.label,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      f.value,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureToggle extends StatelessWidget {
-  final String title;
-  final String description;
-  final bool isEnabled;
-  final Color color;
-
-  const _FeatureToggle({
-    required this.title,
-    required this.description,
-    required this.isEnabled,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isEnabled
-                  ? color.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isEnabled ? color : Colors.white24),
-            ),
-            child: Text(
-              isEnabled ? 'ON' : 'OFF',
-              style: TextStyle(
-                color: isEnabled ? color : Colors.white38,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _InfoBanner extends StatelessWidget {
   final String message;
 

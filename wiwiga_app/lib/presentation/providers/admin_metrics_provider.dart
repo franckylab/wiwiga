@@ -74,6 +74,9 @@ class AdminAlertsState {
   final List<dynamic> alerts;
   final int total;
   final int unreadNotifications;
+  // Compteur du NOUVEAU système multi-canal (logs non lus) pour la cloche du header.
+  // Séparé de unreadNotifications (legacy, écran /admin/alerts) pour éviter les écrasements.
+  final int notifUnread;
 
   const AdminAlertsState({
     this.isLoading = false,
@@ -81,6 +84,7 @@ class AdminAlertsState {
     this.alerts = const [],
     this.total = 0,
     this.unreadNotifications = 0,
+    this.notifUnread = 0,
   });
 
   AdminAlertsState copyWith({
@@ -89,6 +93,7 @@ class AdminAlertsState {
     List<dynamic>? alerts,
     int? total,
     int? unreadNotifications,
+    int? notifUnread,
     bool clearError = false,
   }) {
     return AdminAlertsState(
@@ -97,6 +102,7 @@ class AdminAlertsState {
       alerts: alerts ?? this.alerts,
       total: total ?? this.total,
       unreadNotifications: unreadNotifications ?? this.unreadNotifications,
+      notifUnread: notifUnread ?? this.notifUnread,
     );
   }
 }
@@ -299,6 +305,19 @@ class AdminAlertsNotifier extends StateNotifier<AdminAlertsState> {
       final repo = _ref.read(adminRepositoryProvider);
       final count = await repo.getUnreadNotificationCount();
       state = state.copyWith(unreadNotifications: count);
+    } catch (_) {
+      // Silencieux pour le compteur
+    }
+  }
+
+  /// Badge cloche du header : notifications NON LUES du nouveau système multi-canal.
+  /// Source unique : GET /api/admin/notification-logs/stats → unread_total.
+  Future<void> loadNotifBadge() async {
+    try {
+      final repo = _ref.read(adminRepositoryProvider);
+      final stats = await repo.getNotificationStats();
+      final count = (stats['unread_total'] as num?)?.toInt() ?? 0;
+      state = state.copyWith(notifUnread: count);
     } catch (_) {
       // Silencieux pour le compteur
     }

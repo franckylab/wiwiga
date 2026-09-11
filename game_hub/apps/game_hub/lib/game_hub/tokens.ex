@@ -92,7 +92,8 @@ defmodule GameHub.Tokens do
   """
   @spec purchase_tokens(integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
   def purchase_tokens(user_id, monetary_amount, idempotency_key) when monetary_amount > 0 do
-    Repo.transaction(fn ->
+    result =
+      Repo.transaction(fn ->
       case get_token_transaction_by_key(idempotency_key) do
         nil ->
           user = lock_user_for_update(user_id)
@@ -135,10 +136,92 @@ defmodule GameHub.Tokens do
           Repo.rollback(:idempotency_key_used)
       end
     end)
+
+    case result do
+      {:ok, transaction} ->
+        notify_tokens_credited(user_id, transaction.token_amount, "achat de jetons")
+        {:ok, transaction}
+
+      error ->
+        error
+    end
   end
-  
+
   def purchase_tokens(_, amount, _) when amount <= 0 do
     {:error, :invalid_amount}
+  end
+
+  # Notification inbox best-effort : n'échoue jamais la transaction jetons.
+  defp notify_tokens_credited(user_id, token_amount, motif) do
+    try do
+      GameHub.Notifications.dispatch("wallet_credit", user_id, %{
+        "montant" => to_string(token_amount),
+        "motif" => motif
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
+
+  # Cadeau : débit expéditeur + crédit destinataire (pseudos best-effort).
+  defp notify_gift_parties(from_user_id, to_user_id, token_amount) do
+    try do
+      from_pseudo = username_of(from_user_id)
+      to_pseudo = username_of(to_user_id)
+
+      GameHub.Notifications.dispatch("wallet_debit", from_user_id, %{
+        "montant" => to_string(token_amount),
+        "motif" => "cadeau à #{to_pseudo}"
+      })
+
+      GameHub.Notifications.dispatch("wallet_credit", to_user_id, %{
+        "montant" => to_string(token_amount),
+        "motif" => "cadeau de #{from_pseudo}"
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
+
+  defp username_of(user_id) do
+    case GameHub.Repo.get(GameHub.Users.User, user_id) do
+      %{username: username} when is_binary(username) and username != "" -> username
+      _ -> "un joueur"
+    end
+  rescue
+    _ -> "un joueur"
+  catch
+    _, _ -> "un joueur"
+  end
+
+  # Promo : crédit avec nom de l'offre (best-effort).
+  defp notify_promo_credited(user_id, promo_id, token_amount) do
+    try do
+      promo_name =
+        case GameHub.Repo.get(GameHub.Tokens.PromoToken, promo_id) do
+          %{name: name} when is_binary(name) and name != "" -> name
+          _ -> "offre promotionnelle"
+        end
+
+      GameHub.Notifications.dispatch("wallet_credit", user_id, %{
+        "montant" => to_string(token_amount),
+        "motif" => "promo #{promo_name}"
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
   
   # Échange et transfert supprimés — seuls achat, cadeau ami et promos restent.
@@ -222,7 +305,8 @@ defmodule GameHub.Tokens do
   """
   @spec credit_winnings(integer(), integer(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def credit_winnings(user_id, win_tokens, game_id, idempotency_key) when win_tokens > 0 do
-    Repo.transaction(fn ->
+    result =
+      Repo.transaction(fn ->
       case get_token_transaction_by_key(idempotency_key) do
         nil ->
           user = lock_user_for_update(user_id)
@@ -256,8 +340,17 @@ defmodule GameHub.Tokens do
           Repo.rollback(:idempotency_key_used)
       end
     end)
+
+    case result do
+      {:ok, transaction} ->
+        notify_tokens_credited(user_id, win_tokens, "gain de partie")
+        {:ok, transaction}
+
+      error ->
+        error
+    end
   end
-  
+
   def credit_winnings(_, amount, _, _) when amount <= 0 do
     {:error, :invalid_amount}
   end
@@ -291,6 +384,7 @@ defmodule GameHub.Tokens do
     unless config.gift_enabled do
       {:error, :gifts_disabled}
     else
+      result =
       Repo.transaction(fn ->
         case get_token_transaction_by_key(idempotency_key) do
           nil ->
@@ -362,13 +456,22 @@ defmodule GameHub.Tokens do
               %{from_balance: from_balance_after, to_balance: to_balance_after, amount: token_amount}
             end
             
-          _existing ->
-            Repo.rollback(:idempotency_key_used)
-        end
-      end)
+        _existing ->
+          Repo.rollback(:idempotency_key_used)
+      end
+    end)
+
+    case result do
+      {:ok, gift} ->
+        notify_gift_parties(from_user_id, to_user_id, token_amount)
+        {:ok, gift}
+
+      error ->
+        error
     end
   end
-  
+  end
+
   def send_gift(_, _, amount, _, _) when amount <= 0 do
     {:error, :invalid_amount}
   end
@@ -387,7 +490,8 @@ defmodule GameHub.Tokens do
   """
   @spec credit_promo(integer(), integer(), String.t()) :: {:ok, map()} | {:error, atom()}
   def credit_promo(user_id, promo_id, idempotency_key) do
-    Repo.transaction(fn ->
+    result =
+      Repo.transaction(fn ->
       # Vérifier si déjà réclamé
       if UserPromoToken.already_redeemed?(user_id, promo_id) do
         Repo.rollback(:promo_already_redeemed)
@@ -459,6 +563,15 @@ defmodule GameHub.Tokens do
         conditions: promo.conditions
       }
     end)
+
+    case result do
+      {:ok, credited} ->
+        notify_promo_credited(user_id, promo_id, credited.tokens_credited)
+        {:ok, credited}
+
+      error ->
+        error
+    end
   end
   
   @doc """

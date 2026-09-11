@@ -2134,6 +2134,7 @@ defmodule GameHub.GameMatch do
           Enum.each(player_ints, fn int_id ->
             try do
               GameHub.Wallet.credit_winnings(int_id, bet, match.match_id, "tie_refund_#{match.match_id}_#{int_id}")
+              notify_match_result(int_id, "Match nul — mise remboursée", bet)
             rescue
               _ -> :ok
             end
@@ -2153,6 +2154,13 @@ defmodule GameHub.GameMatch do
                 end
               end
 
+              # Vainqueur + perdants notifiés (revanche encouragée côté perdant)
+              notify_match_result(winner_int, "Victoire", net)
+
+              Enum.each(player_ints -- [winner_int], fn loser_int ->
+                notify_match_result(loser_int, "Défaite", 0)
+              end)
+
               :ok
 
             :error ->
@@ -2162,6 +2170,22 @@ defmodule GameHub.GameMatch do
     end
   rescue
     _ -> :ok
+  end
+
+  # Inbox résultat best-effort (template match_result, jamais bloquant).
+  defp notify_match_result(user_id, resultat, gain) do
+    try do
+      GameHub.Notifications.dispatch("match_result", user_id, %{
+        "resultat" => resultat,
+        "gain" => to_string(gain)
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
 
   defp persist_match_result(match) do

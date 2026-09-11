@@ -154,10 +154,31 @@ const List<_NavSection> _navSections = [
         path: '/admin/security',
         icon: Icons.security,
       ),
+    ],
+  ),
+  _NavSection(
+    title: 'NOTIFICATIONS',
+    icon: Icons.notifications_outlined,
+    items: [
       _NavItem(
-        label: 'Notifications',
-        path: '/admin/notifications',
-        icon: Icons.notifications_outlined,
+        label: "Vue d'ensemble",
+        path: '/admin/notification-logs',
+        icon: Icons.mark_email_read_outlined,
+      ),
+      _NavItem(
+        label: 'Canaux',
+        path: '/admin/notification-providers',
+        icon: Icons.hub_outlined,
+      ),
+      _NavItem(
+        label: 'Routage',
+        path: '/admin/notification-routing',
+        icon: Icons.alt_route_rounded,
+      ),
+      _NavItem(
+        label: 'Templates',
+        path: '/admin/notification-templates',
+        icon: Icons.description_outlined,
       ),
     ],
   ),
@@ -228,7 +249,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen>
     )..forward();
 
     Future.microtask(() {
-      ref.read(adminAlertsProvider.notifier).loadUnreadCount();
+      ref.read(adminAlertsProvider.notifier).loadNotifBadge();
       ref.read(adminWsProvider.notifier).connect();
     });
 
@@ -358,14 +379,14 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen>
           _WsIndicator(status: wsState.status),
           const SizedBox(width: 4),
           AdminAlertBadge(
-            count: alertsState.unreadNotifications,
+            count: alertsState.notifUnread,
             child: IconButton(
               icon: const Icon(
                 Icons.notifications_outlined,
                 color: NeonColors.textSecondary,
                 size: 20,
               ),
-              onPressed: () => context.go('/admin/notifications'),
+              onPressed: () => context.go('/admin/notification-logs'),
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               padding: const EdgeInsets.all(4),

@@ -30,6 +30,7 @@ defmodule GameHubWeb.GameStatsControllerTest do
 
     user = Repo.insert!(%User{
       phone: "+237699000300",
+      username: "stats_#{System.unique_integer([:positive])}",
       name: "Stats Test User",
       balance: 200_000,
       is_active: true,
@@ -38,6 +39,7 @@ defmodule GameHubWeb.GameStatsControllerTest do
 
     opponent = Repo.insert!(%User{
       phone: "+237699000301",
+      username: "opp_#{System.unique_integer([:positive])}",
       name: "Opponent",
       balance: 200_000,
       is_active: true,

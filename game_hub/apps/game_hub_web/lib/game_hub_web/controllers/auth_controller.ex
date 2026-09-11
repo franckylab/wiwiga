@@ -785,7 +785,8 @@ defmodule GameHubWeb.AuthController do
     user_id = GameHubWeb.AuthPlug.get_current_user_id(conn)
     
     # Extraire uniquement les clés de préférences
-    pref_keys = ~w(sound_enabled vibration_enabled notifications_enabled language theme font_size)
+    # (`notifications_enabled` exclu : granularité matrice côté notifications)
+    pref_keys = ~w(sound_enabled vibration_enabled language theme font_size quiet_hours)
     prefs = Map.take(params, pref_keys)
     
     case GameHub.Users.Preferences.update_preferences(user_id, prefs) do

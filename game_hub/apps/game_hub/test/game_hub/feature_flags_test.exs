@@ -5,9 +5,19 @@
 # Description: Tests unitaires pour module feature flags
 
 defmodule GameHub.FeatureFlagsTest do
-  use GameHub.DataCase
-  
+  use ExUnit.Case, async: false
+
   alias GameHub.FeatureFlags
+
+  setup do
+    GameHub.TestHelpers.cleanup_test_data()
+    :ok
+  end
+
+  # Extrait les erreurs d'un changeset par champ (équivalent DataCase).
+  defp errors_on(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {message, _opts} -> message end)
+  end
   
   describe "enabled?/1" do
     test "returns false for non-existent flag" do

@@ -222,6 +222,7 @@ defmodule GameHub.Wallet do
   end
 
   defp do_withdraw(user_id, amount, idempotency_key) do
+    result =
     Repo.transaction(fn ->
       case get_transaction_by_key(idempotency_key) do
         nil ->
@@ -265,6 +266,15 @@ defmodule GameHub.Wallet do
           Repo.rollback(:idempotency_key_used)
       end
     end)
+
+    case result do
+      {:ok, transaction} ->
+        notify_withdrawal(user_id, amount)
+        {:ok, transaction}
+
+      error ->
+        error
+    end
   end
   
   @doc """
@@ -341,6 +351,22 @@ defmodule GameHub.Wallet do
   end
   
   # === Fonctions Privées ===
+
+  # Retrait monétaire : inbox best-effort (montant brut, libellé neutre
+  # sans unité — le compte monétaire n'est pas en jetons).
+  defp notify_withdrawal(user_id, amount) do
+    try do
+      GameHub.Notifications.dispatch("cash_withdraw", user_id, %{
+        "montant" => to_string(amount)
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
   
   defp lock_user_for_update(user_id) do
     query = from u in User,

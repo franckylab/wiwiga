@@ -94,7 +94,7 @@ defmodule GameHub.CommissionTest do
       assert result != nil
       assert result.game_type == "dice"
       assert result.commission_mode == "percentage"
-      assert result.commission_rate == Decimal.new("0.05")
+      assert Decimal.eq?(result.commission_rate, Decimal.new("0.05"))
     end
     
     test "retourne nil pour un jeu inexistant" do

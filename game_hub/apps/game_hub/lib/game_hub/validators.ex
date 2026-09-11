@@ -185,4 +185,29 @@ defmodule GameHub.Validators do
         :ok
     end
   end
+
+  @doc """
+  Vérifie qu'un utilisateur est propriétaire d'une ressource
+  (double vérification des permissions côté backend).
+
+  Délègue à `GameHub.Authorization.owns_resource?/3`, seule source
+  de vérité des règles de propriété.
+
+  ## Parameters
+    - `user_id`: ID utilisateur
+    - `resource_type`: Type de ressource ("transaction", "user", ...)
+    - `resource_id`: ID ressource
+
+  ## Returns
+    - `true`: Propriétaire
+    - `false`: Non propriétaire ou type inconnu
+  """
+  @spec validate_resource_ownership(integer(), String.t(), integer()) :: boolean()
+  def validate_resource_ownership(user_id, resource_type, resource_id) do
+    GameHub.Authorization.owns_resource?(user_id, resource_type, resource_id)
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
+  end
 end

@@ -317,12 +317,8 @@ class _SettingsSectionsState extends ConsumerState<_SettingsSections> {
               _SettingsTile(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
-                trailing: Switch(
-                  value: prefs.notificationsEnabled,
-                  onChanged: (value) => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', value),
-                  activeThumbColor: NeonColors.primary,
-                ),
-                onTap: () => ref.read(preferencesProvider.notifier).updateBool('notifications_enabled', !prefs.notificationsEnabled),
+                trailing: const Icon(Icons.chevron_right_rounded, color: NeonColors.textSecondary),
+                onTap: () => context.push('/notifications/preferences'),
               ),
               _SettingsDivider(),
               _SettingsTile(

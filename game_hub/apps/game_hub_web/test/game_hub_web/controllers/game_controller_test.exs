@@ -19,15 +19,28 @@ defmodule GameHubWeb.GameControllerTest do
   alias GameHub.Games.GameConfig
   
   setup do
-    # Nettoyer DB
+    # Nettoyer DB (ordre FK-safe : enfants d'abord)
+    Repo.delete_all(GameHub.Audit.AuditLog)
+    Repo.delete_all(GameHub.Tokens.TokenTransaction)
+    Repo.delete_all(GameHub.Wallet.WalletTransaction)
+    Repo.delete_all(GameHub.ResponsibleGaming.ResponsibleGamingLimit)
     Repo.delete_all(GameConfig)
     Repo.delete_all(User)
+
+    # Nettoyer Redis (files + lobbies ; instance partagée avec le dev)
+    for pattern <- ["queue:dice:*", "qm:lobby:dice:*"] do
+      Redix.command(GameHub.Redis, ["KEYS", pattern])
+      |> elem(1)
+      |> Enum.each(fn key -> Redix.command(GameHub.Redis, ["DEL", key]) end)
+    end
     
-    # Créer utilisateur de test
+    # Créer utilisateur de test (wallet + jetons financés)
     user = Repo.insert!(%User{
       phone: "+237699000200",
+      username: "game_#{System.unique_integer([:positive])}",
       name: "Game Test User",
       balance: 200000,
+      token_balance: 200_000,
       is_active: true,
       has_verified_kyc: true
     })
@@ -194,11 +207,13 @@ defmodule GameHubWeb.GameControllerTest do
     end
     
     test "rejette si solde insuffisant", %{user: user, dice_config: config} do
-      # Créer utilisateur avec peu de balance
+      # Créer utilisateur avec peu de balance (wallet ET jetons)
       poor_user = Repo.insert!(%User{
         phone: "+237699000201",
+        username: "poor_#{System.unique_integer([:positive])}",
         name: "Poor User",
         balance: 500,
+        token_balance: 500,
         is_active: true
       })
       
@@ -297,14 +312,36 @@ defmodule GameHubWeb.GameControllerTest do
     end
     
     test "mise = max_bet est acceptée", %{user: user, dice_config: config} do
-      # Créer utilisateur avec beaucoup de balance
+      # Créer utilisateur avec beaucoup de balance (wallet ET jetons)
       rich_user = Repo.insert!(%User{
         phone: "+237699000202",
+        username: "rich_#{System.unique_integer([:positive])}",
         name: "Rich User",
         balance: 200000,
+        token_balance: 200_000,
         is_active: true
       })
-      
+
+      # Relever les plafonds plateforme (défauts 10 000/tour, 25 000/jour)
+      # comme le ferait l'admin (/admin/config) : lignes + purge du cache ETS.
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      for {key, value} <- [{"max_bet_per_round", "1000000"}, {"default_daily_wager_limit", "1000000"}] do
+        GameHub.Repo.query!(
+          "DELETE FROM platform_configs WHERE category = 'gaming' AND key = $1",
+          [key]
+        )
+
+        GameHub.Repo.query!(
+          "INSERT INTO platform_configs (category, key, value, value_type, label, description, default_value, is_editable, inserted_at, updated_at) VALUES ('gaming', $1::text, $2::text, 'integer', $1::text, $1::text, $2::text, true, $3, $3)",
+          [key, value, now]
+        )
+      end
+
+      if :ets.info(:admin_platform_config_cache) != :undefined do
+        :ets.delete_all_objects(:admin_platform_config_cache)
+      end
+
       params = %{"game_id" => "dice", "bet_amount" => 100000}
       
       conn =

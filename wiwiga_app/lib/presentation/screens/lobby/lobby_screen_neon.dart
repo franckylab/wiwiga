@@ -108,7 +108,8 @@ class _HeaderSection extends ConsumerWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined, color: NeonColors.primary),
-                    onPressed: () => context.push('/settings'),
+                    tooltip: 'Notifications',
+                    onPressed: () => context.push('/notifications'),
                   ),
                   IconButton(
                     icon: const Icon(Icons.account_circle_outlined, color: NeonColors.primary),

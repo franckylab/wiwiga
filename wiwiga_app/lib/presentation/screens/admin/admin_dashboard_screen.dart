@@ -15,6 +15,7 @@ import '../../../data/providers/app_providers.dart';
 import '../../../presentation/widgets/auth/avatar_picker.dart';
 import '../../providers/admin_metrics_provider.dart';
 import '../../widgets/admin/metric_card.dart';
+import '../../widgets/admin/skeleton_loader.dart';
 import '../../widgets/admin/chart_widget.dart';
 import '../../widgets/admin/alert_badge.dart';
 import '../../widgets/admin/analytics_helpers.dart';
@@ -35,11 +36,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Map<String, dynamic>? _stats;
   bool _isLoading = true;
   String? _error;
+  Future<Map<String, dynamic>>? _notifStatsFuture;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _notifStatsFuture = ref.read(adminRepositoryProvider).getNotificationStats();
     // Charger les métriques dashboard
     Future.microtask(() {
       ref.read(adminMetricsProvider.notifier).loadDashboard();
@@ -151,6 +154,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         title: 'Métriques en direct',
                         icon: Icons.insights,
                         children: [_buildLiveMetricsSection()],
+                      ),
+                      CollapsibleSection(
+                        title: 'Notifications',
+                        icon: Icons.mark_email_read_outlined,
+                        children: [_buildNotificationsSection()],
                       ),
                       CollapsibleSection(
                         title: 'Utilisateurs',
@@ -462,6 +470,58 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  /// Section KPI notifications (stats temps réel + accès logs).
+  Widget _buildNotificationsSection() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _notifStatsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const AdminSkeletonList(itemCount: 2);
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const AdminEmptyState(
+            icon: Icons.mark_email_read_outlined,
+            title: 'Stats notifications indisponibles',
+          );
+        }
+
+        final stats = snapshot.data!;
+        final byStatus = (stats['by_status'] as Map?)?.map(
+              (k, v) => MapEntry('$k', (v as num?)?.toInt() ?? 0),
+            ) ??
+            {};
+        final sent = byStatus['sent'] ?? 0;
+        final failed = byStatus['failed'] ?? 0;
+        final queued = (byStatus['queued'] ?? 0) + (byStatus['retrying'] ?? 0);
+        final unread = (stats['unread_total'] as num?)?.toInt() ?? 0;
+
+        return Column(
+          children: [
+            AdminResponsiveGrid(
+              desktopColumns: 4,
+              desktopRatio: 2.2,
+              children: [
+                AdminMetricCard(title: 'Envoyées', value: '$sent', icon: Icons.check_circle_outline, color: NeonColors.success),
+                AdminMetricCard(title: 'Échouées', value: '$failed', icon: Icons.error_outline, color: NeonColors.error),
+                AdminMetricCard(title: 'En attente', value: '$queued', icon: Icons.hourglass_empty, color: NeonColors.warning),
+                AdminMetricCard(title: 'Non lues', value: '$unread', icon: Icons.markunread_outlined, color: NeonColors.accent),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                label: const Text('Logs & diffusion', style: TextStyle(fontSize: 12)),
+                onPressed: () => context.go('/admin/notification-logs'),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

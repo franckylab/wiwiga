@@ -12,6 +12,7 @@ defmodule GameHubWeb.UserChannel do
   ## Topics
     - `"user:{user_id}"` - Updates généraux (wallet, stats)
     - `"user:{user_id}:wallet"` - Wallet/token
+    - `"user:{user_id}:notifications"` - Notifications in_app
   """
 
   use Phoenix.Channel
@@ -40,7 +41,7 @@ defmodule GameHubWeb.UserChannel do
     # (déjà couvert par le framework — un doublon livrerait chaque event 2×).
     own = socket.topic
     try do
-      for topic <- ["user:#{user_id}", "user:#{user_id}:wallet", "user:#{user_id}:stats"],
+      for topic <- ["user:#{user_id}", "user:#{user_id}:wallet", "user:#{user_id}:stats", "user:#{user_id}:notifications"],
           topic != own do
         Phoenix.PubSub.subscribe(GameHub.PubSub, topic)
       end
@@ -51,7 +52,7 @@ defmodule GameHubWeb.UserChannel do
   end
 
   @impl true
-  def handle_info(%{event: event} = payload, socket) when event in ["wallet_update", "stats_update", "match_result", "game_matched", "lobby_update"] do
+  def handle_info(%{event: event} = payload, socket) when event in ["wallet_update", "stats_update", "match_result", "game_matched", "lobby_update", "notification_created"] do
     push(socket, event, payload)
     {:noreply, socket}
   end

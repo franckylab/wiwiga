@@ -50,7 +50,7 @@ defmodule GameHub.Wallet.WalletTransaction do
     |> cast(attrs, [:user_id, :type, :amount, :balance_before, :balance_after, :idempotency_key, :metadata, :game_id, :payment_provider, :provider_transaction_id])
     |> validate_required([:user_id, :type, :amount, :balance_before, :balance_after, :idempotency_key])
     |> validate_inclusion(:type, ~w(deposit withdrawal bet winnings commission refund))
-    |> validate_number(:amount, not_equal: 0)
+    |> validate_number(:amount, not_equal_to: 0)
     |> validate_format(:idempotency_key, ~r/^.+$/, message: "ne peut pas être vide")
     |> unique_constraint(:idempotency_key)
     |> foreign_key_constraint(:user_id)

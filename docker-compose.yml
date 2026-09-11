@@ -18,10 +18,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wiwiga_user"]
+      test: ["CMD-SHELL", "pg_isready -U wiwiga_user -d wiwiga_dev"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Redis Cache
   redis:
@@ -36,6 +37,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Elixir/Phoenix Backend (avec hot reload)
   backend:
@@ -43,6 +45,8 @@ services:
       context: ./game_hub
       dockerfile: ../Dockerfile.backend
     container_name: wiwiga_backend
+    restart: unless-stopped
+    stop_grace_period: 25s
     environment:
       MIX_ENV: dev
       DATABASE_URL: postgresql://wiwiga_user:wiwiga_password@postgres:5432/wiwiga_dev
@@ -53,6 +57,9 @@ services:
       PORT: 4001
       ALLOWED_ORIGINS: "*"
       ENABLE_RATE_LIMITING: "false"
+      # Notifications : aucune credential provider ici — configuration
+      # exclusive via l'admin (/admin/notification-providers), persistée
+      # en base (secrets chiffrés). Voir docs/FCM_SETUP.md.
     ports:
       - "8000:4001"
     volumes:
@@ -82,6 +89,7 @@ services:
       context: ./wiwiga_app
       dockerfile: Dockerfile.dev
     container_name: wiwiga_frontend
+    restart: unless-stopped
     ports:
       - "8003:80"
     volumes:

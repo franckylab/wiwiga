@@ -43,17 +43,24 @@ defmodule GameHub.Admin.TwoFactor do
   def enable_2fa(user_id, secret, code) do
     if verify_code(secret, code) do
       now = DateTime.utc_now() |> DateTime.truncate(:second)
-      
+
       case Repo.get(User, user_id) do
         nil -> {:error, :user_not_found}
         user ->
-          user
-          |> User.changeset(%{
-            totp_secret: encrypt_secret(secret),
-            totp_enabled: true,
-            totp_activated_at: now
-          })
-          |> Repo.update()
+          case user
+               |> User.changeset(%{
+                 totp_secret: encrypt_secret(secret),
+                 totp_enabled: true,
+                 totp_activated_at: now
+               })
+               |> Repo.update() do
+            {:ok, updated} ->
+              notify_security(user_id, "Vérification en deux étapes activée sur votre compte.")
+              {:ok, updated}
+
+            error ->
+              error
+          end
       end
     else
       {:error, :invalid_code}
@@ -68,13 +75,20 @@ defmodule GameHub.Admin.TwoFactor do
     case Repo.get(User, user_id) do
       nil -> {:error, :user_not_found}
       user ->
-        user
-        |> User.changeset(%{
-          totp_secret: nil,
-          totp_enabled: false,
-          totp_activated_at: nil
-        })
-        |> Repo.update()
+        case user
+             |> User.changeset(%{
+               totp_secret: nil,
+               totp_enabled: false,
+               totp_activated_at: nil
+             })
+             |> Repo.update() do
+          {:ok, updated} ->
+            notify_security(user_id, "Vérification en deux étapes désactivée. Si ce n'était pas vous, sécurisez votre compte.")
+            {:ok, updated}
+
+          error ->
+            error
+        end
     end
   end
 
@@ -195,5 +209,18 @@ defmodule GameHub.Admin.TwoFactor do
 
     # Dériver une clé 256-bit depuis SECRET_KEY_BASE via SHA-256
     :crypto.hash(:sha256, secret_key_base)
+  end
+
+  # Alerte sécurité best-effort (ne fait jamais échouer le 2FA).
+  defp notify_security(user_id, message) do
+    try do
+      GameHub.Notifications.dispatch("security_alert", user_id, %{"message" => message})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
 end

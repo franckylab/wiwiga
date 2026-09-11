@@ -60,6 +60,9 @@ defmodule GameHub.Repo.Seeds do
     # 13. Platform Config (configuration plateforme)
     seed_platform_config()
 
+    # 14. Notifications (scaffolding providers + templates + routage)
+    seed_notifications()
+
     print_summary()
     IO.puts("✅ Seeds complétés avec succès!")
   end
@@ -446,6 +449,7 @@ defmodule GameHub.Repo.Seeds do
     IO.puts("🎲 Game rules: 2 (dice/normal, dice/cible)")
     IO.puts("📈 Player levels: 6 (Bronze → Legend)")
     IO.puts("⚙️  Platform configs: 37 (7 catégories)")
+    IO.puts("🔔 Notifications: providers + templates + routage + FCM (env)")
     IO.puts(String.duplicate("=", 60))
   end
   
@@ -601,6 +605,30 @@ defmodule GameHub.Repo.Seeds do
           IO.puts("  ⊘ Config #{category}/#{key} already exists")
       end
     end)
+  end
+
+  # === Notifications (scaffolding providers multi-canaux) ===
+  # Idempotent : ré-exécutable sans doublon, non destructif.
+  # Crée UNIQUEMENT les lignes providers/templates/routage avec configs
+  # vides et providers désactivés. Les credentials (FCM, SMS, email) se
+  # configurent EXCLUSIVEMENT via l'interface admin
+  # (/admin/notification-providers) et sont persistés en base (secrets
+  # chiffrés) — jamais ici, jamais en variables d'environnement.
+  defp seed_notifications do
+    IO.puts("\n🔔 Seeding notifications...")
+
+    case GameHub.Notifications.seed_defaults() do
+      {:ok, %{providers: providers, templates: templates, routing: routing}} ->
+        IO.puts("  ✓ Providers: #{providers}, templates: #{templates}, routage: #{routing}")
+        IO.puts("  ⊘ Credentials à renseigner via /admin/notification-providers")
+
+      _ ->
+        IO.puts("  ⊘ Seed notifications déjà appliqué ou erreur")
+    end
+  rescue
+    e -> IO.puts("  ⚠️  Notifications non seedées (#{inspect(e.__struct__)})")
+  catch
+    _, _ -> IO.puts("  ⚠️  Notifications non seedées (erreur inattendue)")
   end
 end
 

@@ -33,7 +33,7 @@ defmodule GameHub.MatchmakingTest do
       assert result == {:ok, :waiting}
       
       # Vérifier dans Redis
-      {:ok, exists} = Redix.command(Redis, ["EXISTS", "queue:test_dice:player1"])
+      {:ok, exists} = Redix.command(Redis, ["EXISTS", "queue:test_dice:normal:player1"])
       assert exists == 1
     end
     
@@ -68,7 +68,7 @@ defmodule GameHub.MatchmakingTest do
     test "TTL de 5 minutes est défini" do
       Matchmaking.join_queue("player1", "test_dice", 5000)
       
-      {:ok, ttl} = Redix.command(Redis, ["TTL", "queue:test_dice:player1"])
+      {:ok, ttl} = Redix.command(Redis, ["TTL", "queue:test_dice:normal:player1"])
       
       # TTL devrait être <= 300 secondes (5 min)
       assert ttl > 0
@@ -85,7 +85,7 @@ defmodule GameHub.MatchmakingTest do
       assert result == :ok
       
       # Vérifier que le joueur n'est plus dans la file
-      {:ok, exists} = Redix.command(Redis, ["EXISTS", "queue:test_dice:player1"])
+      {:ok, exists} = Redix.command(Redis, ["EXISTS", "queue:test_dice:normal:player1"])
       assert exists == 0
     end
     
@@ -122,7 +122,7 @@ defmodule GameHub.MatchmakingTest do
       
       # Deux matchs devraient avoir été créés
       # Vérifier que les files sont vides
-      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_multi"])
+      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_multi:normal"])
       assert count == 0
     end
     
@@ -132,7 +132,7 @@ defmodule GameHub.MatchmakingTest do
       Matchmaking.join_queue("p3", "test_diff", 15000)
       
       # Aucun match ne devrait se produire
-      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_diff"])
+      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_diff:normal"])
       assert count == 3
     end
     
@@ -154,7 +154,7 @@ defmodule GameHub.MatchmakingTest do
       Matchmaking.join_queue("p2", "test_cleanup", 5000)
       
       # Après match, la file devrait être vide
-      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_cleanup"])
+      {:ok, count} = Redix.command(Redis, ["HLEN", "queue:test_cleanup:normal"])
       assert count == 0
     end
     
@@ -162,12 +162,12 @@ defmodule GameHub.MatchmakingTest do
       Matchmaking.join_queue("p1", "test_leave", 5000)
       Matchmaking.join_queue("p2", "test_leave", 10000)
       
-      {:ok, count_before} = Redix.command(Redis, ["HLEN", "queue:test_leave"])
+      {:ok, count_before} = Redix.command(Redis, ["HLEN", "queue:test_leave:normal"])
       assert count_before == 2
       
       Matchmaking.leave_queue("p1", "test_leave")
       
-      {:ok, count_after} = Redix.command(Redis, ["HLEN", "queue:test_leave"])
+      {:ok, count_after} = Redix.command(Redis, ["HLEN", "queue:test_leave:normal"])
       assert count_after == 1
     end
   end

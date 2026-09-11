@@ -7,7 +7,17 @@ defmodule GameHub.GameRoomTest do
   alias GameHub.GameRoom
 
   setup do
-    start_supervised!(GameRoom)
+    # Le GenServer tourne déjà dans le supervision tree en test : ne le
+    # redémarrer qu'en processus isolé (même garde que GameStateManagerTest).
+    if Process.whereis(GameRoom) == nil do
+      start_supervised!(GameRoom)
+    end
+
+    # Isolation : le serveur est partagé entre tests (ETS). On vide la
+    # table (salles en attente comme matchs démarrés) pour repartir à zéro.
+    # cancel_room ne couvre que les salles en attente du créateur.
+    :ets.delete_all_objects(:game_rooms)
+
     :ok
   end
 

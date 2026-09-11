@@ -115,6 +115,9 @@ class GameWebSocketService extends ChangeNotifier {
   void Function(Map<String, dynamic>)? onWalletUpdate;
   void Function(Map<String, dynamic>)? onStatsUpdate;
 
+  // Notifications in_app temps réel (user:{id} → notification_created)
+  void Function(Map<String, dynamic>)? onNotificationCreated;
+
   // Presence temps réel (online:lobby, online:game:{type})
   void Function(Map<String, dynamic>)? onPresenceState;
   void Function(Map<String, dynamic>)? onPresenceDiff;
@@ -956,6 +959,10 @@ class GameWebSocketService extends ChangeNotifier {
           break;
         case 'wallet_update':
           onWalletUpdate?.call(payload);
+          notifyListeners();
+          break;
+        case 'notification_created':
+          onNotificationCreated?.call(payload);
           notifyListeners();
           break;
         case 'stats_update':

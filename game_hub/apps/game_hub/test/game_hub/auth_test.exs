@@ -21,9 +21,7 @@ defmodule GameHub.AuthTest do
   import Ecto.Query
   
   setup do
-    # Nettoyer avant chaque test
-    Repo.delete_all(RefreshToken)
-    Repo.delete_all(User)
+    GameHub.TestHelpers.cleanup_test_data()
     :ok
   end
   
@@ -48,9 +46,11 @@ defmodule GameHub.AuthTest do
     
     test "accepte un device_id pour le rate limiting" do
       phone = "+237699000003"
-      
-      {:ok, otp} = Auth.send_otp(phone, device_id: "test-device-123")
-      
+
+      # Device unique par run : Redis est partagé entre tests/runs (pas de
+      # sandbox), un ID fixe déclencherait le rate limiting des runs passés.
+      {:ok, otp} = Auth.send_otp(phone, device_id: "test-device-#{System.unique_integer([:positive])}")
+
       assert String.length(otp) == 6
     end
   end
@@ -84,9 +84,11 @@ defmodule GameHub.AuthTest do
       assert Repo.get_by(User, phone: phone) == nil
     end
     
-    test "rejette après OTP non trouvé", %{phone: phone} do
-      # Utiliser un code différent du bypass dev (123456)
-      assert Auth.verify_otp(phone, "999999") == {:error, :otp_not_found}
+    test "rejette après OTP non trouvé", %{phone: _phone} do
+      # Téléphone dédié : le setup alimente +237699000010, jamais celui-ci,
+      # et Redis est partagé entre tests (pas de sandbox) — d'où l'isolation
+      # par numéro distinct plutôt que par état supposé vide.
+      assert Auth.verify_otp("+237699000019", "999999") == {:error, :otp_not_found}
     end
     
     test "dev bypass: code 123456 accepté en mode test", %{phone: phone} do

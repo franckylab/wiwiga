@@ -13,7 +13,6 @@ class PreferencesState {
   final bool isLoading;
   final bool soundEnabled;
   final bool vibrationEnabled;
-  final bool notificationsEnabled;
   final String language; // fr, en
   final String theme; // neon, dark, light
   final String fontSize; // small, medium, large
@@ -23,7 +22,6 @@ class PreferencesState {
     this.isLoading = false,
     this.soundEnabled = true,
     this.vibrationEnabled = true,
-    this.notificationsEnabled = true,
     this.language = 'fr',
     this.theme = 'neon',
     this.fontSize = 'medium',
@@ -34,7 +32,6 @@ class PreferencesState {
     bool? isLoading,
     bool? soundEnabled,
     bool? vibrationEnabled,
-    bool? notificationsEnabled,
     String? language,
     String? theme,
     String? fontSize,
@@ -44,7 +41,6 @@ class PreferencesState {
       isLoading: isLoading ?? this.isLoading,
       soundEnabled: soundEnabled ?? this.soundEnabled,
       vibrationEnabled: vibrationEnabled ?? this.vibrationEnabled,
-      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       language: language ?? this.language,
       theme: theme ?? this.theme,
       fontSize: fontSize ?? this.fontSize,
@@ -56,7 +52,6 @@ class PreferencesState {
   Map<String, dynamic> toMap() => {
         'sound_enabled': soundEnabled,
         'vibration_enabled': vibrationEnabled,
-        'notifications_enabled': notificationsEnabled,
         'language': language,
         'theme': theme,
         'font_size': fontSize,
@@ -86,8 +81,7 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
         isLoading: false,
         soundEnabled: prefs['sound_enabled'] as bool? ?? true,
         vibrationEnabled: prefs['vibration_enabled'] as bool? ?? true,
-        notificationsEnabled: prefs['notifications_enabled'] as bool? ?? true,
-        language: prefs['language'] as String? ?? 'fr',
+                language: prefs['language'] as String? ?? 'fr',
         theme: prefs['theme'] as String? ?? 'neon',
         fontSize: prefs['font_size'] as String? ?? 'medium',
       );
@@ -111,9 +105,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
         break;
       case 'vibration_enabled':
         state = state.copyWith(vibrationEnabled: value);
-        break;
-      case 'notifications_enabled':
-        state = state.copyWith(notificationsEnabled: value);
         break;
     }
 

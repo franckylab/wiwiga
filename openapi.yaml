@@ -846,6 +846,753 @@ paths:
         '404':
           description: Utilisateur non trouvé
 
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Inbox joueur paginée
+      operationId: listNotifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: is_read
+          schema:
+            type: string
+            enum: [true, false]
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: [security, transactional, social, game, marketing]
+      responses:
+        '200':
+          description: Inbox paginée
+        '401':
+          description: Non authentifié
+
+  /api/notifications/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Compteur de non-lues
+      operationId: unreadCount
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Compteur
+
+  /api/notifications/{id}/read:
+    put:
+      tags:
+        - Notifications
+      summary: Marquer comme lue
+      operationId: markNotificationRead
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification lue
+        '404':
+          description: Notification non trouvée
+
+  /api/notifications/{id}:
+    delete:
+      tags:
+        - Notifications
+      summary: Supprime une notification de l'inbox (propriété vérifiée)
+      operationId: deleteNotification
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification supprimée
+        '404':
+          description: Notification non trouvée
+
+  /api/notifications/read-all:
+    put:
+      tags:
+        - Notifications
+      summary: Tout marquer comme lu
+      operationId: markAllNotificationsRead
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Inbox marquée comme lue
+
+  /api/notifications/preferences:
+    get:
+      tags:
+        - Notifications
+      summary: Liste des préférences
+      operationId: listNotificationPreferences
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Préférences
+    put:
+      tags:
+        - Notifications
+      summary: Active ou désactive un canal (security forcée à true)
+      operationId: upsertNotificationPreference
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - category
+                - channel
+                - enabled
+              properties:
+                category:
+                  type: string
+                  enum: [security, transactional, social, game, marketing]
+                channel:
+                  type: string
+                  enum: [in_app, push, sms, email]
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Préférence enregistrée
+
+  /api/notifications/device-token:
+    post:
+      tags:
+        - Notifications
+      summary: Enregistre un token push (FCM)
+      operationId: registerDeviceToken
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - platform
+                - token
+              properties:
+                platform:
+                  type: string
+                  enum: [android, ios, web]
+                token:
+                  type: string
+                app_version:
+                  type: string
+      responses:
+        '201':
+          description: Token enregistré
+    delete:
+      tags:
+        - Notifications
+      summary: Supprime un token push
+      operationId: unregisterDeviceToken
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token supprimé
+
+  /api/admin/notification-providers:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Liste les providers multi-canaux
+      operationId: listNotificationProviders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Providers
+    post:
+      tags:
+        - Admin Notifications
+      summary: Crée un provider
+      operationId: createNotificationProvider
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel
+                - name
+                - display_name
+              properties:
+                channel:
+                  type: string
+                  enum: [in_app, push, sms, email]
+                name:
+                  type: string
+                  example: "orange_cm"
+                display_name:
+                  type: string
+                is_active:
+                  type: boolean
+                priority:
+                  type: integer
+                config:
+                  type: object
+      responses:
+        '201':
+          description: Provider créé
+
+  /api/admin/notification-providers/{id}:
+    put:
+      tags:
+        - Admin Notifications
+      summary: Met à jour un provider
+      operationId: updateNotificationProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Provider mis à jour
+    delete:
+      tags:
+        - Admin Notifications
+      summary: Supprime un provider (logs conservés)
+      operationId: deleteNotificationProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Provider supprimé
+
+  /api/admin/notification-providers/{id}/test:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Teste la connexion d'un provider
+      operationId: testNotificationProvider
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: string
+                  example: "+2376XXXXXXXX"
+      responses:
+        '200':
+          description: Test effectué
+
+  /api/admin/notification-providers/{id}/health:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Santé sans envoi (credentials, connectivité)
+      operationId: checkNotificationProviderHealth
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Statut healthy/down/unchecked + détail
+
+  /api/admin/notification-providers/{id}/config:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Config assainie (secrets masqués)
+      operationId: getNotificationProviderConfig
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Champs de config (valeurs sensibles masquées)
+    put:
+      tags:
+        - Admin Notifications
+      summary: Fusionne une config (secrets vides = conserver)
+      operationId: updateNotificationProviderConfig
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+                  example: {"sender_id": "WIWIGA"}
+      responses:
+        '200':
+          description: Configuration enregistrée
+
+  /api/admin/notification-templates:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Liste les templates
+      operationId: listNotificationTemplates
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Templates
+    post:
+      tags:
+        - Admin Notifications
+      summary: Crée un template
+      operationId: createNotificationTemplate
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - channel
+                - body_tpl
+              properties:
+                key:
+                  type: string
+                  example: "wallet_credit"
+                channel:
+                  type: string
+                  enum: [in_app, push, sms, email]
+                locale:
+                  type: string
+                  default: fr
+                version:
+                  type: integer
+                  default: 1
+                subject:
+                  type: string
+                body_tpl:
+                  type: string
+                  example: "+{{montant}} jetons : {{motif}}"
+                category:
+                  type: string
+                is_active:
+                  type: boolean
+      responses:
+        '201':
+          description: Template créé
+
+  /api/admin/notification-templates/{id}:
+    put:
+      tags:
+        - Admin Notifications
+      summary: Met à jour un template
+      operationId: updateNotificationTemplate
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template mis à jour
+    delete:
+      tags:
+        - Admin Notifications
+      summary: Supprime un template (envois conservés)
+      operationId: deleteNotificationTemplate
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template supprimé
+
+  /api/admin/notification-templates/{id}/preview:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Prévisualise le rendu d'un template
+      operationId: previewNotificationTemplate
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variables:
+                  type: object
+      responses:
+        '200':
+          description: Rendu du template (+ segments si SMS)
+
+  /api/admin/notification-templates/preview-body:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Prévisualise un corps non sauvegardé (édition)
+      operationId: previewNotificationBody
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                body_tpl:
+                  type: string
+                variables:
+                  type: object
+      responses:
+        '200':
+          description: Rendu (+ segments si SMS)
+
+  /api/admin/notification-templates/variables/{key}:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Variables requises d'une clé (union tous canaux)
+      operationId: getNotificationTemplateVariables
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Liste des variables
+
+  /api/admin/notification-logs:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Logs paginés des envois
+      operationId: listNotificationLogs
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logs
+
+  /api/admin/notification-logs/stats:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Statistiques par statut et canal
+      operationId: notificationStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistiques
+
+  /api/admin/notification-logs/timeseries:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Série quotidienne (total, envoyées, échouées, attente)
+      operationId: notificationTimeseries
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 14
+      responses:
+        '200':
+          description: 1..90 points journaliers
+  /api/admin/notification-logs/{id}/replay:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Rejoue une notification (idempotent, respecte l'opt-out)
+      operationId: replayNotification
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Notification rejouée
+
+  /api/admin/notification-logs/seed-defaults:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Installe providers et templates par défaut
+      operationId: seedNotificationDefaults
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Défauts installés
+
+  /api/admin/notification-logs/broadcast:
+    post:
+      tags:
+        - Admin Notifications
+      summary: Diffuse une annonce à tous les actifs (lots async)
+      operationId: broadcastNotificationsToAll
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                title:
+                  type: string
+                message:
+                  type: string
+      responses:
+        '202':
+          description: Diffusion planifiée
+
+  /api/admin/notification-routing:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Routage événements → canaux (effectif)
+      operationId: listNotificationRouting
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 11 événements avec canaux et kill-switch
+
+  /api/admin/notification-routing/{key}:
+    put:
+      tags:
+        - Admin Notifications
+      summary: Crée/met à jour le routage d'un événement
+      operationId: upsertNotificationRouting
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channels
+              properties:
+                channels:
+                  type: array
+                  items:
+                    type: string
+                    enum: [in_app, push, sms, email]
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Règle enregistrée
+
+  /api/admin/export/notifications:
+    get:
+      tags:
+        - Admin Notifications
+      summary: Export CSV des notifications (max 5000, filtres status/event_type)
+      operationId: exportNotificationLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: event_type
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fichier CSV
+  /api/webhooks/sms/{provider}:
+    post:
+      tags:
+        - Webhooks
+      summary: Accusé de réception SMS (DLR provider, toujours 200)
+      operationId: smsDeliveryReceipt
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            example: "orange_cm"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message_id:
+                  type: string
+                status:
+                  type: string
+                  example: "delivered"
+      responses:
+        '200':
+          description: Accusé traité (même si ID inconnu)
+
+  /api/webhooks/sms/{provider}/inbound:
+    post:
+      tags:
+        - Webhooks
+      summary: SMS entrant STOP/START (suppression immédiate, toujours 200)
+      operationId: smsInbound
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Traité (unsubscribed/resubscribed/ignored)
+
+  /api/webhooks/ses:
+    post:
+      tags:
+        - Webhooks
+      summary: SES via SNS (bounce/plainte → suppression, signature vérifiée)
+      operationId: sesFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Traité ou ignoré (toujours 200)
 components:
   securitySchemes:
     BearerAuth:

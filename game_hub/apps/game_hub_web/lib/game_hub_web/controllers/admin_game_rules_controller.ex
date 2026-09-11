@@ -20,12 +20,16 @@ defmodule GameHubWeb.AdminGameRulesController do
 
   @valid_rules ~w(normal cible)
   # Clés administrables ici : nombre de sets, timings de jeu (tour, vote,
-  # enchaînement, grâce) et mode de vote cible. Le reste de la config (dés,
-  # mises, commissions) reste géré par les endpoints existants.
+  # enchaînement, grâce) et mode de vote cible. Dés, joueurs, mises et
+  # commission règle : mêmes bornes que le changeset GameRule.
   @allowed_sets_keys ~w(min_sets max_sets default_sets sets_mode sets_random_min sets_random_max)
   @allowed_timing_keys ~w(turn_timeout_seconds auto_next_set_delay_seconds leave_grace_seconds)
   @allowed_vote_keys ~w(target_vote_mode vote_timeout_seconds vote_result_delay_seconds)
-  @allowed_keys @allowed_sets_keys ++ @allowed_timing_keys ++ @allowed_vote_keys
+  @allowed_dice_keys ~w(min_dice max_dice default_dice dice_faces)
+  @allowed_players_keys ~w(min_players max_players)
+  @allowed_bets_keys ~w(min_bet max_bet)
+  @allowed_finance_keys ~w(commission_rate tie_rule)
+  @allowed_keys @allowed_sets_keys ++ @allowed_timing_keys ++ @allowed_vote_keys ++ @allowed_dice_keys ++ @allowed_players_keys ++ @allowed_bets_keys ++ @allowed_finance_keys
   # Bornes miroir du changeset GameRule (rejetées aussi côté validation).
   @turn_timeout_min 10
   @turn_timeout_max 300
@@ -38,6 +42,15 @@ defmodule GameHubWeb.AdminGameRulesController do
   @vote_result_delay_min 2
   @vote_result_delay_max 30
   @valid_vote_modes ~w(average mode)
+  @dice_min 1
+  @dice_max 10
+  @dice_faces_min 4
+  @dice_faces_max 20
+  @players_min 2
+  @players_max 10
+  @bet_min 0
+  @bet_max 10_000_000
+  @valid_tie_rules ~w(replay no_winner)
 
   @doc """
   GET /api/admin/game-rules — liste les règles moteur actives.
@@ -106,6 +119,7 @@ defmodule GameHubWeb.AdminGameRulesController do
          merged =
            Map.merge(rule.config || %{}, Map.new(updates))
            |> Map.drop(Enum.map(deletes, &elem(&1, 0))),
+         :ok <- check_range_coherence(merged),
          {:ok, updated} <- GameRules.update_config(game_type, rule_type, merged) do
       try do
         AuditLog.log("game_rules_updated", admin_id, "game_rule", "#{game_type}/#{rule_type}", %{
@@ -244,6 +258,46 @@ defmodule GameHubWeb.AdminGameRulesController do
               {:halt, {:error, :invalid_value, key}}
           end
 
+        key in @allowed_dice_keys ->
+          {dmin, dmax} = if key == "dice_faces", do: {@dice_faces_min, @dice_faces_max}, else: {@dice_min, @dice_max}
+
+          case parse_int(val) do
+            n when is_integer(n) and n >= dmin and n <= dmax ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key in @allowed_players_keys ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @players_min and n <= @players_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key in @allowed_bets_keys ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @bet_min and n <= @bet_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "commission_rate" ->
+          case parse_float(val) do
+            f when is_float(f) and f >= 0.0 and f <= 1.0 ->
+              {:cont, {:ok, Map.put(acc, key, f)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "tie_rule" and val in @valid_tie_rules ->
+          {:cont, {:ok, Map.put(acc, key, val)}}
+
+        key == "tie_rule" ->
+          {:halt, {:error, :invalid_value, key}}
+
         true ->
           case parse_int(val) do
             nil -> {:halt, {:error, :invalid_value, key}}
@@ -264,6 +318,58 @@ defmodule GameHubWeb.AdminGameRulesController do
   end
 
   defp parse_int(_), do: nil
+
+  defp parse_float(val) when is_float(val), do: val
+  defp parse_float(val) when is_integer(val), do: val / 1
+
+  defp parse_float(val) when is_binary(val) do
+    case Float.parse(String.trim(val)) do
+      {f, ""} -> f
+      _ -> nil
+    end
+  end
+
+  defp parse_float(_), do: nil
+
+  # Cohérence min <= max (+ default_dice dans [min, max]) sur la config
+  # fusionnée (les valeurs existantes complètent le patch partiel).
+  defp check_range_coherence(merged) do
+    pairs = [
+      {"min_dice", "max_dice"},
+      {"min_players", "max_players"},
+      {"min_bet", "max_bet"}
+    ]
+
+    coherent? =
+      Enum.all?(pairs, fn {lo_key, hi_key} ->
+        case {to_number_or_nil(merged[lo_key]), to_number_or_nil(merged[hi_key])} do
+          {nil, _} -> true
+          {_, nil} -> true
+          {lo, hi} -> lo <= hi
+        end
+      end)
+
+    default_ok? =
+      case {to_number_or_nil(merged["default_dice"]), to_number_or_nil(merged["min_dice"]), to_number_or_nil(merged["max_dice"])} do
+        {nil, _, _} -> true
+        {_, nil, nil} -> true
+        {d, lo, hi} -> (is_nil(lo) or d >= lo) and (is_nil(hi) or d <= hi)
+      end
+
+    if coherent? and default_ok?, do: :ok, else: {:error, :invalid_value, "range"}
+  end
+
+  defp to_number_or_nil(nil), do: nil
+  defp to_number_or_nil(n) when is_number(n), do: n
+
+  defp to_number_or_nil(s) when is_binary(s) do
+    case Float.parse(String.trim(s)) do
+      {f, ""} -> f
+      _ -> nil
+    end
+  end
+
+  defp to_number_or_nil(_), do: nil
 
   defp get_admin_id(conn) do
     case conn.assigns[:current_user] do

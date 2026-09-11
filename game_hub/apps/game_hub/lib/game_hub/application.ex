@@ -45,7 +45,16 @@ defmodule GameHub.Application do
       GameHub.GameRoom,
       
       # Admin Alert Thresholds Monitor (GenServer)
-      GameHub.Admin.AlertThresholds
+      GameHub.Admin.AlertThresholds,
+
+      # Notifications Provider/Template Cache (ETS)
+      GameHub.Notifications.ProviderCache,
+
+      # Client HTTP mutualisé (adapters SMS/push)
+      {Finch, name: GameHub.Finch},
+
+      # Files async notifications (1 queue par canal)
+      {Oban, Application.fetch_env!(:game_hub, Oban)}
     ]
     
     opts = [strategy: :one_for_one, name: GameHub.Supervisor]

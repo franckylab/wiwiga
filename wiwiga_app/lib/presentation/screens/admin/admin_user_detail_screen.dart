@@ -347,7 +347,127 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
           ),
           onTap: _toggleActive,
         ),
+        ListTile(
+          leading: const Icon(Icons.shield_outlined, color: NeonColors.accent),
+          title: const Text(
+            'Limites de jeu responsable',
+            style: TextStyle(color: NeonColors.accent),
+          ),
+          subtitle: const Text(
+            'Plafonne ce joueur (appliqué aussitôt, audité)',
+            style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+          ),
+          onTap: _showLimitsDialog,
+        ),
       ],
+    );
+  }
+
+  /// Limites individuelles (vide = inchangé, 0 = illimité si supporté).
+  /// Champs miroir de `PUT /api/admin/responsible-gaming/users/:id/limits`.
+  void _showLimitsDialog() {
+    const fields = [
+      ('daily_deposit_limit', 'Dépôt / jour (jetons)'),
+      ('daily_loss_limit', 'Perte nette / jour (jetons)'),
+      ('weekly_loss_limit', 'Perte / semaine (jetons)'),
+      ('monthly_loss_limit', 'Perte / mois (jetons)'),
+      ('daily_wager_limit', 'Total misé / jour (jetons)'),
+      ('max_bet_amount', 'Mise max par coup (jetons)'),
+      ('daily_matches_limit', 'Parties / jour'),
+      ('session_time_limit_minutes', 'Session max (minutes)'),
+      ('reality_check_interval_minutes', 'Rappel réalité (minutes)'),
+    ];
+    final controllers = {
+      for (final f in fields) f.$1: TextEditingController(),
+    };
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.card,
+        title: Text(
+          'Limites — ${_user!.username}',
+          style: const TextStyle(color: NeonColors.textPrimary, fontSize: 15),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Vide = inchangé. Appliqué aussitôt (acte admin audité).',
+                style: TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              for (final f in fields)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    controller: controllers[f.$1],
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: NeonColors.textPrimary, fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: f.$2,
+                      labelStyle: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.accent),
+            onPressed: () async {
+              final body = <String, dynamic>{};
+              for (final f in fields) {
+                final raw = controllers[f.$1]!.text.trim();
+                if (raw.isEmpty) continue;
+                final value = int.tryParse(raw);
+                if (value == null || value <= 0) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('« ${f.$2} » doit être un entier > 0')),
+                    );
+                  }
+                  return;
+                }
+                body[f.$1] = value;
+              }
+              if (body.isEmpty) {
+                Navigator.pop(ctx);
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await ref.read(adminRepositoryProvider).setUserLimits(
+                      _user!.id.toString(),
+                      body,
+                    );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Limites mises à jour')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur : $e')),
+                  );
+                }
+              } finally {
+                for (final c in controllers.values) {
+                  c.dispose();
+                }
+              }
+            },
+            child: const Text('Appliquer'),
+          ),
+        ],
+      ),
     );
   }
 

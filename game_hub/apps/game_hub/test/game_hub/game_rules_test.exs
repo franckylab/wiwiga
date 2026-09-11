@@ -6,6 +6,44 @@ defmodule GameHub.GameRulesTest do
 
   alias GameHub.GameRules
   alias GameHub.Games.GameRule
+  alias GameHub.Repo
+
+  # État canonique garanti (la DB test est partagée entre fichiers et des
+  # runs interrompus peuvent laisser des configs modifiées).
+  setup do
+    Repo.delete_all(GameRule)
+    GameRules.invalidate_all_cache()
+
+    for {rule_type, extra} <- [
+          {"normal", %{}},
+          {"cible", %{"target_vote_mode" => "average"}}
+        ] do
+      %GameRule{}
+      |> GameRule.create_changeset(%{
+        game_type: "dice",
+        rule_type: rule_type,
+        name: rule_type,
+        description: "Règles canoniques de test",
+        config:
+          Map.merge(
+            %{
+              "min_sets" => 1, "max_sets" => 11, "default_sets" => 3,
+              "sets_mode" => "fixed", "sets_random_min" => 1, "sets_random_max" => 5,
+              "min_dice" => 1, "max_dice" => 5, "default_dice" => 2,
+              "dice_faces" => 6, "commission_rate" => 0.05,
+              "min_bet" => 100, "max_bet" => 500_000,
+              "min_players" => 2, "max_players" => 5,
+              "tie_rule" => "replay"
+            },
+            extra
+          ),
+        is_active: true
+      })
+      |> Repo.insert!()
+    end
+
+    :ok
+  end
 
   describe "get_rules_or_default/2" do
     test "retourne les règles par défaut pour dice/normal" do

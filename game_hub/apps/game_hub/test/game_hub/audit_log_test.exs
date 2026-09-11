@@ -5,42 +5,49 @@
 # Description: Tests unitaires pour module audit logs
 
 defmodule GameHub.AuditLogTest do
-  use GameHub.DataCase
-  
+  use ExUnit.Case, async: false
+
   alias GameHub.AuditLog
-  
+
+  setup do
+    GameHub.TestHelpers.cleanup_test_data()
+    user1 = GameHub.TestHelpers.create_test_user()
+    user2 = GameHub.TestHelpers.create_test_user()
+    %{user1: user1, user2: user2}
+  end
+
   describe "log/6" do
-    test "creates audit log entry" do
+    test "creates audit log entry", %{user1: user1} do
       assert {:ok, log} = AuditLog.log(
         "deposit",
-        1,
+        user1.id,
         "wallet",
         "user_1",
         %{amount: 1000},
         %{ip: "127.0.0.1"}
       )
-      
+
       assert log.action == "deposit"
-      assert log.user_id == 1
+      assert log.user_id == user1.id
       assert log.entity_type == "wallet"
       assert log.entity_id == "user_1"
     end
-    
-    test "stores changes as map" do
+
+    test "stores changes as map", %{user1: user1} do
       changes = %{
         balance_before: 1000,
         balance_after: 2000,
         amount: 1000
       }
-      
+
       assert {:ok, log} = AuditLog.log(
         "bet",
-        1,
+        user1.id,
         "game",
         "dice_123",
         changes
       )
-      
+
       assert log.changes == changes
     end
     
@@ -59,48 +66,48 @@ defmodule GameHub.AuditLogTest do
   end
   
   describe "list_logs/3" do
-    test "returns paginated logs" do
-      # Create some logs
-      Enum.each(1..5, fn i ->
-        AuditLog.log("action_#{i}", i, "type", "id_#{i}", %{})
-      end)
-      
+    test "returns paginated logs", %{user1: user1} do
+      # Actions valides de la taxonomie d'audit (voir AuditLog)
+      for action <- ["login", "logout", "bet", "winnings", "admin_action"] do
+        AuditLog.log(action, user1.id, "type", "id_#{action}", %{})
+      end
+
       assert {:ok, logs, total} = AuditLog.list_logs(%{}, 1, 3)
-      
+
       assert length(logs) == 3
       assert total >= 5
     end
-    
-    test "filters by action" do
-      AuditLog.log("deposit", 1, "wallet", "id_1", %{})
-      AuditLog.log("withdraw", 2, "wallet", "id_2", %{})
-      
-      assert {:ok, logs, _} = AuditLog.list_logs(%{"action" => "deposit"}, 1, 10)
-      
+
+    test "filters by action", %{user1: user1, user2: user2} do
+      AuditLog.log("deposit", user1.id, "wallet", "id_1", %{})
+      AuditLog.log("withdraw", user2.id, "wallet", "id_2", %{})
+
+      assert {:ok, logs, _} = AuditLog.list_logs(%{action: "deposit"}, 1, 10)
+
       assert Enum.all?(logs, fn log -> log.action == "deposit" end)
     end
-    
-    test "filters by entity_type" do
-      AuditLog.log("action1", 1, "wallet", "id_1", %{})
-      AuditLog.log("action2", 2, "game", "id_2", %{})
-      
-      assert {:ok, logs, _} = AuditLog.list_logs(%{"entity_type" => "wallet"}, 1, 10)
-      
+
+    test "filters by entity_type", %{user1: user1, user2: user2} do
+      AuditLog.log("bet", user1.id, "wallet", "id_1", %{})
+      AuditLog.log("winnings", user2.id, "game", "id_2", %{})
+
+      assert {:ok, logs, _} = AuditLog.list_logs(%{entity_type: "wallet"}, 1, 10)
+
       assert Enum.all?(logs, fn log -> log.entity_type == "wallet" end)
     end
   end
-  
-  describe "get_logs_by_user/3" do
-    test "returns logs for specific user" do
-      AuditLog.log("action1", 1, "wallet", "id_1", %{})
-      AuditLog.log("action2", 1, "game", "id_2", %{})
-      AuditLog.log("action3", 2, "wallet", "id_3", %{})
-      
-      assert {:ok, logs, total} = AuditLog.get_logs_by_user(1, 1, 10)
-      
+
+  describe "list_logs/3 filtre user_id" do
+    test "returns logs for specific user", %{user1: user1, user2: user2} do
+      AuditLog.log("bet", user1.id, "wallet", "id_1", %{})
+      AuditLog.log("winnings", user1.id, "game", "id_2", %{})
+      AuditLog.log("bet", user2.id, "wallet", "id_3", %{})
+
+      assert {:ok, logs, total} = AuditLog.list_logs(%{user_id: user1.id}, 1, 10)
+
       assert length(logs) == 2
       assert total == 2
-      assert Enum.all?(logs, fn log -> log.user_id == 1 end)
+      assert Enum.all?(logs, fn log -> log.user_id == user1.id end)
     end
   end
 end

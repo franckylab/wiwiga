@@ -134,19 +134,30 @@ defmodule GameHub.Admin.Security do
         user ->
           now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-          # Créer le ban
-          result = Repo.insert_all("user_bans", [
-            %{
-              user_id: user_id,
-              reason: reason,
-              banned_by: banned_by,
-              is_permanent: is_permanent,
-              is_active: true,
-              expires_at: expires_at,
-              inserted_at: now,
-              updated_at: now
-            }
-          ], returning: true)
+          # Créer le ban (insert_all sans returning : pas de schéma)
+          {inserted, _} =
+            Repo.insert_all("user_bans", [
+              %{
+                user_id: user_id,
+                reason: reason,
+                banned_by: banned_by,
+                is_active: true,
+                expires_at: expires_at,
+                inserted_at: now,
+                updated_at: now
+              }
+            ])
+
+          if inserted != 1, do: Repo.rollback(:ban_creation_failed)
+
+          ban =
+            Repo.one!(
+              from b in "user_bans",
+                where: b.user_id == ^user_id and b.is_active == true,
+                order_by: [desc: b.inserted_at],
+                limit: 1,
+                select: %{id: b.id, user_id: b.user_id}
+            )
 
           # Désactiver l'utilisateur
           user
@@ -160,12 +171,17 @@ defmodule GameHub.Admin.Security do
             "is_permanent" => is_permanent
           })
 
-          case result do
-            {1, [ban]} -> ban
-            _ -> Repo.rollback(:ban_creation_failed)
-          end
+          ban
       end
     end)
+    |> case do
+      {:ok, _ban} = ok ->
+        notify_security(user_id, "Votre compte a été suspendu : #{reason}. Contactez le support.")
+        ok
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -177,18 +193,17 @@ defmodule GameHub.Admin.Security do
     Repo.transaction(fn ->
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      # Mettre à jour le ban
-      query = from b in "user_bans",
-        where: b.user_id == ^user_id and b.is_active == true,
-        select: b.id,
-        limit: 1,
-        update: [set: [
-          is_active: false,
-          lifted_by: ^lifted_by,
-          lifted_at: ^now,
-          lift_reason: ^reason,
-          updated_at: ^now
-        ]]
+      # Mettre à jour le ban (update_all : ni select ni limit autorisés)
+      query =
+        from b in "user_bans",
+          where: b.user_id == ^user_id and b.is_active == true,
+          update: [set: [
+            is_active: false,
+            lifted_by: ^lifted_by,
+            lifted_at: ^now,
+            lift_reason: ^reason,
+            updated_at: ^now
+          ]]
 
       {count, _} = Repo.update_all(query, [])
 
@@ -212,8 +227,12 @@ defmodule GameHub.Admin.Security do
       end
     end)
     |> case do
-      {:ok, :ok} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, :ok} ->
+        notify_security(user_id, "Votre compte a été réactivé. Bon retour sur WIWIGA.")
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -310,5 +329,18 @@ defmodule GameHub.Admin.Security do
     ban_penalty = min(bans * 2, 20)
 
     max(0, score - auth_penalty - rate_penalty - ban_penalty)
+  end
+
+  # Alerte sécurité best-effort (ne fait jamais échouer l'action admin).
+  defp notify_security(user_id, message) do
+    try do
+      GameHub.Notifications.dispatch("security_alert", user_id, %{"message" => message})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
 end

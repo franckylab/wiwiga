@@ -59,11 +59,13 @@ defmodule GameHub.Games.GameConfig do
         %__MODULE__{}
         |> create_changeset(attrs)
         |> Repo.insert()
-      
+        |> tap(fn _ -> GameHub.Admin.GameConfig.invalidate_cache(game_type) end)
+
       existing ->
         existing
         |> create_changeset(attrs)
         |> Repo.update()
+        |> tap(fn _ -> GameHub.Admin.GameConfig.invalidate_cache(game_type) end)
     end
   end
   

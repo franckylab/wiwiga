@@ -111,7 +111,7 @@ defmodule GameHubWeb.AdminExportController do
     |> send_resp(200, csv_content)
   end
 
-  @doc """
+    @doc """
   GET /api/admin/export/games
   Export des statistiques de jeux en CSV.
   """
@@ -148,6 +148,70 @@ defmodule GameHubWeb.AdminExportController do
     conn
     |> put_resp_content_type("text/csv")
     |> put_resp_header("content-disposition", "attachment; filename=\"wiwiga_games_#{Date.utc_today()}.csv\"")
+    |> send_resp(200, csv_content)
+  end
+
+  @doc """
+  GET /api/admin/export/notifications
+  Export des notifications + dernière tentative par canal (CSV).
+  Filtres optionnels : status, event_type. Plafond 5000 lignes.
+  """
+  def export_notifications(conn, params) do
+    admin_id = AuthPlug.get_current_user_id(conn)
+
+    base =
+      from n in GameHub.Notifications.Notification,
+        left_join: d in GameHub.Notifications.Delivery,
+        on: d.notification_id == n.id,
+        order_by: [desc: n.inserted_at],
+        limit: 5000,
+        select: %{
+          id: n.id,
+          event_type: n.event_type,
+          user_id: n.user_id,
+          title: n.title,
+          category: n.category,
+          priority: n.priority,
+          status: n.status,
+          is_read: n.is_read,
+          channel: d.channel,
+          provider_name: d.provider_name,
+          delivery_status: d.status,
+          provider_message_id: d.provider_message_id,
+          error_message: d.error_message,
+          sent_at: d.sent_at,
+          inserted_at: n.inserted_at
+        }
+
+    base =
+      case Map.get(params, "status") do
+        nil -> base
+        status -> from [n, d] in base, where: n.status == ^status
+      end
+
+    base =
+      case Map.get(params, "event_type") do
+        nil -> base
+        event_type -> from [n, d] in base, where: n.event_type == ^event_type
+      end
+
+    rows = Repo.all(base)
+
+    csv_content =
+      generate_csv(rows, [
+        "id", "event_type", "user_id", "title", "category", "priority",
+        "status", "is_read", "channel", "provider_name", "delivery_status",
+        "provider_message_id", "error_message", "sent_at", "inserted_at"
+      ])
+
+    AuditLog.log("admin_action", admin_id, "export", "notifications", %{
+      "action" => "export_notifications",
+      "count" => length(rows)
+    })
+
+    conn
+    |> put_resp_content_type("text/csv")
+    |> put_resp_header("content-disposition", "attachment; filename=\"wiwiga_notifications_#{Date.utc_today()}.csv\"")
     |> send_resp(200, csv_content)
   end
 

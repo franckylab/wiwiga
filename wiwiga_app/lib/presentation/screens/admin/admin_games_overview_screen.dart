@@ -260,7 +260,11 @@ class AdminGamesOverviewScreen extends ConsumerWidget {
                 const {
                   'win': 'Victoire',
                   'loss': 'Défaite',
+                  'draw': 'Nul',
                   'participation': 'Participation',
+                  'streak_bonus': 'Bonus série',
+                  'max_streak_bonus': 'Série max',
+                  'xp_multiplier': 'Multiplicateur',
                   'active': 'Actif',
                 },
               ),

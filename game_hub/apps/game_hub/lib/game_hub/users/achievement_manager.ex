@@ -131,17 +131,35 @@ defmodule GameHub.Users.AchievementManager do
       achievement_id: achievement.id,
       unlocked_at: DateTime.utc_now() |> DateTime.truncate(:second)
     }
-    
+
     case %UserAchievement{} |> UserAchievement.changeset(attrs) |> Repo.insert() do
       {:ok, _} ->
         # Award XP reward
         if achievement.xp_reward > 0 do
           Stats.add_xp(user_id, achievement.xp_reward)
         end
-      
+
+        notify_achievement(user_id, achievement)
+
       {:error, _} ->
         :skip
     end
+  end
+
+  # Inbox succès best-effort (ne fait jamais échouer le déblocage).
+  defp notify_achievement(user_id, achievement) do
+    try do
+      GameHub.Notifications.dispatch("achievement_unlocked", user_id, %{
+        "nom" => to_string(achievement.name || achievement.code),
+        "xp" => to_string(achievement.xp_reward || 0)
+      })
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
   end
   
   defp get_unlocked_at(unlocked_ids, achievement_id, _achievements) do

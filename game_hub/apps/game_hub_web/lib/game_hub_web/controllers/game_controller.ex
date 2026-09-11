@@ -172,7 +172,7 @@ defmodule GameHubWeb.GameController do
               idempotency_key = "bet_#{user_id}_#{game_id}_#{rule_type}_#{System.os_time(:millisecond)}"
               
               case Wallet.place_bet(user_id, bet_amount, game_id, idempotency_key) do
-                {:error, :insufficient_funds} ->
+                {:error, reason} when reason in [:insufficient_funds, :insufficient_tokens] ->
                   conn
                   |> put_status(400)
                   |> json(Errors.error("Solde insuffisant", 400, "INSUFFICIENT_FUNDS", %{

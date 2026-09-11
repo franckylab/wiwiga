@@ -56,7 +56,13 @@ defmodule GameHub.Audit.AuditLog do
       "token_refresh", "token_replay_detected", "multi_account_detected",
       "rate_limited", "session_restored", "auth_settings_updated",
       # Wallet
-      "deposit", "withdrawal", "bet", "winnings",
+      "deposit", "withdraw", "withdrawal", "bet", "winnings",
+      "bet_placed", "bet_matched", "bet_refunded", "bet_refunded_cancel",
+      "bet_placed_room_joined",
+      # Idempotence (webhooks, transactions)
+      "idempotency_key_created", "idempotency_key_duplicate",
+      # Réconciliation comptable
+      "reconciliation", "reconciliation_mismatch",
       # User
       "user_created", "user_updated", "user_deleted",
       # KYC
@@ -64,7 +70,13 @@ defmodule GameHub.Audit.AuditLog do
       # Responsible gaming
       "self_exclusion", "limit_updated",
       # Admin
-      "admin_action", "system_action",
+      "admin_action", "admin_create_user", "admin_change_role", "system_action",
+      # Promos / jetons
+      "create_promo", "update_promo", "update_token_config",
+      # Jeux / règles
+      "game_rules_updated", "game_timeout_updated",
+      # SMS / notifications
+      "sms_start", "sms_stop",
       # Payment
       "payment_failed"
     ]

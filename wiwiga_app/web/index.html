@@ -171,6 +171,15 @@
       // Safety: stop checking after 10s
       setTimeout(function() { clearInterval(checkInterval); }, 10000);
     })();
+    // Web Push FCM : service worker optionnel (configuré via
+    // web/firebase-messaging-sw.js). Échec silencieux si non configuré.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker
+          .register('firebase-messaging-sw.js')
+          .catch(function() {});
+      });
+    }
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

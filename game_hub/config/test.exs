@@ -28,5 +28,8 @@ config :game_hub_web, GameHubWeb.Endpoint,
 # Logger silencieux en test
 config :logger, level: :warning
 
+# Oban : jobs jamais exécutés en test (assert_enqueued + perform_job)
+config :game_hub, Oban, testing: :manual
+
 # Importer configuration Guardian
 import_config "guardian.ex"

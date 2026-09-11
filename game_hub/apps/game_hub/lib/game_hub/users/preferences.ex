@@ -15,14 +15,18 @@ defmodule GameHub.Users.Preferences do
   
   alias GameHub.{Repo, Users.User}
   
-  # Valeurs par défaut
+  # Valeurs par défaut.
+  # `notifications_enabled` historiquement accepté mais SUPPRIMÉ :
+  # la granularité catégorie×canal vit dans notification_preferences
+  # (source unique lue par le dispatch). Les valeurs stockées restent
+  # en base (compat), mais ne sont ni lues ni exigées.
   @defaults %{
     "sound_enabled" => true,
     "vibration_enabled" => true,
-    "notifications_enabled" => true,
     "language" => "fr",
     "theme" => "neon",
-    "font_size" => "medium"
+    "font_size" => "medium",
+    "quiet_hours" => %{"enabled" => false, "start" => 22, "end" => 7}
   }
   
   @allowed_keys Map.keys(@defaults)
@@ -113,12 +117,23 @@ defmodule GameHub.Users.Preferences do
       
       Map.has_key?(prefs, "vibration_enabled") and not is_boolean(prefs["vibration_enabled"]) ->
         {:error, "vibration_enabled doit être true/false"}
-      
-      Map.has_key?(prefs, "notifications_enabled") and not is_boolean(prefs["notifications_enabled"]) ->
-        {:error, "notifications_enabled doit être true/false"}
-      
+
+      # Validation quiet_hours (%{"enabled" => bool, "start" => 0..23, "end" => 0..23})
+      Map.has_key?(prefs, "quiet_hours") and not valid_quiet_hours?(prefs["quiet_hours"]) ->
+        {:error, "quiet_hours invalide (enabled bool, start/end 0..23)"}
+
       true ->
         :ok
     end
   end
+
+  defp valid_quiet_hours?(%{"enabled" => enabled, "start" => start, "end" => finish}) do
+    is_boolean(enabled) and start in 0..23 and finish in 0..23
+  end
+
+  defp valid_quiet_hours?(%{enabled: enabled, start: start, end: finish}) do
+    is_boolean(enabled) and start in 0..23 and finish in 0..23
+  end
+
+  defp valid_quiet_hours?(_), do: false
 end

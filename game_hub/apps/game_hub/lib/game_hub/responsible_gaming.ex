@@ -195,6 +195,14 @@ defmodule GameHub.ResponsibleGaming do
     limits
     |> ResponsibleGamingLimit.changeset(attrs)
     |> Repo.update()
+    |> case do
+      {:ok, updated} ->
+        notify_security(user_id, "Vos limites de jeu responsable ont été mises à jour.")
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -233,6 +241,13 @@ defmodule GameHub.ResponsibleGaming do
         {:ok, limits} ->
           sync_user_excluded_flag(user_id, true)
           end_session(user_id)
+
+          if duration_days == 0 do
+            notify_security(user_id, "Auto-exclusion permanente activée. Prenez soin de vous.")
+          else
+            notify_security(user_id, "Auto-exclusion activée pour #{duration_days} jour(s).")
+          end
+
           {:ok, limits}
 
         err ->
@@ -258,6 +273,7 @@ defmodule GameHub.ResponsibleGaming do
     case result do
       {:ok, limits} ->
         sync_user_excluded_flag(user_id, false)
+        notify_security(user_id, "Votre auto-exclusion a été levée. Jouez avec modération.")
         {:ok, limits}
 
       err ->
@@ -281,6 +297,7 @@ defmodule GameHub.ResponsibleGaming do
     case result do
       {:ok, limits} ->
         end_session(user_id)
+        notify_security(user_id, "Pause de #{days} jour(s) activée. À bientôt.")
         {:ok, limits}
 
       err ->
@@ -779,6 +796,19 @@ defmodule GameHub.ResponsibleGaming do
   end
 
   defp sync_user_excluded_flag(_, _), do: :ok
+
+  # Alerte jeu responsable best-effort (ne fait jamais échouer l'action).
+  defp notify_security(user_id, message) do
+    try do
+      GameHub.Notifications.dispatch("security_alert", user_id, %{"message" => message})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
 
   # Récupère la ligne de limites en la créant si absente (sinon tout
   # Repo.update ultérieur lèverait NoPrimaryKeyValueError).

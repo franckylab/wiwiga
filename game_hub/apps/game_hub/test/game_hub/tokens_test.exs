@@ -15,10 +15,7 @@ defmodule GameHub.TokensTest do
   import Ecto.Query
 
   setup do
-    Repo.delete_all(TokenTransaction)
-    Repo.delete_all(Friendship)
-    # Delete users last (FK constraints)
-    Repo.delete_all(User)
+    GameHub.TestHelpers.cleanup_test_data()
 
     uniq = System.unique_integer([:positive])
 

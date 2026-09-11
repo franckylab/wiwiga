@@ -79,9 +79,9 @@ defmodule GameHub.Auth do
       # Logger l'envoi OTP
       AuditLog.log("otp_sent", nil, "auth", nil, %{phone: phone, device_id: device_id}, %{ip_address: ip_address})
       
-      # Envoyer via SMS provider (LogAdapter en dev, CampayAdapter en production)
-      GameHub.SmsProvider.send_sms(phone, "[WIWIGA] Code de vérification: #{otp}")
-      
+      # Envoyer via pipeline SMS multi-provider (repli legacy automatique)
+      GameHub.Notifications.ChannelDispatch.send_otp_sms(phone, otp)
+
       {:ok, otp}
     end
   end
@@ -126,9 +126,9 @@ defmodule GameHub.Auth do
         
         AuditLog.log("otp_email_sent", nil, "auth", nil, %{email: email, device_id: device_id}, %{ip_address: ip_address})
         
-        # Envoyer via email provider (LogAdapter en dev, SendGrid en production)
-        Logger.info("[EMAIL] OTP pour #{email}: #{otp}")
-        
+        # Envoyer via pipeline email multi-provider (repli log automatique)
+        GameHub.Notifications.ChannelDispatch.send_otp_email(email, otp)
+
         {:ok, otp}
       end
     end
@@ -426,11 +426,16 @@ defmodule GameHub.Auth do
     case Repo.get(User, user_id) do
       nil ->
         {:error, :user_not_found}
-      
+
       user ->
-        user
-        |> User.password_changeset(%{"password" => new_password})
-        |> Repo.update()
+        case user |> User.password_changeset(%{"password" => new_password}) |> Repo.update() do
+          {:ok, updated} ->
+            notify_security(user_id, "Mot de passe mis à jour. Si ce n'était pas vous, contactez le support.")
+            {:ok, updated}
+
+          error ->
+            error
+        end
     end
   end
   
@@ -788,6 +793,9 @@ defmodule GameHub.Auth do
   # ========================================
   
   defp generate_auth_tokens(user, device_id, ip_address, user_agent) do
+    # Nouvel appareil : alerte sécurité best-effort (avant stockage du token)
+    if device_id, do: notify_new_device(user.id, device_id)
+
     # Générer access token
     case Guardian.encode_access_token(user) do
       {:ok, access_token, _claims} ->
@@ -826,6 +834,46 @@ defmodule GameHub.Auth do
     })
     |> Repo.insert()
   end
+
+  # Alerte sécurité best-effort (ne fait jamais échouer l'auth).
+  defp notify_security(user_id, message) do
+    try do
+      GameHub.Notifications.dispatch("security_alert", user_id, %{"message" => message})
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
+
+  # Nouvel appareil : au moins un token d'un AUTRE device existe déjà.
+  # Premier login (aucun token) et device absent : silencieux.
+  defp notify_new_device(user_id, device_id) when is_binary(device_id) and device_id != "" do
+    try do
+      known =
+        GameHub.Repo.all(
+          from(t in RefreshToken,
+            where: t.user_id == ^user_id and not is_nil(t.device_id),
+            select: t.device_id,
+            distinct: true
+          )
+        )
+
+      if known != [] and device_id not in known do
+        notify_security(user_id, "Nouvelle connexion depuis un nouvel appareil. Si ce n'était pas vous, changez votre mot de passe.")
+      end
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+
+    :ok
+  end
+
+  defp notify_new_device(_, _), do: :ok
   
   defp get_refresh_token_by_hash(token_hash) do
     Repo.get_by(RefreshToken, token_hash: token_hash)

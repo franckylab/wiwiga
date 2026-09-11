@@ -242,6 +242,11 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 ),
               ),
               const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18, color: NeonColors.textSecondary),
+                tooltip: 'Modifier',
+                onPressed: () => _showEditDialog(bonus),
+              ),
               Switch(
                 value: isActive,
                 onChanged: (value) async {
@@ -283,6 +288,16 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
                 'Coût total',
                 AnalyticsFormat.amount(totalCost),
                 NeonColors.error,
+              ),
+              _buildStatItem(
+                'Dépôt min',
+                '${((bonus['min_deposit'] as num?) ?? 0).toStringAsFixed(0)} FCFA',
+                NeonColors.textSecondary,
+              ),
+              _buildStatItem(
+                'Bonus max',
+                '${((bonus['max_bonus'] as num?) ?? 0).toStringAsFixed(0)} wiga',
+                NeonColors.textSecondary,
               ),
             ],
           ),
@@ -371,8 +386,78 @@ class _AdminBonusesScreenState extends ConsumerState<AdminBonusesScreen> {
     );
   }
 
-  void _showCreateDialog() {
-    final nameCtrl = TextEditingController();
+  /// Édition d'un bonus existant (valeur, conditions, expiration).
+  void _showEditDialog(Map<String, dynamic> bonus) {
+    final id = bonus['id']?.toString() ?? '';
+    final nameCtrl = TextEditingController(text: bonus['name']?.toString() ?? '');
+    final valueCtrl = TextEditingController(text: (bonus['value'] as num?)?.toString() ?? '');
+    final wageringCtrl = TextEditingController(text: (bonus['wagering_requirement'] as num?)?.toString() ?? '');
+    final minDepositCtrl = TextEditingController(text: (bonus['min_deposit'] as num?)?.toString() ?? '');
+    final maxBonusCtrl = TextEditingController(text: (bonus['max_bonus'] as num?)?.toString() ?? '');
+    final expiresCtrl = TextEditingController(text: bonus['expires_at']?.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NeonColors.surface,
+        title: const Text('Modifier le bonus', style: TextStyle(color: NeonColors.textPrimary)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTextField(nameCtrl, 'Nom du bonus', Icons.label),
+              const SizedBox(height: 12),
+              _buildTextField(valueCtrl, 'Valeur (wiga)', Icons.monetization_on),
+              const SizedBox(height: 12),
+              _buildTextField(wageringCtrl, 'Condition de mise (x)', Icons.refresh),
+              const SizedBox(height: 12),
+              _buildTextField(minDepositCtrl, 'Dépôt Min (FCFA)', Icons.arrow_downward),
+              const SizedBox(height: 12),
+              _buildTextField(maxBonusCtrl, 'Bonus Max (wiga)', Icons.arrow_upward),
+              const SizedBox(height: 12),
+              _buildTextField(expiresCtrl, 'Expire le (ISO, vide = jamais)', Icons.schedule),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(color: NeonColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final body = <String, dynamic>{
+                'name': nameCtrl.text.trim(),
+                'value': double.tryParse(valueCtrl.text) ?? 0,
+                'wagering_requirement': double.tryParse(wageringCtrl.text) ?? 0,
+                'min_deposit': double.tryParse(minDepositCtrl.text) ?? 0,
+                'max_bonus': double.tryParse(maxBonusCtrl.text) ?? 0,
+              };
+              if (expiresCtrl.text.trim().isNotEmpty) {
+                body['expires_at'] = expiresCtrl.text.trim();
+              }
+              if (!context.mounted) return;
+              Navigator.pop(ctx);
+              final success = await ref
+                  .read(adminBonusesManagementProvider.notifier)
+                  .updateBonus(id, body);
+              if (mounted) {
+                context.showResult(
+                  success,
+                  successMsg: 'Bonus mis à jour',
+                  errorMsg: 'Erreur de mise à jour',
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: NeonColors.primary),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateDialog() {    final nameCtrl = TextEditingController();
     final typeCtrl = TextEditingController(text: 'welcome');
     final valueCtrl = TextEditingController(text: '1000');
     final wageringCtrl = TextEditingController(text: '5');

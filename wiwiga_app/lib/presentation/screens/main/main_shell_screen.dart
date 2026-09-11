@@ -13,6 +13,7 @@ import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../../data/providers/friend_provider.dart';
+import '../../../data/providers/notification_provider.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
 
 /// Shell principal : 4 onglets (Accueil, Jeux, Amis, Classement)
@@ -36,6 +37,15 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Temps réel inbox : toute notification_created rafraîchit badge + liste
+    Future.microtask(() {
+      try {
+        ref.read(gameWebSocketServiceProvider).onNotificationCreated = (_) {
+          ref.invalidate(inboxProvider);
+          ref.invalidate(unreadNotificationsCountProvider);
+        };
+      } catch (_) {}
+    });
   }
 
   @override
@@ -56,6 +66,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     // Invalide sans attendre la fin, laisse Riverpod re-fetch en arrière-plan
     ref.invalidate(gamesCatalogProvider);
     ref.invalidate(activeGameProvider);
+    ref.invalidate(unreadNotificationsCountProvider);
     // Le reste sera re-fetch via timers autoDispose quand l'onglet redevient visible
   }
 
@@ -150,6 +161,8 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     tooltip: 'Historique des transactions',
                     onPressed: () => context.push('/transactions'),
                   ),
+                  // Cloche notifications avec badge non-lues
+                  const _NotificationBell(),
                   IconButton(
                     icon: const Icon(Icons.person_outline, color: NeonColors.primary),
                     tooltip: 'Profil',
@@ -161,6 +174,52 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                     onPressed: () => context.push('/settings'),
                   ),
                 ],
+     );
+  }
+}
+
+/// Cloche notifications avec badge de non-lues — ouvre l'inbox
+class _NotificationBell extends ConsumerWidget {
+  const _NotificationBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadNotificationsCountProvider);
+
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_outlined, color: NeonColors.primary),
+          tooltip: 'Notifications',
+          onPressed: () => context.push('/notifications'),
+        ),
+        if (unread.valueOrNull != null && unread.valueOrNull! > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: NeonColors.error,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: NeonColors.error.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Text(
+                unread.valueOrNull! > 99 ? '99+' : '${unread.valueOrNull}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

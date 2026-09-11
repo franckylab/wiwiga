@@ -30,6 +30,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
     # Créer utilisateur de test
     user = Repo.insert!(%User{
       phone: "+237612345678",
+      username: "campay_#{System.unique_integer([:positive])}",
       name: "Campay Test User",
       balance: 100000,
       is_active: true,
@@ -110,10 +111,10 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
     
     test "accepte requête avec signature valide", %{user: user} do
       idempotency_key = "test_valid_sig_#{System.unique_integer()}"
-      
+
       params = %{
         "transaction_id" => "TX456",
-        "amount" => 10000,
+        "amount" => 50000,
         "phone" => user.phone,
         "status" => "SUCCESS",
         "idempotency_key" => idempotency_key
@@ -137,7 +138,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
       
       params = %{
         "transaction_id" => "TX789",
-        "amount" => 15000,
+        "amount" => 150_000,
         "phone" => "+237612345678",
         "status" => "SUCCESS",
         "idempotency_key" => idempotency_key
@@ -157,27 +158,27 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
       
       assert conn.status == 200
       
-      # Vérifier que le balance a augmenté
+      # Vérifier que le balance a augmenté (montant entier en centimes)
       updated_user = Repo.get(User, user.id)
-      expected_balance = initial_balance + String.to_integer(params["amount"])
-      
+      expected_balance = initial_balance + params["amount"]
+
       assert updated_user.balance == expected_balance
     end
-    
+
     test "crée une transaction de type deposit", %{user: user, params: params} do
       conn = conn(:post, "/api/webhooks/campay", params)
       PaymentWebhookController.campay_callback(conn, params)
-      
+
       # Vérifier transaction créée
       transaction = Repo.one(
         from t in WalletTransaction,
         where: t.idempotency_key == ^params["idempotency_key"],
         select: t
       )
-      
+
       assert transaction != nil
       assert transaction.type == "deposit"
-      assert transaction.amount == String.to_integer(params["amount"])
+      assert transaction.amount == params["amount"]
       assert transaction.user_id == user.id
     end
     
@@ -286,13 +287,14 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
     test "rejette paramètres manquants" do
       params = %{
         "transaction_id" => "TX_INCOMPLETE"
-        # Manque: amount, phone, status, idempotency_key
+        # Manque: amount, phone, status, idempotency_key (et signature)
       }
-      
+
       conn = conn(:post, "/api/webhooks/campay", params)
       conn = PaymentWebhookController.campay_callback(conn, params)
-      
-      assert conn.status == 400
+
+      # Signature vérifiée en premier (401), avant la validation métier (400)
+      assert conn.status == 401
     end
   end
   
@@ -302,7 +304,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
       
       params = %{
         "transaction_id" => "TX_IDEM",
-        "amount" => 5000,
+        "amount" => 50000,
         "phone" => user.phone,
         "status" => "SUCCESS",
         "idempotency_key" => idempotency_key
@@ -332,81 +334,83 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
       # Créer utilisateur
       user = Repo.insert!(%User{
         phone: "+237600000001",
+        username: "flow_#{System.unique_integer([:positive])}",
         name: "Flow Test User",
         balance: 0,
         is_active: true
       })
-      
-      # Simuler paiement Campay
+
+      # Simuler paiement Campay (≥ min 50 000)
       idempotency_key = "flow_test_#{System.unique_integer()}"
-      
+
       params = %{
         "transaction_id" => "CAMPAY_12345",
-        "amount" => 25000,
+        "amount" => 50000,
         "phone" => user.phone,
         "status" => "SUCCESS",
         "idempotency_key" => idempotency_key
       }
-      
+
       signature = calculate_hmac_signature(params)
       params_with_sig = Map.put(params, "signature", signature)
-      
+
       # Webhook reçu
       conn = conn(:post, "/api/webhooks/campay", params_with_sig)
       conn = PaymentWebhookController.campay_callback(conn, params_with_sig)
-      
+
       # Vérifier succès
       assert conn.status == 200
       response = Jason.decode!(conn.resp_body)
       assert response["status"] == "success"
-      assert response["new_balance"] == 25000
-      
+      assert response["new_balance"] == 50000
+
       # Vérifier DB
       updated_user = Repo.get(User, user.id)
-      assert updated_user.balance == 25000
-      
+      assert updated_user.balance == 50000
+
       # Vérifier transaction
       transaction = Repo.one(
         from t in WalletTransaction,
         where: t.idempotency_key == ^idempotency_key
       )
-      
+
       assert transaction.type == "deposit"
-      assert transaction.amount == 25000
+      assert transaction.amount == 50000
       assert transaction.balance_before == 0
-      assert transaction.balance_after == 25000
+      assert transaction.balance_after == 50000
     end
-    
+
     test "multi-paiements successifs incrémentent correctement" do
       user = Repo.insert!(%User{
         phone: "+237600000002",
+        username: "multi_#{System.unique_integer([:positive])}",
         name: "Multi Payment User",
         balance: 0,
         is_active: true
       })
-      
+
       # Trois paiements successifs
       Enum.each(1..3, fn i ->
         idempotency_key = "multi_pay_#{i}_#{System.unique_integer()}"
-        
+
         params = %{
           "transaction_id" => "CAMPAY_MULTI_#{i}",
-          "amount" => 10000,
+          "amount" => 50000,
           "phone" => user.phone,
           "status" => "SUCCESS",
           "idempotency_key" => idempotency_key
         }
-        
+
         signature = calculate_hmac_signature(params)
         params_with_sig = Map.put(params, "signature", signature)
-        
+
         conn = conn(:post, "/api/webhooks/campay", params_with_sig)
         PaymentWebhookController.campay_callback(conn, params_with_sig)
       end)
-      
-      # Balance final devrait être 30000 (3 x 10000)
+
+      # Balance final devrait être 150000 (3 x 50000)
       updated_user = Repo.get(User, user.id)
-      assert updated_user.balance == 30000
+      assert updated_user.balance == 150000
       
       # Trois transactions doivent exister
       count = Repo.aggregate(
@@ -421,6 +425,7 @@ defmodule GameHubWeb.PaymentWebhookControllerTest do
     test "race condition simulée - idempotence protège" do
       user = Repo.insert!(%User{
         phone: "+237600000003",
+        username: "race_#{System.unique_integer([:positive])}",
         name: "Race Condition User",
         balance: 0,
         is_active: true

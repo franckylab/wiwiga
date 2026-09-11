@@ -271,12 +271,19 @@ defmodule GameHub.Admin.GameConfig do
   # Helpers
   # ========================================
 
-  defp invalidate_cache(game_type) do
+  @doc """
+  Invalide le cache ETS d'un type de jeu (aussi appelé après écriture
+  via `Games.GameConfig`, qui partage la même table).
+  """
+  @spec invalidate_cache(String.t()) :: :ok
+  def invalidate_cache(game_type) do
     try do
       :ets.delete(@cache_table, game_type)
     rescue
       _ -> :ok
     end
+
+    :ok
   end
 
   # ========================================

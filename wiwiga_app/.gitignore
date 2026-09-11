@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase natif : vrais fichiers jamais commités (exemples versionnés)
+# Voir docs/FCM_SETUP.md — placeholders par défaut (push désactivé)
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/web/firebase-config.local.js

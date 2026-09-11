@@ -270,15 +270,20 @@ defmodule GameHub.GameRoom do
       _ ->
         case lookup_room(state.table, room_id) do
           {:ok, room} ->
+            # Ordre des refus (du plus spécifique au plus général) :
+            # membre > capacité > statut. Un membre qui revient sur son
+            # match démarré reçoit :already_in_room (relecture d'état),
+            # une salle pleine :room_full même si l'auto-start l'a déjà
+            # basculée en cours.
             cond do
-              room.status != :waiting ->
-                {:reply, {:error, :room_not_waiting}, state}
+              Enum.any?(room.players, fn p -> p.id == player_id end) ->
+                {:reply, {:error, :already_in_room}, state}
 
               length(room.players) >= room.max_players ->
                 {:reply, {:error, :room_full}, state}
 
-              Enum.any?(room.players, fn p -> p.id == player_id end) ->
-                {:reply, {:error, :already_in_room}, state}
+              room.status != :waiting ->
+                {:reply, {:error, :room_not_waiting}, state}
 
               true ->
                 player = %{

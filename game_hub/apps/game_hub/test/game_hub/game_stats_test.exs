@@ -25,9 +25,11 @@ defmodule GameHub.GameStatsTest do
     Repo.delete_all(GameHub.Wallet.WalletTransaction)
     Repo.delete_all(User)
 
-    alice = Repo.insert!(%User{phone: "+237699100001", name: "Alice", balance: 100_000,
+    alice = Repo.insert!(%User{phone: "+237699100001", username: "alice_stats_#{System.unique_integer([:positive])}",
+                               name: "Alice", balance: 100_000,
                                is_active: true, has_verified_kyc: true})
-    bob = Repo.insert!(%User{phone: "+237699100002", name: "Bob", balance: 100_000,
+    bob = Repo.insert!(%User{phone: "+237699100002", username: "bob_stats_#{System.unique_integer([:positive])}",
+                             name: "Bob", balance: 100_000,
                              is_active: true, has_verified_kyc: true})
 
     GameStats.invalidate_cache("dice")

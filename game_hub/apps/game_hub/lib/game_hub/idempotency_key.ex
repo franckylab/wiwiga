@@ -58,7 +58,13 @@ defmodule GameHub.IdempotencyKey do
         {:ok, :new, data}
       
       :existing ->
-        cached_data = get(key)
+        # get/1 enveloppe déjà en {:ok, _} : déballer pour respecter
+        # le contrat {:ok, :existing, cached_data} (voir @spec).
+        cached_data =
+          case get(key) do
+            {:ok, data} -> data
+            _ -> nil
+          end
         
         AuditLog.log(
           "idempotency_key_duplicate",
