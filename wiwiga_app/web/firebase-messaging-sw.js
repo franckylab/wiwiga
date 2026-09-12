@@ -7,10 +7,10 @@
  * (Console Firebase → Cloud Messaging → Web Push certificates).
  * ============================================================ */
 importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js'
 );
 importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js'
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging-compat.js'
 );
 
 try {
@@ -24,6 +24,14 @@ try {
 
   const messaging = firebase.messaging();
 
+  // Mise à jour immédiate : sans skipWaiting, un SW mis à jour reste en
+  // "waiting" tant qu'un onglet est ouvert (l'utilisateur croit avoir
+  // rechargé la nouvelle version, mais l'ancien SW tourne encore).
+  self.addEventListener('install', () => self.skipWaiting());
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+  });
+
   // Background / onglet fermé : affichage EXPLICITE (ne pas compter sur
   // l'auto-display du SDK). Tag anti-doublon (notification_id backend),
   // data conservée pour le tap → inbox. Les icônes DOIVENT exister
@@ -32,6 +40,7 @@ try {
     const notification = payload.notification || {};
     const data = payload.data || {};
     const title = notification.title || data.title || 'WIWIGA';
+    console.log('[FCM-SW] background:', title, JSON.stringify(data));
     const options = {
       body: notification.body || data.body || '',
       icon: '/android-chrome-192x192.png',

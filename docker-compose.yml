@@ -92,11 +92,17 @@ services:
     restart: unless-stopped
     ports:
       - "8003:80"
+      # HTTPS dev (LAN) pour les notifications push sur d'autres machines
+      # (certificat : ./tool/gen-lan-cert.sh, à accepter une fois par poste)
+      - "8443:8443"
     volumes:
       # Montage du code source pour détection de changements
       - ./wiwiga_app/lib:/app/lib
       - ./wiwiga_app/pubspec.yaml:/app/pubspec.yaml
       - ./wiwiga_app/assets:/app/assets
+      # Certificat LAN de l'hôte (optionnel : l'entrypoint génère un
+      # repli localhost si absent — nginx ne plante jamais)
+      - ./wiwiga_app/certs:/etc/nginx/certs-host:ro
       # Préserver .dart_tool (cache Flutter)
       - flutter_cache:/app/.dart_tool
     depends_on:

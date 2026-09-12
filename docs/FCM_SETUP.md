@@ -91,7 +91,6 @@ données du site après un changement de clé (DevTools → Application →
 Clear site data), puis autoriser les notifications au login.
 
 Build manuel (hors Docker) :
-
 ```bash
 cd wiwiga_app
 # 1. Générer le service worker depuis l'environnement
@@ -111,6 +110,33 @@ flutter build web \
 `WIWIGA_DEFAULT_*` par défaut → `isConfigured == false` → push désactivé,
 silencieux). `PushNotificationService` utilise les options explicites si
 configurées, sinon la config native, sinon se désactive sans jamais échouer.
+
+### 4bis. Accès depuis d'autres machines (LAN) — HTTPS obligatoire
+
+En HTTP sur IP LAN (`http://192.168.x.x:8003`), les navigateurs
+**verrouillent** les notifications (permission grisée, non activable) et
+coupent les Service Workers : aucun token ne peut être créé. L'app détecte
+ce cas et l'explique (`contexte non sécurisé`, carte Préférences).
+`localhost` est exempté (contexte sécurisé d'office).
+
+Le compose expose donc aussi le frontend en **HTTPS auto-signé** :
+`https://<IP-HÔTE>:8443` (nginx, `ssl_certificate` monté).
+
+```bash
+# (1 fois, puis à chaque changement d'IP/DHCP) — SAN = IPs locales
+./wiwiga_app/tool/gen-lan-cert.sh
+docker compose up -d --force-recreate frontend
+```
+
+Sur chaque poste client, **une fois** : ouvrir `https://<IP-HÔTE>:8443` →
+avertissement certificat → Avancé → Continuer (le cert est à nous, dev
+local uniquement) → se connecter → autoriser les notifications au prompt.
+Vérifier : cadenas → Notifications = Autoriser ; DevTools → Application →
+Service Workers = activé.
+
+Alternative immédiate sans HTTPS (dev uniquement, par navigateur) :
+`chrome://flags/#unsafely-treat-insecure-origin-as-secure` → ajouter
+`http://<IP-HÔTE>:8003` → Enabled → Relaunch.
 
 ## 5. Frontend — iOS (optionnel)
 
@@ -165,6 +191,8 @@ flutter build ipa
 | Push silencieux (aucune erreur) | Placeholders par défaut | Normal : inbox in_app en repli, renseigner §1 |
 | `sent` FCM mais rien reçu (web, onglet ouvert) | Foreground : FCM n'affiche rien tout seul | Normal depuis v1.0.0 : SnackBar + inbox auto (dual-surface) |
 | `sent` FCM mais rien reçu (web, onglet fermé) | SW inactif / permission révoquée | DevTools → Application → Service Workers (activé ?) ; Clear site data + ré-autoriser |
+| Permission grisée / non activable (paramètres du site) | HTTP sur IP LAN (contexte non sécurisé) | Utiliser `https://<IP>:8443` (voir §4bis) ou `localhost` |
+| `token indisponible : erreur Firebase (...)` après permission accordée | SW pas encore actif (1er chargement) ou SDK JS désynchronisé | Réessai auto intégré ; fermer TOUS les onglets puis recharger (skipWaiting) ; `FIREBASE_JS_SDK_VERSION` doit suivre `firebase_messaging` (voir `tool/setup-fcm-web.sh`) |
 
 ## 8. Sécurité
 

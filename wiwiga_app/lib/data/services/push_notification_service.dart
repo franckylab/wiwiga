@@ -74,6 +74,31 @@ class PushNotificationService {
   /// Ex. "non configuré : google-services.json absent (Android)".
   String? get lastDiagnostic => _lastDiagnostic;
 
+  /// Origine compatible push (fonction pure, testable).
+  ///
+  /// Les navigateurs n'exposent Service Workers, PushManager et
+  /// Notification QUE sur origine sécurisée : HTTPS partout, ou HTTP sur
+  /// loopback. En HTTP sur IP LAN (http://192.168.x.x), la permission est
+  /// verrouillée (grisée, non activable) et aucun token ne peut être créé.
+  static bool isSecurePushOriginFor({required bool isWeb, required Uri uri}) {
+    if (!isWeb) return true;
+    if (uri.scheme == 'https') return true;
+    final host = uri.host.toLowerCase();
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '::1' ||
+        host == '[::1]';
+  }
+
+  /// Origine courante du navigateur (jamais de throw).
+  static bool get isSecurePushOrigin {
+    try {
+      return isSecurePushOriginFor(isWeb: kIsWeb, uri: Uri.base);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Initialise Firebase + plugin local. N'échoue jamais.
   ///
   /// Réappelable : le flag n'est posé qu'après succès, donc la carte
@@ -89,6 +114,20 @@ class PushNotificationService {
     _onToken = onToken;
     _onTap = onTap;
     _onForeground = onForeground;
+
+    // Origine HTTP non-loopback (ex. http://192.168.x.x d'une autre
+    // machine) : le navigateur verrouille les notifications et coupe les
+    // Service Workers. Inutile d'initialiser : diagnostic actionnable.
+    if (!isSecurePushOrigin) {
+      _available = false;
+      const message = kIsWeb
+          ? 'contexte non sécurisé : ouvrez WIWIGA en HTTPS ou via '
+              'localhost (en HTTP sur IP locale, le navigateur verrouille '
+              'les notifications)'
+          : 'contexte non sécurisé : notifications indisponibles';
+      _setDiagnostic(message);
+      return;
+    }
 
     try {
       // Config explicite (build --dart-define) prioritaire, sinon config
@@ -213,35 +252,42 @@ class PushNotificationService {
 
   /// Token FCM courant (null si indisponible).
   /// Web : clé VAPID via `--dart-define=FCM_VAPID_KEY=...`.
+  /// Deux tentatives : au 1er chargement, le Service Worker vient de
+  /// s'installer et n'est pas encore actif → le 1er getToken échoue, le
+  /// 2e (après 6 s) réussit. L'erreur RÉELLE est exposée dans le
+  /// diagnostic (écran authentifié, aucun secret).
   Future<String?> getToken() async {
     if (!_available) {
       _setDiagnostic('token indisponible : Firebase non configuré');
       return null;
     }
-    try {
-      const vapidKey =
-          String.fromEnvironment('FCM_VAPID_KEY', defaultValue: '');
-      if (kIsWeb && vapidKey.isEmpty) {
-        _setDiagnostic(
-            'token indisponible : FCM_VAPID_KEY absente (rebuild web avec --dart-define=FCM_VAPID_KEY=... requis)',);
-        return null;
-      }
-      final token = await FirebaseMessaging.instance.getToken(
-        vapidKey: kIsWeb ? vapidKey : null,
-      );
-      if (token == null || token.isEmpty) {
-        _setDiagnostic(
-            'token indisponible : Firebase n\u2019a retourné aucun token (permission ?)',);
-      } else {
-        _setDiagnostic(
-            'token obtenu (${token.substring(0, token.length > 12 ? 12 : token.length)}…)',);
-      }
-      return token;
-    } catch (_) {
+    const vapidKey =
+        String.fromEnvironment('FCM_VAPID_KEY', defaultValue: '');
+    if (kIsWeb && vapidKey.isEmpty) {
       _setDiagnostic(
-          'token indisponible : erreur Firebase (permission refusée ?)',);
+          'token indisponible : FCM_VAPID_KEY absente (rebuild web avec --dart-define=FCM_VAPID_KEY=... requis)',);
       return null;
     }
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final token = await FirebaseMessaging.instance.getToken(
+          vapidKey: kIsWeb ? vapidKey : null,
+        );
+        if (token != null && token.isNotEmpty) {
+          _setDiagnostic(
+              'token obtenu (${token.substring(0, token.length > 12 ? 12 : token.length)}…)',);
+          return token;
+        }
+        lastError = 'vide';
+      } catch (e) {
+        lastError = e;
+      }
+      // Laisse au Service Worker le temps de s'activer avant réessai.
+      if (kIsWeb) await Future<void>.delayed(const Duration(seconds: 6));
+    }
+    _setDiagnostic('token indisponible : erreur Firebase ($lastError)');
+    return null;
   }
 
   /// Supprime le token local (logout).

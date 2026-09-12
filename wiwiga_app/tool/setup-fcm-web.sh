@@ -18,6 +18,11 @@ AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-FIREBASE_AUTH_DOMAIN}"
 PROJECT_ID="${FIREBASE_PROJECT_ID:-FIREBASE_PROJECT_ID}"
 SENDER_ID="${FIREBASE_SENDER_ID:-FIREBASE_SENDER_ID}"
 APP_ID="${FIREBASE_APP_ID:-FIREBASE_APP_ID}"
+# Version du SDK JS Firebase : DOIT correspondre à celle injectée par les
+# packages Dart (firebase_core_web.supportedFirebaseJsSdkVersion, ex.
+# 12.18.0 pour firebase_messaging 16.6.0). Un écart majeur casse le
+# protocole page <-> Service Worker (getToken échoue).
+JS_SDK_VERSION="${FIREBASE_JS_SDK_VERSION:-12.18.0}"
 
 cat > "$SW_FILE" <<EOF
 /* ============================================================
@@ -29,10 +34,10 @@ cat > "$SW_FILE" <<EOF
  * (Console Firebase → Cloud Messaging → Web Push certificates).
  * ============================================================ */
 importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'
+  'https://www.gstatic.com/firebasejs/${JS_SDK_VERSION}/firebase-app-compat.js'
 );
 importScripts(
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js'
+  'https://www.gstatic.com/firebasejs/${JS_SDK_VERSION}/firebase-messaging-compat.js'
 );
 
 try {
@@ -45,6 +50,14 @@ try {
   });
 
   const messaging = firebase.messaging();
+
+  // Mise à jour immédiate : sans skipWaiting, un SW mis à jour reste en
+  // "waiting" tant qu'un onglet est ouvert (l'utilisateur croit avoir
+  // rechargé la nouvelle version, mais l'ancien SW tourne encore).
+  self.addEventListener('install', () => self.skipWaiting());
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+  });
 
   // Background / onglet fermé : affichage EXPLICITE (ne pas compter sur
   // l'auto-display du SDK). Tag anti-doublon (notification_id backend),

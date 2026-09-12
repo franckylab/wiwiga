@@ -45,6 +45,51 @@ void main() {
       expect(first, isNotNull);
     });
 
+    test('isSecurePushOriginFor verrouille HTTP non-loopback', () {
+      // Natif : toujours OK (pas de notion d'origine web)
+      expect(
+        PushNotificationService.isSecurePushOriginFor(
+          isWeb: false,
+          uri: Uri.parse('http://192.168.0.100:8003/'),
+        ),
+        isTrue,
+      );
+      // Web HTTPS : OK partout
+      expect(
+        PushNotificationService.isSecurePushOriginFor(
+          isWeb: true,
+          uri: Uri.parse('https://192.168.0.100:8443/'),
+        ),
+        isTrue,
+      );
+      // Web HTTP loopback : OK (localhost, 127.0.0.1, ::1)
+      for (final host in ['localhost', '127.0.0.1', '[::1]']) {
+        expect(
+          PushNotificationService.isSecurePushOriginFor(
+            isWeb: true,
+            uri: Uri.parse('http://$host:8003/'),
+          ),
+          isTrue,
+          reason: host,
+        );
+      }
+      // Web HTTP non-loopback : verrouillé (notifications grisées, pas de SW)
+      for (final url in [
+        'http://192.168.0.100:8003/',
+        'http://10.0.0.5/',
+        'http://wiwiga.local/',
+      ]) {
+        expect(
+          PushNotificationService.isSecurePushOriginFor(
+            isWeb: true,
+            uri: Uri.parse(url),
+          ),
+          isFalse,
+          reason: url,
+        );
+      }
+    });
+
     test('background handler sans Firebase ne lève pas', () async {
       // Le handler doit survivre à l absence de config (repli inbox)
       // Note : incompatible avec les isolates de test, vérifié par initialize()
