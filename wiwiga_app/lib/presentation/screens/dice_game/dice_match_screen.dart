@@ -1116,7 +1116,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       setState(() => _showSetIntro = false);
       // Timing serveur uniquement : la deadline arrive via _syncFromServer
       // (WS match_state/turn_changed ou polling). Pas de deadline locale.
-      if (_isCibleMode && _targetValue == null) {
+      // Phase de vote : jamais devinée sans état serveur (un vote envoyé
+      // hors phase serait rejeté). Sans serveur, l'écran reste en
+      // synchronisation jusqu'au premier état reçu.
+      if (_isCibleMode && _targetValue == null && _serverSetState != null) {
         setState(() {
           _isVotingPhase = true;
           _mySelectorValue ??= _middleVote;
@@ -1662,6 +1665,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   }
 
   String get _currentPlayerName {
+    // Sans tour serveur, ne jamais afficher un nom deviné (ordre local
+    // potentiellement faux) : l'UI affiche « Synchronisation… ».
+    if (!_hasServerTurn) return '…';
     final pid = _currentPlayerId;
     if (pid.isEmpty) return '…';
     final p = _displayPlayers.firstWhere(
@@ -1672,18 +1678,23 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     return p['name']?.toString() ?? 'Joueur';
   }
 
-  /// Garde-fou serveur : un tour n'est jouable que si le match est en cours
-  /// de set côté serveur. Sans état serveur (démarrage), on laisse le flux
-  /// local (intro) décider. Empêche toute zone active/bouton sur un set clos,
-  /// un match fini ou une phase de vote, même si un event est perdu/retardé.
-  bool get _isServerSetLive =>
-      _serverMatch == null ||
+  /// Tour serveur connu ET jouable : le tour affiché/activé vient
+  /// EXCLUSIVEMENT de l'état serveur (`current_set_state`), jamais d'un
+  /// ordre deviné localement. Sans état serveur (démarrage, resynchro),
+  /// aucun lancer n'est proposé : c'est ce qui causait le « Ce n'est pas
+  /// votre tour » quand le premier joueur tapait avant la fin de la
+  /// synchronisation (ordre local ≠ ordre réel du serveur).
+  bool get _hasServerTurn =>
+      _serverSetState != null &&
       _serverMatch?['status']?.toString() == 'set_in_progress';
 
+  /// Identité locale résolue depuis l'auth (jamais devinée pour jouer).
+  bool get _isIdentityResolved => _resolvedMyId.isNotEmpty;
+
   bool get _isMyTurn =>
-      _isServerSetLive &&
+      _hasServerTurn &&
+      _isIdentityResolved &&
       _currentPlayerId == _myId &&
-      _myId.isNotEmpty &&
       !_displayEliminated.contains(_myId) &&
       !_showSetIntro &&
       !_showSetResult &&
@@ -2286,6 +2297,40 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // Aucun bandeau : la zone du joueur (dé actif + timer) indique le tour.
       return const SizedBox.shrink();
     }
+    if (!_hasServerTurn) {
+      // Tour pas encore synchronisé : jamais de nom deviné, ni de zone
+      // active. Le lancer est verrouillé jusqu'à l'état serveur.
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: NeonColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: NeonColors.border),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: NeonColors.secondary,
+              ),
+            ),
+            SizedBox(width: 6),
+            Text(
+              'Synchronisation…',
+              style: TextStyle(
+                color: NeonColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
@@ -2323,7 +2368,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final name = raw['name']?.toString() ?? 'Joueur';
     final displayName = isMe ? 'Vous' : name;
     final pid = playerId;
-    final isActive = _isServerSetLive &&
+    final isActive = _hasServerTurn &&
         pid == _currentPlayerId &&
         !_displayEliminated.contains(pid) &&
         !_showSetIntro &&
@@ -4196,6 +4241,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     // L'animation d'un AUTRE joueur ne verrouille plus mon bouton : un tap
     // pendant son reveal révèle son final instantanément puis lance mon tour.
     if (_isSendingRoll || _isEliminatedMe || !_isMyTurn) return;
+    // Recontrôle autoritaire synchrone au moment du tap : entre le dernier
+    // build et le tap, le tour a pu changer (timeout, forfait, event en
+    // retard). On ne lance que si le SERVEUR dit que c'est mon tour, avec
+    // mon identité résolue — sinon le serveur rejetterait (« pas votre
+    // tour ») après une animation inutile.
+    if (!_hasServerTurn ||
+        !_isIdentityResolved ||
+        _currentPlayerId != _resolvedMyId) {
+      _refreshFromServer();
+      return;
+    }
     // Si le final précédent n'est pas encore révélé, le révéler d'abord
     // pour libérer le tatami (aucun résultat perdu).
     if (_pendingReveal != null) _flushPendingReveal();
@@ -4433,6 +4489,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
 
   Future<void> _submitVote() async {
     if (_hasVoted || _isEliminatedMe) return;
+    // Vote uniquement en phase serveur confirmée : hors phase (état deviné
+    // ou périmé), le serveur rejetterait le vote.
+    if (_serverSetState == null || !_isVotingPhase) {
+      _refreshFromServer();
+      return;
+    }
     final myVote = (_mySelectorValue ?? _middleVote).clamp(_voteMin, _voteMax);
     setState(() => _mySelectorValue = myVote);
     await _sendVote(myVote);

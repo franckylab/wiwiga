@@ -57,11 +57,11 @@ defmodule GameHub.IntegrationTest do
       # ==================================
       phone = "+237699100001"
       {:ok, otp} = Auth.send_otp(phone)
-      {:ok, _jwt_token, _refresh_token, user} = Auth.verify_otp(phone, otp)
+      {:ok, jwt_token, _refresh_token, user} = Auth.verify_otp(phone, otp)
 
       assert user.phone == phone
       assert user.balance == 0
-      assert _jwt_token != nil
+      assert jwt_token != nil
 
       initial_user_id = user.id
 

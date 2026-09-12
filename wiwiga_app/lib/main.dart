@@ -6,6 +6,7 @@
 // ============================================================
 
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,7 +118,8 @@ class WiwigaApp extends ConsumerWidget {
       authProvider.select((s) => s.status),
       (prev, next) {
         // Login : explicatif push (une seule fois) puis enregistrement token
-        if (prev != AuthStatus.authenticated && next == AuthStatus.authenticated) {
+        if (prev != AuthStatus.authenticated &&
+            next == AuthStatus.authenticated) {
           Future.microtask(() => _maybeAskPushOptIn(ref));
         }
         // prev/next sont AuthStatus, on veut détecter authenticated -> guest
@@ -165,77 +167,205 @@ Future<void> _maybeAskPushOptIn(WidgetRef ref) async {
     await ref.read(pushInitProvider.future);
     final service = ref.read(pushNotificationServiceProvider);
     if (!service.isAvailable) {
-      await registerPushToken(ref);
+      await _registerQuietly(ref);
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('push_optin_asked') == true) {
-      await registerPushToken(ref);
+      await _registerQuietly(ref);
       return;
     }
 
     await prefs.setBool('push_optin_asked', true);
 
+    // Laisser go_router terminer la transition post-login : afficher la
+    // modale pendant la navigation l'avale silencieusement (catch global)
+    // ALORS que le flag est déjà posé → plus jamais de modale ensuite.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
     final context = rootNavigatorKey.currentContext;
     if (context == null || !context.mounted) {
-      await registerPushToken(ref);
+      await _registerQuietly(ref);
       return;
     }
 
-    final accepted = await NeonModal.show<bool>(
-      context: context,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.notifications_active_rounded, color: NeonColors.primary, size: 28),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Rester informé',
-                  style: TextStyle(color: NeonColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Recevez vos gains, résultats de matchs et alertes de sécurité '
-            'même quand l\u2019application est fermée. Modifiable à tout moment '
-            'dans Notifications > Préférences.',
-            style: TextStyle(color: NeonColors.textSecondary, fontSize: 14),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: NeonButton(
-                  text: 'Plus tard',
-                  onPressed: () => Navigator.pop(context, false),
-                  variant: NeonButtonVariant.outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: NeonButton(
-                  text: 'Activer',
-                  onPressed: () => Navigator.pop(context, true),
-                  variant: NeonButtonVariant.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    // Permission déjà bloquée côté OS/navigateur : le prompt OS ne
+    // s'afficherait pas (silence garanti) → guidance de déblocage.
+    final blocked =
+        await service.permissionStatus() == AuthorizationStatus.denied;
+    if (blocked) {
+      if (!context.mounted) {
+        await registerPushToken(ref);
+        return;
+      }
+      final retry = await _showPushBlockedModal(context);
+      if (retry == true) {
+        final result = await ensurePushEnabled(ref);
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          if (result.ok) {
+            WiwigaSnack.showSuccess(ctx, result.message);
+          } else {
+            WiwigaSnack.showError(ctx, result.message);
+          }
+        }
+      }
+      return;
+    }
+
+    if (!context.mounted) {
+      await registerPushToken(ref);
+      return;
+    }
+    final accepted = await _showPushOptInModal(context);
 
     if (accepted == true) {
-      await registerPushToken(ref);
+      // Chemin unifié avec feedback : succès confirmé, échec expliqué
+      // (au lieu du silence de registerPushToken).
+      final result = await ensurePushEnabled(ref);
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        if (result.ok) {
+          WiwigaSnack.showSuccess(ctx, result.message);
+        } else {
+          WiwigaSnack.showError(ctx, result.message);
+        }
+      }
+    } else {
+      // Opt-in reporté : tentative silencieuse quand même (sans prompt OS).
+      // Enregistre le token si la permission est déjà accordée, sinon
+      // réessaiera au prochain login (flag push_optin_asked déjà posé).
+      await registerPushToken(ref, requestPermission: false);
     }
   } catch (_) {
     // Push optionnel : jamais bloquant pour le login
   }
+}
+
+/// Enregistrement "silencieux" (service indisponible, opt-in déjà demandé,
+/// pas de contexte pour la modale) : en debug, un échec affiche quand même
+/// sa raison en SnackBar. Sans cela, un build sans FCM_VAPID_KEY reste
+/// totalement muet et device_tokens reste vide sans aucune explication.
+/// En release : silence conservé (inbox in_app en repli).
+Future<void> _registerQuietly(WidgetRef ref) async {
+  final result = await ensurePushEnabled(ref);
+  if (!result.ok && kDebugMode) {
+    final ctx = rootNavigatorKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      WiwigaSnack.showError(ctx, result.message);
+    }
+  }
+}
+
+/// Modale d'opt-in standard : bénéfice AVANT le prompt OS.
+Future<bool?> _showPushOptInModal(BuildContext context) {
+  return NeonModal.show<bool>(
+    context: context,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.notifications_active_rounded,
+                color: NeonColors.primary, size: 28,),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Rester informé',
+                style: TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Recevez vos gains, résultats de matchs et alertes de sécurité '
+          'même quand l\u2019application est fermée. Modifiable à tout moment '
+          'dans Notifications > Préférences.',
+          style: TextStyle(color: NeonColors.textSecondary, fontSize: 14),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: NeonButton(
+                text: 'Plus tard',
+                onPressed: () => Navigator.pop(context, false),
+                variant: NeonButtonVariant.outline,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: NeonButton(
+                text: 'Activer',
+                onPressed: () => Navigator.pop(context, true),
+                variant: NeonButtonVariant.primary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// Modale de guidance quand la permission est bloquée : le prompt OS ne
+/// s'afficherait pas, on explique le déblocage manuel puis on réessaie.
+/// Retourne true si l'utilisateur a débloqué et veut réessayer.
+Future<bool?> _showPushBlockedModal(BuildContext context) {
+  final steps = pushBlockedHint;
+  return NeonModal.show<bool>(
+    context: context,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.notifications_off_rounded,
+                color: NeonColors.warning, size: 28,),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Notifications bloquées',
+                style: TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          steps,
+          style: const TextStyle(color: NeonColors.textSecondary, fontSize: 14),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: NeonButton(
+                text: 'Plus tard',
+                onPressed: () => Navigator.pop(context, false),
+                variant: NeonButtonVariant.outline,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: NeonButton(
+                text: 'J\u2019ai autorisé',
+                onPressed: () => Navigator.pop(context, true),
+                variant: NeonButtonVariant.primary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }

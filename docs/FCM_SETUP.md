@@ -83,6 +83,15 @@ Au logout, il est supprimé (`unregisterPushToken`).
 
 ## 4. Frontend — Web
 
+Le frontend Docker (`:8003`, `Dockerfile.dev` + `auto-rebuild.sh`) embarque
+déjà la config complète (Firebase + VAPID + CanvasKit local) via les
+`ARG`/`environment` du compose : aucun `--dart-define` à passer, et chaque
+rebuild auto conserve la config. Seule action côté navigateur : vider les
+données du site après un changement de clé (DevTools → Application →
+Clear site data), puis autoriser les notifications au login.
+
+Build manuel (hors Docker) :
+
 ```bash
 cd wiwiga_app
 # 1. Générer le service worker depuis l'environnement
@@ -125,6 +134,25 @@ flutter build ipa
 5. Broadcasts : topics `all`/`promos` (1 appel FCM au lieu de N, repli
    per-token) — voir runbook §6.
 
+### `device_tokens` vide après login ? (checklist)
+
+1. **Config cliente Firebase** : sans `google-services.json` (Android) ou
+   sans rebuild web avec `--dart-define=FIREBASE_API_KEY/.../FIREBASE_APP_ID`
+   + `FCM_VAPID_KEY`, l'app ne peut produire aucun token — c'est la cause
+   n° 1 (rien n'est envoyé au backend, table vide = normal).
+   En dev Web, TOUJOURS lancer via
+   `FCM_VAPID_KEY=<clé publique VAPID> ./tool/run-web-dev.sh`
+   (échec explicite si la clé manque ; `flutter run -d chrome` seul
+   produit un token `null` silencieux → aucun POST au backend).
+2. **Console/debug** : le service journalise la raison exacte
+   (`[Push] ...`, ex. `non configuré : google-services.json absent`,
+   `permission refusée par le système`, `token enregistré (android)`).
+3. **Opt-in reporté** : `Plus tard` n'empêche plus l'enregistrement —
+   tentative silencieuse immédiate + réessai à chaque login.
+4. **Backend** : `POST /api/notifications/device-token` (JWT requis,
+   `platform` ∈ android/ios/web, token ≥ 10 caractères) ; ré-enregistrement
+   réactive le token (`is_valid: true`) et ré-abonne aux topics.
+
 ## 7. Dépannage
 
 | Symptôme | Cause probable | Correctif |
@@ -135,6 +163,8 @@ flutter build ipa
 | Pas de push web | SW non généré | Relancer `tool/setup-fcm-web.sh` avec les 5 vars |
 | Build Android impossible | `android/` incomplet | `flutter create --platforms=android,ios .` (voir §3) |
 | Push silencieux (aucune erreur) | Placeholders par défaut | Normal : inbox in_app en repli, renseigner §1 |
+| `sent` FCM mais rien reçu (web, onglet ouvert) | Foreground : FCM n'affiche rien tout seul | Normal depuis v1.0.0 : SnackBar + inbox auto (dual-surface) |
+| `sent` FCM mais rien reçu (web, onglet fermé) | SW inactif / permission révoquée | DevTools → Application → Service Workers (activé ?) ; Clear site data + ré-autoriser |
 
 ## 8. Sécurité
 

@@ -5,9 +5,11 @@
 // Date: 2026-09-08
 // ============================================================
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/neon_theme.dart';
+import '../../../core/widgets/wiwiga_error_view.dart';
 import '../../../data/models/notification_model.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/notification_provider.dart';
@@ -15,11 +17,26 @@ import '../../widgets/neon/neon_widgets.dart';
 
 /// Ordre et libellés des catégories
 const _categories = [
-  ('security', 'Sécurité', 'Codes OTP, alertes de compte. Toujours actif.', Icons.shield_rounded),
-  ('transactional', 'Jetons', 'Achats, gains, mouvements de jetons.', Icons.monetization_on_rounded),
+  (
+    'security',
+    'Sécurité',
+    'Codes OTP, alertes de compte. Toujours actif.',
+    Icons.shield_rounded
+  ),
+  (
+    'transactional',
+    'Jetons',
+    'Achats, gains, mouvements de jetons.',
+    Icons.monetization_on_rounded
+  ),
   ('game', 'Jeux', 'Résultats de matchs, revanche.', Icons.casino_rounded),
   ('social', 'Amis', 'Demandes et activité entre amis.', Icons.people_rounded),
-  ('marketing', 'Promotions', 'Bonus et annonces. Désactivable.', Icons.campaign_rounded),
+  (
+    'marketing',
+    'Promotions',
+    'Bonus et annonces. Désactivable.',
+    Icons.campaign_rounded
+  ),
 ];
 
 /// Ordre et libellés des canaux
@@ -50,6 +67,9 @@ class _NotificationPreferencesScreenState
   bool _quietLoaded = false;
   bool _quietSaving = false;
 
+  // Activation push de cet appareil (bouton de la carte d'état).
+  bool _pushBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -59,7 +79,8 @@ class _NotificationPreferencesScreenState
   /// Charge les heures creuses depuis les préférences serveur.
   Future<void> _loadQuietHours() async {
     try {
-      final prefs = await ref.read(preferencesRepositoryProvider).getPreferences();
+      final prefs =
+          await ref.read(preferencesRepositoryProvider).getPreferences();
       final quiet = prefs['quiet_hours'];
       if (quiet is Map && mounted) {
         setState(() {
@@ -81,7 +102,11 @@ class _NotificationPreferencesScreenState
     setState(() => _quietSaving = true);
     try {
       await ref.read(preferencesRepositoryProvider).updatePreferences({
-        'quiet_hours': {'enabled': _quietEnabled, 'start': _quietStart, 'end': _quietEnd},
+        'quiet_hours': {
+          'enabled': _quietEnabled,
+          'start': _quietStart,
+          'end': _quietEnd,
+        },
       });
     } catch (_) {
       // Erreur silencieuse : recharge l'état serveur
@@ -118,16 +143,19 @@ class _NotificationPreferencesScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline_rounded, size: 56, color: NeonColors.error),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: NeonColors.error,),
                   const SizedBox(height: 12),
                   const Text(
                     'Préférences indisponibles',
-                    style: TextStyle(color: NeonColors.textPrimary, fontSize: 16),
+                    style:
+                        TextStyle(color: NeonColors.textPrimary, fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   NeonButton(
                     text: 'Réessayer',
-                    onPressed: () => ref.invalidate(notificationPreferencesProvider),
+                    onPressed: () =>
+                        ref.invalidate(notificationPreferencesProvider),
                     variant: NeonButtonVariant.primary,
                   ),
                 ],
@@ -141,17 +169,26 @@ class _NotificationPreferencesScreenState
   }
 
   Widget _buildMatrix(List<NotificationPreferenceModel> list, bool wide) {
-    final byKey = {for (final p in list) '${p.category}|${p.channel}': p.enabled};
+    final byKey = {
+      for (final p in list) '${p.category}|${p.channel}': p.enabled,
+    };
 
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: wide ? 64 : 12, vertical: 8),
+          padding:
+              EdgeInsets.symmetric(horizontal: wide ? 64 : 12, vertical: 8),
+          child: _buildPushDeviceCard(),
+        ),
+        Padding(
+          padding:
+              EdgeInsets.symmetric(horizontal: wide ? 64 : 12, vertical: 8),
           child: _buildQuietHoursCard(),
         ),
         Expanded(
           child: ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 64 : 12, vertical: 8),
+            padding:
+                EdgeInsets.symmetric(horizontal: wide ? 64 : 12, vertical: 8),
             itemCount: _categories.length,
             itemBuilder: (context, index) {
               final (category, label, hint, icon) = _categories[index];
@@ -163,6 +200,127 @@ class _NotificationPreferencesScreenState
     );
   }
 
+  /// État push de CET appareil (tient la promesse de l'opt-in :
+  /// "Modifiable à tout moment dans Notifications > Préférences").
+  /// Affiche l'état réel (y compris "bloqué" avec guidance cadenas)
+  /// et permet d'activer / renvoyer le token à tout moment.
+  Widget _buildPushDeviceCard() {
+    final status = ref.watch(pushDeviceStatusProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: NeonCard(
+        child: status.when(
+          loading: () => const Row(
+            children: [
+              SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),),
+              SizedBox(width: 12),
+              Text('Vérification des notifications…',
+                  style:
+                      TextStyle(color: NeonColors.textSecondary, fontSize: 13),),
+            ],
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+          data: _pushDeviceContent,
+        ),
+      ),
+    );
+  }
+
+  Widget _pushDeviceContent(PushDeviceStatus s) {
+    final IconData icon;
+    final Color color;
+    final String title;
+    final String subtitle;
+    final String action;
+    if (!s.available) {
+      icon = Icons.phonelink_erase_rounded;
+      color = NeonColors.error;
+      title = 'Push indisponible';
+      subtitle = s.diagnostic ?? 'Firebase non configuré sur cet appareil.';
+      action = 'Réessayer';
+    } else if (s.permission == AuthorizationStatus.authorized ||
+        s.permission == AuthorizationStatus.provisional) {
+      icon = Icons.notifications_active_rounded;
+      color = NeonColors.success;
+      title = 'Push activées';
+      subtitle = 'Cet appareil reçoit les notifications push.';
+      action = 'Renvoyer le token';
+    } else if (s.permission == AuthorizationStatus.denied) {
+      icon = Icons.notifications_off_rounded;
+      color = NeonColors.warning;
+      title = 'Push bloquées';
+      subtitle = pushBlockedHint;
+      action = 'J\u2019ai autorisé';
+    } else {
+      icon = Icons.notifications_none_rounded;
+      color = NeonColors.textSecondary;
+      title = 'Push non activées';
+      subtitle = 'Activez pour recevoir gains et alertes, même app fermée.';
+      action = 'Activer';
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Notifications sur cet appareil',
+                style: TextStyle(
+                    color: NeonColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,),
+              ),
+            ),
+            NeonButton(
+              text: action,
+              onPressed: _pushBusy ? null : _retryPush,
+              variant: NeonButtonVariant.primary,
+              height: 40,
+              fontSize: 13,
+              isLoading: _pushBusy,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+              color: color, fontSize: 13, fontWeight: FontWeight.bold,),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  /// Bouton de la carte : (ré)active le push puis rafraîchit l'état.
+  Future<void> _retryPush() async {
+    setState(() => _pushBusy = true);
+    try {
+      ref.invalidate(pushInitProvider);
+      ref.invalidate(pushDeviceStatusProvider);
+      final result = await ensurePushEnabled(ref);
+      ref.invalidate(pushDeviceStatusProvider);
+      if (!mounted) return;
+      if (result.ok) {
+        WiwigaSnack.showSuccess(context, result.message);
+      } else {
+        WiwigaSnack.showError(context, result.message);
+      }
+    } finally {
+      if (mounted) setState(() => _pushBusy = false);
+    }
+  }
+
   /// Heures creuses personnelles (heure de Douala).
   Widget _buildQuietHoursCard() {
     return NeonCard(
@@ -171,16 +329,23 @@ class _NotificationPreferencesScreenState
         children: [
           Row(
             children: [
-              const Icon(Icons.bedtime_outlined, color: NeonColors.primary, size: 22),
+              const Icon(Icons.bedtime_outlined,
+                  color: NeonColors.primary, size: 22,),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
                   'Heures creuses',
-                  style: TextStyle(color: NeonColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
+                  style: TextStyle(
+                      color: NeonColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,),
                 ),
               ),
               if (_quietSaving)
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),)
               else
                 Switch(
                   value: _quietEnabled,
@@ -200,9 +365,13 @@ class _NotificationPreferencesScreenState
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _buildHourPicker('Début', _quietStart, (h) => _setQuietStart(h))),
+                Expanded(
+                    child: _buildHourPicker(
+                        'Début', _quietStart, (h) => _setQuietStart(h),),),
                 const SizedBox(width: 12),
-                Expanded(child: _buildHourPicker('Fin', _quietEnd, (h) => _setQuietEnd(h))),
+                Expanded(
+                    child: _buildHourPicker(
+                        'Fin', _quietEnd, (h) => _setQuietEnd(h),),),
               ],
             ),
           ],
@@ -237,15 +406,21 @@ class _NotificationPreferencesScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(color: NeonColors.textSecondary, fontSize: 11)),
+                  Text(label,
+                      style: const TextStyle(
+                          color: NeonColors.textSecondary, fontSize: 11,),),
                   Text(
                     '${hour.toString().padLeft(2, '0')}:00',
-                    style: const TextStyle(color: NeonColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: NeonColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.schedule_rounded, color: NeonColors.textSecondary, size: 18),
+            const Icon(Icons.schedule_rounded,
+                color: NeonColors.textSecondary, size: 18,),
           ],
         ),
       ),
@@ -292,13 +467,15 @@ class _NotificationPreferencesScreenState
                   ),
                 ),
                 if (locked)
-                  const Icon(Icons.lock_outline_rounded, color: NeonColors.textSecondary, size: 16),
+                  const Icon(Icons.lock_outline_rounded,
+                      color: NeonColors.textSecondary, size: 16,),
               ],
             ),
             const SizedBox(height: 2),
             Text(
               hint,
-              style: const TextStyle(color: NeonColors.textSecondary, fontSize: 12),
+              style: const TextStyle(
+                  color: NeonColors.textSecondary, fontSize: 12,),
             ),
             const SizedBox(height: 8),
             ..._channels.map((channel) {
@@ -313,12 +490,14 @@ class _NotificationPreferencesScreenState
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    Icon(channelIcon, color: NeonColors.textSecondary, size: 20),
+                    Icon(channelIcon,
+                        color: NeonColors.textSecondary, size: 20,),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         channelLabel,
-                        style: const TextStyle(color: NeonColors.textPrimary, fontSize: 14),
+                        style: const TextStyle(
+                            color: NeonColors.textPrimary, fontSize: 14,),
                       ),
                     ),
                     if (busy)

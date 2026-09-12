@@ -103,6 +103,15 @@ services:
       - backend
     environment:
       - BACKEND_URL=http://backend:4001
+      # Config Firebase Web pour l'auto-rebuild dev (auto-rebuild.sh) :
+      # clés clientes PUBLIQUES (bundle JS), jamais de secret ici.
+      - FLUTTER_WEB_CANVASKIT_URL=canvaskit/
+      - FIREBASE_API_KEY=AIzaSyCxPkfsemAaXeyHQ4FlclNn7OHfdVoCyRk
+      - FIREBASE_AUTH_DOMAIN=wiwiga-d9a7e.firebaseapp.com
+      - FIREBASE_PROJECT_ID=wiwiga-d9a7e
+      - FIREBASE_SENDER_ID=660834792043
+      - FIREBASE_APP_ID=1:660834792043:web:c2737e7e778f743333f72e
+      - FCM_VAPID_KEY=BEgSTIDMIisP3WrsNPY6GxCTiag_e5qcEZyZ3k6-j5ipo35TUUmjoBs7E8Xgh2T7V9hPLRRgDsLkSdVFTH3dmaE
 
 volumes:
   postgres_data:

@@ -154,4 +154,28 @@ defmodule GameHubWeb.NotificationWebhookControllerTest do
       refute Notifications.suppressed?("sms", user.phone, "marketing")
     end
   end
+
+  describe "routes device-token (régression)" do
+    # Les routes statiques doivent matcher AVANT "/notifications/:id",
+    # sinon "device-token" est capturé comme :id (500 au logout).
+    test "DELETE /api/notifications/device-token → unregister_token" do
+      assert %{plug: GameHubWeb.NotificationController, plug_opts: :unregister_token} =
+               Phoenix.Router.route_info(
+                 GameHubWeb.Router,
+                 "DELETE",
+                 "/api/notifications/device-token",
+                 "localhost"
+               )
+    end
+
+    test "POST /api/notifications/device-token → register_token" do
+      assert %{plug: GameHubWeb.NotificationController, plug_opts: :register_token} =
+               Phoenix.Router.route_info(
+                 GameHubWeb.Router,
+                 "POST",
+                 "/api/notifications/device-token",
+                 "localhost"
+               )
+    end
+  end
 end

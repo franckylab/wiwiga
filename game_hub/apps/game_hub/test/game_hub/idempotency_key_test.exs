@@ -11,14 +11,14 @@ defmodule GameHub.IdempotencyKeyTest do
   
   describe "store/2" do
     test "stores new key successfully" do
-      key = "test_new_#{System.unique_integer()}"
+      key = "test_new_#{GameHub.TestHelpers.unique_idempotency_key()}"
       data = %{amount: 1000, user_id: 1}
       
       assert {:ok, :new, ^data} = IdempotencyKey.store(key, data)
     end
     
     test "returns existing data for duplicate key" do
-      key = "test_dup_#{System.unique_integer()}"
+      key = "test_dup_#{GameHub.TestHelpers.unique_idempotency_key()}"
       data = %{amount: 1000}
       
       {:ok, :new, _} = IdempotencyKey.store(key, data)
@@ -28,8 +28,8 @@ defmodule GameHub.IdempotencyKeyTest do
     end
     
     test "different keys store independently" do
-      key1 = "test_ind_1_#{System.unique_integer()}"
-      key2 = "test_ind_2_#{System.unique_integer()}"
+      key1 = "test_ind_1_#{GameHub.TestHelpers.unique_idempotency_key()}"
+      key2 = "test_ind_2_#{GameHub.TestHelpers.unique_idempotency_key()}"
       
       data1 = %{amount: 1000}
       data2 = %{amount: 2000}
@@ -44,7 +44,7 @@ defmodule GameHub.IdempotencyKeyTest do
   
   describe "get/1" do
     test "returns data for existing key" do
-      key = "test_get_#{System.unique_integer()}"
+      key = "test_get_#{GameHub.TestHelpers.unique_idempotency_key()}"
       data = %{amount: 5000}
       
       IdempotencyKey.store(key, data)
@@ -59,7 +59,7 @@ defmodule GameHub.IdempotencyKeyTest do
   
   describe "delete/1" do
     test "deletes existing key" do
-      key = "test_del_#{System.unique_integer()}"
+      key = "test_del_#{GameHub.TestHelpers.unique_idempotency_key()}"
       data = %{amount: 100}
       
       IdempotencyKey.store(key, data)
@@ -69,7 +69,7 @@ defmodule GameHub.IdempotencyKeyTest do
     end
     
     test "deletes non-existent key without error" do
-      assert :ok = IdempotencyKey.delete("nonexistent_#{System.unique_integer()}")
+      assert :ok = IdempotencyKey.delete("nonexistent_#{GameHub.TestHelpers.unique_idempotency_key()}")
     end
   end
 end

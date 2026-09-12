@@ -28,8 +28,39 @@ RUN chmod +x /auto-rebuild.sh
 # Installer les dépendances Flutter
 RUN flutter pub get
 
+# Config Firebase Web (clés clientes PUBLIQUES par design Firebase : elles
+# sont embarquées dans le bundle JS de toute façon, comme les valeurs par
+# défaut de lib/firebase_options.dart). Surchageables :
+# docker build --build-arg FCM_VAPID_KEY=... (la clé PRIVÉE VAPID ne sert
+# qu'à la console Firebase et ne doit JAMAIS transiter ici).
+ARG FIREBASE_API_KEY=AIzaSyCxPkfsemAaXeyHQ4FlclNn7OHfdVoCyRk
+ARG FIREBASE_AUTH_DOMAIN=wiwiga-d9a7e.firebaseapp.com
+ARG FIREBASE_PROJECT_ID=wiwiga-d9a7e
+ARG FIREBASE_SENDER_ID=660834792043
+ARG FIREBASE_APP_ID=1:660834792043:web:c2737e7e778f743333f72e
+ARG FCM_VAPID_KEY=BEgSTIDMIisP3WrsNPY6GxCTiag_e5qcEZyZ3k6-j5ipo35TUUmjoBs7E8Xgh2T7V9hPLRRgDsLkSdVFTH3dmaE
+ARG FLUTTER_WEB_CANVASKIT_URL=canvaskit/
+
+# Service worker FCM synchro avec la même config (web/ n'est pas monté
+# en volume : sans régénération ici, le conteneur garderait le SW de
+# l'image, désynchronisé des clés ci-dessus).
+RUN FIREBASE_API_KEY=${FIREBASE_API_KEY} \
+    FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN} \
+    FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID} \
+    FIREBASE_SENDER_ID=${FIREBASE_SENDER_ID} \
+    FIREBASE_APP_ID=${FIREBASE_APP_ID} \
+    ./tool/setup-fcm-web.sh
+
 # Build initial (mode profile pour dev rapide)
-RUN flutter build web --profile
+# CanvasKit local (cf. Dockerfile) — pas de dépendance au CDN Google.
+RUN flutter build web --profile \
+  --dart-define=FLUTTER_WEB_CANVASKIT_URL=${FLUTTER_WEB_CANVASKIT_URL} \
+  --dart-define=FIREBASE_API_KEY=${FIREBASE_API_KEY} \
+  --dart-define=FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN} \
+  --dart-define=FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID} \
+  --dart-define=FIREBASE_SENDER_ID=${FIREBASE_SENDER_ID} \
+  --dart-define=FIREBASE_APP_ID=${FIREBASE_APP_ID} \
+  --dart-define=FCM_VAPID_KEY=${FCM_VAPID_KEY}
 
 # Copier le build initial vers nginx
 RUN cp -r /app/build/web/* /usr/share/nginx/html/

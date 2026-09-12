@@ -15,20 +15,56 @@ importScripts(
 
 try {
   firebase.initializeApp({
-    apiKey: 'FIREBASE_API_KEY',
+    apiKey: 'AIzaSyCxPkfsemAaXeyHQ4FlclNn7OHfdVoCyRk',
     authDomain: 'wiwiga-d9a7e.firebaseapp.com',
     projectId: 'wiwiga-d9a7e',
     messagingSenderId: '660834792043',
-    appId: 'FIREBASE_APP_ID',
+    appId: '1:660834792043:web:c2737e7e778f743333f72e',
   });
 
   const messaging = firebase.messaging();
 
-  // Clic sur la notification → ouvre l'inbox
+  // Background / onglet fermé : affichage EXPLICITE (ne pas compter sur
+  // l'auto-display du SDK). Tag anti-doublon (notification_id backend),
+  // data conservée pour le tap → inbox. Les icônes DOIVENT exister
+  // (404 => Chrome abandonne la notification en silence).
+  messaging.onBackgroundMessage((payload) => {
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+    const title = notification.title || data.title || 'WIWIGA';
+    const options = {
+      body: notification.body || data.body || '',
+      icon: '/android-chrome-192x192.png',
+      badge: '/favicon-32x32.png',
+      tag: data.notification_id || ('wiwiga-' + Date.now()),
+      renotify: true,
+      data: data,
+    };
+    return self.registration.showNotification(title, options);
+  });
+
+  // Tap : focus la fenêtre existante (évite les doublons d'onglets),
+  // sinon ouvre l'inbox.
   self.addEventListener('notificationclick', (event) => {
     event.notification.close();
+    const target =
+      (event.notification.data && event.notification.data.url) ||
+      '/#/notifications';
     event.waitUntil(
-      clients.openWindow('/#/notifications').catch(() => undefined)
+      clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((wins) => {
+          for (const win of wins) {
+            if ('focus' in win) {
+              try {
+                win.navigate(target);
+              } catch (_) {}
+              return win.focus();
+            }
+          }
+          if (clients.openWindow) return clients.openWindow(target);
+        })
+        .catch(() => undefined)
     );
   });
 } catch (_) {

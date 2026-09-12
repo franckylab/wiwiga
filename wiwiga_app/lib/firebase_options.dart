@@ -1,12 +1,13 @@
 // ============================================================
 // Fichier: firebase_options.dart
 // Description: Options Firebase par plateforme (Android/Web/iOS).
-//              Valeurs via --dart-define, placeholders par défaut
-//              (push désactivé, inbox in_app en repli).
-//              Clés Web/API publiques par design Firebase — aucun
-//              secret (compte de service) ne transite côté app.
+//              Valeurs réelles générées par FlutterFire CLI le
+//              2026-09-11 (projet wiwiga-d9a7e), surchargeables
+//              via --dart-define. Clés Web/API publiques par design
+//              Firebase — aucun secret (compte de service) ne transite
+//              côté app.
 // Auteur: Franck Arlos CHENDJOU
-// Date: 2026-09-09
+// Date: 2026-09-11
 // ============================================================
 
 import 'package:firebase_core/firebase_core.dart';
@@ -14,7 +15,7 @@ import 'package:flutter/foundation.dart';
 
 /// Options Firebase WIWIGA.
 ///
-/// Surcharge en build :
+/// Surcharge au build (ex. clés de staging) :
 /// ```
 /// flutter build web --dart-define=FIREBASE_API_KEY=... \
 ///   --dart-define=FIREBASE_AUTH_DOMAIN=... \
@@ -23,14 +24,15 @@ import 'package:flutter/foundation.dart';
 ///   --dart-define=FIREBASE_APP_ID=... \
 ///   --dart-define=FCM_VAPID_KEY=...
 /// ```
-/// Sans valeurs réelles : placeholders `wiwiga-dev` → push désactivé.
+/// Android natif : `google-services.json` reste le repli si les options
+/// explicites sont indisponibles (voir PushNotificationService).
 class DefaultFirebaseOptions {
   const DefaultFirebaseOptions._();
 
-  // Valeurs par défaut : projet placeholder, jamais un secret.
+  // --- Web / valeurs communes (publiques, générées par FlutterFire) ---
   static const String apiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',
-    defaultValue: 'WIWIGA_DEFAULT_API_KEY',
+    defaultValue: 'AIzaSyCxPkfsemAaXeyHQ4FlclNn7OHfdVoCyRk',
   );
   static const String authDomain = String.fromEnvironment(
     'FIREBASE_AUTH_DOMAIN',
@@ -44,12 +46,25 @@ class DefaultFirebaseOptions {
     'FIREBASE_SENDER_ID',
     defaultValue: '660834792043',
   );
+
+  /// App ID Web (généré par FlutterFire).
   static const String appId = String.fromEnvironment(
     'FIREBASE_APP_ID',
-    defaultValue: 'WIWIGA_DEFAULT_APP_ID',
+    defaultValue: '1:660834792043:web:c2737e7e778f743333f72e',
   );
 
-  /// Vrai si des identifiants réels ont été injectés au build.
+  // --- Android natif (générés par FlutterFire, cf. google-services.json) ---
+  static const String androidApiKey = String.fromEnvironment(
+    'FIREBASE_ANDROID_API_KEY',
+    defaultValue: 'AIzaSyBALSZLdkALH6EXQLlGWB1GTIgMkueOHO8',
+  );
+  static const String androidAppId = String.fromEnvironment(
+    'FIREBASE_ANDROID_APP_ID',
+    defaultValue: '1:660834792043:android:b5ef5ea42f492c7e33f72e',
+  );
+
+  /// Vrai si des identifiants réels sont présents (jamais les placeholders
+  /// historiques `WIWIGA_DEFAULT_*`).
   static bool get isConfigured =>
       !apiKey.startsWith('WIWIGA_DEFAULT_') &&
       !senderId.startsWith('WIWIGA_DEFAULT_') &&
@@ -75,12 +90,12 @@ class DefaultFirebaseOptions {
         iosBundleId: 'com.wiwiga.wiwiga',
       );
     }
-    // Android (et autres natifs) : même jeu d'options.
+    // Android (et autres natifs) : jeu d'options Android dédié.
     return const FirebaseOptions(
-      apiKey: apiKey,
+      apiKey: androidApiKey,
       projectId: projectId,
       messagingSenderId: senderId,
-      appId: appId,
+      appId: androidAppId,
     );
   }
 }

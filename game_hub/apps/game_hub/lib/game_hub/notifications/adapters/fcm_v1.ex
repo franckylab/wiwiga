@@ -34,6 +34,9 @@ defmodule GameHub.Notifications.Adapters.FcmV1 do
           "notification" => %{"title" => title, "body" => body},
           "data" => stringify_data(data),
           "android" => %{"priority" => "high"},
+          # Navigateurs : priorité haute (défaut FCM = normale, livraison
+          # potentiellement différée — inacceptable pour gains/sécurité).
+          "webpush" => %{"headers" => %{"Urgency" => "high"}},
           "apns" => %{"headers" => %{"apns-priority" => "10"}}
         }
       }
@@ -86,7 +89,8 @@ defmodule GameHub.Notifications.Adapters.FcmV1 do
           "topic" => topic,
           "notification" => %{"title" => title, "body" => body},
           "data" => stringify_data(data),
-          "android" => %{"priority" => "high"}
+          "android" => %{"priority" => "high"},
+          "webpush" => %{"headers" => %{"Urgency" => "high"}}
         }
       }
 

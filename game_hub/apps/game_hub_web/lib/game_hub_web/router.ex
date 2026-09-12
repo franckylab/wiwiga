@@ -229,11 +229,13 @@ defmodule GameHubWeb.Router do
     get "/notifications/unread-count", NotificationController, :unread_count
     put "/notifications/read-all", NotificationController, :mark_all_read
     put "/notifications/:id/read", NotificationController, :mark_read
-    delete "/notifications/:id", NotificationController, :delete
     get "/notifications/preferences", NotificationController, :list_preferences
     put "/notifications/preferences", NotificationController, :upsert_preference
+    # Routes statiques AVANT "/notifications/:id" : Phoenix matche de haut
+    # en bas, sinon "device-token" est capturé comme :id (500 au logout).
     post "/notifications/device-token", NotificationController, :register_token
     delete "/notifications/device-token", NotificationController, :unregister_token
+    delete "/notifications/:id", NotificationController, :delete
   end
   
   ## WebSocket

@@ -130,7 +130,9 @@ defmodule GameHubWeb.NotificationController do
   """
   def register_token(conn, params) do
     user_id = current_user_id(conn)
-    platform = Map.get(params, "platform", "android")
+    # Pas de défaut : une platform absente doit répondre 422 (fail-fast)
+    # plutôt qu'enregistrer un "android" mensonger.
+    platform = Map.get(params, "platform")
     token = Map.get(params, "token", "")
     app_version = Map.get(params, "app_version")
 
