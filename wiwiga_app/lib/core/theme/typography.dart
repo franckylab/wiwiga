@@ -16,10 +16,16 @@ class AppTypography {
   // Police pour les titres et montants (gaming)
   static const String fontFamilyDisplay = 'Orbitron';
   
-  // Polices de secours pour caractères non couverts (emoji, CJK, arabe, etc.)
-  // Noto Sans couvre les ranges Unicode manquants dans Inter/Orbitron.
-  // La font est chargée via google_fonts dans main.dart.
-  static const List<String> fontFamilyFallback = ['Noto Sans', 'Arial'];
+  // Polices de secours pour caractères non couverts (emoji, symboles, CJK, etc.)
+  // Noms SANS espace = familles exactes enregistrées par google_fonts
+  // ('NotoSans'/'NotoColorEmoji', cf. GoogleFontsFamilyWithVariant).
+  // 'Noto Sans' (avec espace) ne correspond à rien au runtime → warning
+  // CanvasKit "Could not find a set of Noto fonts". Chargées dans main.dart.
+  static const List<String> fontFamilyFallback = [
+    'NotoSans',
+    'NotoColorEmoji',
+    'sans-serif',
+  ];
   
   /// TextTheme sombre par défaut
   static const TextTheme darkTheme = TextTheme(

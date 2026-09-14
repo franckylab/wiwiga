@@ -18,7 +18,9 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <title>WIWIGA - Jeux en ligne</title>
-  <!-- Noto Sans: police de secours Unicode large (emoji, CJK, arabe, etc.) -->
+  <!-- Noto Sans: police de secours Unicode large (symboles, CJK, arabe).
+       Les emoji CanvasKit sont fournis par google_fonts (NotoColorEmoji)
+       préchargé dans main.dart ; ce lien CSS ne sert que le DOM. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -152,24 +154,64 @@
     });
 
     // Flutter 3.44+ : le nouveau loader ignore window.flutterConfiguration.
-    // On injecte canvasKitBaseUrl directement dans _flutter.loader.load()
-    // pour charger CanvasKit depuis nginx (local) au lieu du CDN Google.
+    // On injecte canvasKitBaseUrl dans _flutter.loader.load() pour charger
+    // CanvasKit depuis nginx (local) au lieu du CDN Google.
+    // IMPORTANT : interception SYNCHRONE via defineProperty. flutter_bootstrap.js
+    // appelle load() dans la même tâche que sa définition : un simple
+    // setInterval arrive trop tard et le moteur retombe sur gstatic
+    // (constaté : 0 hit local /canvaskit/ dans les logs nginx).
     (function() {
-      var origLoad = null;
-      var checkInterval = setInterval(function() {
-        if (window._flutter && window._flutter.loader && window._flutter.loader.load) {
-          clearInterval(checkInterval);
-          origLoad = window._flutter.loader.load.bind(window._flutter.loader);
-          window._flutter.loader.load = function(opts) {
+      function wrapLoad(loader) {
+        if (!loader || loader.__wiwigaPatched || typeof loader.load !== 'function') return;
+        var origLoad = loader.load.bind(loader);
+        loader.load = function(opts) {
+          try {
             opts = opts || {};
             opts.config = opts.config || {};
-            opts.config.canvasKitBaseUrl = '/canvaskit/';
-            return origLoad(opts);
-          };
-        }
-      }, 1);
-      // Safety: stop checking after 10s
-      setTimeout(function() { clearInterval(checkInterval); }, 10000);
+            if (!opts.config.canvasKitBaseUrl) {
+              opts.config.canvasKitBaseUrl = '/canvaskit/';
+            }
+          } catch (_) {}
+          return origLoad(opts);
+        };
+        loader.__wiwigaPatched = true;
+      }
+      function watchLoader(host) {
+        if (!host || host.__wiwigaWatched) return;
+        try {
+          host.__wiwigaWatched = true;
+          var current = host.loader;
+          wrapLoad(current);
+          Object.defineProperty(host, 'loader', {
+            configurable: true,
+            enumerable: true,
+            get: function() { return current; },
+            set: function(v) { current = v; wrapLoad(v); }
+          });
+        } catch (_) {}
+      }
+      try {
+        var currentFlutter = window._flutter;
+        if (currentFlutter) watchLoader(currentFlutter);
+        Object.defineProperty(window, '_flutter', {
+          configurable: true,
+          enumerable: true,
+          get: function() { return currentFlutter; },
+          set: function(v) { currentFlutter = v; watchLoader(v); }
+        });
+      } catch (_) {
+        // Repli : polling (peut perdre la course, mais mieux que rien)
+        var tries = 0;
+        var iv = setInterval(function() {
+          try {
+            if (window._flutter && window._flutter.loader) {
+              wrapLoad(window._flutter.loader);
+              if (window._flutter.loader.__wiwigaPatched) clearInterval(iv);
+            }
+          } catch (_) {}
+          if (++tries > 10000) clearInterval(iv);
+        }, 1);
+      }
     })();
     // Web Push FCM : service worker optionnel (configuré via
     // web/firebase-messaging-sw.js). Échec silencieux si non configuré.

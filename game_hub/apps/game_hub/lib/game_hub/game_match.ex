@@ -128,7 +128,25 @@ defmodule GameHub.GameMatch do
   Lance les dés pour un joueur.
   """
   def roll_dice(match_id, player_id) do
-    GenServer.call(__MODULE__, {:roll_dice, match_id, player_id})
+    GenServer.call(__MODULE__, {:roll_dice, match_id, player_id, nil})
+  end
+
+  @doc """
+  Lance les dés pour un joueur avec clé d'idempotence `roll_id` (uuid v4
+  généré par le client).
+
+  ## Idempotence (règle 3)
+  Rejouer le MÊME `roll_id` (retry réseau, double-clic, timeout WS suivi
+  d'un fallback REST) retourne le lancer d'origine SANS nouveau tirage ni
+  broadcast redondant : `{:ok, %{match: ..., roll: ..., set_result: ...,
+  duplicate: true}}`. Un `roll_id` différent suit la règle habituelle
+  (`already_rolled` si le joueur a déjà lancé dans ce set).
+  `roll_id` nil ou vide = comportement historique (non idempotent).
+  """
+  @spec roll_dice(String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, atom()}
+  def roll_dice(match_id, player_id, roll_id) do
+    GenServer.call(__MODULE__, {:roll_dice, match_id, player_id, roll_id})
   end
 
   @doc """
@@ -288,6 +306,8 @@ defmodule GameHub.GameMatch do
       current_set_state: nil,
       eliminated_players: MapSet.new(),
       forfeited_players: [],
+      # Idempotence lancers : roll_id client → %{roll, set_result} (règle 3).
+      seen_roll_ids: %{},
       # Revanche opt-out : proposition active + joueurs ayant quitté l'interface
       rematch: nil,
       left_players: MapSet.new(),
@@ -544,7 +564,36 @@ defmodule GameHub.GameMatch do
   end
 
   @impl true
-  def handle_call({:roll_dice, match_id, player_id}, _from, state) do
+  def handle_call({:roll_dice, match_id, player_id, roll_id}, _from, state) do
+    case lookup_match(state.table, match_id) do
+      {:ok, match} ->
+        # Rejeu idempotent AVANT toute garde : un retry transporte le même
+        # roll_id alors que le tour a pu avancer (already_rolled/not_your_turn
+        # seraient faux). On rejoue le résultat d'origine, sans nouveau
+        # tirage et sans rebroadcast (les broadcasts ont déjà eu lieu ; le
+        # client applique le payload de cette réponse via son chemin REST).
+        if valid_roll_id?(roll_id) and
+             is_map_key(Map.get(match, :seen_roll_ids, %{}) || %{}, roll_id) do
+          stored = get_in(match, [:seen_roll_ids, roll_id])
+          {:reply,
+           {:ok,
+            %{
+              match: match,
+              roll: stored.roll,
+              set_result: stored.set_result,
+              duplicate: true
+            }}, state}
+        else
+          do_roll_dice(match_id, to_string(player_id), roll_id, state)
+        end
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  # Corps du lancer (extrait pour lisibilité : garde + tirage + diffusion).
+  defp do_roll_dice(match_id, player_id, roll_id, state) do
     case lookup_match(state.table, match_id) do
       {:ok, match} ->
         set = match.current_set_state
@@ -675,6 +724,18 @@ defmodule GameHub.GameMatch do
                 interim = %{match | current_set_state: next_set, turn_deadline: next_set.turn_deadline, updated_at: DateTime.utc_now()}
                 {next_set, :in_progress, interim}
               end
+
+            # Idempotence (règle 3) : le roll porte son roll_id (rediffusé
+            # tel quel pour corrélation client) et le résultat est mémorisé.
+            # Volume borné : un match = sets_count × joueurs lancers (dizaines).
+            # Map.put (pas %{|}) : matchs créés avant ce déploiement sans clé.
+            roll = if valid_roll_id?(roll_id), do: Map.put(roll, :roll_id, roll_id), else: roll
+            seen = Map.get(match, :seen_roll_ids, %{}) || %{}
+            seen2 =
+              if valid_roll_id?(roll_id),
+                do: Map.put(seen, roll_id, %{roll: roll, set_result: set_result}),
+                else: seen
+            final_match = Map.put(final_match, :seen_roll_ids, seen2)
 
             :ets.insert(state.table, {match_id, final_match})
             # Sanitize calculé UNE seule fois et partagé entre les broadcasts
@@ -1273,6 +1334,14 @@ defmodule GameHub.GameMatch do
 
   # === Fonctions Privées ===
 
+  # Clé d'idempotence client valide : uuid court non vide (borne 64o contre
+  # les payloads abusifs). nil/vide = lancer historique non idempotent.
+  defp valid_roll_id?(roll_id) when is_binary(roll_id) do
+    byte_size(roll_id) > 0 and byte_size(roll_id) <= 64
+  end
+
+  defp valid_roll_id?(_), do: false
+
   defp lookup_match(table, match_id) do
     case :ets.lookup(table, match_id) do
       [{^match_id, match}] -> {:ok, match}
@@ -1742,6 +1811,7 @@ defmodule GameHub.GameMatch do
       current_set_state: nil,
       eliminated_players: MapSet.new(),
       forfeited_players: [],
+      seen_roll_ids: %{},
       rematch: nil,
       left_players: MapSet.new(),
       turn_timeout_ms: get_turn_timeout_ms(game_type, rc),
@@ -2473,11 +2543,13 @@ defmodule GameHub.GameMatch do
   defp sanitize_vote_result(_), do: nil
 
   # Roll sérialisable JSON : rolled_at → ISO8601, player_id → string.
+  # roll_id transite tel quel (corrélation idempotente côté client).
   defp sanitize_roll(%{dice: dice, sum: sum} = roll) do
     %{
       player_id: roll |> Map.get(:player_id) |> to_string(),
       dice: dice,
       sum: sum,
+      roll_id: Map.get(roll, :roll_id),
       forfeited: Map.get(roll, :forfeited, false),
       rolled_at: case Map.get(roll, :rolled_at) do
         %DateTime{} = dt -> DateTime.to_iso8601(dt)
@@ -2490,10 +2562,12 @@ defmodule GameHub.GameMatch do
     pid = Map.get(other, :player_id) || Map.get(other, "player_id")
     dice = Map.get(other, :dice) || Map.get(other, "dice") || []
     sum = Map.get(other, :sum) || Map.get(other, "sum") || Enum.sum(List.wrap(dice))
-    sanitize_roll(%{player_id: pid, dice: List.wrap(dice), sum: sum, rolled_at: Map.get(other, :rolled_at) || Map.get(other, "rolled_at")})
-  rescue _ -> %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+    roll_id = Map.get(other, :roll_id) || Map.get(other, "roll_id")
+    sanitized = sanitize_roll(%{player_id: pid, dice: List.wrap(dice), sum: sum, rolled_at: Map.get(other, :rolled_at) || Map.get(other, "rolled_at")})
+    Map.put(sanitized, :roll_id, roll_id)
+  rescue _ -> %{player_id: nil, dice: [], sum: 0, roll_id: nil, forfeited: false, rolled_at: nil}
   end
-  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, roll_id: nil, forfeited: false, rolled_at: nil}
 
   # Dernier lancer du set courant (le plus récent par rolled_at).
   # Évite que le client devine via l'ordre d'itération de la map (non déterministe).

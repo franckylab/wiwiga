@@ -581,12 +581,17 @@ class GameWebSocketService extends ChangeNotifier {
     }
   }
 
-  /// Lance les dés
-  void rollDice(String matchId) {
+  /// Lance les dés (AUCUNE face dans le payload : serveur autoritaire).
+  /// [rollId] : clé d'idempotence (uuid v4) — un retry avec le même roll_id
+  /// rejoue le lancer d'origine sans nouveau tirage (GameMatch, règle 3).
+  void rollDice(String matchId, {String? rollId}) {
     if (isConnected) {
       _sendToChannel(
         topic: '${WebSocketChannels.gamePrefix}$matchId',
         event: WebSocketEvents.diceRolled,
+        payload: rollId != null && rollId.isNotEmpty
+            ? {'roll_id': rollId}
+            : const {},
       );
     }
   }

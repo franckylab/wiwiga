@@ -157,6 +157,48 @@ defmodule GameHub.GameMatchTest do
       second_player_id = Enum.at(current.current_set_state.turn_order, 1)
       assert {:error, :not_your_turn} = GameMatch.roll_dice(match.match_id, second_player_id)
     end
+
+    test "roll_id identique rejoue sans nouveau tirage (idempotence)" do
+      {:ok, match} = GameMatch.create_match(%{game_type: "dice", rule_type: "normal", creator_id: "p1"})
+      GameMatch.add_player(match.match_id, "p1", "P1")
+      GameMatch.add_player(match.match_id, "p2", "P2")
+      GameMatch.start_match(match.match_id)
+      {:ok, set_started} = GameMatch.start_set(match.match_id)
+      first_player_id = List.first(set_started.current_set_state.turn_order)
+
+      # Premier lancer avec roll_id : tirage réel, roll_id rediffusé.
+      {:ok, first} = GameMatch.roll_dice(match.match_id, first_player_id, "roll-abc-123")
+      assert first.roll.player_id == first_player_id
+      assert first.roll[:roll_id] == "roll-abc-123"
+      refute Map.get(first, :duplicate, false)
+
+      # Retry avec le MÊME roll_id : même dés, flag duplicate, pas de re-tirage
+      # (même si le tour a avancé, pas d'erreur already_rolled/not_your_turn).
+      {:ok, retry} = GameMatch.roll_dice(match.match_id, first_player_id, "roll-abc-123")
+      assert retry.roll.dice == first.roll.dice
+      assert retry.roll.sum == first.roll.sum
+      assert retry.duplicate == true
+
+      # Un SEUL lancer enregistré pour ce joueur (pas de double roll).
+      {:ok, current} = GameMatch.get_match(match.match_id)
+      assert map_size(current.current_set_state.rolls) == 1
+
+      # roll_id différent du même joueur = gardes habituelles inchangées
+      # (ici le tour a avancé : not_your_turn passe avant already_rolled).
+      assert {:error, :not_your_turn} =
+               GameMatch.roll_dice(match.match_id, first_player_id, "roll-autre-456")
+    end
+
+    test "roll_dice/2 historique sans roll_id inchangé" do
+      {:ok, match} = GameMatch.create_match(%{game_type: "dice", rule_type: "normal", creator_id: "p1"})
+      GameMatch.add_player(match.match_id, "p1", "P1")
+      GameMatch.add_player(match.match_id, "p2", "P2")
+      GameMatch.start_match(match.match_id)
+      {:ok, set_started} = GameMatch.start_set(match.match_id)
+      first_player_id = List.first(set_started.current_set_state.turn_order)
+      assert {:ok, %{roll: roll}} = GameMatch.roll_dice(match.match_id, first_player_id)
+      assert length(roll.dice) == 2
+    end
   end
 
   describe "vote_target/3 (Cible)" do

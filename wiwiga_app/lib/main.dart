@@ -83,9 +83,13 @@ void main() async {
       );
     };
 
-    // Pré-charger Noto Sans sans bloquer le premier frame
-    GoogleFonts.pendingFonts([GoogleFonts.notoSans()])
-        .catchError((_) => <void>[]);
+    // Pré-charger les fallbacks Unicode sans bloquer le premier frame :
+    // NotoSans (symboles) + NotoColorEmoji (🎲🔥👑…). Sans cela, CanvasKit
+    // web loggue "Could not find a set of Noto fonts" sur les emoji.
+    GoogleFonts.pendingFonts([
+      GoogleFonts.notoSans(),
+      GoogleFonts.notoColorEmoji(),
+    ]).catchError((_) => <void>[]);
 
     runApp(
       const ProviderScope(

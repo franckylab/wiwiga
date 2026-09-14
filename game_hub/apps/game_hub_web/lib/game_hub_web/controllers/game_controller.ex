@@ -772,6 +772,7 @@ defmodule GameHubWeb.GameController do
       player_id: roll |> Map.get(:player_id) |> to_string(),
       dice: dice,
       sum: sum,
+      roll_id: Map.get(roll, :roll_id),
       forfeited: Map.get(roll, :forfeited, false),
       rolled_at: case Map.get(roll, :rolled_at) do
         %DateTime{} = dt -> DateTime.to_iso8601(dt)
@@ -785,15 +786,24 @@ defmodule GameHubWeb.GameController do
     dice = Map.get(other, :dice) || Map.get(other, "dice") || []
     sum = Map.get(other, :sum) || Map.get(other, "sum") || Enum.sum(List.wrap(dice))
     %{player_id: to_string(pid), dice: List.wrap(dice), sum: sum,
+      roll_id: Map.get(other, :roll_id) || Map.get(other, "roll_id"),
       forfeited: Map.get(other, :forfeited) || Map.get(other, "forfeited") || false,
       rolled_at: case Map.get(other, :rolled_at) || Map.get(other, "rolled_at") do
         %DateTime{} = dt -> DateTime.to_iso8601(dt)
         v when is_binary(v) -> v
         _ -> nil
       end}
-  rescue _ -> %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+  rescue _ -> %{player_id: nil, dice: [], sum: 0, roll_id: nil, forfeited: false, rolled_at: nil}
   end
-  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, forfeited: false, rolled_at: nil}
+  defp sanitize_roll(_), do: %{player_id: nil, dice: [], sum: 0, roll_id: nil, forfeited: false, rolled_at: nil}
+
+  # Clé d'idempotence client (uuid v4, optionnelle, bornée).
+  defp roll_id_param(params) do
+    case Map.get(params, "roll_id") || Map.get(params, :roll_id) do
+      r when is_binary(r) and byte_size(r) > 0 and byte_size(r) <= 64 -> r
+      _ -> nil
+    end
+  end
 
   defp latest_roll(match) do
     rolls = match |> Map.get(:current_set_state, %{}) |> then(fn
@@ -827,7 +837,8 @@ defmodule GameHubWeb.GameController do
   def debug_roll(conn, %{"game_id" => game_id} = params) do
     user_id = get_current_user_id(conn)
     player_id = to_string(Map.get(params, "player_id", user_id))
-    case GameMatch.roll_dice(game_id, player_id) do
+    roll_id = roll_id_param(params)
+    case GameMatch.roll_dice(game_id, player_id, roll_id) do
       {:ok, %{match: match, roll: roll, set_result: sr}} ->
         conn |> put_status(200) |> json(%{success: true, data: %{roll: sanitize_roll(roll), match: sanitize_debug_match(match), set_result: sanitize_set_result(sr)}})
       {:error, reason} -> conn |> put_status(400) |> json(Errors.error("#{reason}", 400, "ROLL_ERROR"))
@@ -839,7 +850,8 @@ defmodule GameHubWeb.GameController do
   def roll(conn, %{"game_id" => game_id} = params) do
     user_id = get_current_user_id(conn)
     player_id = to_string(Map.get(params, "player_id", user_id))
-    case GameMatch.roll_dice(game_id, player_id) do
+    roll_id = roll_id_param(params)
+    case GameMatch.roll_dice(game_id, player_id, roll_id) do
       {:ok, %{match: match, roll: roll, set_result: sr}} ->
         conn |> put_status(200) |> json(%{success: true, data: %{roll: sanitize_roll(roll), match: sanitize_debug_match(match), set_result: sanitize_set_result(sr)}})
       {:error, :not_your_turn} -> conn |> put_status(403) |> json(Errors.error("Ce n'est pas votre tour", 403, "NOT_YOUR_TURN"))

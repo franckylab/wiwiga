@@ -11,15 +11,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/theme/neon_theme.dart';
+import '../../widgets/game/dice3d/dice_controller.dart' show Dice3DController;
+import '../../widgets/game/dice3d/dice_pips.dart' show DicePips;
+import '../../widgets/game/dice3d/dice_theme.dart' show DiceTheme;
 import '../../widgets/neon/neon_button.dart';
 import '../../widgets/neon/neon_card.dart';
 import '../../widgets/neon/token_coin.dart';
 import '../../widgets/game/match_result_layout.dart';
 import '../../widgets/game/reality_check_overlay.dart';
 import '../../widgets/game/dice_tatami.dart';
-import '../../widgets/game/dice_3d.dart';
 import '../../widgets/game/player_zone.dart';
 import '../../widgets/game/turn_timer.dart';
 import '../../../core/errors/api_exception.dart';
@@ -101,6 +104,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   Timer? _rollAnimTimer;
   Timer? _rollFallbackTimer;
   Timer? _rollRevealTimer;
+  Timer? _setResultDelayTimer;
   Timer? _syncPollTimer;
   int _turnSeconds = 30;
   int _turnRemaining = 30;
@@ -121,6 +125,70 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   // bouton du joueur suivant ne doit JAMAIS être verrouillé par l'anim du
   // joueur précédent, sinon il faut cliquer plusieurs fois.
   bool _isSendingRoll = false;
+
+  // Clé d'idempotence du tap en cours (uuid v4, 1 par tap) : transmise sur
+  // WS ET fallback REST. Un retry (timeout WS → REST, double réponse) rejoue
+  // le lancer d'origine côté GameMatch sans nouveau tirage (règle 3).
+  // Effacée quand mon final est révélé.
+  String? _pendingRollId;
+
+  // Nouveau moteur 3D physique (widgets/game/dice3d) : 1 contrôleur par dé,
+  // piloté par les events serveur (tumbling au rolling, snap au rolled).
+  // Le protocole de synchro (_pendingReveal, seq, polling) est inchangé :
+  // seuls les contrôleurs sont alimentés en parallèle de l'ancien tatami.
+  final List<Dice3DController> _diceControllers = [];
+
+  /// Ajuste le nombre de contrôleurs au dice_count serveur (idempotent).
+  void _ensureDiceControllers(int count) {
+    final n = count.clamp(1, 10);
+    while (_diceControllers.length < n) {
+      _diceControllers.add(Dice3DController());
+    }
+    while (_diceControllers.length > n) {
+      _diceControllers.removeLast().dispose();
+    }
+  }
+
+  /// Démarre le tumbling provisoire (SANS face : le résultat n'existe pas
+  /// encore à `dice_rolling`). Le widget tourne en boucle jusqu'au [retarget]
+  /// avec la face serveur — aucune face fabriquée côté client (règle n°2).
+  /// Si le serveur ne répond jamais, le widget retombe au repos connu puis
+  /// le polling/REST réconcilie (même roll_id, idempotent).
+  void _tumbleDiceControllers(String rollerId) {
+    _ensureDiceControllers(_displayDiceCount);
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    for (var i = 0; i < _diceControllers.length; i++) {
+      final c = _diceControllers[i];
+      final rollId = 'prov-$rollerId-$stamp#$i';
+      // Tours rapides (J1 puis J2 < durée anim 3D ~1,6 s) : les contrôleurs
+      // sont encore en `rolling` — il faut RELANCER le tumbling pour le
+      // nouveau lanceur, sinon son animation est silencieusement ignorée
+      // et son résultat s'affiche directement (incohérence 1er/2e joueur).
+      if (c.isRolling) {
+        c.restartTumble(rollId: rollId);
+        continue;
+      }
+      c.beginTumble(rollId: rollId);
+    }
+  }
+
+  /// Re-cible les dés sur le résultat SERVEUR (snap final garanti).
+  void _retargetDiceControllers(List<int> dice) {
+    _ensureDiceControllers(dice.length);
+    for (var i = 0; i < _diceControllers.length; i++) {
+      _diceControllers[i].retarget(dice[i % dice.length]);
+    }
+  }
+
+  /// Fige les dés au repos sur l'état serveur (sync REST, sans animation).
+  void _restDiceControllers(List<int> dice) {
+    if (dice.isEmpty) return;
+    _ensureDiceControllers(dice.length);
+    for (var i = 0; i < _diceControllers.length; i++) {
+      final c = _diceControllers[i];
+      if (!c.isRolling) c.setRestingFace(dice[i % dice.length]);
+    }
+  }
 
   // Revanche opt-out (fin de partie) : lobby serveur synchronisé.
   Map<String, dynamic>? _rematchLobby;
@@ -564,11 +632,15 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                 _currentDice = dice;
                 _lastRollerId = lastRollerRaw;
                 _lastRollSum = sum;
+                // Nouveau moteur 3D : aligne le repos sur last_roll serveur
+                // (polling/REST, même sans event). Sans animation.
+                _restDiceControllers(dice);
               }
             } else if (_currentDice.isEmpty && dice.isNotEmpty) {
               _currentDice = dice;
               _lastRollerId = lastRollerRaw;
               _lastRollSum = sum;
+              _restDiceControllers(dice);
             }
           }
         }
@@ -621,30 +693,59 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           // Piloté par le STATUT serveur (pas seulement l'event set_result) :
           // si l'event est perdu, le polling réconcilie quand même l'overlay
           // et aucune zone ne reste active à tort.
-          // L'overlay s'affiche IMMÉDIATEMENT (pas après le reveal) pour que
-          // tous les écrans convergent au même moment : le panneau de
-          // résultat (dés + sommes serveur) remplace le tatami, et le reveal
-          // termine silencieusement la mise à jour des cartes.
-          _isRolling = false;
-          _rollingPlayerId = null;
+          // MAIS : si une animation de lancer est en cours (dernier lancer
+          // du set), on ne coupe PAS l'anim et on n'affiche PAS l'overlay
+          // tout de suite — sinon le 1er joueur voit son anim (set toujours
+          // en cours) mais le joueur suivant (dernier lancer → set_ended)
+          // voit directement le résultat. L'overlay est différé jusqu'après
+          // le reveal + la fin de l'anim 3D via _scheduleSetResultOverlay.
+          final animEnCours = _isRolling ||
+              _pendingReveal != null ||
+              (_rollRevealTimer?.isActive ?? false);
           _showSetIntro = false;
-          if (!_showSetResult) {
-            _showSetResult = true;
-            _backfillSetResult();
+          if (animEnCours) {
+            // Le reveal affichera l'overlay après l'animation (cohérence
+            // tous joueurs : même anim puis même résultat au même moment).
+            if (_serverMatch?['status']?.toString() != 'set_ended') {
+              // Premier passage en set_ended pendant l'anim : rien à faire,
+              // _revealPendingRoll prend le relais.
+            }
+          } else if (_diceControllers.any((c) => c.isRolling)) {
+            // Sync tardive (polling/REST) arrivée après le reveal mais
+            // pendant que les dés 3D tournent encore (~1,6 s) : différer
+            // l'overlay pour laisser l'animation se terminer.
+            _scheduleSetResultOverlay();
+          } else {
+            _isRolling = false;
+            _rollingPlayerId = null;
+            if (!_showSetResult) {
+              _showSetResult = true;
+              _backfillSetResult();
+            }
           }
         }
       }
       if (match['status']?.toString() == 'match_ended') {
-        _showMatchResult = true;
+        // Même principe que set_ended : si le dernier lancer anime encore,
+        // différer la modale de fin pour laisser voir les dés (cohérence
+        // 1er/dernier lanceur). Le reveal + timer affichent ensuite.
+        final animEnCours = _isRolling ||
+            _pendingReveal != null ||
+            (_rollRevealTimer?.isActive ?? false) ||
+            _diceControllers.any((c) => c.isRolling);
         _showSetIntro = false;
-        _showSetResult = false;
-        // Si un reveal est en cours, il terminera avant l'affichage final
-        // (le overlay match recouvre de toute façon le tatami).
-        _rollAnimTimer?.cancel();
-        _rollFallbackTimer?.cancel();
+        _turnDeadline = null;
+        if (animEnCours) {
+          _scheduleMatchResultOverlay();
+        } else {
+          _showMatchResult = true;
+          _showSetResult = false;
+          _resultModalOpen = true;
+        }
+        // Ne pas couper les garde-fous d'anim ici : le reveal les annule
+        // lui-même une fois le final affiché.
         // Pas de ticker parent : les TurnTimer des zones disparaissent
         // automatiquement car isActive devient faux (_showMatchResult).
-        _turnDeadline = null;
       }
     });
     // Effets post-sync (hors closure setState) : transitions de vote.
@@ -721,6 +822,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (!mounted) return;
         final match = payload['match'] as Map<String, dynamic>? ?? payload;
         _rollRevealTimer?.cancel();
+        _setResultDelayTimer?.cancel();
         _pendingReveal = null;
         _rollingPlayerId = null;
         // Confirmation du démarrage : le flag busy tombe (complète la
@@ -738,6 +840,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           _playerSums.clear();
           _isRolling = false;
         });
+        // Nouveau moteur 3D : vide le tatami (repos, sans animation).
+        for (final c in _diceControllers) {
+          c.reset();
+        }
         _introCtrl.forward(from: 0);
         Future.delayed(const Duration(milliseconds: 450), () {
           if (mounted) setState(() => _showSetIntro = false);
@@ -864,6 +970,14 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           sums = Map<String, int>.from(_playerSums);
           diceByPlayer = Map<String, List<int>>.from(_playerDice);
         }
+        // Animation en cours (dernier lancer) : ne pas couvrir le tatami
+        // tout de suite — le reveal + _scheduleSetResultOverlay affichent
+        // l'overlay après l'anim 3D (même visuel pour tous les joueurs).
+        // On mémorise quand même l'entrée de résultat pour le backfill.
+        final animEnCours = _isRolling ||
+            _pendingReveal != null ||
+            (_rollRevealTimer?.isActive ?? false) ||
+            _diceControllers.any((c) => c.isRolling);
         if (_setResults.isEmpty ||
             _setResults.last['set_number'] != lastSetNum) {
           setState(() {
@@ -874,10 +988,15 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               'sums': sums,
               'dice': diceByPlayer,
             });
-            _showSetResult = true;
+            if (!animEnCours) _showSetResult = true;
           });
+          if (animEnCours) _scheduleSetResultOverlay();
         } else {
-          setState(() => _showSetResult = true);
+          if (animEnCours) {
+            _scheduleSetResultOverlay();
+          } else {
+            setState(() => _showSetResult = true);
+          }
         }
         _resultCtrl.forward(from: 0);
         if (_checkMatchOver()) {
@@ -892,6 +1011,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         if (!mounted) return;
         final match = payload['match'] as Map<String, dynamic>?;
         if (match != null) _syncFromServer(match, seq: payload['seq'] as int?);
+        // Si les dés animent encore, _syncFromServer a déjà planifié la
+        // modale différée : ne pas la forcer tout de suite (même visuel).
+        final animEnCours = _isRolling ||
+            _pendingReveal != null ||
+            (_rollRevealTimer?.isActive ?? false) ||
+            _diceControllers.any((c) => c.isRolling);
+        if (animEnCours && !_showMatchResult) {
+          _scheduleMatchResultOverlay();
+          return;
+        }
         setState(() {
           _showMatchResult = true;
           _resultModalOpen = true;
@@ -1055,6 +1184,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final rollingMine =
             _rollingPlayerId == null || _rollingPlayerId == _myId;
         _isSendingRoll = false;
+        _pendingRollId = null; // tap rejeté : le prochain en génère un nouveau
         if (_isRolling && rollingMine) {
           _rollAnimTimer?.cancel();
           _rollRevealTimer?.cancel();
@@ -1165,11 +1295,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollAnimTimer?.cancel();
     _rollFallbackTimer?.cancel();
     _rollRevealTimer?.cancel();
+    _setResultDelayTimer?.cancel();
     _nextSetConfirmTimer?.cancel();
     _voteTickTimer?.cancel();
     _voteResultTimer?.cancel();
     _syncPollTimer?.cancel();
     _resultScrollController.dispose();
+    // Nouveau moteur 3D : libère les contrôleurs (pas de fuite après 100 sets).
+    for (final c in _diceControllers) {
+      c.dispose();
+    }
+    _diceControllers.clear();
     // Sortie d'interface de fin de partie : le joueur est exclu des
     // revanches (le nombre de participants s'ajuste). Best effort, idempotent.
     if (_showMatchResult || _serverMatch?['status'] == 'match_ended') {
@@ -1468,6 +1604,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollingPlayerId = rollerId;
     _rollAnimStartedAt = DateTime.now();
     if (!_isRolling && mounted) setState(() => _isRolling = true);
+    _tumbleDiceControllers(rollerId);
     _startRollFlicker(diceCount ?? _displayDiceCount);
   }
 
@@ -1488,26 +1625,30 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     int? seq,
   }) {
     if (!mounted || dice.isEmpty) return;
-    if (match != null) _syncFromServer(match, seq: seq);
-    // Si l'anim n'a pas démarré (event rolling perdu), la démarrer maintenant
-    if (!_isRolling || _rollingPlayerId == null) {
-      _rollingPlayerId = playerId;
-      _rollAnimStartedAt = DateTime.now();
-      if (!_isRolling) setState(() => _isRolling = true);
-      _startRollFlicker(dice.length);
-    }
     // Un final d'un AUTRE joueur encore en attente : le révéler d'abord
     // pour ne pas l'écraser (tours rapides consécutifs).
     final prev = _pendingReveal;
     if (prev != null && prev['playerId']?.toString() != playerId) {
       _flushPendingReveal();
-      // _flush a coupé l'anim : relancer pour le nouveau final
+    }
+    // Si l'anim n'a pas démarré (event rolling perdu), la démarrer maintenant
+    // (tumble forcé même si les contrôleurs tournent encore — voir
+    // _tumbleDiceControllers : chaque lanceur a sa propre animation).
+    if (!_isRolling || _rollingPlayerId == null || _rollingPlayerId != playerId) {
       _rollingPlayerId = playerId;
       _rollAnimStartedAt = DateTime.now();
-      if (mounted) setState(() => _isRolling = true);
+      if (!_isRolling && mounted) setState(() => _isRolling = true);
+      _tumbleDiceControllers(playerId);
       _startRollFlicker(dice.length);
     }
+    // Poser le final AVANT le sync : _syncFromServer voit le reveal en
+    // attente et DIFFÈRE l'overlay set_ended jusqu'après l'animation
+    // (sinon le dernier lanceur verrait directement le résultat).
     _pendingReveal = {'playerId': playerId, 'dice': dice, 'sum': sum};
+    if (match != null) _syncFromServer(match, seq: seq);
+    // Nouveau moteur 3D : le résultat serveur re-cible le tumbling en cours.
+    // Le blend final (65..100 % de l'anim) snappe sur ces faces : 100 % serveur.
+    _retargetDiceControllers(dice);
     final elapsed = _rollAnimStartedAt == null
         ? _minRollAnim
         : DateTime.now().difference(_rollAnimStartedAt!);
@@ -1549,6 +1690,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final sum = pending['sum'] as int;
     final pid = pending['playerId'].toString();
     final isMine = pid == _myId;
+    // Nouveau moteur 3D : fige au repos sur le final serveur (filet si le
+    // retarget a été manqué, ex. event rolling perdu puis REST).
+    _restDiceControllers(dice);
     setState(() {
       _currentDice = dice;
       _playerDice[pid] = dice;
@@ -1560,15 +1704,77 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // Ma demande est traitée : réactiver mon bouton (anti-double-tap levé).
       // On ne touche au flag que pour mon propre final : le reveal d'un autre
       // joueur ne doit pas réactiver un envoi que je n'ai pas fait.
-      if (isMine) _isSendingRoll = false;
-      // Fin d'animation = fin de set côté serveur ? Afficher le résultat
-      // (données serveur via backfill, jamais de sommes vides).
-      if (_serverMatch?['status']?.toString() == 'set_ended' &&
-          !_showSetResult) {
+      // Le roll_id est consommé : le prochain tap en génère un nouveau.
+      if (isMine) {
+        _isSendingRoll = false;
+        _pendingRollId = null;
+      }
+      // Fin d'animation = fin de set/match côté serveur ? Afficher le
+      // résultat DIFFÉRÉ (~1,3-1,5 s) : les dés 3D animent ~1,6 s en interne
+      // même après le reveal logique (220 ms). Afficher l'overlay tout de
+      // suite couvrirait le tatami pendant que les dés tournent encore —
+      // c'est ce qui rendait le dernier lancer (set_ended/match_ended)
+      // invisible alors que les lancers intermédiaires (set_in_progress)
+      // restaient visibles.
+      final status = _serverMatch?['status']?.toString();
+      if (status == 'match_ended' && !_showMatchResult) {
+        _showSetIntro = false;
+        _scheduleMatchResultOverlay();
+      } else if (status == 'set_ended' && !_showSetResult) {
+        _showSetIntro = false;
+        _scheduleSetResultOverlay();
+      }
+    });
+  }
+
+  /// Affiche l'overlay de fin de set après un délai laissant l'animation 3D
+  /// se terminer (~1,3 s après le reveal : 1,6 s d'anim − ~0,3 s déjà écoulés
+  /// depuis dice_rolling). Idempotent : un seul timer à la fois, annulé par
+  /// set_started / dispose / match_ended. Tous les joueurs convergent vers
+  /// le même overlay au même moment (cohérence visuelle).
+  void _scheduleSetResultOverlay() {
+    if (_showSetResult || !mounted) return;
+    if ((_setResultDelayTimer?.isActive ?? false)) return;
+    _setResultDelayTimer?.cancel();
+    _setResultDelayTimer = Timer(const Duration(milliseconds: 1300), () {
+      if (!mounted) return;
+      if (_showSetResult) return;
+      if (_showMatchResult) return;
+      final status = _serverMatch?['status']?.toString();
+      if (status == 'match_ended') {
+        setState(() {
+          _showSetIntro = false;
+          _showSetResult = false;
+          _showMatchResult = true;
+          _resultModalOpen = true;
+        });
+        return;
+      }
+      if (status != 'set_ended') return;
+      setState(() {
         _showSetIntro = false;
         _showSetResult = true;
         _backfillSetResult();
-      }
+      });
+    });
+  }
+
+  /// Diffère la modale de fin de match jusqu'après l'animation du dernier
+  /// lancer (même raison que set_ended : le gagnant du dernier lancer doit
+  /// voir ses dés avant le podium). Réutilise le même timer différé.
+  void _scheduleMatchResultOverlay() {
+    if (_showMatchResult || !mounted) return;
+    if ((_setResultDelayTimer?.isActive ?? false)) return;
+    _setResultDelayTimer?.cancel();
+    _setResultDelayTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted || _showMatchResult) return;
+      if (_serverMatch?['status']?.toString() != 'match_ended') return;
+      setState(() {
+        _showSetIntro = false;
+        _showSetResult = false;
+        _showMatchResult = true;
+        _resultModalOpen = true;
+      });
     });
   }
 
@@ -2172,6 +2378,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final dice = _currentDice.isEmpty ? null : _currentDice;
     final displayDice =
         _isRolling ? List<int>.filled(_displayDiceCount, 3) : (dice ?? []);
+    // Nouveau moteur 3D : garantit les contrôleurs dès le 1er build
+    // (idempotent, sans notify) pour que le tatami affiche DiceBoard3D.
+    _ensureDiceControllers(_displayDiceCount);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2247,6 +2456,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
               ? 'CIBLE $_targetValue'
               : null,
           maxWidth: 360,
+          // Nouveau moteur 3D physique : les contrôleurs sont alimentés par
+          // les events serveur (_tumbleDiceControllers/_retarget...). Le
+          // tatami hérite affiche DiceBoard3D au lieu de DiceGroup3D.
+          controllers: _diceControllers,
         ),
       ],
     );
@@ -2678,12 +2891,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                                 .map(
                                   (v) => Padding(
                                     padding: const EdgeInsets.only(right: 4),
-                                    child: Dice3D(
+                                    child: DicePips(
                                       value: v,
                                       size: 26,
-                                      borderColor: isWinner
-                                          ? NeonColors.success
-                                          : NeonColors.border,
+                                      theme: isWinner
+                                          ? DiceTheme.ivoryWinner
+                                          : DiceTheme.ivoryPlain,
                                     ),
                                   ),
                                 )
@@ -3182,12 +3395,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
                   ...dice.map(
                     (v) => Padding(
                       padding: const EdgeInsets.only(right: 2),
-                      child: Dice3D(
+                      child: DicePips(
                         value: v,
                         size: 16,
-                        borderColor: isWinner
-                            ? NeonColors.success.withValues(alpha: 0.6)
-                            : NeonColors.border,
+                        theme: isWinner
+                            ? DiceTheme.ivoryWinner
+                            : DiceTheme.ivoryPlain,
                       ),
                     ),
                   ),
@@ -4256,6 +4469,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     // pour libérer le tatami (aucun résultat perdu).
     if (_pendingReveal != null) _flushPendingReveal();
     _isSendingRoll = true;
+    // 1 tap = 1 roll_id : partagé par WS et fallback REST (idempotence).
+    _pendingRollId = const Uuid().v4();
     final rollerId = _myId;
     _handleDiceRolling(rollerId, diceCount: _displayDiceCount);
     _rollFallbackTimer?.cancel();
@@ -4264,7 +4479,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     final isWsLive = ws.isConnected;
     if (isWsLive) {
       try {
-        ws.rollDice(widget.matchId);
+        ws.rollDice(widget.matchId, rollId: _pendingRollId);
         _rollFallbackTimer =
             Timer(const Duration(milliseconds: 1500), () async {
           if (mounted && _isSendingRoll && _pendingReveal == null) {
@@ -4284,7 +4499,12 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     _rollFallbackTimer?.cancel();
     try {
       final repo = ref.read(gameRepositoryProvider);
-      final data = await repo.rollDice(matchId: widget.matchId);
+      // Même roll_id que la tentative WS : le serveur rejoue l'origine
+      // au lieu de tirer à nouveau (double-clic réseau sans double lancer).
+      final data = await repo.rollDice(
+        matchId: widget.matchId,
+        rollId: _pendingRollId,
+      );
       if (!mounted) return;
       final roll = data['roll'] as Map<String, dynamic>?;
       final match = data['match'] as Map<String, dynamic>?;
@@ -4335,6 +4555,7 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       // mon tap ne doit pas couper l'anim du joueur en cours chez les autres.
       final rollingMine = _rollingPlayerId == null || _rollingPlayerId == _myId;
       _isSendingRoll = false;
+      _pendingRollId = null; // tap mort : le prochain en génère un nouveau
       if (rollingMine) {
         _rollingPlayerId = null;
         setState(() => _isRolling = false);
@@ -4471,6 +4692,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             _playerDice.clear();
             _playerSums.clear();
           });
+          for (final c in _diceControllers) {
+            c.reset();
+          }
           _introCtrl.forward(from: 0);
         } else {
           if (mounted) setState(() => _startingNextSet = false);

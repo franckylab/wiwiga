@@ -189,19 +189,27 @@ defmodule GameHubWeb.GameChannel do
   # === GameMatch (multi-sets) — roll & vote ===
 
   @impl true
-  def handle_in("dice_rolled", _params, socket) do
+  def handle_in("dice_rolled", params, socket) do
     user_id = socket.assigns.user_id
     game_id = socket.assigns.game_id
+    # Clé d'idempotence client (uuid v4, optionnelle) : un retry avec le même
+    # roll_id rejoue le lancer d'origine sans nouveau tirage (règle 3).
+    roll_id =
+      case params do
+        %{"roll_id" => r} when is_binary(r) and byte_size(r) > 0 -> r
+        _ -> nil
+      end
 
     # Détecter si c'est un match GameMatch (id contient "match")
     if String.contains?(game_id, "match") do
-      case GameHub.GameMatch.roll_dice(game_id, to_string(user_id)) do
-        {:ok, %{roll: roll}} ->
+      case GameHub.GameMatch.roll_dice(game_id, to_string(user_id), roll_id) do
+        {:ok, %{roll: roll} = result} ->
           # Source unique de vérité : GameMatch diffuse déjà via PubSub
           # (dice_rolled / turn_changed / set_result / match_result).
           # Ici on ne fait que répondre au lanceur pour feedback immédiat,
           # sans broadcast redondant (évite doubles events et races UI).
-          {:reply, {:ok, %{status: "rolled", roll: %{player_id: to_string(roll.player_id), dice: roll.dice, sum: roll.sum}}}, socket}
+          # `duplicate: true` = rejeu idempotent (même roll, pas de re-tirage).
+          {:reply, {:ok, %{status: "rolled", duplicate: Map.get(result, :duplicate, false), roll: %{player_id: to_string(roll.player_id), dice: roll.dice, sum: roll.sum, roll_id: Map.get(roll, :roll_id, roll_id)}}}, socket}
 
         {:error, :not_your_turn} ->
           {:reply, {:error, %{reason: "not_your_turn"}}, socket}

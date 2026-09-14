@@ -233,10 +233,15 @@ class GameRepository {
     );
   }
 
-  /// Lance les dés via REST fallback (si WebSocket indisponible)
-  Future<Map<String, dynamic>> rollDice({required String matchId}) async {
+  /// Lance les dés via REST fallback (si WebSocket indisponible).
+  /// [rollId] : clé d'idempotence transmise au serveur (même valeur que WS).
+  Future<Map<String, dynamic>> rollDice({
+    required String matchId,
+    String? rollId,
+  }) async {
     final res = await _apiService.post(
       '${ApiEndpoints.gameShow}/$matchId/roll',
+      body: rollId != null && rollId.isNotEmpty ? {'roll_id': rollId} : const {},
       requiresAuth: true,
     );
     return res['data'] as Map<String, dynamic>? ?? {};

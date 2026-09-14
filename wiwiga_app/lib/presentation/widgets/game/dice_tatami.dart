@@ -8,7 +8,10 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/neon_theme.dart';
-import 'dice_3d.dart';
+import 'dice3d/dice_3d.dart' show DiceBoard3D;
+import 'dice3d/dice_controller.dart' show Dice3DController;
+import 'dice3d/dice_pips.dart' show DicePips;
+import 'dice3d/dice_theme.dart' show DiceTheme;
 
 /// Tatami central — surface de jeu texturée (bois + feutre) avec rebords néon
 class DiceTatami extends StatefulWidget {
@@ -22,6 +25,12 @@ class DiceTatami extends StatefulWidget {
   final VoidCallback? onTap; // pour debug
   final Widget? overlay; // overlay victoire/défaite
 
+  /// Contrôleurs du nouveau moteur physique (optionnel).
+  /// Quand fourni et non vide, le tatami affiche [DiceBoard3D]
+  /// (tumbling physique + snap exact face serveur) au lieu de l'ancien
+  /// DiceGroup3D. Piloté par l'écran via roll/retarget/setRestingFace.
+  final List<Dice3DController>? controllers;
+
   const DiceTatami({
     super.key,
     this.diceValues = const [],
@@ -33,6 +42,7 @@ class DiceTatami extends StatefulWidget {
     this.lastSum,
     this.onTap,
     this.overlay,
+    this.controllers,
   });
 
   @override
@@ -317,18 +327,38 @@ class _DiceTatamiState extends State<DiceTatami>
       );
 
   Widget _buildDiceContent(double w) {
+    // Nouveau moteur physique : autonome (tumbling + snap serveur),
+    // piloté par l'écran. Le flag isRolling ne le concerne pas.
+    final diceControllers = widget.controllers;
+    if (diceControllers != null && diceControllers.isNotEmpty) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DiceBoard3D(
+            controllers: diceControllers,
+            diceSize: w * 0.15,
+          ),
+          if (widget.lastSum != null && !widget.isRolling) ...[
+            const SizedBox(height: 8),
+            Text(
+              '= ${widget.lastSum}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Orbitron',
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // Repli sans contrôleurs (hors match, préviews) : faces statiques
+    // serveur, AUCUNE animation ni RNG (règle n°2).
     final dice = widget.diceValues.isEmpty && widget.showEmpty
         ? List<int>.filled(widget.diceCount, 0)
         : widget.diceValues;
-
-    // Si rolling, afficher animation avec valeurs aléatoires fluctuantes
-    if (widget.isRolling) {
-      return DiceGroup3D(
-        values: dice.isEmpty ? List.filled(widget.diceCount, 3) : dice,
-        isRolling: true,
-        diceSize: w * 0.15,
-      );
-    }
 
     if (dice.isEmpty) {
       return Column(
@@ -355,7 +385,17 @@ class _DiceTatamiState extends State<DiceTatami>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DiceGroup3D(values: dice, isRolling: false, diceSize: w * 0.15),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: dice
+              .map(
+                (v) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: DicePips(value: v, size: w * 0.15),
+                ),
+              )
+              .toList(),
+        ),
         if (dice.any((v) => v > 0) && widget.lastSum == null) ...[
           const SizedBox(height: 8),
           Text(
@@ -406,7 +446,7 @@ class _TatamiPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
-/// Petit tatami compact pour mini-prévisualisation
+/// Petit tatami compact pour mini-prévisualisation (faces statiques serveur).
 class MiniTatami extends StatelessWidget {
   final List<int> dice;
   final double size;
@@ -437,10 +477,10 @@ class MiniTatami extends StatelessWidget {
               .map(
                 (v) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Dice3D(
+                  child: DicePips(
                     value: v,
                     size: size * 0.42,
-                    borderColor: NeonColors.primary.withValues(alpha: 0.6),
+                    theme: DiceTheme.miniPreview,
                   ),
                 ),
               )
