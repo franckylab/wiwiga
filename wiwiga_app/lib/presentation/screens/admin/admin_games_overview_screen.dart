@@ -211,6 +211,7 @@ class AdminGamesOverviewScreen extends ConsumerWidget {
             _Section(
               title: 'Délais',
               icon: Icons.timer_outlined,
+              hint: 'Révélation = attente fin d’anim avant la somme ; Maintien = visibilité avant overlay.',
               children: [
                 ..._annotatedChildren(
                   cfg['timeouts'] as Map?,
@@ -218,6 +219,8 @@ class AdminGamesOverviewScreen extends ConsumerWidget {
                     'turn_seconds': 'Tour (s)',
                     'auto_next_set_seconds': 'Enchaînement (s)',
                     'leave_grace_seconds': 'Grâce sortie (s)',
+                    'roll_reveal_delay_ms': 'Révélation (ms)',
+                    'roll_result_hold_delay_ms': 'Maintien (ms)',
                   },
                 ),
                 if (vote != null)

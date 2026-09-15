@@ -1271,7 +1271,8 @@ class AdminRepository {
     return {};
   }
 
-  /// Met à jour une règle (patch partiel : sets, timings de jeu,
+  /// Met à jour une règle (patch partiel : sets, timings de jeu dont
+  /// transition tatami `roll_reveal_delay_ms` / `roll_result_hold_delay_ms`,
   /// vote cible — `turn_timeout_seconds: null` = retour à l'héritage).
   /// Retourne la règle à jour.
   Future<Map<String, dynamic>> updateGameRule(

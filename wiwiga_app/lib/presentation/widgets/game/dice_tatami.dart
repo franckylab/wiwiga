@@ -31,6 +31,12 @@ class DiceTatami extends StatefulWidget {
   /// DiceGroup3D. Piloté par l'écran via roll/retarget/setRestingFace.
   final List<Dice3DController>? controllers;
 
+  /// Durée d'animation 3D par dé (ms) : synchronisée sur le délai serveur
+  /// `roll_reveal_delay_ms` par l'écran — l'anim se termine toujours avant
+  /// la révélation numérique (jamais de somme pendant le tumbling).
+  /// Clamp 600..2400, défaut 1600 (moteur physique historique).
+  final int animationDurationMs;
+
   const DiceTatami({
     super.key,
     this.diceValues = const [],
@@ -43,6 +49,7 @@ class DiceTatami extends StatefulWidget {
     this.onTap,
     this.overlay,
     this.controllers,
+    this.animationDurationMs = 1600,
   });
 
   @override
@@ -196,35 +203,19 @@ class _DiceTatamiState extends State<DiceTatami>
                             ),
                           ),
                         ),
-                      // Somme en bas
+                      // Somme en bas : cercle numérique unique, animé.
+                      // Pourquoi un cercle : un seul point focal épuré (pas de
+                      // pill « SOMME » + « = X » en double), visible sans
+                      // masquer les faces finales des dés au centre.
                       if (widget.lastSum != null && !widget.isRolling)
                         Positioned(
                           bottom: 8,
                           left: 0,
                           right: 0,
                           child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: NeonColors.primary.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: NeonColors.primary.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Text(
-                                'SOMME ${widget.lastSum}',
-                                style: const TextStyle(
-                                  color: NeonColors.primary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.0,
-                                  fontFamily: 'Orbitron',
-                                ),
-                              ),
+                            child: TatamiResultBadge(
+                              key: ValueKey('tatami_sum_${widget.lastSum}'),
+                              value: widget.lastSum!,
                             ),
                           ),
                         ),
@@ -329,28 +320,16 @@ class _DiceTatamiState extends State<DiceTatami>
   Widget _buildDiceContent(double w) {
     // Nouveau moteur physique : autonome (tumbling + snap serveur),
     // piloté par l'écran. Le flag isRolling ne le concerne pas.
+    // La somme est affichée UNE fois, en cercle en bas du tatami
+    // (TatamiResultBadge) — jamais en double sous les dés.
     final diceControllers = widget.controllers;
     if (diceControllers != null && diceControllers.isNotEmpty) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DiceBoard3D(
-            controllers: diceControllers,
-            diceSize: w * 0.15,
-          ),
-          if (widget.lastSum != null && !widget.isRolling) ...[
-            const SizedBox(height: 8),
-            Text(
-              '= ${widget.lastSum}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'Orbitron',
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ],
+      return DiceBoard3D(
+        controllers: diceControllers,
+        diceSize: w * 0.15,
+        duration: Duration(
+          milliseconds: widget.animationDurationMs.clamp(600, 2400),
+        ),
       );
     }
 
@@ -382,33 +361,148 @@ class _DiceTatamiState extends State<DiceTatami>
       );
     }
 
-    return Column(
+    // Repli sans contrôleurs : faces statiques serveur uniquement.
+    // La somme passe par TatamiResultBadge (bas du tatami) — aucun doublon.
+    return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: dice
-              .map(
-                (v) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: DicePips(value: v, size: w * 0.15),
-                ),
-              )
-              .toList(),
-        ),
-        if (dice.any((v) => v > 0) && widget.lastSum == null) ...[
-          const SizedBox(height: 8),
+      children: dice
+          .map(
+            (v) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: DicePips(value: v, size: w * 0.15),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+/// Résultat numérique du tatami : cercle unique, épuré, animé.
+/// Pourquoi un widget dédié : un seul point focal (chiffre seul, Orbitron),
+/// entrance scale + fondu (300ms, `Curves.easeOutBack`), halo glow néon et
+/// anneau extérieur subtil — lisible sans masquer les faces finales des dés.
+/// Couleurs UNIQUEMENT depuis [NeonColors] (conforme design system WIWIGA).
+class TatamiResultBadge extends StatefulWidget {
+  /// Somme à afficher (chiffre seul, jamais de préfixe « SOMME »).
+  final int value;
+
+  /// Diamètre du cercle (responsive : l'appelant adapte au tatami).
+  final double size;
+
+  const TatamiResultBadge({super.key, required this.value, this.size = 52});
+
+  @override
+  State<TatamiResultBadge> createState() => _TatamiResultBadgeState();
+}
+
+class _TatamiResultBadgeState extends State<TatamiResultBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pulse doux continu (glow 0.25 → 0.45) : feedback vivant sans ticker
+    // coûteux — sur web, glow statique (pas de repeat, cf. DiceTatami).
+    _pulseCtrl = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    );
+    if (!kIsWeb) _pulseCtrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Entrance rejouée à chaque nouvelle somme (clé par valeur côté parent) :
+    // scale 0.6 → 1.0 + fondu, 300ms standard WIWIGA.
+    return Semantics(
+      label: 'Résultat : ${widget.value}',
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.6, end: 1.0),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutBack,
+        builder: (context, scale, child) {
+          return Opacity(
+            opacity: ((scale - 0.6) / 0.4).clamp(0.0, 1.0),
+            child: Transform.scale(scale: scale, child: child),
+          );
+        },
+        child: kIsWeb ? _buildBadge(0.35) : _buildPulseBadge(),
+      ),
+    );
+  }
+
+  Widget _buildPulseBadge() {
+    return AnimatedBuilder(
+      animation: _pulseCtrl,
+      builder: (context, child) {
+        final glow = 0.25 + _pulseCtrl.value * 0.2;
+        return _buildBadge(glow);
+      },
+    );
+  }
+
+  Widget _buildBadge(double glowOpacity) {
+    final d = widget.size;
+    return Container(
+      width: d,
+      height: d,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: NeonColors.surface,
+        border: Border.all(color: NeonColors.primary, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: NeonColors.primary.withValues(alpha: glowOpacity),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Anneau intérieur subtil (profondeur, sans gradient).
+          Container(
+            width: d - 10,
+            height: d - 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: NeonColors.primary.withValues(alpha: 0.25),
+                width: 1,
+              ),
+            ),
+          ),
           Text(
-            '= ${dice.where((v) => v > 0).fold<int>(0, (a, b) => a + b)}',
-            style: const TextStyle(
-              color: Colors.white,
+            '${widget.value}',
+            style: TextStyle(
+              color: NeonColors.textPrimary,
+              fontSize: d * 0.38,
+              fontWeight: FontWeight.w900,
               fontFamily: 'Orbitron',
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
+              letterSpacing: 0.5,
+              shadows: [
+                Shadow(
+                  color: NeonColors.primary.withValues(alpha: 0.6),
+                  blurRadius: 8,
+                ),
+              ],
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 }

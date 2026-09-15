@@ -9,11 +9,10 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
-import '../../core/theme/neon_theme.dart';
+import '../../presentation/widgets/notifications/in_app_notification_banner.dart';
 import '../repositories/notification_repository.dart';
 import '../models/notification_model.dart';
 import '../services/push_notification_service.dart';
@@ -173,53 +172,37 @@ final pushInitProvider = FutureProvider<void>((ref) async {
       }
     },
     // Foreground : l'inbox se rafraîchit sur toutes plateformes ; sur Web
-    // (pas de notification locale FCM) on affiche en plus un SnackBar
-    // avec accès direct à l'inbox (dual-surface : toast fiable + OS
-    // best-effort, comme Slack/Gmail/Discord).
+    // (pas de notification locale FCM) on affiche en plus la bannière basse
+    // unifiée (dual-surface : toast fiable + OS best-effort, comme
+    // Slack/Gmail/Discord). Fermer = masque local, Supprimer = efface
+    // l'inbox serveur, Voir = ouvre l'inbox.
     onForeground: (message) async {
       ref.invalidate(inboxProvider);
       ref.invalidate(unreadNotificationsCountProvider);
       if (!kIsWeb) return;
       final context = rootNavigatorKey.currentContext;
       if (context == null || !context.mounted) return;
-      final title = message.notification?.title ?? 'WIWIGA';
-      final body = message.notification?.body ?? '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: NeonColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-              if (body.isNotEmpty)
-                Text(
-                  body,
-                  style: const TextStyle(
-                    color: NeonColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-            ],
-          ),
-          backgroundColor: NeonColors.surface,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'Voir',
-            textColor: NeonColors.primary,
-            onPressed: () {
-              final ctx = rootNavigatorKey.currentContext;
-              if (ctx != null && ctx.mounted) ctx.go('/notifications');
-            },
-          ),
+      final data = message.data;
+      final title = (data['title'] as String?)?.trim().isNotEmpty == true
+          ? (data['title'] as String).trim()
+          : (message.notification?.title ?? 'WIWIGA');
+      final body = (data['body'] as String?)?.trim().isNotEmpty == true
+          ? (data['body'] as String).trim()
+          : (message.notification?.body ?? '');
+      showInAppNotificationBanner(
+        context,
+        data: (
+          id: parseInAppNotificationId(data),
+          title: title,
+          body: body,
+          category: parseInAppCategory(data['category']),
+          priority: parseInAppPriority(data['priority']),
         ),
+        onView: () {
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) ctx.go('/notifications');
+        },
+        onDelete: () => deleteInAppNotification(ref, data),
       );
     },
   );
@@ -261,6 +244,104 @@ Future<void> registerPushToken(WidgetRef ref,
       debugPrint('[Push] enregistrement impossible (backend injoignable ?)');
     }
   }
+}
+
+/// Extrait l'id de notification depuis un payload temps réel.
+///
+/// Pourquoi tolérant : FCM `data` et WS `notification_created` n'utilisent
+/// pas toujours la même clé (`notification_id` vs `id`). Sans id, la
+/// bannière masque simplement le bouton Supprimer (jamais de bouton mort).
+int? parseInAppNotificationId(Map<String, dynamic> data) {
+  for (final key in const ['notification_id', 'id', 'notificationId']) {
+    final raw = data[key];
+    if (raw == null) continue;
+    if (raw is int && raw > 0) return raw;
+    final parsed = int.tryParse(raw.toString());
+    if (parsed != null && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+/// Catégorie validée (repli `transactional`, jamais de valeur exotique).
+String parseInAppCategory(Object? raw) {
+  const allowed = {
+    'security',
+    'transactional',
+    'social',
+    'game',
+    'marketing',
+  };
+  final value = raw?.toString().trim() ?? '';
+  return allowed.contains(value) ? value : 'transactional';
+}
+
+/// Priorité validée (repli `normal`, jamais de valeur exotique).
+String parseInAppPriority(Object? raw) {
+  const allowed = {'urgent', 'high', 'normal', 'low'};
+  final value = raw?.toString().trim().toLowerCase() ?? '';
+  return allowed.contains(value) ? value : 'normal';
+}
+
+/// Suppression serveur depuis la bannière basse (optimiste + refresh).
+///
+/// Pourquoi via le notifier d'abord : suppression optimiste immédiate dans
+/// la liste si elle est montée, sinon suppression directe au repository.
+/// Dans les deux cas, le compteur non-lues est invalidé.
+///
+/// Pourquoi des callbacks plutôt qu'un `Ref` : les deux appelants n'ont pas
+/// le même type (`Ref` côté provider FCM, `WidgetRef` côté shell). Les
+/// callbacks gardent un seul cœur testable sans dépendance au type de ref.
+Future<void> deleteInAppNotificationWith({
+  required int? id,
+  required Future<void> Function(int id) deleteOptimistic,
+  required Future<void> Function(int id) deleteDirect,
+  required void Function() invalidateUnread,
+}) async {
+  if (id == null) return;
+  try {
+    await deleteOptimistic(id);
+  } catch (_) {
+    // Inbox pas montée (autre onglet) ou échec optimiste : repli direct.
+    await deleteDirect(id);
+  }
+  invalidateUnread();
+}
+
+/// Suppression serveur depuis la bannière basse (contexte provider FCM).
+Future<void> deleteInAppNotification(
+  Ref ref,
+  Map<String, dynamic> data,
+) async {
+  final id = parseInAppNotificationId(data);
+  await deleteInAppNotificationWith(
+    id: id,
+    deleteOptimistic: (target) =>
+        ref.read(inboxProvider.notifier).deleteNotification(target),
+    deleteDirect: (target) =>
+        ref.read(notificationRepositoryProvider).deleteNotification(target),
+    invalidateUnread: () =>
+        ref.invalidate(unreadNotificationsCountProvider),
+  );
+}
+
+/// Suppression serveur depuis la bannière basse (contexte widget / shell).
+///
+/// Pourquoi un doublon plutôt qu'un cast : `WidgetRef` n'est pas un `Ref`
+/// (hiérarchies Riverpod distinctes). Le cœur reste partagé ci-dessus.
+Future<void> deleteInAppNotificationFromWidget(
+  WidgetRef ref,
+  Map<String, dynamic> data,
+) async {
+  final id = parseInAppNotificationId(data);
+  await deleteInAppNotificationWith(
+    id: id,
+    deleteOptimistic: (target) =>
+        ref.read(inboxProvider.notifier).deleteNotification(target),
+    deleteDirect: (target) =>
+        ref.read(notificationRepositoryProvider).deleteNotification(target),
+    invalidateUnread: () =>
+        ref.invalidate(unreadNotificationsCountProvider),
+  );
 }
 
 /// État push de CET appareil (à distinguer des préférences serveur).

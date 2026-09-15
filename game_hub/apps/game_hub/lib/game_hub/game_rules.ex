@@ -443,7 +443,10 @@ defmodule GameHub.GameRules do
         # absent : sans valeur par règle, on hérite du global existant
         # (GameTimeoutConfig) puis 30s — aucun changement de comportement
         # tant que l'admin ne fige pas une valeur par règle.
-        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20
+        # Transition tatami (ms) : révélation après fin d'anim 3D (~1600ms)
+        # + maintien du résultat avant overlay — le dernier lanceur voit ses dés.
+        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20,
+        "roll_reveal_delay_ms" => 1800, "roll_result_hold_delay_ms" => 3000
       },
       is_active: true
     }
@@ -465,8 +468,10 @@ defmodule GameHub.GameRules do
         "tie_rule" => "replay", "target_vote_mode" => "average",
         # Timer global de vote (deadline serveur unique, synchrone) et
         # fenêtre d'affichage du résultat avant reprise auto (secondes).
+        # Transition tatami (ms) : idem règle normal (révélation + maintien).
         "vote_timeout_seconds" => 20, "vote_result_delay_seconds" => 5,
-        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20
+        "auto_next_set_delay_seconds" => 4, "leave_grace_seconds" => 20,
+        "roll_reveal_delay_ms" => 1800, "roll_result_hold_delay_ms" => 3000
       },
       is_active: true
     }

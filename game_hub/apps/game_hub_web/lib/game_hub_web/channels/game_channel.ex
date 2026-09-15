@@ -454,6 +454,11 @@ defmodule GameHubWeb.GameChannel do
       vote_result_delay_ms: Map.get(match, :vote_result_delay_ms, 5_000),
       auto_next_set_delay_ms: Map.get(match, :auto_next_set_delay_ms, 4_000),
       leave_grace_ms: Map.get(match, :leave_grace_ms, 20_000),
+      # Transition tatami (admin, ms) : révélation après anim + maintien
+      # avant overlay — le client ne révèle jamais avant la fin de l'anim.
+      roll_reveal_delay_ms: Map.get(match, :roll_reveal_delay_ms, 1_800),
+      roll_result_hold_delay_ms:
+        Map.get(match, :roll_result_hold_delay_ms, Map.get(match, :roll_hold_delay_ms, 3_000)),
       target_vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
       last_roller_id: last_roller_id,
       last_roll: last_roll,

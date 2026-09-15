@@ -115,10 +115,26 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   String? _lastRollerId;
   int? _lastRollSum;
   DateTime? _rollAnimStartedAt;
-  // Durée min d'animation commune avant révélation (synchro tous joueurs).
-  // Courte (220ms) : l'anim 3D interne des dés suffit, le résultat doit
-  // arriver vite pour une sensation temps réel (< fraction de seconde).
-  static const Duration _minRollAnim = Duration(milliseconds: 220);
+  // Transition tatami configurable (admin, serveur = source unique).
+  // - `_rollRevealDelayMs` : attente fin d'animation 3D (~1600ms + stagger)
+  //   avant révélation numérique — le résultat ne couvre jamais les dés.
+  //   Défaut 1800ms (clamp 500..5000, miroir backend).
+  // - `_rollHoldDelayMs` : maintien du résultat sur le tatami avant overlay
+  //   de set/match — le dernier lanceur voit ses faces finales.
+  //   Défaut 3000ms (clamp 1000..10000, miroir backend).
+  // Sans état serveur (démarrage), les défauts s'appliquent : aucun flash.
+  int _rollRevealDelayMs = 1800;
+  int _rollHoldDelayMs = 3000;
+  static const int _rollRevealMinMs = 500;
+  static const int _rollRevealMaxMs = 5000;
+  static const int _rollHoldMinMs = 1000;
+  static const int _rollHoldMaxMs = 10000;
+
+  /// Durée min d'animation commune avant révélation (synchro tous joueurs).
+  /// Vaut le délai serveur : tous les écrans révèlent au même moment, après
+  /// la fin de l'animation 3D (plus de somme affichée pendant le tumbling).
+  Duration get _minRollAnim =>
+      Duration(milliseconds: _rollRevealDelayMs.clamp(500, 5000));
   Map<String, dynamic>? _pendingReveal;
   // Ma demande de lancer en vol (anti-double-tap). Séparé de _isRolling qui
   // est purement visuel (anim du tatami, y compris celle des autres) : le
@@ -344,7 +360,8 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   /// Empreinte de tout ce que `_syncFromServer` affiche : si deux syncs
   /// successifs ont la même empreinte, le second est un doublon (même
   /// contenu) et saute le rebuild. Couvre statuts, tour, lancers, votes,
-  /// scores, éliminés, gagnant, revanche, historique et paramètres.
+  /// scores, éliminés, gagnant, revanche, historique et paramètres
+  /// (dont transition tatami : révélation + maintien serveur).
   String _syncFingerprint(Map<String, dynamic> match) {
     final sb = StringBuffer();
     sb.write(match['status']);
@@ -414,6 +431,21 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     sb.write(match['dice_count']);
     sb.write('|');
     sb.write(match['sets_count']);
+    sb.write('|');
+    // Paramètres serveur (gelés à la création) : tout changement = resync.
+    sb.write(match['dice_faces']);
+    sb.write('|');
+    sb.write(match['turn_timeout_ms']);
+    sb.write('|');
+    sb.write(match['vote_timeout_ms']);
+    sb.write('|');
+    sb.write(match['vote_result_delay_ms']);
+    sb.write('|');
+    sb.write(match['roll_reveal_delay_ms']);
+    sb.write('|');
+    sb.write(match['roll_result_hold_delay_ms']);
+    sb.write('|');
+    sb.write(match['target_vote_mode']);
     return sb.toString();
   }
 
@@ -518,6 +550,32 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
       }
       final cs = match['current_set'] as int?;
       if (cs != null && cs > 0) _currentSet = cs;
+      // Paramètres match (serveur = source unique, configurables admin) :
+      // niveau match, PAS niveau set — parsés même si `current_set_state`
+      // est null (ex : match_ended sans set courant). Gelés à la création.
+      final faces = match['dice_faces'] as int?;
+      if (faces != null && faces >= 4 && faces <= 20) _diceFaces = faces;
+      final voteTimeoutMs = match['vote_timeout_ms'] as int?;
+      if (voteTimeoutMs != null && voteTimeoutMs > 0) {
+        _voteTimeoutSeconds = (voteTimeoutMs ~/ 1000).clamp(5, 120);
+      }
+      final resultDelayMs = match['vote_result_delay_ms'] as int?;
+      if (resultDelayMs != null && resultDelayMs > 0) {
+        _voteResultDelaySeconds = (resultDelayMs ~/ 1000).clamp(2, 30);
+      }
+      // Transition tatami (serveur = source unique, configurable admin).
+      // Révélation après fin d'anim 3D + maintien avant overlay : tous les
+      // écrans convergent vers les mêmes délais (cohérence visuelle).
+      final revealMs = (match['roll_reveal_delay_ms'] as num?)?.toInt();
+      if (revealMs != null) {
+        _rollRevealDelayMs = revealMs.clamp(_rollRevealMinMs, _rollRevealMaxMs);
+      }
+      final holdMs = (match['roll_result_hold_delay_ms'] as num?)?.toInt();
+      if (holdMs != null) {
+        _rollHoldDelayMs = holdMs.clamp(_rollHoldMinMs, _rollHoldMaxMs);
+      }
+      final voteModeRaw = match['target_vote_mode']?.toString();
+      _voteMode = (voteModeRaw == 'mode') ? 'mode' : 'average';
       final css = _serverSetState;
       if (css != null) {
         final tv = css['target_value'] as int?;
@@ -535,20 +593,6 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             _targetVotes[e.key.toString()] = (e.value as num).toInt();
           }
         }
-        // Paramètres de vote (serveur = source unique, configurables admin).
-        final faces = match['dice_faces'] as int?;
-        if (faces != null && faces >= 4 && faces <= 20) _diceFaces = faces;
-        final voteTimeoutMs = match['vote_timeout_ms'] as int?;
-        if (voteTimeoutMs != null && voteTimeoutMs > 0) {
-          _voteTimeoutSeconds = (voteTimeoutMs ~/ 1000).clamp(5, 120);
-        }
-        final resultDelayMs = match['vote_result_delay_ms'] as int?;
-        if (resultDelayMs != null && resultDelayMs > 0) {
-          _voteResultDelaySeconds = (resultDelayMs ~/ 1000).clamp(2, 30);
-        }
-        final voteModeRaw = match['target_vote_mode']?.toString();
-        _voteMode =
-            (voteModeRaw == 'mode') ? 'mode' : 'average';
         // Deadline globale du vote (synchrone tous joueurs) : remaining
         // serveur prioritaire (pas de dérive horloge), sinon ISO.
         final voteRem = css['vote_remaining_seconds'] as int?;
@@ -1000,11 +1044,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         }
         _resultCtrl.forward(from: 0);
         if (_checkMatchOver()) {
-          // Filet si match_result est perdu : la modale s'ouvre avec l'état
-          // serveur déjà synchronisé (jamais de contenu local deviné).
-          Future.delayed(const Duration(milliseconds: 150), () {
-            if (mounted) setState(() => _showMatchResult = true);
-          });
+          // Filet si match_result est perdu : la modale s'ouvre après le
+          // maintien serveur (tatami visible), avec l'état serveur déjà
+          // synchronisé (jamais de contenu local deviné).
+          _scheduleMatchResultOverlay();
         }
       };
       ws.onMatchResult = (payload) {
@@ -1407,6 +1450,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         final oldScores = _serverMatch?['set_scores'].toString();
         final newRematch = match['rematch']?.toString() ?? '';
         final oldRematch = _serverMatch?['rematch']?.toString() ?? '';
+        // Paramètres serveur (transition tatami incluse) : tout changement
+        // = resync (miroir du fingerprint — évite un délai périmé).
+        final newParams = '${match['dice_faces']}|${match['turn_timeout_ms']}|'
+            '${match['vote_timeout_ms']}|${match['vote_result_delay_ms']}|'
+            '${match['roll_reveal_delay_ms']}|${match['roll_result_hold_delay_ms']}|'
+            '${match['target_vote_mode']}';
+        final oldParams = '${_serverMatch?['dice_faces']}|${_serverMatch?['turn_timeout_ms']}|'
+            '${_serverMatch?['vote_timeout_ms']}|${_serverMatch?['vote_result_delay_ms']}|'
+            '${_serverMatch?['roll_reveal_delay_ms']}|${_serverMatch?['roll_result_hold_delay_ms']}|'
+            '${_serverMatch?['target_vote_mode']}';
         final shouldSync = newIdx != oldIdx ||
             newStatus != oldStatus ||
             newRollsCount != oldRollsCount ||
@@ -1415,13 +1468,13 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
             newVotesContent != oldVotesContent ||
             newVotePhase != oldVotePhase ||
             newScores != oldScores ||
-            newRematch != oldRematch;
+            newRematch != oldRematch ||
+            newParams != oldParams;
         // Sans changement : ne rien faire (préserve deadline + timers zones).
         if (!shouldSync) return;
         _syncFromServer(match);
-        if (newStatus == 'match_ended' && !_showMatchResult) {
-          setState(() => _showMatchResult = true);
-        }
+        // Fin de partie : _syncFromServer planifie déjà la modale après le
+        // maintien serveur (tatami visible) — pas d'affichage immédiat ici.
       }
     });
   }
@@ -1665,8 +1718,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
   void _startRollFlicker(int diceCount) {
     _rollAnimTimer?.cancel();
     // Garde-fou : si aucun reveal n'arrive (event perdu + WS muet), sortir
-    // de l'animation après 1,5s via réconciliation (le polling/REST suit).
-    _rollAnimTimer = Timer(const Duration(milliseconds: 1500), () {
+    // de l'animation après le délai serveur + marge via réconciliation
+    // (le polling/REST suit). Le délai serveur couvre l'anim 3D (~1600ms).
+    final guardMs = (_rollRevealDelayMs + 1200).clamp(1500, 7000);
+    _rollAnimTimer = Timer(Duration(milliseconds: guardMs), () {
       if (!mounted) return;
       if (_isRolling && _pendingReveal == null) {
         setState(() => _isRolling = false);
@@ -1710,12 +1765,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _pendingRollId = null;
       }
       // Fin d'animation = fin de set/match côté serveur ? Afficher le
-      // résultat DIFFÉRÉ (~1,3-1,5 s) : les dés 3D animent ~1,6 s en interne
-      // même après le reveal logique (220 ms). Afficher l'overlay tout de
-      // suite couvrirait le tatami pendant que les dés tournent encore —
-      // c'est ce qui rendait le dernier lancer (set_ended/match_ended)
-      // invisible alors que les lancers intermédiaires (set_in_progress)
-      // restaient visibles.
+      // résultat DIFFÉRÉ (délai serveur `roll_result_hold_delay_ms`) : le
+      // tatami (faces finales + somme en cercle) reste visible avant que
+      // l'overlay ne le couvre — le dernier lanceur voit ses dés comme les
+      // lancers intermédiaires (cohérence 1er/dernier joueur).
       final status = _serverMatch?['status']?.toString();
       if (status == 'match_ended' && !_showMatchResult) {
         _showSetIntro = false;
@@ -1727,16 +1780,17 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     });
   }
 
-  /// Affiche l'overlay de fin de set après un délai laissant l'animation 3D
-  /// se terminer (~1,3 s après le reveal : 1,6 s d'anim − ~0,3 s déjà écoulés
-  /// depuis dice_rolling). Idempotent : un seul timer à la fois, annulé par
-  /// set_started / dispose / match_ended. Tous les joueurs convergent vers
-  /// le même overlay au même moment (cohérence visuelle).
+  /// Affiche l'overlay de fin de set après le délai serveur
+  /// (`roll_result_hold_delay_ms`) : le tatami reste visible (faces finales
+  /// + somme en cercle) avant d'être couvert. Idempotent : un seul timer à
+  /// la fois, annulé par set_started / dispose / match_ended. Tous les
+  /// joueurs convergent vers le même overlay au même moment.
   void _scheduleSetResultOverlay() {
     if (_showSetResult || !mounted) return;
     if ((_setResultDelayTimer?.isActive ?? false)) return;
     _setResultDelayTimer?.cancel();
-    _setResultDelayTimer = Timer(const Duration(milliseconds: 1300), () {
+    final holdMs = _rollHoldDelayMs.clamp(_rollHoldMinMs, _rollHoldMaxMs);
+    _setResultDelayTimer = Timer(Duration(milliseconds: holdMs), () {
       if (!mounted) return;
       if (_showSetResult) return;
       if (_showMatchResult) return;
@@ -1759,14 +1813,16 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     });
   }
 
-  /// Diffère la modale de fin de match jusqu'après l'animation du dernier
-  /// lancer (même raison que set_ended : le gagnant du dernier lancer doit
-  /// voir ses dés avant le podium). Réutilise le même timer différé.
+  /// Diffère la modale de fin de match jusqu'après le maintien serveur
+  /// (`roll_result_hold_delay_ms`) : le gagnant du dernier lancer voit ses
+  /// dés avant le podium (même raison que set_ended). Réutilise le même
+  /// timer différé.
   void _scheduleMatchResultOverlay() {
     if (_showMatchResult || !mounted) return;
     if ((_setResultDelayTimer?.isActive ?? false)) return;
     _setResultDelayTimer?.cancel();
-    _setResultDelayTimer = Timer(const Duration(milliseconds: 1500), () {
+    final holdMs = _rollHoldDelayMs.clamp(_rollHoldMinMs, _rollHoldMaxMs);
+    _setResultDelayTimer = Timer(Duration(milliseconds: holdMs), () {
       if (!mounted || _showMatchResult) return;
       if (_serverMatch?['status']?.toString() != 'match_ended') return;
       setState(() {
@@ -2381,6 +2437,10 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
     // Nouveau moteur 3D : garantit les contrôleurs dès le 1er build
     // (idempotent, sans notify) pour que le tatami affiche DiceBoard3D.
     _ensureDiceControllers(_displayDiceCount);
+    // Anim 3D calée sur le délai serveur : se termine ~150ms avant la
+    // révélation numérique (marge de snap visible). Tous les joueurs voient
+    // la même durée (serveur = source unique).
+    final diceAnimMs = (_rollRevealDelayMs - 150).clamp(600, 2400);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2459,7 +2519,9 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
           // Nouveau moteur 3D physique : les contrôleurs sont alimentés par
           // les events serveur (_tumbleDiceControllers/_retarget...). Le
           // tatami hérite affiche DiceBoard3D au lieu de DiceGroup3D.
+          // Durée serveur : l'anim finit avant la somme (jamais de chevauchement).
           controllers: _diceControllers,
+          animationDurationMs: diceAnimMs,
         ),
       ],
     );
@@ -4532,18 +4594,20 @@ class _DiceMatchScreenState extends ConsumerState<DiceMatchScreen>
         _isSendingRoll = false;
         setState(() => _isRolling = false);
       }
-      // Le sync ci-dessus a déjà appliqué l'état post-action ; le WS
-      // (set_result/match_result) ouvre les overlays. Pas de 2e sync.
+      // Le sync ci-dessus a déjà appliqué l'état post-action ; les overlays
+      // passent par les délais serveur (maintien tatami) via _syncFromServer
+      // + _revealPendingRoll — jamais d'affichage immédiat (le dernier
+      // lanceur doit voir ses faces finales avant l'overlay).
       if (match != null &&
           (match['status'] == 'set_ended' ||
               match['status'] == 'match_ended')) {
         if (mounted && match['status'] == 'match_ended' && !_showMatchResult) {
-          setState(() => _showMatchResult = true);
+          _scheduleMatchResultOverlay();
         } else if (mounted &&
             match['status'] == 'set_ended' &&
             !_showSetResult &&
             !_showMatchResult) {
-          setState(() => _showSetResult = true);
+          _scheduleSetResultOverlay();
         }
       }
     } catch (e) {

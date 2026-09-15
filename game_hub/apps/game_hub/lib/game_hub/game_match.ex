@@ -56,6 +56,19 @@ defmodule GameHub.GameMatch do
   @vote_result_delay_default 5_000
   @vote_result_delay_min 2_000
   @vote_result_delay_max 30_000
+  # Transition tatami après chaque lancer (configurable admin, ms).
+  # - `roll_reveal_delay_ms` : attente fin d'animation 3D (~1600ms + stagger)
+  #   avant révélation numérique — le résultat ne couvre jamais les dés.
+  #   Défaut 1800ms, clamp 500..5000.
+  # - `roll_result_hold_delay_ms` : maintien du résultat sur le tatami avant
+  #   overlay de set/match — le dernier lanceur voit ses faces finales.
+  #   Défaut 3000ms, clamp 1000..10000.
+  @roll_reveal_default 1_800
+  @roll_reveal_min 500
+  @roll_reveal_max 5_000
+  @roll_hold_default 3_000
+  @roll_hold_min 1_000
+  @roll_hold_max 10_000
 
   # === Client API ===
 
@@ -315,6 +328,9 @@ defmodule GameHub.GameMatch do
       # Délais configurables (admin, gelés à la création comme le reste).
       auto_next_set_delay_ms: get_auto_next_set_delay_ms(rc),
       leave_grace_ms: get_leave_grace_ms(rc),
+      # Transition tatami : révélation après anim + maintien avant overlay.
+      roll_reveal_delay_ms: get_roll_reveal_delay_ms(rc),
+      roll_result_hold_delay_ms: get_roll_hold_delay_ms(rc),
       commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
@@ -1818,6 +1834,9 @@ defmodule GameHub.GameMatch do
       # Délais configurables (admin, gelés à la création comme le reste).
       auto_next_set_delay_ms: get_auto_next_set_delay_ms(rc),
       leave_grace_ms: get_leave_grace_ms(rc),
+      # Transition tatami : révélation après anim + maintien avant overlay.
+      roll_reveal_delay_ms: get_roll_reveal_delay_ms(rc),
+      roll_result_hold_delay_ms: get_roll_hold_delay_ms(rc),
       commission_rate: get_commission_rate(game_type, rule_type),
       turn_deadline: nil,
       tie_rule: rc["tie_rule"] || "replay",
@@ -1968,6 +1987,29 @@ defmodule GameHub.GameMatch do
   end
   defp get_vote_result_delay_ms(_), do: @vote_result_delay_default
 
+  # Transition tatami : valeurs déjà en ms dans game_rules.config.
+  # Bornées pour éviter révélation avant fin d'anim (<500ms) ou overlay
+  # qui fige la partie (>10s). Fallback = défauts ci-dessus.
+  defp get_roll_reveal_delay_ms(rc) when is_map(rc) do
+    rc |> Map.get("roll_reveal_delay_ms", @roll_reveal_default) |> to_bounded_raw_ms(@roll_reveal_min, @roll_reveal_max, @roll_reveal_default)
+  end
+  defp get_roll_reveal_delay_ms(_), do: @roll_reveal_default
+
+  defp get_roll_hold_delay_ms(rc) when is_map(rc) do
+    rc |> Map.get("roll_result_hold_delay_ms", @roll_hold_default) |> to_bounded_raw_ms(@roll_hold_min, @roll_hold_max, @roll_hold_default)
+  end
+  defp get_roll_hold_delay_ms(_), do: @roll_hold_default
+
+  defp to_bounded_raw_ms(val, min, max, _default) when is_integer(val), do: val |> max(min) |> min(max)
+  defp to_bounded_raw_ms(val, min, max, _default) when is_float(val), do: trunc(val) |> max(min) |> min(max)
+  defp to_bounded_raw_ms(val, min, max, default) when is_binary(val) do
+    case Integer.parse(String.trim(val)) do
+      {n, ""} -> to_bounded_raw_ms(n, min, max, default)
+      _ -> default
+    end
+  end
+  defp to_bounded_raw_ms(_, _, _, default), do: default
+
   defp to_bounded_ms(val, min, max, _default) when is_integer(val), do: val * 1000 |> max(min) |> min(max)
   defp to_bounded_ms(val, min, max, _default) when is_float(val), do: trunc(val * 1000) |> max(min) |> min(max)
   defp to_bounded_ms(val, min, max, default) when is_binary(val) do
@@ -1984,6 +2026,15 @@ defmodule GameHub.GameMatch do
 
   defp vote_result_delay_ms(match) do
     Map.get(match, :vote_result_delay_ms, @vote_result_delay_default) || @vote_result_delay_default
+  end
+
+  defp roll_reveal_delay_ms(match) do
+    Map.get(match, :roll_reveal_delay_ms, @roll_reveal_default) || @roll_reveal_default
+  end
+
+  defp roll_hold_delay_ms(match) do
+    Map.get(match, :roll_result_hold_delay_ms, @roll_hold_default) ||
+      Map.get(match, :roll_hold_delay_ms, @roll_hold_default) || @roll_hold_default
   end
 
   # Vote automatique (filet serveur) : milieu de l'intervalle possible
@@ -2516,6 +2567,10 @@ defmodule GameHub.GameMatch do
       vote_result_delay_ms: vote_result_delay_ms(match),
       auto_next_set_delay_ms: auto_next_set_delay_ms(match),
       leave_grace_ms: leave_grace_ms(match),
+      # Transition tatami (admin, ms) : le client synchronise révélation +
+      # maintien sur ces valeurs — jamais de résultat avant fin d'animation.
+      roll_reveal_delay_ms: roll_reveal_delay_ms(match),
+      roll_result_hold_delay_ms: roll_hold_delay_ms(match),
       target_vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
       last_roller_id: last_roller_id,
       last_roll: last_roll,

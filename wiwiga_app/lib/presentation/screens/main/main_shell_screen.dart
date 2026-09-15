@@ -9,12 +9,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/neon_theme.dart';
 import '../../../data/providers/app_providers.dart';
 import '../../../data/providers/game_stats_providers.dart';
 import '../../../data/providers/friend_provider.dart';
 import '../../../data/providers/notification_provider.dart';
 import '../../widgets/navigation/responsive_navigation.dart';
+import '../../widgets/notifications/in_app_notification_banner.dart';
 
 /// Shell principal : 4 onglets (Accueil, Jeux, Amis, Classement)
 ///
@@ -38,11 +40,39 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Temps réel inbox : toute notification_created rafraîchit badge + liste
+    // ET affiche la bannière basse unifiée (Fermer / Supprimer / Voir).
+    // Pourquoi ici plutôt que dans le provider : le shell possède le
+    // ScaffoldMessenger actif de la page visible, donc le toast s'affiche
+    // sur tous les onglets (la déduplication intégrée à la bannière évite
+    // le doublon avec le chemin FCM foreground sur Web).
     Future.microtask(() {
       try {
-        ref.read(gameWebSocketServiceProvider).onNotificationCreated = (_) {
+        ref.read(gameWebSocketServiceProvider).onNotificationCreated =
+            (payload) {
           ref.invalidate(inboxProvider);
           ref.invalidate(unreadNotificationsCountProvider);
+          final context = rootNavigatorKey.currentContext;
+          if (context == null || !context.mounted) return;
+          final title =
+              (payload['title'] as String?)?.trim() ?? 'WIWIGA';
+          final body = (payload['body'] as String?)?.trim() ?? '';
+          if (title == 'WIWIGA' && body.isEmpty) return;
+          showInAppNotificationBanner(
+            context,
+            data: (
+              id: parseInAppNotificationId(payload),
+              title: title,
+              body: body,
+              category: parseInAppCategory(payload['category']),
+              priority: parseInAppPriority(payload['priority']),
+            ),
+            onView: () {
+              final ctx = rootNavigatorKey.currentContext;
+              if (ctx == null || !ctx.mounted) return;
+              ctx.push(_routeForWsEvent(payload));
+            },
+            onDelete: () => deleteInAppNotificationFromWidget(ref, payload),
+          );
         };
       } catch (_) {}
     });
@@ -175,6 +205,30 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen>
                   ),
                 ],
      );
+  }
+}
+
+/// Destination du bouton Voir / tap bannière pour un événement WS.
+///
+/// Pourquoi dupliquée avec l'inbox : la bannière n'a pas accès au modèle
+/// complet (pas de deep-link serveur), on route donc sur `event_type`
+/// (même table que `NotificationsScreen._routeFor`, repli `/notifications`).
+String _routeForWsEvent(Map<String, dynamic> payload) {
+  switch (payload['event_type']?.toString()) {
+    case 'friend_request':
+    case 'friend_accepted':
+      return '/friends';
+    case 'wallet_credit':
+    case 'wallet_debit':
+    case 'cash_withdraw':
+      return '/transactions';
+    case 'match_result':
+    case 'game_matched':
+      return '/games';
+    case 'achievement_unlocked':
+      return '/profile';
+    default:
+      return '/notifications';
   }
 }
 

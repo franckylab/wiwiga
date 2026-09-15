@@ -704,6 +704,16 @@ defmodule GameHubWeb.GameController do
       eliminated_players: match.eliminated_players |> MapSet.to_list() |> Enum.map(&to_string/1),
       winner_id: Map.get(match, :winner_id) |> then(fn nil -> nil; v -> to_string(v) end),
       turn_timeout_ms: Map.get(match, :turn_timeout_ms) || GameHub.GameMatch.turn_timeout_seconds(Map.get(match, :game_type, "dice")) * 1000,
+      dice_faces: Map.get(match, :dice_faces, 6),
+      vote_timeout_ms: Map.get(match, :vote_timeout_ms, 20_000),
+      vote_result_delay_ms: Map.get(match, :vote_result_delay_ms, 5_000),
+      auto_next_set_delay_ms: Map.get(match, :auto_next_set_delay_ms, 4_000),
+      leave_grace_ms: Map.get(match, :leave_grace_ms, 20_000),
+      # Transition tatami (admin, ms) : même source que le WS (GameMatch).
+      roll_reveal_delay_ms: Map.get(match, :roll_reveal_delay_ms, 1_800),
+      roll_result_hold_delay_ms:
+        Map.get(match, :roll_result_hold_delay_ms, Map.get(match, :roll_hold_delay_ms, 3_000)),
+      target_vote_mode: Map.get(match, :target_vote_mode, "average") || "average",
       last_roller_id: last_roller_id,
       last_roll: last_roll
     }

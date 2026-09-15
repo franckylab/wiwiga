@@ -90,9 +90,13 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     );
   }
 
-  /// Timings de jeu par règle (secondes) : tour, enchaînement auto des
-  /// sets, grâce de sortie transport. `turn_timeout_seconds` absent (null)
-  /// = héritage du global existant (GameTimeoutConfig) — affiché « Auto ».
+  /// Timings de jeu par règle : tour (secondes), enchaînement auto des
+  /// sets, grâce de sortie transport + transition tatami (ms).
+  /// `turn_timeout_seconds` absent (null) = héritage du global existant
+  /// (GameTimeoutConfig) — affiché « Auto ».
+  /// Transition tatami : `roll_reveal_delay_ms` (révélation après fin d'anim
+  /// 3D, jamais avant) + `roll_result_hold_delay_ms` (maintien avant overlay).
+  /// Miroir des défauts backend (1800ms / 3000ms).
   Map<String, dynamic> _timingOf(Map<String, dynamic> rule) {
     final config = rule['config'];
     final cfg = config is Map<String, dynamic>
@@ -114,11 +118,29 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
       return parsed.clamp(min, max);
     }
 
+    int intOfMs(String key, int fallback, int min, int max) {
+      final value = cfg[key];
+      int parsed;
+      if (value is int) {
+        parsed = value;
+      } else if (value is num) {
+        parsed = value.toInt();
+      } else if (value is String) {
+        parsed = int.tryParse(value.trim()) ?? fallback;
+      } else {
+        parsed = fallback;
+      }
+      return parsed.clamp(min, max);
+    }
+
     return {
       'turn_timeout_seconds': intOrNull('turn_timeout_seconds', 10, 300),
       'auto_next_set_delay_seconds':
           intOrNull('auto_next_set_delay_seconds', 2, 15) ?? 4,
       'leave_grace_seconds': intOrNull('leave_grace_seconds', 5, 120) ?? 20,
+      'roll_reveal_delay_ms': intOfMs('roll_reveal_delay_ms', 1800, 500, 5000),
+      'roll_result_hold_delay_ms':
+          intOfMs('roll_result_hold_delay_ms', 3000, 1000, 10000),
     };
   }
 
@@ -367,6 +389,16 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                 '${timing['leave_grace_seconds']}s',
                 NeonColors.textSecondary,
               ),
+              _buildChip(
+                'Révélation',
+                '${timing['roll_reveal_delay_ms']}ms',
+                NeonColors.accent,
+              ),
+              _buildChip(
+                'Maintien',
+                '${timing['roll_result_hold_delay_ms']}ms',
+                NeonColors.accent,
+              ),
               if (isCible) ...[
                 _buildChip(
                   'Vote',
@@ -467,6 +499,14 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     );
     final leaveGraceCtrl = TextEditingController(
       text: '${timing['leave_grace_seconds']}',
+    );
+    // Transition tatami (ms) : révélation après fin d'anim + maintien avant
+    // overlay. Miroir des bornes backend (500–5000 / 1000–10000).
+    final revealDelayCtrl = TextEditingController(
+      text: '${timing['roll_reveal_delay_ms']}',
+    );
+    final holdDelayCtrl = TextEditingController(
+      text: '${timing['roll_result_hold_delay_ms']}',
     );
     // Gameplay moteur (dés, joueurs, mises règle, commission, égalité).
     // Miroir des bornes backend (changeset GameRule + endpoint admin).
@@ -595,6 +635,28 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   leaveGraceCtrl,
                   'Grâce sortie transport (5–120)',
                   Icons.wifi_off_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(
+                  revealDelayCtrl,
+                  'Révélation tatami (ms, 500–5000)',
+                  Icons.visibility_outlined,
+                ),
+                const SizedBox(height: 12),
+                _buildNumberField(
+                  holdDelayCtrl,
+                  'Maintien résultat (ms, 1000–10000)',
+                  Icons.hourglass_bottom_outlined,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Révélation = attente fin d’animation 3D avant la somme '
+                  '(jamais avant). Maintien = temps où faces + somme restent '
+                  'visibles avant l’overlay de set/match.',
+                  style: TextStyle(
+                    color: NeonColors.textMuted,
+                    fontSize: 11,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -814,10 +876,14 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                 }
                 final autoNext = int.tryParse(autoNextCtrl.text.trim());
                 final leaveGrace = int.tryParse(leaveGraceCtrl.text.trim());
+                final revealDelay = int.tryParse(revealDelayCtrl.text.trim());
+                final holdDelay = int.tryParse(holdDelayCtrl.text.trim());
                 final timingError = _validateTimings(
                   turnTimeout: turnTimeout,
                   autoNext: autoNext,
                   leaveGrace: leaveGrace,
+                  revealDelay: revealDelay,
+                  holdDelay: holdDelay,
                 );
                 if (timingError != null) {
                   context.showError(timingError);
@@ -860,6 +926,8 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
                   'turn_timeout_seconds': turnTimeout,
                   'auto_next_set_delay_seconds': autoNext!,
                   'leave_grace_seconds': leaveGrace!,
+                  'roll_reveal_delay_ms': revealDelay!,
+                  'roll_result_hold_delay_ms': holdDelay!,
                   'min_dice': minDice!,
                   'max_dice': maxDice!,
                   'default_dice': defDice!,
@@ -982,10 +1050,13 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
 
   /// Validation locale des timings, miroir du backend. `turnTimeout` null
   /// = héritage global (valide, clé omise du patch).
+  /// Transition tatami (ms) : révélation 500–5000, maintien 1000–10000.
   String? _validateTimings({
     required int? turnTimeout,
     required int? autoNext,
     required int? leaveGrace,
+    required int? revealDelay,
+    required int? holdDelay,
   }) {
     if (turnTimeout != null && (turnTimeout < 10 || turnTimeout > 300)) {
       return 'Le tour doit être entre 10 et 300 secondes (ou vide = auto)';
@@ -997,6 +1068,14 @@ class _AdminGameRulesScreenState extends ConsumerState<AdminGameRulesScreen> {
     if (leaveGrace == null) return 'La grâce sortie doit être un entier';
     if (leaveGrace < 5 || leaveGrace > 120) {
       return 'La grâce sortie doit être entre 5 et 120 secondes';
+    }
+    if (revealDelay == null) return 'La révélation doit être un entier (ms)';
+    if (revealDelay < 500 || revealDelay > 5000) {
+      return 'La révélation doit être entre 500 et 5000 ms';
+    }
+    if (holdDelay == null) return 'Le maintien doit être un entier (ms)';
+    if (holdDelay < 1000 || holdDelay > 10000) {
+      return 'Le maintien doit être entre 1000 et 10000 ms';
     }
     return null;
   }

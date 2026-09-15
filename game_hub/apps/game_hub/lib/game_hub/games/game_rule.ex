@@ -26,6 +26,10 @@ defmodule GameHub.Games.GameRule do
     - `set_timeout_seconds`
     - `auto_next_set_delay_seconds` (2..15 : enchaînement auto des sets)
     - `leave_grace_seconds` (5..120 : confirmation sortie transport)
+    - `roll_reveal_delay_ms` (500..5000 : attente fin d'animation 3D avant
+      révélation numérique sur le tatami — le résultat ne couvre jamais les dés)
+    - `roll_result_hold_delay_ms` (1000..10000 : maintien du résultat sur le
+      tatami avant overlay de set/match — laisse voir les faces finales)
 
   ## Config Keys (dice/cible)
     - Mêmes clés que normal +
@@ -158,6 +162,8 @@ defmodule GameHub.Games.GameRule do
     |> validate_config_range(config, "turn_timeout_seconds", 10, 300)
     |> validate_config_range(config, "auto_next_set_delay_seconds", 2, 15)
     |> validate_config_range(config, "leave_grace_seconds", 5, 120)
+    |> validate_config_range(config, "roll_reveal_delay_ms", 500, 5000)
+    |> validate_config_range(config, "roll_result_hold_delay_ms", 1000, 10000)
     |> validate_config_range(config, "vote_timeout_seconds", 5, 120)
     |> validate_config_range(config, "vote_result_delay_seconds", 2, 30)
     |> validate_target_vote_mode(config)

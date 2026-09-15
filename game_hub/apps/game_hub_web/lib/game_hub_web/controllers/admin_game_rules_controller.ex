@@ -23,7 +23,7 @@ defmodule GameHubWeb.AdminGameRulesController do
   # enchaînement, grâce) et mode de vote cible. Dés, joueurs, mises et
   # commission règle : mêmes bornes que le changeset GameRule.
   @allowed_sets_keys ~w(min_sets max_sets default_sets sets_mode sets_random_min sets_random_max)
-  @allowed_timing_keys ~w(turn_timeout_seconds auto_next_set_delay_seconds leave_grace_seconds)
+  @allowed_timing_keys ~w(turn_timeout_seconds auto_next_set_delay_seconds leave_grace_seconds roll_reveal_delay_ms roll_result_hold_delay_ms)
   @allowed_vote_keys ~w(target_vote_mode vote_timeout_seconds vote_result_delay_seconds)
   @allowed_dice_keys ~w(min_dice max_dice default_dice dice_faces)
   @allowed_players_keys ~w(min_players max_players)
@@ -37,6 +37,11 @@ defmodule GameHubWeb.AdminGameRulesController do
   @auto_next_set_max 15
   @leave_grace_min 5
   @leave_grace_max 120
+  # Transition tatami (ms) : révélation après anim 3D + maintien avant overlay.
+  @roll_reveal_min 500
+  @roll_reveal_max 5000
+  @roll_hold_min 1000
+  @roll_hold_max 10000
   @vote_timeout_min 5
   @vote_timeout_max 120
   @vote_result_delay_min 2
@@ -100,6 +105,8 @@ defmodule GameHubWeb.AdminGameRulesController do
   sets_mode ("fixed"|"random"), sets_random_min, sets_random_max,
   turn_timeout_seconds (10..300),
   auto_next_set_delay_seconds (2..15), leave_grace_seconds (5..120),
+  roll_reveal_delay_ms (500..5000 : attente fin anim avant somme tatami),
+  roll_result_hold_delay_ms (1000..10000 : maintien résultat avant overlay),
   target_vote_mode ("average"|"mode", cible uniquement),
   vote_timeout_seconds (5..120, cible uniquement),
   vote_result_delay_seconds (2..30, cible uniquement)}`.
@@ -237,6 +244,22 @@ defmodule GameHubWeb.AdminGameRulesController do
         key == "leave_grace_seconds" ->
           case parse_int(val) do
             n when is_integer(n) and n >= @leave_grace_min and n <= @leave_grace_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "roll_reveal_delay_ms" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @roll_reveal_min and n <= @roll_reveal_max ->
+              {:cont, {:ok, Map.put(acc, key, n)}}
+            _ ->
+              {:halt, {:error, :invalid_value, key}}
+          end
+
+        key == "roll_result_hold_delay_ms" ->
+          case parse_int(val) do
+            n when is_integer(n) and n >= @roll_hold_min and n <= @roll_hold_max ->
               {:cont, {:ok, Map.put(acc, key, n)}}
             _ ->
               {:halt, {:error, :invalid_value, key}}

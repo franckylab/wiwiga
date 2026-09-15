@@ -156,6 +156,10 @@ defmodule GameHub.Games.EffectiveConfig do
       turn_seconds: %{value: turn_value, source: turn_source},
       auto_next_set_seconds: rul(rc, rule_source, "auto_next_set_delay_seconds", 4),
       leave_grace_seconds: rul(rc, rule_source, "leave_grace_seconds", 20),
+      # Transition tatami (ms) : révélation après anim + maintien avant overlay.
+      roll_reveal_delay_ms: rul(rc, rule_source, "roll_reveal_delay_ms", 1800),
+      roll_result_hold_delay_ms:
+        rul(rc, rule_source, "roll_result_hold_delay_ms", 3000),
       global: %{
         grace_seconds: trow(timeout_row, game_type, :grace_period_seconds),
         action_on_timeout: trow(timeout_row, game_type, :action_on_timeout),
